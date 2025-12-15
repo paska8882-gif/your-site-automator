@@ -46,6 +46,38 @@ export async function createZipFromFiles(
   return await zip.generateAsync({ type: "blob" });
 }
 
+export async function createZipBase64(files: GeneratedFile[]): Promise<string> {
+  const zip = new JSZip();
+
+  files.forEach((file) => {
+    zip.file(file.path, file.content);
+  });
+
+  return await zip.generateAsync({ type: "base64" });
+}
+
+export async function saveToHistory(
+  prompt: string,
+  language: string,
+  files: GeneratedFile[]
+): Promise<void> {
+  try {
+    const zipBase64 = await createZipBase64(files);
+    
+    const { error } = await supabase.from("generation_history").insert({
+      prompt,
+      language,
+      zip_data: zipBase64,
+    });
+
+    if (error) {
+      console.error("Error saving to history:", error);
+    }
+  } catch (error) {
+    console.error("Error creating zip for history:", error);
+  }
+}
+
 export function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
