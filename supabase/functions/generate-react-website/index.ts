@@ -2,8 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 const SYSTEM_PROMPT = `Ти — створатор промптів для React сайтів. Твоя задача — проаналізувати запит і створити детальний промпт для генерації професійного React сайту.
@@ -237,248 +237,313 @@ The generated site MUST pass these checks:
 
 Generate EXCELLENT, PROFESSIONAL code with PERFECT responsive design and GUARANTEED deployment on any platform.`;
 
+type GeneratedFile = { path: string; content: string };
+
+type GenerationResult = {
+  success: boolean;
+  files?: GeneratedFile[];
+  refinedPrompt?: string;
+  totalFiles?: number;
+  fileList?: string[];
+  error?: string;
+  rawResponse?: string;
+};
+
+const cleanFileContent = (content: string) => {
+  let c = content.trim();
+  c = c.replace(/^```[a-z0-9_-]*\s*\n/i, "");
+  c = c.replace(/\n```\s*$/i, "");
+  return c.trim();
+};
+
+const parseFilesFromModelText = (rawText: string) => {
+  const normalizedText = rawText.replace(/\r\n/g, "\n");
+  const filesMap = new Map<string, string>();
+
+  const upsertFile = (path: string, content: string, source: string) => {
+    const cleanPath = path.trim();
+    const cleanContent = cleanFileContent(content);
+    if (!cleanPath || cleanContent.length <= 10) return;
+    filesMap.set(cleanPath, cleanContent);
+    console.log(`✅ Found (${source}): ${cleanPath} (${cleanContent.length} chars)`);
+  };
+
+  const filePattern1 = /<!-- FILE: ([^>]+) -->([\s\S]*?)(?=<!-- FILE: |$)/g;
+  let match;
+  while ((match = filePattern1.exec(normalizedText)) !== null) {
+    upsertFile(match[1], match[2], "format1");
+  }
+
+  if (filesMap.size === 0) {
+    console.log("Trying OpenAI markdown headings format...");
+
+    const headers: { path: string; start: number; contentStart: number }[] = [];
+    const headerRegex = /(^|\n)(?:###\s*(?:File:\s*)?(?:[A-Za-z]+\s*\()?\s*([A-Za-z0-9_\-\/\.]+\.(?:css|html|js|jsx|json|xml|txt|toml|md))\)?|\*\*([A-Za-z0-9_\-\/\.]+\.(?:css|html|js|jsx|json|xml|txt|toml|md))\*\*)/gi;
+
+    while ((match = headerRegex.exec(normalizedText)) !== null) {
+      const fileName = (match[2] || match[3] || "").trim();
+      if (!fileName) continue;
+
+      const afterHeader = match.index + match[0].length;
+      const lineBreak = normalizedText.indexOf("\n", afterHeader);
+      const contentStart = lineBreak === -1 ? normalizedText.length : lineBreak + 1;
+
+      headers.push({ path: fileName, start: match.index, contentStart });
+    }
+
+    for (let i = 0; i < headers.length; i++) {
+      const start = headers[i].contentStart;
+      const end = headers[i + 1]?.start ?? normalizedText.length;
+      const chunk = normalizedText.slice(start, end);
+      upsertFile(headers[i].path, chunk, "format2");
+    }
+  }
+
+  return Array.from(filesMap.entries()).map(([path, content]) => ({ path, content }));
+};
+
+async function runGeneration({
+  prompt,
+  language,
+  aiModel,
+}: {
+  prompt: string;
+  language?: string;
+  aiModel: "junior" | "senior";
+}): Promise<GenerationResult> {
+  const isJunior = aiModel === "junior";
+  console.log(`Using ${isJunior ? "Junior AI (OpenAI GPT-4o)" : "Senior AI (Lovable AI)"} for React generation`);
+
+  const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+  if (isJunior && !OPENAI_API_KEY) {
+    console.error("OPENAI_API_KEY not configured");
+    return { success: false, error: "OpenAI API key not configured for Junior AI" };
+  }
+
+  if (!isJunior && !LOVABLE_API_KEY) {
+    console.error("LOVABLE_API_KEY not configured");
+    return { success: false, error: "Lovable AI not configured for Senior AI" };
+  }
+
+  console.log("Generating React website for prompt:", prompt.substring(0, 100));
+
+  const apiUrl = isJunior
+    ? "https://api.openai.com/v1/chat/completions"
+    : "https://ai.gateway.lovable.dev/v1/chat/completions";
+  const apiKey = isJunior ? OPENAI_API_KEY : LOVABLE_API_KEY;
+  const refineModel = isJunior ? "gpt-4o-mini" : "google/gemini-2.5-flash";
+  const generateModel = isJunior ? "gpt-4o" : "google/gemini-2.5-pro";
+
+  // Step 1: refined prompt
+  const agentResponse = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: refineModel,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: `Створи детальний промпт для генерації React сайту на основі цього запиту:\n\n"${prompt}"\n\nМова контенту: ${language || "auto-detect"}`,
+        },
+      ],
+    }),
+  });
+
+  if (!agentResponse.ok) {
+    const errorText = await agentResponse.text();
+    console.error("Agent AI error:", agentResponse.status, errorText);
+
+    if (agentResponse.status === 429) return { success: false, error: "Rate limit exceeded. Please try again later." };
+    if (agentResponse.status === 402) return { success: false, error: "AI credits exhausted. Please add funds." };
+
+    return { success: false, error: "AI agent error" };
+  }
+
+  const agentData = await agentResponse.json();
+  const refinedPrompt = agentData.choices?.[0]?.message?.content || prompt;
+  console.log("Refined prompt generated, now generating React website...");
+
+  // Step 2: React website generation (include original prompt explicitly)
+  const websiteRequestBody: any = {
+    model: generateModel,
+    messages: [
+      {
+        role: "system",
+        content: `You are a React code generator. You MUST build a React website EXACTLY matching the user's original request.\n\nReturn ONLY file blocks using exact markers like: <!-- FILE: src/App.js -->.\nNo explanations, no markdown backticks.`,
+      },
+      {
+        role: "user",
+        content: `=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== TECHNICAL REQUIREMENTS ===\n${REACT_GENERATION_PROMPT}\n\n=== ENHANCED DETAILS ===\n${refinedPrompt}\n\nIMPORTANT: Implement the React site to match the user's original request above.`,
+      },
+    ],
+  };
+
+  if (isJunior) {
+    websiteRequestBody.max_tokens = 16000;
+  }
+
+  const websiteResponse = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(websiteRequestBody),
+  });
+
+  if (!websiteResponse.ok) {
+    const errorText = await websiteResponse.text();
+    console.error("Website generation error:", websiteResponse.status, errorText);
+
+    if (websiteResponse.status === 429) return { success: false, error: "Rate limit exceeded. Please try again later." };
+    if (websiteResponse.status === 402) return { success: false, error: "AI credits exhausted. Please add funds." };
+
+    return { success: false, error: "Website generation failed" };
+  }
+
+  const websiteData = await websiteResponse.json();
+  const rawText = websiteData.choices?.[0]?.message?.content || "";
+
+  console.log("React website generated, parsing files...");
+  console.log("Raw response length:", rawText.length);
+
+  const files = parseFilesFromModelText(rawText);
+  console.log(`📁 Total files parsed: ${files.length}`);
+
+  if (files.length === 0) {
+    console.error("No files parsed from response");
+    return {
+      success: false,
+      error: "Failed to parse generated files",
+      rawResponse: rawText.substring(0, 500),
+    };
+  }
+
+  return {
+    success: true,
+    files,
+    refinedPrompt,
+    totalFiles: files.length,
+    fileList: files.map((f) => f.path),
+  };
+}
+
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
+    const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      console.warn('Request rejected: No authorization header');
-      return new Response(
-        JSON.stringify({ success: false, error: 'Authentication required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.warn("Request rejected: No authorization header");
+      return new Response(JSON.stringify({ success: false, error: "Authentication required" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log('Authenticated request received');
+    console.log("Authenticated request received");
 
-    const { prompt, language, aiModel = 'senior' } = await req.json();
+    const { prompt, language, aiModel = "senior" } = await req.json();
 
     if (!prompt) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Prompt is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: "Prompt is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const isJunior = aiModel === 'junior';
-    console.log(`Using ${isJunior ? 'Junior AI (OpenAI GPT-4o)' : 'Senior AI (Lovable AI)'} for React generation`);
+    const wantsSSE = (req.headers.get("accept") || "").includes("text/event-stream");
 
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-
-    if (isJunior && !OPENAI_API_KEY) {
-      console.error('OPENAI_API_KEY not configured');
-      return new Response(
-        JSON.stringify({ success: false, error: 'OpenAI API key not configured for Junior AI' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!wantsSSE) {
+      const result = await runGeneration({ prompt, language, aiModel });
+      const status = result.success ? 200 : 500;
+      return new Response(JSON.stringify(result), {
+        status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    if (!isJunior && !LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY not configured');
-      return new Response(
-        JSON.stringify({ success: false, error: 'Lovable AI not configured for Senior AI' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const encoder = new TextEncoder();
 
-    console.log('Generating React website for prompt:', prompt.substring(0, 100));
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        let closed = false;
 
-    const apiUrl = isJunior 
-      ? 'https://api.openai.com/v1/chat/completions'
-      : 'https://ai.gateway.lovable.dev/v1/chat/completions';
-    const apiKey = isJunior ? OPENAI_API_KEY : LOVABLE_API_KEY;
-    const refineModel = isJunior ? 'gpt-4o-mini' : 'google/gemini-2.5-flash';
-    const generateModel = isJunior ? 'gpt-4o' : 'google/gemini-2.5-pro';
+        const send = (payload: unknown) => {
+          if (closed) return;
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+        };
 
-    // Step 1: Generate refined prompt
-    const agentResponse = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+        const keepAlive = () => {
+          if (closed) return;
+          controller.enqueue(encoder.encode(`: keepalive\n\n`));
+        };
+
+        send({ type: "status", stage: "started" });
+
+        const keepAliveId = setInterval(keepAlive, 15_000);
+
+        (async () => {
+          try {
+            send({ type: "status", stage: "working" });
+            const result = await runGeneration({ prompt, language, aiModel });
+            if (result.success) {
+              send({ type: "result", result });
+            } else {
+              send({ type: "error", error: result.error || "Generation failed", result });
+            }
+          } catch (e) {
+            console.error("Error generating React website:", e);
+            const msg = e instanceof Error ? e.message : "Unknown error";
+            send({ type: "error", error: msg });
+          } finally {
+            clearInterval(keepAliveId);
+            if (!closed) {
+              controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+              closed = true;
+              controller.close();
+            }
+          }
+        })();
+
+        req.signal.addEventListener("abort", () => {
+          try {
+            clearInterval(keepAliveId);
+          } catch {
+            // ignore
+          }
+          try {
+            closed = true;
+            controller.close();
+          } catch {
+            // ignore
+          }
+        });
       },
-      body: JSON.stringify({
-        model: refineModel,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: `Створи детальний промпт для генерації React сайту на основі цього запиту:\n\n"${prompt}"\n\nМова контенту: ${language || 'auto-detect'}` }
-        ],
-      }),
     });
 
-    if (!agentResponse.ok) {
-      const errorText = await agentResponse.text();
-      console.error('Agent AI error:', agentResponse.status, errorText);
-      
-      if (agentResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Rate limit exceeded. Please try again later.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (agentResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'AI credits exhausted. Please add funds.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      return new Response(
-        JSON.stringify({ success: false, error: 'AI agent error' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const agentData = await agentResponse.json();
-    const refinedPrompt = agentData.choices?.[0]?.message?.content || prompt;
-    
-    console.log('Refined prompt generated, now generating React website...');
-
-    // Step 2: Generate the actual React website
-    const websiteRequestBody: any = {
-      model: generateModel,
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a React code generator. Return ONLY file blocks using the exact markers like: <!-- FILE: src/App.js -->. No explanations, no markdown backticks around code. Generate complete, working React code.',
-        },
-        {
-          role: 'user',
-          content: REACT_GENERATION_PROMPT + '\n\nUser request:\n' + refinedPrompt,
-        },
-      ],
-    };
-
-    if (isJunior) {
-      websiteRequestBody.max_tokens = 16000;
-    }
-
-    const websiteResponse = await fetch(apiUrl, {
-      method: 'POST',
+    return new Response(stream, {
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+        ...corsHeaders,
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
       },
-      body: JSON.stringify(websiteRequestBody),
     });
-
-    if (!websiteResponse.ok) {
-      const errorText = await websiteResponse.text();
-      console.error('Website generation error:', websiteResponse.status, errorText);
-      
-      if (websiteResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Rate limit exceeded. Please try again later.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (websiteResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'AI credits exhausted. Please add funds.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      return new Response(
-        JSON.stringify({ success: false, error: 'Website generation failed' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const websiteData = await websiteResponse.json();
-    const rawText = websiteData.choices?.[0]?.message?.content || '';
-    const normalizedText = rawText.replace(/\r\n/g, "\n");
-
-    console.log('React website generated, parsing files...');
-    console.log('Raw response length:', rawText.length);
-
-    const cleanFileContent = (content: string) => {
-      let c = content.trim();
-      c = c.replace(/^```[a-z0-9_-]*\s*\n/i, "");
-      c = c.replace(/\n```\s*$/i, "");
-      return c.trim();
-    };
-
-    const filesMap = new Map<string, string>();
-
-    const upsertFile = (path: string, content: string, source: string) => {
-      const cleanPath = path.trim();
-      const cleanContent = cleanFileContent(content);
-      if (!cleanPath || cleanContent.length <= 10) return;
-      filesMap.set(cleanPath, cleanContent);
-      console.log(`✅ Found (${source}): ${cleanPath} (${cleanContent.length} chars)`);
-    };
-
-    // Format 1: <!-- FILE: filename -->
-    const filePattern1 = /<!-- FILE: ([^>]+) -->([\s\S]*?)(?=<!-- FILE: |$)/g;
-    let match;
-    while ((match = filePattern1.exec(normalizedText)) !== null) {
-      upsertFile(match[1], match[2], 'format1');
-    }
-
-    // Format 2: OpenAI markdown headings
-    if (filesMap.size === 0) {
-      console.log('Trying OpenAI markdown headings format...');
-
-      const headers: { path: string; start: number; contentStart: number }[] = [];
-      const headerRegex = /(^|\n)(?:###\s*(?:File:\s*)?(?:[A-Za-z]+\s*\()?\s*([A-Za-z0-9_\-\/\.]+\.(?:css|html|js|jsx|json|xml|txt|toml|md))\)?|\*\*([A-Za-z0-9_\-\/\.]+\.(?:css|html|js|jsx|json|xml|txt|toml|md))\*\*)/gi;
-
-      while ((match = headerRegex.exec(normalizedText)) !== null) {
-        const fileName = (match[2] || match[3] || '').trim();
-        if (!fileName) continue;
-
-        const afterHeader = match.index + match[0].length;
-        const lineBreak = normalizedText.indexOf('\n', afterHeader);
-        const contentStart = lineBreak === -1 ? normalizedText.length : lineBreak + 1;
-
-        headers.push({ path: fileName, start: match.index, contentStart });
-      }
-
-      for (let i = 0; i < headers.length; i++) {
-        const start = headers[i].contentStart;
-        const end = headers[i + 1]?.start ?? normalizedText.length;
-        const chunk = normalizedText.slice(start, end);
-        upsertFile(headers[i].path, chunk, 'format2');
-      }
-    }
-
-    const files = Array.from(filesMap.entries()).map(([path, content]) => ({ path, content }));
-
-    console.log(`📁 Total files parsed: ${files.length}`);
-
-    if (files.length === 0) {
-      console.error('No files parsed from response');
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Failed to parse generated files',
-          rawResponse: rawText.substring(0, 500),
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        files,
-        refinedPrompt,
-        totalFiles: files.length,
-        fileList: files.map((f) => f.path),
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
   } catch (error) {
-    console.error('Error generating React website:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error("Error generating React website:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return new Response(JSON.stringify({ success: false, error: errorMessage }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

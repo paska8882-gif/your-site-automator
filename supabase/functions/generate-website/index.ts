@@ -2,11 +2,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `Ти — створатор промптів для многосторінкових сайтів. Твоя задача — проаналізувати запит і створити промпт для генерації професійного многосторінкового сайту.
+const SYSTEM_PROMPT = `Ти — створатор промптів для React сайтів. Твоя задача — проаналізувати запит і створити детальний промпт для генерації професійного React сайту.
 
 **КРИТИЧНО ВАЖЛИВО: ВИЗНАЧЕННЯ МОВИ**
 При визначенні мови керуйся наступними пріоритетами:
@@ -15,372 +15,535 @@ const SYSTEM_PROMPT = `Ти — створатор промптів для мн�
 3. **За замовчуванням** — якщо мову неможливо визначити, використовуй англійську (EN)
 
 **ФОРМАТ ВИВОДУ:**
-Створи професійний БАГАТОСТОРІНКОВИЙ сайт з повною структурою.`;
+Створи детальний промпт для генерації React сайту з усіма необхідними компонентами та сторінками.`;
 
-const WEBSITE_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE WEBSITE WITH 10X BETTER UI AND STATIC HEADER/FOOTER
+const REACT_GENERATION_PROMPT = `IMPORTANT: FOLLOW EXACT PROMPT STRUCTURE FOR REACT WEBSITE GENERATION
 
-**DESIGN PHILOSOPHY - 10X BETTER UI:**
-🚀 **Start with FUNCTIONAL and BEAUTIFUL base UI** - Every pixel must serve a purpose
-🎯 **Always make 10X better UI than standard** - Go beyond expectations
-✨ **Use advanced CSS patterns** - CSS Grid, Flexbox, custom properties, clamp()
-📈 **Add visual hierarchy incrementally** - Build up from solid foundation
-🎨 **Think like a product designer** - Focus on user experience first
+Create a COMPLETE, PROFESSIONAL React website with EXCELLENT design and ALL files.
 
-**CRITICAL REQUIREMENT: STATIC HEADER AND FOOTER ACROSS ALL PAGES**
-⚠️ **HEADER/FOOTER MUST BE IDENTICAL ON EVERY PAGE**
-- **Same structure, same navigation items, same positioning**
-- **Navigation links must point to correct corresponding pages**
-- **Active page indicator should update based on current page**
-- **Logo, menu items, CTAs remain in identical positions**
-- **Footer content, layout, and styling must be identical**
+**CRITICAL DEPLOYMENT REQUIREMENTS - GUARANTEED BUILD & DEPLOY:**
 
-**VISUAL EXCELLENCE GUIDELINES:**
-- **Whitespace is king** - Generous spacing (1.5x standard)
-- **Clean typography system** - Hierarchy: H1 > H2 > H3 > Body > Small
-- **Strategic color use** - 60% primary, 30% secondary, 10% accent
-- **Consistent spacing scale** - 4px, 8px, 16px, 24px, 32px, 48px, 64px
-- **Subtle depth** - Minimal shadows, clean borders
-- **Smooth transitions** - 300ms ease-in-out for interactions
+**MANDATORY FILES FOR GUARANTEED DEPLOYMENT:**
 
-**MODERN CSS TECHNIQUES:**
-- CSS Grid for main layouts
-- Flexbox for components
-- CSS Custom Properties for theming
-- clamp() for fluid typography
-- aspect-ratio for responsive media
-- gap instead of margins where possible
-- min-height: 100vh for full-height sections
-- position: sticky for navigation
+1. <!-- FILE: package.json -->
+{
+  "name": "[company-name]-site",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.8.0",
+    "react-scripts": "5.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
 
-**IMAGE STRATEGY - CONTEXT AWARE:**
-- **Images MUST match page content** - Relevant to subject
+2. <!-- FILE: netlify.toml -->
+[build]
+  command = "npm run build"
+  publish = "build/"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+3. <!-- FILE: vercel.json -->
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
+
+4. <!-- FILE: public/_redirects -->
+/* /index.html 200
+
+**CRITICAL BUILD GUARANTEE:**
+- The EXACT package.json above MUST be used (tested and guaranteed)
+- NO additional dependencies that could cause conflicts
+- React-scripts 5.0.1 with React 18.2.0 - PROVEN compatibility
+- The site MUST build with npm run build without errors
+- Creates build/ folder with static files
+
+**IMPORTANT IMAGE FIX - USE EXTERNAL URLS ONLY:**
+- **USE ONLY EXTERNAL IMAGE URLs - NO LOCAL PATHS**
+- All images must use full https:// URL
+- No relative paths or image imports
 - Use picsum.photos for placeholder images
-- https://picsum.photos/800/600?random=hero (hero)
-- https://picsum.photos/600/400?random=business (business)
-- https://picsum.photos/400/400?random=team (team)
 
-**PERFORMANCE + BEAUTY:**
-- **CSS under 500 lines** but exceptionally crafted
-- **MAX 3 images per page** - each perfectly chosen
-- **Lazy loading** with loading="lazy"
-- **Semantic HTML** - accessibility built-in
+**CRITICAL DESIGN REQUIREMENTS:**
+- PERFECT responsive design - mobile-first approach
+- Modern, clean header with sticky navigation
+- Professional spacing and typography hierarchy
+- Smooth animations and hover effects
+- Perfectly aligned grid systems
+- Balanced visual hierarchy
 
-**MOBILE-FIRST BREAKPOINTS:**
-/* Mobile (default) */
-/* Tablet: 768px */
-@media (min-width: 768px) { ... }
-/* Desktop: 1024px */
-@media (min-width: 1024px) { ... }
+**ESSENTIAL FILES:**
+- public/index.html
+- src/index.js
+- src/App.js (with React Router)
+- Components: Header, Footer, CookieBanner, ScrollToTop
+- Pages: Home, About, Services, Contact, Terms, Privacy
+- src/styles/global.css (perfect responsive CSS)
+- public/robots.txt
+- public/sitemap.xml
 
-**COOKIE BANNER - DESIGN INTEGRATED:**
-- Subtle, non-intrusive design
-- Matches site color scheme
-- Clear Accept/Decline buttons
-- Smooth appear animation
+**ADVANCED WEBSITE SECTIONS:**
+- **Hero:** Compelling headline with animated CTA
+- **Stats:** Achievement counters with animations
+- **Services:** Interactive cards with hover effects
+- **Process:** Step-by-step workflow visualization
+- **Testimonials:** Carousel with customer quotes
+- **Team:** Interactive team member profiles
+- **Projects:** Filterable portfolio gallery
+- **FAQ:** Accordion with common questions
+- **Blog Preview:** Latest insights/updates
+- **CTA Section:** Strong conversion-focused design
 
-**OUTPUT FORMAT - ALL REQUIRED FILES:**
-<!-- FILE: styles.css -->
-[Complete CSS with all styles]
+**PERFECT RESPONSIVE BREAKPOINTS:**
+- Mobile: < 768px (perfect stacking)
+- Tablet: 768px - 1024px (adaptive grids)
+- Desktop: > 1024px (optimal multi-column)
 
-<!-- FILE: index.html -->
-[Main page with header/footer]
+**DYNAMIC IMAGES - EXTERNAL URLs ONLY:**
+- **USE ONLY FULL HTTPS:// URLs FOR ALL IMAGES**
+- **Hero:** https://picsum.photos/1600/900?random=1
+- **Content:** https://picsum.photos/800/600?random=2
+- **Team:** https://picsum.photos/400/400?random=3
+- **Projects:** https://picsum.photos/1200/800?random=4
+- **Logo:** Use text or simple SVG - NO image path
+- **Services:** https://picsum.photos/600/400?random=5
+- **Testimonials:** https://picsum.photos/200/200?random=6
+- **Use unique random parameters for each image**
+- **Professional alt text matching business context**
+- **IMPORTANT: All <img> tags must use src="https://..." format**
 
-<!-- FILE: about.html -->
-[About page, same header/footer]
+**MODERN HEADER REQUIREMENTS:**
+- Clean logo + navigation layout
+- Sticky behavior with smooth scroll
+- Mobile hamburger menu with smooth animation
+- Active page highlighting
+- Proper spacing and typography
 
-<!-- FILE: services.html -->
-[Services page, same header/footer]
+**INTERACTIVE FEATURES:**
+- Smooth scroll animations
+- Hover effects on cards/buttons
+- Loading states for external images
+- Form validation with user feedback
+- Mobile touch-friendly interactions
 
-<!-- FILE: contact.html -->
-[Contact page with form]
+**PERFECT CSS STRUCTURE:**
+- CSS Grid and Flexbox for layouts
+- CSS variables for consistent theming
+- Mobile-first responsive design
+- Smooth transitions and animations
+- Professional color scheme
+- Perfect typography scale
 
-<!-- FILE: terms.html -->
-[Terms of service page]
+**FORMAT:**
+<!-- FILE: package.json -->
+[EXACT content as above - with added browserslist]
 
-<!-- FILE: privacy.html -->
-[Privacy policy page]
+<!-- FILE: netlify.toml -->
+[EXACT content as above]
 
-<!-- FILE: 404.html -->
-[Error page, same header/footer]
+<!-- FILE: vercel.json -->
+[EXACT content as above]
 
-<!-- FILE: robots.txt -->
-User-agent: *
-Allow: /
+<!-- FILE: public/_redirects -->
+/* /index.html 200
 
-<!-- FILE: sitemap.xml -->
-[Complete sitemap with all pages]
+<!-- FILE: public/index.html -->
+[complete file content]
 
-**CRITICAL:** Generate ALL files listed above. Header/footer IDENTICAL across pages. Output ONLY the file markers and code, NO explanations, NO markdown backticks.`;
+<!-- FILE: src/index.js -->
+[complete file content]
+
+<!-- FILE: src/App.js -->
+[complete file content with all routes]
+
+<!-- FILE: src/components/Header.js -->
+[perfect responsive header with mobile menu - USE TEXT LOGO]
+
+<!-- FILE: src/components/Footer.js -->
+[professional footer with columns]
+
+<!-- FILE: src/components/CookieBanner.js -->
+[styled cookie banner]
+
+<!-- FILE: src/components/ScrollToTop.js -->
+[smooth scroll component]
+
+<!-- FILE: src/pages/Home.js -->
+[complete home with all advanced sections - USE ONLY EXTERNAL IMAGE URLs]
+
+<!-- FILE: src/pages/About.js -->
+[detailed about page with team - USE ONLY EXTERNAL IMAGE URLs]
+
+<!-- FILE: src/pages/Services.js -->
+[interactive services showcase - USE ONLY EXTERNAL IMAGE URLs]
+
+<!-- FILE: src/pages/Contact.js -->
+[professional contact form]
+
+<!-- FILE: src/pages/Terms.js -->
+[terms of service page]
+
+<!-- FILE: src/pages/Privacy.js -->
+[privacy policy page]
+
+<!-- FILE: src/styles/global.css -->
+[perfect responsive CSS with animations]
+
+<!-- FILE: public/robots.txt -->
+[complete file content]
+
+<!-- FILE: public/sitemap.xml -->
+[complete file content]
+
+**BUILD VERIFICATION:**
+The generated site MUST pass these checks:
+1. npm install completes without errors
+2. npm run build creates build/ folder
+3. **ALL images use EXTERNAL HTTPS:// URLs only**
+4. No missing imports or dependencies
+5. React Router configured correctly
+6. **GUARANTEED: No "Module not found" errors for images**
+
+Generate EXCELLENT, PROFESSIONAL code with PERFECT responsive design and GUARANTEED deployment on any platform.`;
+
+type GeneratedFile = { path: string; content: string };
+
+type GenerationResult = {
+  success: boolean;
+  files?: GeneratedFile[];
+  refinedPrompt?: string;
+  totalFiles?: number;
+  fileList?: string[];
+  error?: string;
+  rawResponse?: string;
+};
+
+const cleanFileContent = (content: string) => {
+  let c = content.trim();
+  c = c.replace(/^```[a-z0-9_-]*\s*\n/i, "");
+  c = c.replace(/\n```\s*$/i, "");
+  return c.trim();
+};
+
+const parseFilesFromModelText = (rawText: string) => {
+  const normalizedText = rawText.replace(/\r\n/g, "\n");
+  const filesMap = new Map<string, string>();
+
+  const upsertFile = (path: string, content: string, source: string) => {
+    const cleanPath = path.trim();
+    const cleanContent = cleanFileContent(content);
+    if (!cleanPath || cleanContent.length <= 10) return;
+    filesMap.set(cleanPath, cleanContent);
+    console.log(`✅ Found (${source}): ${cleanPath} (${cleanContent.length} chars)`);
+  };
+
+  const filePattern1 = /<!-- FILE: ([^>]+) -->([\s\S]*?)(?=<!-- FILE: |$)/g;
+  let match;
+  while ((match = filePattern1.exec(normalizedText)) !== null) {
+    upsertFile(match[1], match[2], "format1");
+  }
+
+  if (filesMap.size === 0) {
+    console.log("Trying OpenAI markdown headings format...");
+
+    const headers: { path: string; start: number; contentStart: number }[] = [];
+    const headerRegex = /(^|\n)(?:###\s*(?:File:\s*)?(?:[A-Za-z]+\s*\()?\s*([A-Za-z0-9_\-\/\.]+\.(?:css|html|js|jsx|json|xml|txt|toml|md))\)?|\*\*([A-Za-z0-9_\-\/\.]+\.(?:css|html|js|jsx|json|xml|txt|toml|md))\*\*)/gi;
+
+    while ((match = headerRegex.exec(normalizedText)) !== null) {
+      const fileName = (match[2] || match[3] || "").trim();
+      if (!fileName) continue;
+
+      const afterHeader = match.index + match[0].length;
+      const lineBreak = normalizedText.indexOf("\n", afterHeader);
+      const contentStart = lineBreak === -1 ? normalizedText.length : lineBreak + 1;
+
+      headers.push({ path: fileName, start: match.index, contentStart });
+    }
+
+    for (let i = 0; i < headers.length; i++) {
+      const start = headers[i].contentStart;
+      const end = headers[i + 1]?.start ?? normalizedText.length;
+      const chunk = normalizedText.slice(start, end);
+      upsertFile(headers[i].path, chunk, "format2");
+    }
+  }
+
+  return Array.from(filesMap.entries()).map(([path, content]) => ({ path, content }));
+};
+
+async function runGeneration({
+  prompt,
+  language,
+  aiModel,
+}: {
+  prompt: string;
+  language?: string;
+  aiModel: "junior" | "senior";
+}): Promise<GenerationResult> {
+  const isJunior = aiModel === "junior";
+  console.log(`Using ${isJunior ? "Junior AI (OpenAI GPT-4o)" : "Senior AI (Lovable AI)"} for React generation`);
+
+  const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+  if (isJunior && !OPENAI_API_KEY) {
+    console.error("OPENAI_API_KEY not configured");
+    return { success: false, error: "OpenAI API key not configured for Junior AI" };
+  }
+
+  if (!isJunior && !LOVABLE_API_KEY) {
+    console.error("LOVABLE_API_KEY not configured");
+    return { success: false, error: "Lovable AI not configured for Senior AI" };
+  }
+
+  console.log("Generating React website for prompt:", prompt.substring(0, 100));
+
+  const apiUrl = isJunior
+    ? "https://api.openai.com/v1/chat/completions"
+    : "https://ai.gateway.lovable.dev/v1/chat/completions";
+  const apiKey = isJunior ? OPENAI_API_KEY : LOVABLE_API_KEY;
+  const refineModel = isJunior ? "gpt-4o-mini" : "google/gemini-2.5-flash";
+  const generateModel = isJunior ? "gpt-4o" : "google/gemini-2.5-pro";
+
+  // Step 1: refined prompt
+  const agentResponse = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: refineModel,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: `Створи детальний промпт для генерації React сайту на основі цього запиту:\n\n"${prompt}"\n\nМова контенту: ${language || "auto-detect"}`,
+        },
+      ],
+    }),
+  });
+
+  if (!agentResponse.ok) {
+    const errorText = await agentResponse.text();
+    console.error("Agent AI error:", agentResponse.status, errorText);
+
+    if (agentResponse.status === 429) return { success: false, error: "Rate limit exceeded. Please try again later." };
+    if (agentResponse.status === 402) return { success: false, error: "AI credits exhausted. Please add funds." };
+
+    return { success: false, error: "AI agent error" };
+  }
+
+  const agentData = await agentResponse.json();
+  const refinedPrompt = agentData.choices?.[0]?.message?.content || prompt;
+  console.log("Refined prompt generated, now generating React website...");
+
+  // Step 2: React website generation (include original prompt explicitly)
+  const websiteRequestBody: any = {
+    model: generateModel,
+    messages: [
+      {
+        role: "system",
+        content: `You are a React code generator. You MUST build a React website EXACTLY matching the user's original request.\n\nReturn ONLY file blocks using exact markers like: <!-- FILE: src/App.js -->.\nNo explanations, no markdown backticks.`,
+      },
+      {
+        role: "user",
+        content: `=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== TECHNICAL REQUIREMENTS ===\n${REACT_GENERATION_PROMPT}\n\n=== ENHANCED DETAILS ===\n${refinedPrompt}\n\nIMPORTANT: Implement the React site to match the user's original request above.`,
+      },
+    ],
+  };
+
+  if (isJunior) {
+    websiteRequestBody.max_tokens = 16000;
+  }
+
+  const websiteResponse = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(websiteRequestBody),
+  });
+
+  if (!websiteResponse.ok) {
+    const errorText = await websiteResponse.text();
+    console.error("Website generation error:", websiteResponse.status, errorText);
+
+    if (websiteResponse.status === 429) return { success: false, error: "Rate limit exceeded. Please try again later." };
+    if (websiteResponse.status === 402) return { success: false, error: "AI credits exhausted. Please add funds." };
+
+    return { success: false, error: "Website generation failed" };
+  }
+
+  const websiteData = await websiteResponse.json();
+  const rawText = websiteData.choices?.[0]?.message?.content || "";
+
+  console.log("React website generated, parsing files...");
+  console.log("Raw response length:", rawText.length);
+
+  const files = parseFilesFromModelText(rawText);
+  console.log(`📁 Total files parsed: ${files.length}`);
+
+  if (files.length === 0) {
+    console.error("No files parsed from response");
+    return {
+      success: false,
+      error: "Failed to parse generated files",
+      rawResponse: rawText.substring(0, 500),
+    };
+  }
+
+  return {
+    success: true,
+    files,
+    refinedPrompt,
+    totalFiles: files.length,
+    fileList: files.map((f) => f.path),
+  };
+}
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Verify authentication - JWT is validated by Supabase, but we log for audit
-    const authHeader = req.headers.get('Authorization');
+    const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      console.warn('Request rejected: No authorization header');
-      return new Response(
-        JSON.stringify({ success: false, error: 'Authentication required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.warn("Request rejected: No authorization header");
+      return new Response(JSON.stringify({ success: false, error: "Authentication required" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log('Authenticated request received');
+    console.log("Authenticated request received");
 
-    const { prompt, language, aiModel = 'senior' } = await req.json();
+    const { prompt, language, aiModel = "senior" } = await req.json();
 
     if (!prompt) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Prompt is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: "Prompt is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const isJunior = aiModel === 'junior';
-    console.log(`Using ${isJunior ? 'Junior AI (OpenAI GPT-4o)' : 'Senior AI (Lovable AI)'}`);
+    const wantsSSE = (req.headers.get("accept") || "").includes("text/event-stream");
 
-    // Get appropriate API key
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-
-    if (isJunior && !OPENAI_API_KEY) {
-      console.error('OPENAI_API_KEY not configured');
-      return new Response(
-        JSON.stringify({ success: false, error: 'OpenAI API key not configured for Junior AI' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!wantsSSE) {
+      const result = await runGeneration({ prompt, language, aiModel });
+      const status = result.success ? 200 : 500;
+      return new Response(JSON.stringify(result), {
+        status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    if (!isJunior && !LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY not configured');
-      return new Response(
-        JSON.stringify({ success: false, error: 'Lovable AI not configured for Senior AI' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const encoder = new TextEncoder();
 
-    console.log('Generating website for prompt:', prompt.substring(0, 100));
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        let closed = false;
 
-    // API configuration based on model choice
-    const apiUrl = isJunior 
-      ? 'https://api.openai.com/v1/chat/completions'
-      : 'https://ai.gateway.lovable.dev/v1/chat/completions';
-    const apiKey = isJunior ? OPENAI_API_KEY : LOVABLE_API_KEY;
-    const refineModel = isJunior ? 'gpt-4o-mini' : 'google/gemini-2.5-flash';
-    const generateModel = isJunior ? 'gpt-4o' : 'google/gemini-2.5-pro';
+        const send = (payload: unknown) => {
+          if (closed) return;
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+        };
 
-    // Step 1: Generate refined prompt
-    const agentResponse = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+        const keepAlive = () => {
+          if (closed) return;
+          controller.enqueue(encoder.encode(`: keepalive\n\n`));
+        };
+
+        send({ type: "status", stage: "started" });
+
+        const keepAliveId = setInterval(keepAlive, 15_000);
+
+        (async () => {
+          try {
+            send({ type: "status", stage: "working" });
+            const result = await runGeneration({ prompt, language, aiModel });
+            if (result.success) {
+              send({ type: "result", result });
+            } else {
+              send({ type: "error", error: result.error || "Generation failed", result });
+            }
+          } catch (e) {
+            console.error("Error generating React website:", e);
+            const msg = e instanceof Error ? e.message : "Unknown error";
+            send({ type: "error", error: msg });
+          } finally {
+            clearInterval(keepAliveId);
+            if (!closed) {
+              controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+              closed = true;
+              controller.close();
+            }
+          }
+        })();
+
+        req.signal.addEventListener("abort", () => {
+          try {
+            clearInterval(keepAliveId);
+          } catch {
+            // ignore
+          }
+          try {
+            closed = true;
+            controller.close();
+          } catch {
+            // ignore
+          }
+        });
       },
-      body: JSON.stringify({
-        model: refineModel,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: `Створи ОДИН промпт для генерації статичного HTML/CSS/JS сайту на основі цього запиту:\n\n"${prompt}"\n\nМова: ${language || 'auto-detect'}` }
-        ],
-      }),
     });
 
-    if (!agentResponse.ok) {
-      const errorText = await agentResponse.text();
-      console.error('Agent AI error:', agentResponse.status, errorText);
-      
-      if (agentResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Rate limit exceeded. Please try again later.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (agentResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'AI credits exhausted. Please add funds.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      return new Response(
-        JSON.stringify({ success: false, error: 'AI agent error' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const agentData = await agentResponse.json();
-    const refinedPrompt = agentData.choices?.[0]?.message?.content || prompt;
-    
-    console.log('Refined prompt generated, now generating website...');
-
-    // Step 2: Generate the actual website
-    // CRITICAL: Include BOTH original user prompt AND refined prompt to ensure AI follows user's exact requirements
-    const websiteRequestBody: any = {
-      model: generateModel,
-      messages: [
-        {
-          role: 'system',
-          content: `You are a professional website code generator. You MUST create a website EXACTLY matching the user's requirements.
-
-CRITICAL RULES:
-1. Follow the USER'S ORIGINAL PROMPT exactly - this is the most important requirement
-2. The website content, theme, colors, and structure must match what the user asked for
-3. Use the language specified by the user (or detected from their prompt)
-4. Return ONLY file blocks using exact markers: <!-- FILE: filename.ext -->
-5. No explanations, no markdown backticks, just the file markers and code`,
-        },
-        {
-          role: 'user',
-          content: `=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===
-${prompt}
-
-=== LANGUAGE ===
-${language || 'Detect from request'}
-
-=== TECHNICAL REQUIREMENTS ===
-${WEBSITE_GENERATION_PROMPT}
-
-=== ENHANCED DETAILS ===
-${refinedPrompt}
-
-IMPORTANT: Create a website that EXACTLY matches the user's original request above. The theme, content, and language must be precisely what they asked for.`,
-        },
-      ],
-    };
-
-    // Only add max_tokens for OpenAI (Junior AI)
-    if (isJunior) {
-      websiteRequestBody.max_tokens = 16000;
-    }
-
-    const websiteResponse = await fetch(apiUrl, {
-      method: 'POST',
+    return new Response(stream, {
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+        ...corsHeaders,
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
       },
-      body: JSON.stringify(websiteRequestBody),
     });
-
-    if (!websiteResponse.ok) {
-      const errorText = await websiteResponse.text();
-      console.error('Website generation error:', websiteResponse.status, errorText);
-      
-      if (websiteResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Rate limit exceeded. Please try again later.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (websiteResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'AI credits exhausted. Please add funds.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      return new Response(
-        JSON.stringify({ success: false, error: 'Website generation failed' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const websiteData = await websiteResponse.json();
-    const rawText = websiteData.choices?.[0]?.message?.content || '';
-    const normalizedText = rawText.replace(/\r\n/g, "\n");
-
-    console.log('Website generated, parsing files...');
-    console.log('Raw response length:', rawText.length);
-    console.log('First 500 chars:', rawText.substring(0, 500));
-
-    const cleanFileContent = (content: string) => {
-      let c = content.trim();
-      // Remove surrounding code fences if present
-      c = c.replace(/^```[a-z0-9_-]*\s*\n/i, "");
-      c = c.replace(/\n```\s*$/i, "");
-      return c.trim();
-    };
-
-    const filesMap = new Map<string, string>();
-
-    const upsertFile = (path: string, content: string, source: string) => {
-      const cleanPath = path.trim();
-      const cleanContent = cleanFileContent(content);
-      if (!cleanPath || cleanContent.length <= 10) return;
-      filesMap.set(cleanPath, cleanContent);
-      console.log(`✅ Found (${source}): ${cleanPath} (${cleanContent.length} chars)`);
-    };
-
-    // Parse files from response - support multiple formats
-    // Format 1: <!-- FILE: filename.ext --> ...
-    const filePattern1 = /<!-- FILE: ([^>]+) -->([\s\S]*?)(?=<!-- FILE: |$)/g;
-    let match;
-    while ((match = filePattern1.exec(normalizedText)) !== null) {
-      upsertFile(match[1], match[2], 'format1');
-    }
-
-    // Format 2: OpenAI markdown headings (e.g. "### File: styles.css" or "### CSS (styles.css)" or "**styles.css**")
-    if (filesMap.size === 0) {
-      console.log('Trying OpenAI markdown headings format...');
-
-      const headers: { path: string; start: number; contentStart: number }[] = [];
-      const headerRegex = /(^|\n)(?:###\s*(?:File:\s*)?(?:[A-Za-z]+\s*\()?\s*([A-Za-z0-9_-]+\.(?:css|html|js|xml|txt|json|svg|md))\)?|\*\*([A-Za-z0-9_-]+\.(?:css|html|js|xml|txt|json|svg|md))\*\*)/gi;
-
-      while ((match = headerRegex.exec(normalizedText)) !== null) {
-        const fileName = (match[2] || match[3] || '').trim();
-        if (!fileName) continue;
-
-        const afterHeader = match.index + match[0].length;
-        const lineBreak = normalizedText.indexOf('\n', afterHeader);
-        const contentStart = lineBreak === -1 ? normalizedText.length : lineBreak + 1;
-
-        headers.push({ path: fileName, start: match.index, contentStart });
-      }
-
-      for (let i = 0; i < headers.length; i++) {
-        const start = headers[i].contentStart;
-        const end = headers[i + 1]?.start ?? normalizedText.length;
-        const chunk = normalizedText.slice(start, end);
-        upsertFile(headers[i].path, chunk, 'format2');
-      }
-    }
-
-    const files = Array.from(filesMap.entries()).map(([path, content]) => ({ path, content }));
-
-    console.log(`📁 Total files parsed: ${files.length}`);
-
-    if (files.length === 0) {
-      console.error('No files parsed from response');
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Failed to parse generated files',
-          rawResponse: rawText.substring(0, 500),
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        files,
-        refinedPrompt,
-        totalFiles: files.length,
-        fileList: files.map((f) => f.path),
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
   } catch (error) {
-    console.error('Error generating website:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error("Error generating React website:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return new Response(JSON.stringify({ success: false, error: errorMessage }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
