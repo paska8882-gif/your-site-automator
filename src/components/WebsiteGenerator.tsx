@@ -3,14 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers } from "lucide-react";
+import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, Languages, Hash } from "lucide-react";
 import { startGeneration, AiModel, WebsiteType } from "@/lib/websiteGenerator";
 import { GenerationHistory } from "./GenerationHistory";
 import { useAuth } from "@/hooks/useAuth";
 
 const languages = [
-  { value: "auto", label: "Авто-визначення" },
   { value: "uk", label: "Українська" },
   { value: "en", label: "English" },
   { value: "ru", label: "Русский" },
@@ -24,7 +26,8 @@ export function WebsiteGenerator() {
   const { toast } = useToast();
   const { user, signOut } = useAuth();
   const [prompt, setPrompt] = useState("");
-  const [language, setLanguage] = useState("auto");
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["uk"]);
+  const [sitesPerLanguage, setSitesPerLanguage] = useState(1);
   const [aiModel, setAiModel] = useState<AiModel>("senior");
   const [websiteType, setWebsiteType] = useState<WebsiteType>("html");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,6 +40,19 @@ export function WebsiteGenerator() {
     });
   };
 
+  const toggleLanguage = (langValue: string) => {
+    setSelectedLanguages((prev) => {
+      if (prev.includes(langValue)) {
+        // Don't allow deselecting if it's the last one
+        if (prev.length === 1) return prev;
+        return prev.filter((l) => l !== langValue);
+      }
+      return [...prev, langValue];
+    });
+  };
+
+  const totalGenerations = selectedLanguages.length * sitesPerLanguage;
+
   const handleGenerate = async () => {
     if (!prompt.trim()) {
       toast({
@@ -47,26 +63,45 @@ export function WebsiteGenerator() {
       return;
     }
 
+    if (selectedLanguages.length === 0) {
+      toast({
+        title: "Помилка",
+        description: "Оберіть хоча б одну мову",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const result = await startGeneration(
-        prompt,
-        language === "auto" ? undefined : language,
-        aiModel,
-        websiteType
-      );
+      // Create all generation requests in parallel
+      const generationPromises: Promise<any>[] = [];
 
-      if (result.success) {
+      for (const lang of selectedLanguages) {
+        for (let i = 0; i < sitesPerLanguage; i++) {
+          generationPromises.push(
+            startGeneration(prompt, lang, aiModel, websiteType)
+          );
+        }
+      }
+
+      // Execute all in parallel
+      const results = await Promise.all(generationPromises);
+
+      const successCount = results.filter((r) => r.success).length;
+      const failCount = results.filter((r) => !r.success).length;
+
+      if (successCount > 0) {
         toast({
-          title: "Генерацію розпочато",
-          description: "Сайт генерується у фоновому режимі. Слідкуйте за статусом в історії.",
+          title: "Генерації розпочато",
+          description: `Запущено ${successCount} генерацій${failCount > 0 ? `, ${failCount} помилок` : ""}. Слідкуйте за статусом в історії.`,
         });
         setPrompt("");
       } else {
         toast({
           title: "Помилка",
-          description: result.error || "Не вдалося запустити генерацію",
+          description: "Не вдалося запустити жодну генерацію",
           variant: "destructive",
         });
       }
@@ -130,20 +165,61 @@ export function WebsiteGenerator() {
               disabled={isSubmitting}
             />
 
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Select value={language} onValueChange={setLanguage} disabled={isSubmitting}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Мова сайту" />
-                </SelectTrigger>
-                <SelectContent>
-                  {languages.map((lang) => (
-                    <SelectItem key={lang.value} value={lang.value}>
+            {/* Languages Multi-Select */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Languages className="h-4 w-4" />
+                Мови сайту (оберіть одну або кілька)
+              </Label>
+              <div className="flex flex-wrap gap-3">
+                {languages.map((lang) => (
+                  <div key={lang.value} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`lang-${lang.value}`}
+                      checked={selectedLanguages.includes(lang.value)}
+                      onCheckedChange={() => toggleLanguage(lang.value)}
+                      disabled={isSubmitting}
+                    />
+                    <label
+                      htmlFor={`lang-${lang.value}`}
+                      className="text-sm cursor-pointer select-none"
+                    >
                       {lang.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
 
+            {/* Sites per language */}
+            <div className="space-y-2">
+              <Label htmlFor="sites-count" className="flex items-center gap-2">
+                <Hash className="h-4 w-4" />
+                Кількість сайтів на кожну мову
+              </Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  id="sites-count"
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={sitesPerLanguage}
+                  onChange={(e) => setSitesPerLanguage(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                  className="w-24"
+                  disabled={isSubmitting}
+                />
+                <span className="text-sm text-muted-foreground">
+                  Всього генерацій: <strong className="text-primary">{totalGenerations}</strong>
+                  {selectedLanguages.length > 1 && (
+                    <span className="ml-1">
+                      ({selectedLanguages.length} мов × {sitesPerLanguage} сайтів)
+                    </span>
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4">
               <Select value={aiModel} onValueChange={(v) => setAiModel(v as AiModel)} disabled={isSubmitting}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="AI модель" />
@@ -186,7 +262,7 @@ export function WebsiteGenerator() {
 
               <Button
                 onClick={handleGenerate}
-                disabled={isSubmitting || !prompt.trim()}
+                disabled={isSubmitting || !prompt.trim() || selectedLanguages.length === 0}
                 className="flex-1"
                 size="lg"
               >
@@ -198,7 +274,7 @@ export function WebsiteGenerator() {
                 ) : (
                   <>
                     <Sparkles className="mr-2 h-4 w-4" />
-                    Згенерувати
+                    Згенерувати {totalGenerations > 1 ? `(${totalGenerations})` : ""}
                   </>
                 )}
               </Button>
