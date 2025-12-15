@@ -1,13 +1,15 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Download, Eye, Code, FileCode2, Sparkles } from "lucide-react";
+import { Loader2, Download, Eye, Code, FileCode2, Sparkles, LogOut, User } from "lucide-react";
 import { generateWebsite, createZipFromFiles, downloadBlob, saveToHistory, GeneratedFile } from "@/lib/websiteGenerator";
 import { FilePreview } from "./FilePreview";
 import { GenerationHistory } from "./GenerationHistory";
+import { useAuth } from "@/hooks/useAuth";
+
 const languages = [
   { value: "auto", label: "Авто-визначення" },
   { value: "uk", label: "Українська" },
@@ -21,6 +23,7 @@ const languages = [
 
 export function WebsiteGenerator() {
   const { toast } = useToast();
+  const { user, signOut } = useAuth();
   const [prompt, setPrompt] = useState("");
   const [language, setLanguage] = useState("auto");
   const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +31,14 @@ export function WebsiteGenerator() {
   const [selectedFile, setSelectedFile] = useState<GeneratedFile | null>(null);
   const [historyKey, setHistoryKey] = useState(0);
   const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast({
+      title: "Вихід",
+      description: "Ви вийшли з акаунту",
+    });
+  };
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -51,9 +62,11 @@ export function WebsiteGenerator() {
         const indexFile = result.files.find((f) => f.path === "index.html");
         setSelectedFile(indexFile || result.files[0]);
         
-        // Save to history
-        await saveToHistory(prompt, language === "auto" ? "auto" : language, result.files);
-        setHistoryKey((prev) => prev + 1);
+        // Save to history with user_id
+        if (user) {
+          await saveToHistory(prompt, language === "auto" ? "auto" : language, result.files, user.id);
+          setHistoryKey((prev) => prev + 1);
+        }
         
         toast({
           title: "Успіх!",
@@ -105,16 +118,28 @@ export function WebsiteGenerator() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6 max-w-7xl">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
             <Sparkles className="h-10 w-10 text-primary" />
-            <h1 className="text-4xl font-bold tracking-tight">
-              AI Website Generator
-            </h1>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">
+                AI Website Generator
+              </h1>
+              <p className="text-muted-foreground text-sm">
+                Опишіть сайт — AI згенерує HTML, CSS та всі файли
+              </p>
+            </div>
           </div>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Опишіть сайт, який хочете створити, і AI згенерує повний багатосторінковий сайт з HTML, CSS та всіма необхідними файлами
-          </p>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <User className="h-4 w-4" />
+              <span>{user?.email}</span>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleSignOut}>
+              <LogOut className="h-4 w-4 mr-1" />
+              Вийти
+            </Button>
+          </div>
         </div>
 
         <div className={`flex flex-col ${generatedFiles.length > 0 ? 'lg:flex-row' : ''} gap-6`}>
