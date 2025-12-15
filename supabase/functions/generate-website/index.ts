@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -140,26 +141,26 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY not configured');
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    if (!OPENAI_API_KEY) {
+      console.error('OPENAI_API_KEY not configured');
       return new Response(
-        JSON.stringify({ success: false, error: 'AI service not configured' }),
+        JSON.stringify({ success: false, error: 'OpenAI API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     console.log('Generating website for prompt:', prompt.substring(0, 100));
 
-    // Step 1: Generate refined prompt using AI Agent
-    const agentResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    // Step 1: Generate refined prompt using OpenAI
+    const agentResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: `Створи ОДИН промпт для генерації статичного HTML/CSS/JS сайту на основі цього запиту:\n\n"${prompt}"\n\nМова: ${language || 'auto-detect'}` }
@@ -195,21 +196,22 @@ serve(async (req) => {
     
     console.log('Refined prompt generated, now generating website...');
 
-    // Step 2: Generate the actual website
-    const websiteResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    // Step 2: Generate the actual website using GPT-4o
+    const websiteResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-pro',
+        model: 'gpt-4o',
         messages: [
           { 
             role: 'user', 
             content: WEBSITE_GENERATION_PROMPT + '\n\n' + refinedPrompt 
           }
         ],
+        max_tokens: 16000,
       }),
     });
 
