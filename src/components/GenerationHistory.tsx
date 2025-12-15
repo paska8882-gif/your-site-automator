@@ -76,14 +76,17 @@ export function GenerationHistory() {
             } as HistoryItem;
             setHistory((prev) => [newItem, ...prev]);
           } else if (payload.eventType === "UPDATE") {
-            const updatedItem = {
-              ...payload.new,
-              files_data: payload.new.files_data as GeneratedFile[] | null
-            } as HistoryItem;
             setHistory((prev) =>
-              prev.map((item) =>
-                item.id === updatedItem.id ? updatedItem : item
-              )
+              prev.map((item) => {
+                if (item.id === payload.new.id) {
+                  return {
+                    ...item,
+                    ...payload.new,
+                    files_data: (payload.new.files_data as GeneratedFile[] | null) ?? item.files_data
+                  };
+                }
+                return item;
+              })
             );
           } else if (payload.eventType === "DELETE") {
             setHistory((prev) =>
