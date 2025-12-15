@@ -239,25 +239,47 @@ serve(async (req) => {
     }
 
     const websiteData = await websiteResponse.json();
-    const responseText = websiteData.choices?.[0]?.message?.content || '';
+    let responseText = websiteData.choices?.[0]?.message?.content || '';
 
     console.log('Website generated, parsing files...');
+    console.log('Raw response length:', responseText.length);
+    console.log('First 500 chars:', responseText.substring(0, 500));
 
-    // Parse files from response
+    // Clean markdown code blocks if present (OpenAI often wraps in ```html or ```)
+    responseText = responseText
+      .replace(/```html\n?/gi, '')
+      .replace(/```css\n?/gi, '')
+      .replace(/```xml\n?/gi, '')
+      .replace(/```txt\n?/gi, '')
+      .replace(/```\n?/g, '');
+
+    // Parse files from response - support multiple formats
     const files: { path: string; content: string }[] = [];
-    const filePattern = /<!-- FILE: ([^>]+) -->([\s\S]*?)(?=<!-- FILE: |$)/g;
-
+    
+    // Try format 1: <!-- FILE: filename.ext -->
+    const filePattern1 = /<!-- FILE: ([^>]+) -->([\s\S]*?)(?=<!-- FILE: |$)/g;
     let match;
-    while ((match = filePattern.exec(responseText)) !== null) {
+    while ((match = filePattern1.exec(responseText)) !== null) {
       const fileName = match[1].trim();
       let fileContent = match[2].trim();
-      
       if (fileContent && fileContent.length > 10) {
-        files.push({
-          path: fileName,
-          content: fileContent
-        });
-        console.log(`✅ Found: ${fileName} (${fileContent.length} chars)`);
+        files.push({ path: fileName, content: fileContent });
+        console.log(`✅ Found (format1): ${fileName} (${fileContent.length} chars)`);
+      }
+    }
+
+    // Try format 2: ### File: filename.ext or ### CSS (filename.ext) or **filename.ext** (OpenAI style)
+    if (files.length === 0) {
+      console.log('Trying OpenAI markdown format...');
+      // Match patterns like ### File: styles.css or ### CSS (styles.css) or **styles.css**
+      const filePattern2 = /(?:###\s*(?:File:\s*|CSS\s*\(|HTML\s*\()?|\*\*)([a-zA-Z0-9_\-]+\.(?:css|html|js|xml|txt))\)?(?:\*\*)?[^\n]*\n```(?:\w+)?\n([\s\S]*?)```/gi;
+      while ((match = filePattern2.exec(responseText)) !== null) {
+        const fileName = match[1].trim();
+        let fileContent = match[2].trim();
+        if (fileContent && fileContent.length > 10) {
+          files.push({ path: fileName, content: fileContent });
+          console.log(`✅ Found (format2): ${fileName} (${fileContent.length} chars)`);
+        }
       }
     }
 
