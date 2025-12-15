@@ -2,3 +2,4 @@ project_id = "qqnekbzcgqvpgcyqlbcr"
 
 [functions.generate-website]
 verify_jwt = true
+max_duration_seconds = 600
