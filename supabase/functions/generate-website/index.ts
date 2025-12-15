@@ -78,41 +78,23 @@ const WEBSITE_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE WEBSI
 - Clear Accept/Decline buttons
 - Smooth appear animation
 
-**OUTPUT FORMAT:**
+**OUTPUT FORMAT (COMPACT - MAX 5 FILES):**
 <!-- FILE: styles.css -->
-[Complete CSS with header/footer styles and active page states]
+[Compact CSS under 300 lines]
 
 <!-- FILE: index.html -->
-[Exceptional HTML with STATIC header/footer]
-
-<!-- FILE: services.html -->
-[SAME header/footer, unique content]
+[Main page with header/footer]
 
 <!-- FILE: about.html -->
-[SAME header/footer, professional about content]
+[About page, same header/footer]
 
 <!-- FILE: contact.html -->
-[SAME header/footer, clean contact page]
-
-<!-- FILE: terms.html -->
-[SAME header/footer, well-formatted legal page]
-
-<!-- FILE: privacy.html -->
-[SAME header/footer, clean privacy policy]
+[Contact page, same header/footer]
 
 <!-- FILE: 404.html -->
-[SAME header/footer, helpful error page]
+[Error page, same header/footer]
 
-<!-- FILE: robots.txt -->
-User-agent: *
-Allow: /
-
-<!-- FILE: sitemap.xml -->
-[Complete sitemap]
-
-**IMPORTANT:** Header and footer HTML structure MUST be identical across all HTML files. Only update the 'active' class on navigation links to indicate current page.
-
-Generate EXCEPTIONAL multi-page website with 10X better UI, STATIC identical header/footer across all pages, perfect imagery matching content, and outstanding user experience. All styles MUST render correctly in browser, NO markdown code blocks, NO \`\`\`html at beginning of files.`;
+**CRITICAL:** Keep code COMPACT. No verbose comments. Header/footer IDENTICAL across pages. Output ONLY the file markers and code, NO explanations.`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
