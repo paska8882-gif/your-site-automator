@@ -15,14 +15,17 @@ export interface GenerationResult {
   error?: string;
 }
 
+export type AiModel = "junior" | "senior";
+
 export async function generateWebsite(
   prompt: string,
-  language?: string
+  language?: string,
+  aiModel: AiModel = "senior"
 ): Promise<GenerationResult> {
   const { data, error } = await supabase.functions.invoke<GenerationResult>(
     "generate-website",
     {
-      body: { prompt, language },
+      body: { prompt, language, aiModel },
     }
   );
 
