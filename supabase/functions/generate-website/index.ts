@@ -217,17 +217,36 @@ serve(async (req) => {
     console.log('Refined prompt generated, now generating website...');
 
     // Step 2: Generate the actual website
+    // CRITICAL: Include BOTH original user prompt AND refined prompt to ensure AI follows user's exact requirements
     const websiteRequestBody: any = {
       model: generateModel,
       messages: [
         {
           role: 'system',
-          content:
-            'You are a code generator. Return ONLY file blocks using the exact markers like: <!-- FILE: index.html -->. No explanations, no markdown, no backticks.',
+          content: `You are a professional website code generator. You MUST create a website EXACTLY matching the user's requirements.
+
+CRITICAL RULES:
+1. Follow the USER'S ORIGINAL PROMPT exactly - this is the most important requirement
+2. The website content, theme, colors, and structure must match what the user asked for
+3. Use the language specified by the user (or detected from their prompt)
+4. Return ONLY file blocks using exact markers: <!-- FILE: filename.ext -->
+5. No explanations, no markdown backticks, just the file markers and code`,
         },
         {
           role: 'user',
-          content: WEBSITE_GENERATION_PROMPT + '\n\n' + refinedPrompt,
+          content: `=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===
+${prompt}
+
+=== LANGUAGE ===
+${language || 'Detect from request'}
+
+=== TECHNICAL REQUIREMENTS ===
+${WEBSITE_GENERATION_PROMPT}
+
+=== ENHANCED DETAILS ===
+${refinedPrompt}
+
+IMPORTANT: Create a website that EXACTLY matches the user's original request above. The theme, content, and language must be precisely what they asked for.`,
         },
       ],
     };
