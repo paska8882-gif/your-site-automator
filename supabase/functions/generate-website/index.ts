@@ -119,6 +119,18 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication - JWT is validated by Supabase, but we log for audit
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.warn('Request rejected: No authorization header');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Authenticated request received');
+
     const { prompt, language } = await req.json();
 
     if (!prompt) {
