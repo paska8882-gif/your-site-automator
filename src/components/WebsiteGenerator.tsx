@@ -4,8 +4,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Download, Eye, Code, FileCode2, Sparkles, LogOut, User } from "lucide-react";
-import { generateWebsite, createZipFromFiles, downloadBlob, saveToHistory, GeneratedFile } from "@/lib/websiteGenerator";
+import { Loader2, Download, Eye, Code, FileCode2, Sparkles, LogOut, User, Zap, Crown } from "lucide-react";
+import { generateWebsite, createZipFromFiles, downloadBlob, saveToHistory, GeneratedFile, AiModel } from "@/lib/websiteGenerator";
 import { FilePreview } from "./FilePreview";
 import { GenerationHistory } from "./GenerationHistory";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,6 +26,7 @@ export function WebsiteGenerator() {
   const { user, signOut } = useAuth();
   const [prompt, setPrompt] = useState("");
   const [language, setLanguage] = useState("auto");
+  const [aiModel, setAiModel] = useState<AiModel>("senior");
   const [isLoading, setIsLoading] = useState(false);
   const [generatedFiles, setGeneratedFiles] = useState<GeneratedFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<GeneratedFile | null>(null);
@@ -55,7 +56,7 @@ export function WebsiteGenerator() {
     setSelectedFile(null);
 
     try {
-      const result = await generateWebsite(prompt, language === "auto" ? undefined : language);
+      const result = await generateWebsite(prompt, language === "auto" ? undefined : language, aiModel);
 
       if (result.success && result.files) {
         setGeneratedFiles(result.files);
@@ -176,6 +177,26 @@ export function WebsiteGenerator() {
                           {lang.label}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={aiModel} onValueChange={(v) => setAiModel(v as AiModel)} disabled={isLoading}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder="AI модель" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="senior">
+                        <div className="flex items-center gap-2">
+                          <Crown className="h-4 w-4 text-amber-500" />
+                          Senior AI
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="junior">
+                        <div className="flex items-center gap-2">
+                          <Zap className="h-4 w-4 text-blue-500" />
+                          Junior AI
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
 

@@ -132,7 +132,7 @@ serve(async (req) => {
 
     console.log('Authenticated request received');
 
-    const { prompt, language } = await req.json();
+    const { prompt, language, aiModel = 'senior' } = await req.json();
 
     if (!prompt) {
       return new Response(
@@ -141,26 +141,48 @@ serve(async (req) => {
       );
     }
 
+    const isJunior = aiModel === 'junior';
+    console.log(`Using ${isJunior ? 'Junior AI (OpenAI GPT-4o)' : 'Senior AI (Lovable AI)'}`);
+
+    // Get appropriate API key
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) {
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+
+    if (isJunior && !OPENAI_API_KEY) {
       console.error('OPENAI_API_KEY not configured');
       return new Response(
-        JSON.stringify({ success: false, error: 'OpenAI API key not configured' }),
+        JSON.stringify({ success: false, error: 'OpenAI API key not configured for Junior AI' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!isJunior && !LOVABLE_API_KEY) {
+      console.error('LOVABLE_API_KEY not configured');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Lovable AI not configured for Senior AI' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     console.log('Generating website for prompt:', prompt.substring(0, 100));
 
-    // Step 1: Generate refined prompt using OpenAI
-    const agentResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    // API configuration based on model choice
+    const apiUrl = isJunior 
+      ? 'https://api.openai.com/v1/chat/completions'
+      : 'https://ai.gateway.lovable.dev/v1/chat/completions';
+    const apiKey = isJunior ? OPENAI_API_KEY : LOVABLE_API_KEY;
+    const refineModel = isJunior ? 'gpt-4o-mini' : 'google/gemini-2.5-flash';
+    const generateModel = isJunior ? 'gpt-4o' : 'google/gemini-2.5-pro';
+
+    // Step 1: Generate refined prompt
+    const agentResponse = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: refineModel,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: `Створи ОДИН промпт для генерації статичного HTML/CSS/JS сайту на основі цього запиту:\n\n"${prompt}"\n\nМова: ${language || 'auto-detect'}` }
@@ -196,28 +218,34 @@ serve(async (req) => {
     
     console.log('Refined prompt generated, now generating website...');
 
-    // Step 2: Generate the actual website using GPT-4o
-    const websiteResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Step 2: Generate the actual website
+    const websiteRequestBody: any = {
+      model: generateModel,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a code generator. Return ONLY file blocks using the exact markers like: <!-- FILE: index.html -->. No explanations, no markdown, no backticks.',
+        },
+        {
+          role: 'user',
+          content: WEBSITE_GENERATION_PROMPT + '\n\n' + refinedPrompt,
+        },
+      ],
+    };
+
+    // Only add max_tokens for OpenAI (Junior AI)
+    if (isJunior) {
+      websiteRequestBody.max_tokens = 16000;
+    }
+
+    const websiteResponse = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are a code generator. Return ONLY file blocks using the exact markers like: <!-- FILE: index.html -->. No explanations, no markdown, no backticks.',
-          },
-          {
-            role: 'user',
-            content: WEBSITE_GENERATION_PROMPT + '\n\n' + refinedPrompt,
-          },
-        ],
-        max_tokens: 16000,
-      }),
+      body: JSON.stringify(websiteRequestBody),
     });
 
     if (!websiteResponse.ok) {
