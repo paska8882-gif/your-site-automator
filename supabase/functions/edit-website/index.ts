@@ -15,27 +15,26 @@ interface GeneratedFile {
 const EDIT_SYSTEM_PROMPT = `You are an expert website editor. Your job is to modify existing website files based on user requests.
 
 CRITICAL RULES:
-1. You receive the current website files and an edit request
-2. You must return ALL files (modified and unmodified)
-3. Output format MUST be exactly like this:
-   <!-- FILE: filename.ext -->
-   <file content here>
-   <!-- FILE: another.ext -->
-   <content>
+1. Make ONLY the specific change requested - NOTHING ELSE
+2. DO NOT modify anything that wasn't explicitly asked to change
+3. Keep ALL other content, styles, images, and structure EXACTLY as they are
+4. Return ALL files (modified and unmodified) in exact same format
 
-4. Preserve ALL existing structure and styling unless specifically asked to change
-5. Make ONLY the changes requested - do not add random features
-6. Keep all working functionality intact
-7. Maintain consistent design language
-8. For HTML files - keep DOCTYPE, head, meta tags, navigation structure
-9. For CSS files - keep all existing styles, only add/modify what's needed
-10. For React files - keep imports, component structure, only modify what's needed
+OUTPUT FORMAT:
+<!-- FILE: filename.ext -->
+<file content here>
+<!-- FILE: another.ext -->
+<content>
 
 IMPORTANT:
 - Return complete file contents, not snippets
 - Do not use markdown code blocks
 - Use ONLY the <!-- FILE: --> markers
-- All files must be returned in output`;
+- If user asks to change button color - change ONLY that button's color
+- If user asks to change text - change ONLY that text
+- DO NOT change images unless specifically asked
+- DO NOT change layout unless specifically asked
+- DO NOT add or remove features unless specifically asked`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -87,15 +86,13 @@ serve(async (req) => {
       .map((f: GeneratedFile) => `<!-- FILE: ${f.path} -->\n${f.content}`)
       .join("\n\n");
 
-    const editPrompt = `Original website description: ${originalPrompt}
-
-CURRENT WEBSITE FILES:
+    // Simpler prompt focused ONLY on current edit request
+    const editPrompt = `CURRENT WEBSITE FILES:
 ${filesContext}
 
-USER EDIT REQUEST: ${editRequest}
+USER REQUEST: ${editRequest}
 
-Apply the requested changes and return ALL files with the same <!-- FILE: filename --> format.
-CRITICAL: Return EVERY file, even if not modified. Make only the changes requested.`;
+IMPORTANT: Make ONLY this specific change. Do NOT modify anything else. Return all files.`;
 
     let response;
     

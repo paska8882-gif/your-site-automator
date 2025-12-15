@@ -41,6 +41,23 @@ export function EditChat({
   const [selectedAiModel, setSelectedAiModel] = useState<"junior" | "senior">(initialAiModel);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Load messages from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem(`edit-chat-${generationId}`);
+    if (saved) {
+      try {
+        setMessages(JSON.parse(saved));
+      } catch {}
+    }
+  }, [generationId]);
+
+  // Save messages to localStorage
+  useEffect(() => {
+    if (messages.length > 0) {
+      localStorage.setItem(`edit-chat-${generationId}`, JSON.stringify(messages));
+    }
+  }, [messages, generationId]);
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
