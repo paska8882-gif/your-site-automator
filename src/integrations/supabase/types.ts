@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       generation_history: {
         Row: {
+          ai_model: string | null
           created_at: string
           error_message: string | null
           files_data: Json | null
@@ -25,9 +26,11 @@ export type Database = {
           prompt: string
           status: string
           user_id: string | null
+          website_type: string | null
           zip_data: string | null
         }
         Insert: {
+          ai_model?: string | null
           created_at?: string
           error_message?: string | null
           files_data?: Json | null
@@ -37,9 +40,11 @@ export type Database = {
           prompt: string
           status?: string
           user_id?: string | null
+          website_type?: string | null
           zip_data?: string | null
         }
         Update: {
+          ai_model?: string | null
           created_at?: string
           error_message?: string | null
           files_data?: Json | null
@@ -49,6 +54,7 @@ export type Database = {
           prompt?: string
           status?: string
           user_id?: string | null
+          website_type?: string | null
           zip_data?: string | null
         }
         Relationships: []
