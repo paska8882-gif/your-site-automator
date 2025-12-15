@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void };
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -112,128 +115,6 @@ Create a COMPLETE, PROFESSIONAL React website with EXCELLENT design and ALL file
 - src/styles/global.css (perfect responsive CSS)
 - public/robots.txt
 - public/sitemap.xml
-
-**ADVANCED WEBSITE SECTIONS:**
-- **Hero:** Compelling headline with animated CTA
-- **Stats:** Achievement counters with animations
-- **Services:** Interactive cards with hover effects
-- **Process:** Step-by-step workflow visualization
-- **Testimonials:** Carousel with customer quotes
-- **Team:** Interactive team member profiles
-- **Projects:** Filterable portfolio gallery
-- **FAQ:** Accordion with common questions
-- **Blog Preview:** Latest insights/updates
-- **CTA Section:** Strong conversion-focused design
-
-**PERFECT RESPONSIVE BREAKPOINTS:**
-- Mobile: < 768px (perfect stacking)
-- Tablet: 768px - 1024px (adaptive grids)
-- Desktop: > 1024px (optimal multi-column)
-
-**DYNAMIC IMAGES - EXTERNAL URLs ONLY:**
-- **USE ONLY FULL HTTPS:// URLs FOR ALL IMAGES**
-- **Hero:** https://picsum.photos/1600/900?random=1
-- **Content:** https://picsum.photos/800/600?random=2
-- **Team:** https://picsum.photos/400/400?random=3
-- **Projects:** https://picsum.photos/1200/800?random=4
-- **Logo:** Use text or simple SVG - NO image path
-- **Services:** https://picsum.photos/600/400?random=5
-- **Testimonials:** https://picsum.photos/200/200?random=6
-- **Use unique random parameters for each image**
-- **Professional alt text matching business context**
-- **IMPORTANT: All <img> tags must use src="https://..." format**
-
-**MODERN HEADER REQUIREMENTS:**
-- Clean logo + navigation layout
-- Sticky behavior with smooth scroll
-- Mobile hamburger menu with smooth animation
-- Active page highlighting
-- Proper spacing and typography
-
-**INTERACTIVE FEATURES:**
-- Smooth scroll animations
-- Hover effects on cards/buttons
-- Loading states for external images
-- Form validation with user feedback
-- Mobile touch-friendly interactions
-
-**PERFECT CSS STRUCTURE:**
-- CSS Grid and Flexbox for layouts
-- CSS variables for consistent theming
-- Mobile-first responsive design
-- Smooth transitions and animations
-- Professional color scheme
-- Perfect typography scale
-
-**FORMAT:**
-<!-- FILE: package.json -->
-[EXACT content as above - with added browserslist]
-
-<!-- FILE: netlify.toml -->
-[EXACT content as above]
-
-<!-- FILE: vercel.json -->
-[EXACT content as above]
-
-<!-- FILE: public/_redirects -->
-/* /index.html 200
-
-<!-- FILE: public/index.html -->
-[complete file content]
-
-<!-- FILE: src/index.js -->
-[complete file content]
-
-<!-- FILE: src/App.js -->
-[complete file content with all routes]
-
-<!-- FILE: src/components/Header.js -->
-[perfect responsive header with mobile menu - USE TEXT LOGO]
-
-<!-- FILE: src/components/Footer.js -->
-[professional footer with columns]
-
-<!-- FILE: src/components/CookieBanner.js -->
-[styled cookie banner]
-
-<!-- FILE: src/components/ScrollToTop.js -->
-[smooth scroll component]
-
-<!-- FILE: src/pages/Home.js -->
-[complete home with all advanced sections - USE ONLY EXTERNAL IMAGE URLs]
-
-<!-- FILE: src/pages/About.js -->
-[detailed about page with team - USE ONLY EXTERNAL IMAGE URLs]
-
-<!-- FILE: src/pages/Services.js -->
-[interactive services showcase - USE ONLY EXTERNAL IMAGE URLs]
-
-<!-- FILE: src/pages/Contact.js -->
-[professional contact form]
-
-<!-- FILE: src/pages/Terms.js -->
-[terms of service page]
-
-<!-- FILE: src/pages/Privacy.js -->
-[privacy policy page]
-
-<!-- FILE: src/styles/global.css -->
-[perfect responsive CSS with animations]
-
-<!-- FILE: public/robots.txt -->
-[complete file content]
-
-<!-- FILE: public/sitemap.xml -->
-[complete file content]
-
-**BUILD VERIFICATION:**
-The generated site MUST pass these checks:
-1. npm install completes without errors
-2. npm run build creates build/ folder
-3. **ALL images use EXTERNAL HTTPS:// URLs only**
-4. No missing imports or dependencies
-5. React Router configured correctly
-6. **GUARANTEED: No "Module not found" errors for images**
 
 Generate EXCELLENT, PROFESSIONAL code with PERFECT responsive design and GUARANTEED deployment on any platform.`;
 
@@ -369,7 +250,7 @@ async function runGeneration({
   const refinedPrompt = agentData.choices?.[0]?.message?.content || prompt;
   console.log("Refined prompt generated, now generating React website...");
 
-  // Step 2: React website generation (include original prompt explicitly)
+  // Step 2: React website generation
   const websiteRequestBody: any = {
     model: generateModel,
     messages: [
@@ -434,6 +315,69 @@ async function runGeneration({
   };
 }
 
+async function runBackgroundGeneration(
+  historyId: string,
+  prompt: string,
+  language: string | undefined,
+  aiModel: "junior" | "senior"
+) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  console.log(`[BG] Starting background React generation for history ID: ${historyId}`);
+
+  try {
+    // Update status to generating
+    await supabase
+      .from("generation_history")
+      .update({ status: "generating" })
+      .eq("id", historyId);
+
+    const result = await runGeneration({ prompt, language, aiModel });
+
+    if (result.success && result.files) {
+      // Create zip base64
+      const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");
+      const zip = new JSZip();
+      result.files.forEach((file) => zip.file(file.path, file.content));
+      const zipBase64 = await zip.generateAsync({ type: "base64" });
+
+      // Update with success
+      await supabase
+        .from("generation_history")
+        .update({
+          status: "completed",
+          files_data: result.files,
+          zip_data: zipBase64,
+        })
+        .eq("id", historyId);
+
+      console.log(`[BG] React generation completed for ${historyId}: ${result.files.length} files`);
+    } else {
+      // Update with error
+      await supabase
+        .from("generation_history")
+        .update({
+          status: "failed",
+          error_message: result.error || "Generation failed",
+        })
+        .eq("id", historyId);
+
+      console.error(`[BG] React generation failed for ${historyId}: ${result.error}`);
+    }
+  } catch (error) {
+    console.error(`[BG] Background React generation error for ${historyId}:`, error);
+    await supabase
+      .from("generation_history")
+      .update({
+        status: "failed",
+        error_message: error instanceof Error ? error.message : "Unknown error",
+      })
+      .eq("id", historyId);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -449,7 +393,22 @@ serve(async (req) => {
       });
     }
 
-    console.log("Authenticated request received");
+    // Get user from token
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      return new Response(JSON.stringify({ success: false, error: "Invalid token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log("Authenticated request from user:", user.id);
 
     const { prompt, language, aiModel = "senior" } = await req.json();
 
@@ -460,86 +419,47 @@ serve(async (req) => {
       });
     }
 
-    const wantsSSE = (req.headers.get("accept") || "").includes("text/event-stream");
+    // Create history entry immediately with pending status
+    const { data: historyEntry, error: insertError } = await supabase
+      .from("generation_history")
+      .insert({
+        prompt,
+        language: language || "auto",
+        user_id: user.id,
+        status: "pending",
+      })
+      .select()
+      .single();
 
-    if (!wantsSSE) {
-      const result = await runGeneration({ prompt, language, aiModel });
-      const status = result.success ? 200 : 500;
-      return new Response(JSON.stringify(result), {
-        status,
+    if (insertError || !historyEntry) {
+      console.error("Failed to create history entry:", insertError);
+      return new Response(JSON.stringify({ success: false, error: "Failed to start generation" }), {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const encoder = new TextEncoder();
+    console.log("Created history entry:", historyEntry.id);
 
-    const stream = new ReadableStream<Uint8Array>({
-      start(controller) {
-        let closed = false;
+    // Start background generation using EdgeRuntime.waitUntil
+    EdgeRuntime.waitUntil(
+      runBackgroundGeneration(historyEntry.id, prompt, language, aiModel)
+    );
 
-        const send = (payload: unknown) => {
-          if (closed) return;
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
-        };
-
-        const keepAlive = () => {
-          if (closed) return;
-          controller.enqueue(encoder.encode(`: keepalive\n\n`));
-        };
-
-        send({ type: "status", stage: "started" });
-
-        const keepAliveId = setInterval(keepAlive, 15_000);
-
-        (async () => {
-          try {
-            send({ type: "status", stage: "working" });
-            const result = await runGeneration({ prompt, language, aiModel });
-            if (result.success) {
-              send({ type: "result", result });
-            } else {
-              send({ type: "error", error: result.error || "Generation failed", result });
-            }
-          } catch (e) {
-            console.error("Error generating React website:", e);
-            const msg = e instanceof Error ? e.message : "Unknown error";
-            send({ type: "error", error: msg });
-          } finally {
-            clearInterval(keepAliveId);
-            if (!closed) {
-              controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
-              closed = true;
-              controller.close();
-            }
-          }
-        })();
-
-        req.signal.addEventListener("abort", () => {
-          try {
-            clearInterval(keepAliveId);
-          } catch {
-            // ignore
-          }
-          try {
-            closed = true;
-            controller.close();
-          } catch {
-            // ignore
-          }
-        });
-      },
-    });
-
-    return new Response(stream, {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache, no-transform",
-        Connection: "keep-alive",
-      },
-    });
+    // Return immediately with the history entry ID
+    return new Response(
+      JSON.stringify({
+        success: true,
+        historyId: historyEntry.id,
+        message: "Generation started in background",
+      }),
+      {
+        status: 202,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   } catch (error) {
-    console.error("Error generating React website:", error);
+    console.error("Error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ success: false, error: errorMessage }), {
       status: 500,

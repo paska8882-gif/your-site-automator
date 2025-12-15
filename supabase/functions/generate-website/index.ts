@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void };
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -279,6 +282,69 @@ async function runGeneration({
   };
 }
 
+async function runBackgroundGeneration(
+  historyId: string,
+  prompt: string,
+  language: string | undefined,
+  aiModel: "junior" | "senior"
+) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  console.log(`[BG] Starting background generation for history ID: ${historyId}`);
+
+  try {
+    // Update status to generating
+    await supabase
+      .from("generation_history")
+      .update({ status: "generating" })
+      .eq("id", historyId);
+
+    const result = await runGeneration({ prompt, language, aiModel });
+
+    if (result.success && result.files) {
+      // Create zip base64
+      const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");
+      const zip = new JSZip();
+      result.files.forEach((file) => zip.file(file.path, file.content));
+      const zipBase64 = await zip.generateAsync({ type: "base64" });
+
+      // Update with success
+      await supabase
+        .from("generation_history")
+        .update({
+          status: "completed",
+          files_data: result.files,
+          zip_data: zipBase64,
+        })
+        .eq("id", historyId);
+
+      console.log(`[BG] Generation completed for ${historyId}: ${result.files.length} files`);
+    } else {
+      // Update with error
+      await supabase
+        .from("generation_history")
+        .update({
+          status: "failed",
+          error_message: result.error || "Generation failed",
+        })
+        .eq("id", historyId);
+
+      console.error(`[BG] Generation failed for ${historyId}: ${result.error}`);
+    }
+  } catch (error) {
+    console.error(`[BG] Background generation error for ${historyId}:`, error);
+    await supabase
+      .from("generation_history")
+      .update({
+        status: "failed",
+        error_message: error instanceof Error ? error.message : "Unknown error",
+      })
+      .eq("id", historyId);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -294,7 +360,22 @@ serve(async (req) => {
       });
     }
 
-    console.log("Authenticated request received");
+    // Get user from token
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      return new Response(JSON.stringify({ success: false, error: "Invalid token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log("Authenticated request from user:", user.id);
 
     const { prompt, language, aiModel = "senior" } = await req.json();
 
@@ -305,86 +386,47 @@ serve(async (req) => {
       });
     }
 
-    const wantsSSE = (req.headers.get("accept") || "").includes("text/event-stream");
+    // Create history entry immediately with pending status
+    const { data: historyEntry, error: insertError } = await supabase
+      .from("generation_history")
+      .insert({
+        prompt,
+        language: language || "auto",
+        user_id: user.id,
+        status: "pending",
+      })
+      .select()
+      .single();
 
-    if (!wantsSSE) {
-      const result = await runGeneration({ prompt, language, aiModel });
-      const status = result.success ? 200 : 500;
-      return new Response(JSON.stringify(result), {
-        status,
+    if (insertError || !historyEntry) {
+      console.error("Failed to create history entry:", insertError);
+      return new Response(JSON.stringify({ success: false, error: "Failed to start generation" }), {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const encoder = new TextEncoder();
+    console.log("Created history entry:", historyEntry.id);
 
-    const stream = new ReadableStream<Uint8Array>({
-      start(controller) {
-        let closed = false;
+    // Start background generation using EdgeRuntime.waitUntil
+    EdgeRuntime.waitUntil(
+      runBackgroundGeneration(historyEntry.id, prompt, language, aiModel)
+    );
 
-        const send = (payload: unknown) => {
-          if (closed) return;
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
-        };
-
-        const keepAlive = () => {
-          if (closed) return;
-          controller.enqueue(encoder.encode(`: keepalive\n\n`));
-        };
-
-        send({ type: "status", stage: "started" });
-
-        const keepAliveId = setInterval(keepAlive, 15_000);
-
-        (async () => {
-          try {
-            send({ type: "status", stage: "working" });
-            const result = await runGeneration({ prompt, language, aiModel });
-            if (result.success) {
-              send({ type: "result", result });
-            } else {
-              send({ type: "error", error: result.error || "Generation failed", result });
-            }
-          } catch (e) {
-            console.error("Error generating website:", e);
-            const msg = e instanceof Error ? e.message : "Unknown error";
-            send({ type: "error", error: msg });
-          } finally {
-            clearInterval(keepAliveId);
-            if (!closed) {
-              controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
-              closed = true;
-              controller.close();
-            }
-          }
-        })();
-
-        req.signal.addEventListener("abort", () => {
-          try {
-            clearInterval(keepAliveId);
-          } catch {
-            // ignore
-          }
-          try {
-            closed = true;
-            controller.close();
-          } catch {
-            // ignore
-          }
-        });
-      },
-    });
-
-    return new Response(stream, {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache, no-transform",
-        Connection: "keep-alive",
-      },
-    });
+    // Return immediately with the history entry ID
+    return new Response(
+      JSON.stringify({
+        success: true,
+        historyId: historyEntry.id,
+        message: "Generation started in background",
+      }),
+      {
+        status: 202,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   } catch (error) {
-    console.error("Error generating website:", error);
+    console.error("Error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ success: false, error: errorMessage }), {
       status: 500,
