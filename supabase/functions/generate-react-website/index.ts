@@ -9,26 +9,115 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `Ти — створатор промптів для React сайтів. Твоя задача — проаналізувати запит і створити детальний промпт для генерації професійного React сайту.
+const SYSTEM_PROMPT = `Ти — створатор промптів для багатосторінкових React сайтів. Твоя задача — проаналізувати запит і створити промпт для генерації професійного багатосторінкового React сайту.
 
 **КРИТИЧНО ВАЖЛИВО: ВИЗНАЧЕННЯ МОВИ**
 При визначенні мови керуйся наступними пріоритетами:
-1. **Явне вказання в запиті** — якщо користувач явно вказав мову, використовуй ВКАЗАНУ мову
+1. **Явне вказання в запиті** — якщо користувач явно вказав мову (наприклад, "Language: EN", "Мова: українська"), використовуй ВКАЗАНУ мову
 2. **Мова контенту** — якщо мова явно не вказана, аналізуй мову представленого контенту
 3. **За замовчуванням** — якщо мову неможливо визначити, використовуй англійську (EN)
 
+**АНАЛІЗ ЗАПИТУ:**
+1. **Визнач мову користувача** — використовуй правила пріоритету вище
+2. **Визнач структуру сайту** — які сторінки потрібні користувачу
+3. **Витягни ключову інформацію** — компанія, послуги, контакти, УТП
+4. **Збережи мову і стиль** — точно як у запиті
+5. **Визнач кількість сторінок** — скільки сторінок вказано або логічно потрібно
+
 **ФОРМАТ ВИВОДУ:**
-Створи детальний промпт для генерації React сайту з усіма необхідними компонентами та сторінками.`;
 
-const REACT_GENERATION_PROMPT = `IMPORTANT: FOLLOW EXACT PROMPT STRUCTURE FOR REACT WEBSITE GENERATION
+Create a professional MULTI-PAGE React website for [Назва] with complete structure:
 
-Create a COMPLETE, PROFESSIONAL React website with EXCELLENT design and ALL files.
+**LANGUAGE:** [Визначена мова з запиту за правилами]
 
-**CRITICAL DEPLOYMENT REQUIREMENTS - GUARANTEED BUILD & DEPLOY:**
+**MULTI-PAGE STRUCTURE:**
+[Перелічи ВСІ сторінки які потрібні]
+
+**DESIGN:**
+- Language: [Мова з запиту]
+- Colors: [Кольори з запиту АБО професійна палітра]
+- Style: [Стиль з запиту]
+- **PREMIUM DESIGN: Modern, professional, excellent UX**`.trim();
+
+const REACT_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE REACT WEBSITE WITH 10X BETTER UI AND STATIC HEADER/FOOTER
+
+**DESIGN PHILOSOPHY - 10X BETTER UI:**
+🚀 **Start with FUNCTIONAL and BEAUTIFUL base UI** - Every pixel must serve a purpose
+🎯 **Always make 10X better UI than standard** - Go beyond expectations
+✨ **Use advanced CSS patterns** - CSS Grid, Flexbox, custom properties, clamp()
+📈 **Add visual hierarchy incrementally** - Build up from solid foundation
+🎨 **Think like a product designer** - Focus on user experience first
+
+**CRITICAL REQUIREMENT: STATIC HEADER AND FOOTER ACROSS ALL PAGES**
+⚠️ **HEADER/FOOTER MUST BE IDENTICAL ON EVERY PAGE**
+- **Same structure, same navigation items, same positioning**
+- **Navigation links must point to correct corresponding pages**
+- **Active page indicator should update based on current page**
+- **Logo, menu items, CTAs remain in identical positions**
+- **Footer content, layout, and styling must be identical**
+
+**REACT COMPONENT APPROACH:**
+1. **Create Header component** - reusable across all pages
+2. **Create Footer component** - reusable across all pages
+3. **Use React Router** for navigation
+4. **Highlight active page** in navigation
+5. **Only page content changes** - header/footer remain constant
+
+**VISUAL EXCELLENCE GUIDELINES:**
+- **Whitespace is king** - Generous spacing (1.5x standard)
+- **Clean typography system** - Hierarchy: H1 > H2 > H3 > Body > Small
+- **Strategic color use** - 60% primary, 30% secondary, 10% accent
+- **Consistent spacing scale** - 4px, 8px, 16px, 24px, 32px, 48px, 64px
+- **Subtle depth** - Minimal shadows, clean borders
+- **Smooth transitions** - 300ms ease-in-out for interactions
+
+**MODERN CSS TECHNIQUES:**
+- CSS Grid for main layouts
+- Flexbox for components
+- CSS Custom Properties for theming
+- clamp() for fluid typography
+- aspect-ratio for responsive media
+- gap instead of margins where possible
+- min-height: 100vh for full-height sections
+- position: sticky for navigation
+
+**IMAGE STRATEGY - CONTEXT AWARE:**
+- **Images MUST match page content** - Relevant to subject
+- **USE ONLY EXTERNAL IMAGE URLs - NO LOCAL PATHS**
+- **Homepage hero:** Choose image that represents main service/product
+- **Use picsum.photos for placeholder images:**
+  https://picsum.photos/800/600?grayscale&blur=2 (elegant hero)
+  https://picsum.photos/600/400?random=business (business content)
+  https://picsum.photos/400/400?random=team (team/people)
+  https://picsum.photos/1000/400?random=office (office/space)
+
+**PERFORMANCE + BEAUTY:**
+- **CSS well-organized** with CSS variables
+- **MAX 3 images per page** - each perfectly chosen
+- **Lazy loading** with loading="lazy"
+- **Minimal dependencies** - only React, React DOM, React Router
+- **Semantic HTML** - accessibility built-in
+
+**MOBILE-FIRST BREAKPOINTS:**
+/* Mobile (default) */
+/* Tablet: 768px */
+@media (min-width: 768px) { ... }
+/* Desktop: 1024px */
+@media (min-width: 1024px) { ... }
+/* Large: 1280px */
+@media (min-width: 1280px) { ... }
+
+**COOKIE BANNER - DESIGN INTEGRATED:**
+- Subtle, non-intrusive design
+- Matches site color scheme
+- Clear Accept/Decline buttons
+- Smooth appear animation
+- Persistent until action
+- **Same banner on all pages**
 
 **MANDATORY FILES FOR GUARANTEED DEPLOYMENT:**
 
-1. <!-- FILE: package.json -->
+<!-- FILE: package.json -->
 {
   "name": "[company-name]-site",
   "version": "1.0.0",
@@ -50,20 +139,12 @@ Create a COMPLETE, PROFESSIONAL React website with EXCELLENT design and ALL file
     "npm": ">=8.0.0"
   },
   "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+    "production": [">0.2%", "not dead", "not op_mini all"],
+    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
   }
 }
 
-2. <!-- FILE: netlify.toml -->
+<!-- FILE: netlify.toml -->
 [build]
   command = "npm run build"
   publish = "build/"
@@ -73,50 +154,79 @@ Create a COMPLETE, PROFESSIONAL React website with EXCELLENT design and ALL file
   to = "/index.html"
   status = 200
 
-3. <!-- FILE: vercel.json -->
+<!-- FILE: vercel.json -->
 {
   "buildCommand": "npm run build",
   "outputDirectory": "build",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
 
-4. <!-- FILE: public/_redirects -->
+<!-- FILE: public/_redirects -->
 /* /index.html 200
 
-**CRITICAL BUILD GUARANTEE:**
-- The EXACT package.json above MUST be used (tested and guaranteed)
-- NO additional dependencies that could cause conflicts
-- React-scripts 5.0.1 with React 18.2.0 - PROVEN compatibility
-- The site MUST build with npm run build without errors
-- Creates build/ folder with static files
+**OUTPUT FORMAT:**
+<!-- FILE: package.json -->
+[Exact package.json from above]
 
-**IMPORTANT IMAGE FIX - USE EXTERNAL URLS ONLY:**
-- **USE ONLY EXTERNAL IMAGE URLs - NO LOCAL PATHS**
-- All images must use full https:// URL
-- No relative paths or image imports
-- Use picsum.photos for placeholder images
+<!-- FILE: public/index.html -->
+[Complete HTML with meta tags]
 
-**CRITICAL DESIGN REQUIREMENTS:**
-- PERFECT responsive design - mobile-first approach
-- Modern, clean header with sticky navigation
-- Professional spacing and typography hierarchy
-- Smooth animations and hover effects
-- Perfectly aligned grid systems
-- Balanced visual hierarchy
+<!-- FILE: src/index.js -->
+[React entry point]
 
-**ESSENTIAL FILES:**
-- public/index.html
-- src/index.js
-- src/App.js (with React Router)
-- Components: Header, Footer, CookieBanner, ScrollToTop
-- Pages: Home, About, Services, Contact, Terms, Privacy
-- src/styles/global.css (perfect responsive CSS)
-- public/robots.txt
-- public/sitemap.xml
+<!-- FILE: src/App.js -->
+[React Router with all routes]
 
-Generate EXCELLENT, PROFESSIONAL code with PERFECT responsive design and GUARANTEED deployment on any platform.`;
+<!-- FILE: src/components/Header.js -->
+[Reusable header with navigation]
+
+<!-- FILE: src/components/Footer.js -->
+[Reusable footer]
+
+<!-- FILE: src/components/CookieBanner.js -->
+[Cookie consent banner]
+
+<!-- FILE: src/pages/Home.js -->
+[Homepage with hero, features, CTA]
+
+<!-- FILE: src/pages/Services.js -->
+[Services page]
+
+<!-- FILE: src/pages/About.js -->
+[About page]
+
+<!-- FILE: src/pages/Contact.js -->
+[Contact page with form]
+
+<!-- FILE: src/pages/Terms.js -->
+[Terms of service]
+
+<!-- FILE: src/pages/Privacy.js -->
+[Privacy policy]
+
+<!-- FILE: src/pages/NotFound.js -->
+[404 page]
+
+<!-- FILE: src/styles/global.css -->
+[Complete CSS with variables and responsive design]
+
+<!-- FILE: public/robots.txt -->
+User-agent: *
+Allow: /
+
+<!-- FILE: public/sitemap.xml -->
+[Complete sitemap]
+
+<!-- FILE: netlify.toml -->
+[Netlify config]
+
+<!-- FILE: vercel.json -->
+[Vercel config]
+
+<!-- FILE: public/_redirects -->
+/* /index.html 200
+
+**IMPORTANT:** Header and Footer components MUST be reused across all pages via App.js layout. Generate EXCEPTIONAL React website with 10X better UI, STATIC identical header/footer across all pages, perfect imagery matching content, and outstanding user experience. All styles MUST render correctly in browser, NO markdown code blocks, NO backticks at beginning of files.`;
 
 type GeneratedFile = { path: string; content: string };
 
@@ -251,16 +361,12 @@ async function runGeneration({
   console.log("Refined prompt generated, now generating React website...");
 
   // Step 2: React website generation
-  const websiteRequestBody: any = {
+  const websiteRequestBody: Record<string, unknown> = {
     model: generateModel,
     messages: [
       {
-        role: "system",
-        content: `You are a React code generator. You MUST build a React website EXACTLY matching the user's original request.\n\nReturn ONLY file blocks using exact markers like: <!-- FILE: src/App.js -->.\nNo explanations, no markdown backticks.`,
-      },
-      {
         role: "user",
-        content: `=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== TECHNICAL REQUIREMENTS ===\n${REACT_GENERATION_PROMPT}\n\n=== ENHANCED DETAILS ===\n${refinedPrompt}\n\nIMPORTANT: Implement the React site to match the user's original request above.`,
+        content: `${REACT_GENERATION_PROMPT}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== ENHANCED DETAILS ===\n${refinedPrompt}\n\nGenerate EXCEPTIONAL multi-page React website with 10X better UI, STATIC identical header/footer across all pages, perfect imagery matching content, and outstanding user experience, All styles MUST render correctly in browser, NO markdown code blocks, NO backticks at beginning of files`,
       },
     ],
   };
