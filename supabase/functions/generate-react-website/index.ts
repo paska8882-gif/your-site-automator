@@ -39,87 +39,39 @@ Create a professional MULTI-PAGE React website for [Назва] with complete st
 - Style: [Стиль з запиту]
 - **PREMIUM DESIGN: Modern, professional, excellent UX**`.trim();
 
-const REACT_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE REACT WEBSITE WITH 10X BETTER UI AND STATIC HEADER/FOOTER
+const REACT_GENERATION_PROMPT = `You are an expert product designer and React developer.
 
-**DESIGN PHILOSOPHY - 10X BETTER UI:**
-🚀 **Start with FUNCTIONAL and BEAUTIFUL base UI** - Every pixel must serve a purpose
-🎯 **Always make 10X better UI than standard** - Go beyond expectations
-✨ **Use advanced CSS patterns** - CSS Grid, Flexbox, custom properties, clamp()
-📈 **Add visual hierarchy incrementally** - Build up from solid foundation
-🎨 **Think like a product designer** - Focus on user experience first
+GOAL: generate a premium multi-page React website that matches the user's request EXACTLY.
 
-**CRITICAL REQUIREMENT: STATIC HEADER AND FOOTER ACROSS ALL PAGES**
-⚠️ **HEADER/FOOTER MUST BE IDENTICAL ON EVERY PAGE**
-- **Same structure, same navigation items, same positioning**
-- **Navigation links must point to correct corresponding pages**
-- **Active page indicator should update based on current page**
-- **Logo, menu items, CTAs remain in identical positions**
-- **Footer content, layout, and styling must be identical**
+ABSOLUTE RULES:
+- Output ONLY file blocks using EXACT markers: <!-- FILE: path/to/file.ext -->
+- NO markdown, NO backticks, NO explanations.
+- Use ONLY external https image URLs (no local images).
 
-**REACT COMPONENT APPROACH:**
-1. **Create Header component** - reusable across all pages
-2. **Create Footer component** - reusable across all pages
-3. **Use React Router** for navigation
-4. **Highlight active page** in navigation
-5. **Only page content changes** - header/footer remain constant
+REQUIRED PAGES (routes): Home, About, Services/Products, Contact, Terms, Privacy, NotFound.
 
-**VISUAL EXCELLENCE GUIDELINES:**
-- **Whitespace is king** - Generous spacing (1.5x standard)
-- **Clean typography system** - Hierarchy: H1 > H2 > H3 > Body > Small
-- **Strategic color use** - 60% primary, 30% secondary, 10% accent
-- **Consistent spacing scale** - 4px, 8px, 16px, 24px, 32px, 48px, 64px
-- **Subtle depth** - Minimal shadows, clean borders
-- **Smooth transitions** - 300ms ease-in-out for interactions
+LAYOUT REQUIREMENTS:
+- Header and Footer must be identical across all pages (single shared layout).
+- Active nav link highlight.
+- Cookie banner with Accept/Decline.
 
-**MODERN CSS TECHNIQUES:**
-- CSS Grid for main layouts
-- Flexbox for components
-- CSS Custom Properties for theming
-- clamp() for fluid typography
-- aspect-ratio for responsive media
-- gap instead of margins where possible
-- min-height: 100vh for full-height sections
-- position: sticky for navigation
+DESIGN & UX (10x quality):
+- Mobile-first responsive layout; excellent spacing/typography; smooth transitions.
+- Use CSS variables and a well-structured global stylesheet.
 
-**IMAGE STRATEGY - CONTEXT AWARE:**
-- **Images MUST match page content** - Relevant to subject
-- **USE ONLY EXTERNAL IMAGE URLs - NO LOCAL PATHS**
-- **Homepage hero:** Choose image that represents main service/product
-- **Use picsum.photos for placeholder images:**
-  https://picsum.photos/800/600?grayscale&blur=2 (elegant hero)
-  https://picsum.photos/600/400?random=business (business content)
-  https://picsum.photos/400/400?random=team (team/people)
-  https://picsum.photos/1000/400?random=office (office/space)
+SEO:
+- Set <title>, meta description, canonical, and Open Graph in public/index.html.
+- Each page must have exactly ONE H1.
 
-**PERFORMANCE + BEAUTY:**
-- **CSS well-organized** with CSS variables
-- **MAX 3 images per page** - each perfectly chosen
-- **Lazy loading** with loading="lazy"
-- **Minimal dependencies** - only React, React DOM, React Router
-- **Semantic HTML** - accessibility built-in
+DEPLOYMENT FILES (must include):
+- netlify.toml
+- vercel.json
+- public/_redirects
 
-**MOBILE-FIRST BREAKPOINTS:**
-/* Mobile (default) */
-/* Tablet: 768px */
-@media (min-width: 768px) { ... }
-/* Desktop: 1024px */
-@media (min-width: 1024px) { ... }
-/* Large: 1280px */
-@media (min-width: 1280px) { ... }
-
-**COOKIE BANNER - DESIGN INTEGRATED:**
-- Subtle, non-intrusive design
-- Matches site color scheme
-- Clear Accept/Decline buttons
-- Smooth appear animation
-- Persistent until action
-- **Same banner on all pages**
-
-**MANDATORY FILES FOR GUARANTEED DEPLOYMENT:**
-
+MANDATORY package.json (use EXACTLY this to avoid build issues):
 <!-- FILE: package.json -->
 {
-  "name": "[company-name]-site",
+  "name": "react-website",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -137,96 +89,10 @@ const REACT_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE REACT W
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
-  },
-  "browserslist": {
-    "production": [">0.2%", "not dead", "not op_mini all"],
-    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
   }
 }
 
-<!-- FILE: netlify.toml -->
-[build]
-  command = "npm run build"
-  publish = "build/"
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
-<!-- FILE: vercel.json -->
-{
-  "buildCommand": "npm run build",
-  "outputDirectory": "build",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
-}
-
-<!-- FILE: public/_redirects -->
-/* /index.html 200
-
-**OUTPUT FORMAT:**
-<!-- FILE: package.json -->
-[Exact package.json from above]
-
-<!-- FILE: public/index.html -->
-[Complete HTML with meta tags]
-
-<!-- FILE: src/index.js -->
-[React entry point]
-
-<!-- FILE: src/App.js -->
-[React Router with all routes]
-
-<!-- FILE: src/components/Header.js -->
-[Reusable header with navigation]
-
-<!-- FILE: src/components/Footer.js -->
-[Reusable footer]
-
-<!-- FILE: src/components/CookieBanner.js -->
-[Cookie consent banner]
-
-<!-- FILE: src/pages/Home.js -->
-[Homepage with hero, features, CTA]
-
-<!-- FILE: src/pages/Services.js -->
-[Services page]
-
-<!-- FILE: src/pages/About.js -->
-[About page]
-
-<!-- FILE: src/pages/Contact.js -->
-[Contact page with form]
-
-<!-- FILE: src/pages/Terms.js -->
-[Terms of service]
-
-<!-- FILE: src/pages/Privacy.js -->
-[Privacy policy]
-
-<!-- FILE: src/pages/NotFound.js -->
-[404 page]
-
-<!-- FILE: src/styles/global.css -->
-[Complete CSS with variables and responsive design]
-
-<!-- FILE: public/robots.txt -->
-User-agent: *
-Allow: /
-
-<!-- FILE: public/sitemap.xml -->
-[Complete sitemap]
-
-<!-- FILE: netlify.toml -->
-[Netlify config]
-
-<!-- FILE: vercel.json -->
-[Vercel config]
-
-<!-- FILE: public/_redirects -->
-/* /index.html 200
-
-**IMPORTANT:** Header and Footer components MUST be reused across all pages via App.js layout. Generate EXCEPTIONAL React website with 10X better UI, STATIC identical header/footer across all pages, perfect imagery matching content, and outstanding user experience. All styles MUST render correctly in browser, NO markdown code blocks, NO backticks at beginning of files.`;
+Return the COMPLETE project now.`;
 
 type GeneratedFile = { path: string; content: string };
 
@@ -365,8 +231,13 @@ async function runGeneration({
     model: generateModel,
     messages: [
       {
+        role: "system",
+        content:
+          "You are an expert React generator. Return ONLY file blocks using exact markers like: <!-- FILE: src/App.js -->. No explanations. No markdown.",
+      },
+      {
         role: "user",
-        content: `${REACT_GENERATION_PROMPT}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== ENHANCED DETAILS ===\n${refinedPrompt}\n\nGenerate EXCEPTIONAL multi-page React website with 10X better UI, STATIC identical header/footer across all pages, perfect imagery matching content, and outstanding user experience, All styles MUST render correctly in browser, NO markdown code blocks, NO backticks at beginning of files`,
+        content: `${REACT_GENERATION_PROMPT}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
       },
     ],
   };
