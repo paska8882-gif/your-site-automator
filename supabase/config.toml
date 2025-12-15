@@ -7,3 +7,6 @@ max_duration_seconds = 600
 [functions.generate-react-website]
 verify_jwt = true
 max_duration_seconds = 600
+
+[functions.edit-website]
+verify_jwt = true

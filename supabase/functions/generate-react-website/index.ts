@@ -484,6 +484,8 @@ serve(async (req) => {
         language: language || "auto",
         user_id: user.id,
         status: "pending",
+        ai_model: aiModel,
+        website_type: "react",
       })
       .select()
       .single();
