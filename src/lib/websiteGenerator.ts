@@ -26,19 +26,45 @@ export async function generateWebsite(
 ): Promise<GenerationResult> {
   const functionName = websiteType === "react" ? "generate-react-website" : "generate-website";
   
-  const { data, error } = await supabase.functions.invoke<GenerationResult>(
-    functionName,
-    {
-      body: { prompt, language, aiModel },
+  // Use fetch with 10 minute timeout instead of supabase.functions.invoke
+  // because the default fetch timeout is too short for AI generation
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10 minutes
+  
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ prompt, language, aiModel }),
+        signal: controller.signal,
+      }
+    );
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { success: false, error: errorData.error || `HTTP ${response.status}` };
     }
-  );
-
-  if (error) {
+    
+    const data = await response.json();
+    return data || { success: false, error: "No response from server" };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      return { success: false, error: "Request timed out after 10 minutes" };
+    }
     console.error("Edge function error:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
-
-  return data || { success: false, error: "No response from server" };
 }
 
 export async function createZipFromFiles(
