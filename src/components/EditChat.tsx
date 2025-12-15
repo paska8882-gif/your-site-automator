@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Send, Loader2, User, Bot, Crown, Zap } from "lucide-react";
 import { GeneratedFile } from "@/lib/websiteGenerator";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,7 +28,7 @@ interface EditChatProps {
 export function EditChat({
   generationId,
   files,
-  aiModel,
+  aiModel: initialAiModel,
   websiteType,
   originalPrompt,
   onFilesUpdate,
@@ -37,6 +38,7 @@ export function EditChat({
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [selectedAiModel, setSelectedAiModel] = useState<"junior" | "senior">(initialAiModel);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -75,7 +77,7 @@ export function EditChat({
             generationId,
             editRequest: userMessage,
             currentFiles: files,
-            aiModel,
+            aiModel: selectedAiModel,
             websiteType,
             originalPrompt,
           }),
@@ -136,20 +138,31 @@ export function EditChat({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b">
-        <div className="flex items-center gap-2 text-sm">
-          {aiModel === "senior" ? (
-            <>
-              <Crown className="h-4 w-4 text-amber-500" />
-              <span>Senior AI</span>
-            </>
-          ) : (
-            <>
-              <Zap className="h-4 w-4 text-blue-500" />
-              <span>Junior AI</span>
-            </>
-          )}
-          <span className="text-muted-foreground">•</span>
-          <span className="text-muted-foreground">
+        <div className="flex items-center justify-between gap-2">
+          <Select 
+            value={selectedAiModel} 
+            onValueChange={(v) => setSelectedAiModel(v as "junior" | "senior")}
+            disabled={isEditing}
+          >
+            <SelectTrigger className="w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="senior">
+                <div className="flex items-center gap-2">
+                  <Crown className="h-4 w-4 text-amber-500" />
+                  Senior AI
+                </div>
+              </SelectItem>
+              <SelectItem value="junior">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-blue-500" />
+                  Junior AI
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-sm text-muted-foreground">
             {websiteType === "react" ? "React" : "HTML/CSS"}
           </span>
         </div>
