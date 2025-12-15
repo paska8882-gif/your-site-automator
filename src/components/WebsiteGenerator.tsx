@@ -1,13 +1,13 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Download, Eye, Code, FileCode2, Sparkles } from "lucide-react";
-import { generateWebsite, createZipFromFiles, downloadBlob, GeneratedFile } from "@/lib/websiteGenerator";
+import { generateWebsite, createZipFromFiles, downloadBlob, saveToHistory, GeneratedFile } from "@/lib/websiteGenerator";
 import { FilePreview } from "./FilePreview";
-
+import { GenerationHistory } from "./GenerationHistory";
 const languages = [
   { value: "auto", label: "Авто-визначення" },
   { value: "uk", label: "Українська" },
@@ -26,6 +26,7 @@ export function WebsiteGenerator() {
   const [isLoading, setIsLoading] = useState(false);
   const [generatedFiles, setGeneratedFiles] = useState<GeneratedFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<GeneratedFile | null>(null);
+  const [historyKey, setHistoryKey] = useState(0);
   const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
 
   const handleGenerate = async () => {
@@ -49,6 +50,10 @@ export function WebsiteGenerator() {
         setGeneratedFiles(result.files);
         const indexFile = result.files.find((f) => f.path === "index.html");
         setSelectedFile(indexFile || result.files[0]);
+        
+        // Save to history
+        await saveToHistory(prompt, language === "auto" ? "auto" : language, result.files);
+        setHistoryKey((prev) => prev + 1);
         
         toast({
           title: "Успіх!",
@@ -242,6 +247,9 @@ export function WebsiteGenerator() {
             </Card>
           )}
         </div>
+
+        {/* History Table */}
+        <GenerationHistory key={historyKey} />
       </div>
     </div>
   );
