@@ -9,79 +9,186 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `Ти — створатор промптів для **статичних HTML/CSS сайтів**.
-
-Твоя задача — проаналізувати запит користувача і створити детальний промпт для генерації професійного **статичного** сайту (без React, без збірки, без npm).
+const SYSTEM_PROMPT = `Ти — створатор промптів для багатосторінкових сайтів. Твоя задача — проаналізувати запит і створити промпт для генерації професійного багатосторінкового сайту.
 
 **КРИТИЧНО ВАЖЛИВО: ВИЗНАЧЕННЯ МОВИ**
 При визначенні мови керуйся наступними пріоритетами:
-1. **Явне вказання в запиті** — якщо користувач явно вказав мову, використовуй ВКАЗАНУ мову
+1. **Явне вказання в запиті** — якщо користувач явно вказав мову (наприклад, "Language: EN", "Мова: українська"), використовуй ВКАЗАНУ мову
 2. **Мова контенту** — якщо мова явно не вказана, аналізуй мову представленого контенту
 3. **За замовчуванням** — якщо мову неможливо визначити, використовуй англійську (EN)
 
+**АНАЛІЗ ЗАПИТУ:**
+1. **Визнач мову користувача** — використовуй правила пріоритету вище
+2. **Визнач структуру сайту** — які сторінки потрібні користувачу
+3. **Витягни ключову інформацію** — компанія, послуги, контакти, УТП
+4. **Збережи мову і стиль** — точно як у запиті
+5. **Визнач кількість сторінок** — скільки сторінок вказано або логічно потрібно
+
+**СТВОРЕННЯ СТРУКТУРИ:**
+- Якщо користувач вказав конкретні сторінки — використовуй ЇХ
+- Якщо не вказав — запропонуй логічну структуру (Головна, Послуги, Контакти + кілька ключових)
+- Зазвичай 5-7 сторінок для бізнес-сайту
+- Включи всі додаткові сторінки (FAQ, Умови, Конфіденційність)
+
 **ФОРМАТ ВИВОДУ:**
-Створи структурований промпт з:
-- сторінками (головна + 3–6 додаткових)
-- секціями кожної сторінки
-- тональністю/стилем дизайну
-- SEO вимогами (title/description, один H1 на сторінку)
-- контентом (тексти, CTA, списки)
-- візуальними підказками (зображення лише через https URL)`.trim();
 
-const HTML_GENERATION_PROMPT = `IMPORTANT: FOLLOW EXACT PROMPT STRUCTURE FOR STATIC HTML WEBSITE GENERATION
+Create a professional MULTI-PAGE website for [Назва] with complete structure:
 
-Create a COMPLETE, PROFESSIONAL **static** website using ONLY:
-- HTML files (multi-page)
-- a single shared CSS file (styles.css)
-- optional vanilla JS (script.js)
+**LANGUAGE:** [Визначена мова з запиту за правилами]
 
-**ABSOLUTE RULES:**
-- DO NOT generate React, npm, package.json, src/, build tools, or frameworks.
-- Return ONLY file blocks using exact markers: <!-- FILE: filename.ext -->
-- No markdown backticks. No explanations.
+**MULTI-PAGE STRUCTURE:**
+[Перелічи ВСІ сторінки які потрібні]
 
-**REQUIRED FILES (minimum):**
-1) <!-- FILE: index.html -->
-2) <!-- FILE: about.html -->
-3) <!-- FILE: services.html --> (or products.html if more suitable)
-4) <!-- FILE: contact.html -->
-5) <!-- FILE: privacy.html -->
-6) <!-- FILE: terms.html -->
-7) <!-- FILE: 404.html -->
-8) <!-- FILE: styles.css -->
-9) <!-- FILE: script.js --> (optional, but include if you add interactive UI)
-10) <!-- FILE: robots.txt -->
-11) <!-- FILE: sitemap.xml -->
+**DESIGN:**
+- Language: [Мова з запиту]
+- Colors: [Кольори з запиту АБО професійна палітра]
+- Style: [Стиль з запиту]
+- **PREMIUM DESIGN: Modern, professional, excellent UX**
+
+**TECHNICAL:**
+- Semantic HTML5 with working navigation between pages
+- CSS Grid/Flexbox, mobile-first responsive
+- Consistent header/footer across ALL pages
+- **FUNCTIONAL COOKIE BANNER with Accept/Decline buttons**
+- All pages fully functional and complete
+- Working images from picsum.photos`.trim();
+
+const HTML_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE WEBSITE WITH 10X BETTER UI AND STATIC HEADER/FOOTER
+
+**DESIGN PHILOSOPHY - 10X BETTER UI:**
+🚀 **Start with FUNCTIONAL and BEAUTIFUL base UI** - Every pixel must serve a purpose
+🎯 **Always make 10X better UI than standard** - Go beyond expectations
+✨ **Use advanced CSS patterns** - CSS Grid, Flexbox, custom properties, clamp()
+📈 **Add visual hierarchy incrementally** - Build up from solid foundation
+🎨 **Think like a product designer** - Focus on user experience first
+
+**CRITICAL REQUIREMENT: STATIC HEADER AND FOOTER ACROSS ALL PAGES**
+⚠️ **HEADER/FOOTER MUST BE IDENTICAL ON EVERY PAGE**
+- **Same structure, same navigation items, same positioning**
+- **Navigation links must point to correct corresponding pages**
+- **Active page indicator should update based on current page**
+- **Logo, menu items, CTAs remain in identical positions**
+- **Footer content, layout, and styling must be identical**
+
+**TEMPLATE APPROACH:**
+1. **Create master template** with static header/footer HTML
+2. **Reuse template** across all pages
+3. **Only page content changes** - header/footer remain constant
+4. **Active state CSS** for current page in navigation
+
+**VISUAL EXCELLENCE GUIDELINES:**
+- **Whitespace is king** - Generous spacing (1.5x standard)
+- **Clean typography system** - Hierarchy: H1 > H2 > H3 > Body > Small
+- **Strategic color use** - 60% primary, 30% secondary, 10% accent
+- **Consistent spacing scale** - 4px, 8px, 16px, 24px, 32px, 48px, 64px
+- **Subtle depth** - Minimal shadows, clean borders
+- **Smooth transitions** - 300ms ease-in-out for interactions
+
+**MODERN CSS TECHNIQUES:**
+- CSS Grid for main layouts
+- Flexbox for components
+- CSS Custom Properties for theming
+- clamp() for fluid typography
+- aspect-ratio for responsive media
+- gap instead of margins where possible
+- min-height: 100vh for full-height sections
+- position: sticky for navigation
+
+**IMAGE STRATEGY - CONTEXT AWARE:**
+- **Images MUST match page content** - Relevant to subject
+- **Homepage hero:** Choose image that represents main service/product
+- **Service pages:** Images showing the service in action
+- **About page:** Team/office photos if relevant
+- **Contact page:** Location/office image
+- **Use semantic filenames in URLs:**
+  https://picsum.photos/800/600?grayscale&blur=2 (elegant hero)
+  https://picsum.photos/600/400?random=business (business content)
+  https://picsum.photos/400/400?random=team (team/people)
+  https://picsum.photos/1000/400?random=office (office/space)
+
+**CONTENT-FIRST APPROACH:**
+1. Structure content logically
+2. Add visual hierarchy
+3. Apply consistent spacing
+4. Enhance with subtle visuals
+5. Polish interactions
+
+**PERFORMANCE + BEAUTY:**
+- **CSS under 500 lines** but exceptionally crafted
+- **MAX 3 images per page** - each perfectly chosen
+- **Lazy loading** with loading="lazy"
+- **Optimized image sizes** - never oversized
+- **Minimal JavaScript** - only for essential interactions
+- **Semantic HTML** - accessibility built-in
+
+**MOBILE-FIRST BREAKPOINTS:**
+/* Mobile (default) */
+/* Tablet: 768px */
+@media (min-width: 768px) { ... }
+/* Desktop: 1024px */
+@media (min-width: 1024px) { ... }
+/* Large: 1280px */
+@media (min-width: 1280px) { ... }
+
+**BUILD PROCESS:**
+1. **Create master template** with static header/footer that will be reused
+2. **Build homepage** using the template
+3. **Extend to other pages** keeping header/footer IDENTICAL
+4. **Only change main content area** between pages
+5. **Use CSS active states** to highlight current page in navigation
+6. **Test navigation flow** - ensure all links work correctly
+7. Final visual polish
+
+**COOKIE BANNER - DESIGN INTEGRATED:**
+- Subtle, non-intrusive design
+- Matches site color scheme
+- Clear Accept/Decline buttons
+- Smooth appear animation
+- Persistent until action
+- **Same banner on all pages**
 
 **SEO REQUIREMENTS (EVERY PAGE):**
-- Unique <title> under 60 characters and includes primary keyword
+- Unique <title> under 60 characters with primary keyword
 - <meta name="description"> under 160 characters
-- <link rel="canonical" href="https://example.com/<page>" /> (use example.com)
+- <link rel="canonical" href="https://example.com/<page>" />
 - Open Graph tags (og:title, og:description, og:type=website)
 - Exactly ONE <h1> per page
 
-**DESIGN & UX:**
-- Mobile-first responsive layout
-- Use semantic HTML: header/nav/main/section/article/footer
-- Accessible: proper labels, focus states, aria for menu, good contrast
-- Clean typography hierarchy and spacing
-- Use CSS variables in :root for colors, spacing, radius, shadows
-- Smooth hover/focus transitions
+**OUTPUT FORMAT:**
+<!-- FILE: styles.css -->
+[Complete CSS with header/footer styles and active page states]
 
-**IMAGES:**
-- Use ONLY full https:// URLs (e.g., https://picsum.photos/1200/800?random=1)
-- Add descriptive alt text
+<!-- FILE: index.html -->
+[Exceptional HTML with STATIC header/footer]
 
-**NAVIGATION:**
-- Consistent header navigation across all pages
-- Active link highlight via body class or JS (simple)
-- Footer with basic links (Terms/Privacy/Contact)
+<!-- FILE: services.html -->
+[SAME header/footer, unique content]
 
-**SITEMAP/ROBOTS:**
-- sitemap.xml must list all HTML pages with example.com URLs
-- robots.txt should allow crawling and point to sitemap.xml
+<!-- FILE: about.html -->
+[SAME header/footer, professional about content]
 
-Generate beautiful, production-quality HTML/CSS/JS that matches the user's request EXACTLY.`;
+<!-- FILE: contact.html -->
+[SAME header/footer, clean contact page]
+
+<!-- FILE: terms.html -->
+[SAME header/footer, well-formatted legal page]
+
+<!-- FILE: privacy.html -->
+[SAME header/footer, clean privacy policy]
+
+<!-- FILE: 404.html -->
+[SAME header/footer, helpful error page]
+
+<!-- FILE: robots.txt -->
+User-agent: *
+Allow: /
+
+<!-- FILE: sitemap.xml -->
+[Complete sitemap]
+
+**IMPORTANT:** Header and footer HTML structure MUST be identical across all HTML files. Only update the 'active' class on navigation links to indicate current page.
+
+Generate EXCEPTIONAL multi-page website with 10X better UI, STATIC identical header/footer across all pages, perfect imagery matching content, and outstanding user experience. All styles MUST render correctly in browser, NO markdown code blocks, NO backticks at beginning of files.`;
 
 
 type GeneratedFile = { path: string; content: string };
@@ -216,18 +323,13 @@ async function runGeneration({
   const refinedPrompt = agentData.choices?.[0]?.message?.content || prompt;
   console.log("Refined prompt generated, now generating HTML website...");
 
-  // Step 2: Static HTML website generation (include original prompt explicitly)
-  const websiteRequestBody: any = {
+  // Step 2: Static HTML website generation
+  const websiteRequestBody: Record<string, unknown> = {
     model: generateModel,
     messages: [
       {
-        role: "system",
-        content:
-          "You are an expert HTML/CSS/JS generator. You MUST build a static multi-page website EXACTLY matching the user's original request.\n\nReturn ONLY file blocks using exact markers like: <!-- FILE: index.html -->.\nNo explanations, no markdown backticks.",
-      },
-      {
         role: "user",
-        content: `=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== TECHNICAL REQUIREMENTS ===\n${HTML_GENERATION_PROMPT}\n\n=== ENHANCED DETAILS ===\n${refinedPrompt}\n\nIMPORTANT: Implement the static site to match the user's original request above.`,
+        content: `${HTML_GENERATION_PROMPT}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== ENHANCED DETAILS ===\n${refinedPrompt}\n\nGenerate EXCEPTIONAL multi-page website with 10X better UI, STATIC identical header/footer across all pages, perfect imagery matching content, and outstanding user experience, All styles MUST render correctly in browser, NO markdown code blocks, NO backticks at beginning of files`,
       },
     ],
   };
