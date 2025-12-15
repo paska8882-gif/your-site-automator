@@ -112,133 +112,135 @@ export function WebsiteGenerator() {
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Input Section */}
-          <Card className="lg:sticky lg:top-6 h-fit">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileCode2 className="h-5 w-5" />
-                Опис сайту
-              </CardTitle>
-              <CardDescription>
-                Опишіть тип бізнесу, послуги, стиль дизайну та інші деталі
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Textarea
-                placeholder="Наприклад: Сучасний сайт для IT-компанії з послугами веб-розробки. Темна тема, мінімалістичний дизайн. Сторінки: головна, послуги, портфоліо, контакти..."
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                className="min-h-[200px] resize-none"
-                disabled={isLoading}
-              />
+        <div className={`flex flex-col ${generatedFiles.length > 0 ? 'lg:flex-row' : ''} gap-6`}>
+          {/* Left Column - Input + Files */}
+          <div className={`space-y-4 ${generatedFiles.length > 0 ? 'lg:w-[30%]' : 'w-full max-w-2xl mx-auto'}`}>
+            {/* Input Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileCode2 className="h-5 w-5" />
+                  Опис сайту
+                </CardTitle>
+                <CardDescription>
+                  Опишіть тип бізнесу, послуги, стиль дизайну та інші деталі
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Textarea
+                  placeholder="Наприклад: Сучасний сайт для IT-компанії з послугами веб-розробки. Темна тема, мінімалістичний дизайн. Сторінки: головна, послуги, портфоліо, контакти..."
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  className="min-h-[150px] resize-none"
+                  disabled={isLoading}
+                />
 
-              <div className="flex gap-4">
-                <Select value={language} onValueChange={setLanguage} disabled={isLoading}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Мова сайту" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {languages.map((lang) => (
-                      <SelectItem key={lang.value} value={lang.value}>
-                        {lang.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Button
-                  onClick={handleGenerate}
-                  disabled={isLoading || !prompt.trim()}
-                  className="flex-1"
-                  size="lg"
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Генерація...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Згенерувати сайт
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              {generatedFiles.length > 0 && (
-                <Button onClick={handleDownload} variant="outline" className="w-full" size="lg">
-                  <Download className="mr-2 h-4 w-4" />
-                  Завантажити ZIP ({generatedFiles.length} файлів)
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Output Section */}
-          <div className="space-y-4">
-            {generatedFiles.length > 0 ? (
-              <>
-                {/* File Tabs */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-medium">Файли</CardTitle>
-                      <div className="flex gap-1">
-                        <Button
-                          variant={viewMode === "preview" ? "default" : "ghost"}
-                          size="sm"
-                          onClick={() => setViewMode("preview")}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          Превью
-                        </Button>
-                        <Button
-                          variant={viewMode === "code" ? "default" : "ghost"}
-                          size="sm"
-                          onClick={() => setViewMode("code")}
-                        >
-                          <Code className="h-4 w-4 mr-1" />
-                          Код
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {generatedFiles.map((file) => (
-                        <Button
-                          key={file.path}
-                          variant={selectedFile?.path === file.path ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setSelectedFile(file)}
-                        >
-                          {file.path}
-                        </Button>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Select value={language} onValueChange={setLanguage} disabled={isLoading}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder="Мова сайту" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {languages.map((lang) => (
+                        <SelectItem key={lang.value} value={lang.value}>
+                          {lang.label}
+                        </SelectItem>
                       ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                    </SelectContent>
+                  </Select>
 
-                {/* Preview/Code View */}
-                {selectedFile && (
-                  <FilePreview
-                    file={selectedFile}
-                    cssFile={getCssFile()}
-                    viewMode={viewMode}
-                  />
-                )}
-              </>
-            ) : (
-              <Card className="h-[400px] flex items-center justify-center">
-                <div className="text-center text-muted-foreground">
-                  <FileCode2 className="h-16 w-16 mx-auto mb-4 opacity-20" />
-                  <p>Результат генерації з'явиться тут</p>
+                  <Button
+                    onClick={handleGenerate}
+                    disabled={isLoading || !prompt.trim()}
+                    className="flex-1"
+                    size="lg"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Генерація...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Згенерувати
+                      </>
+                    )}
+                  </Button>
                 </div>
+
+                {generatedFiles.length > 0 && (
+                  <Button onClick={handleDownload} variant="outline" className="w-full" size="lg">
+                    <Download className="mr-2 h-4 w-4" />
+                    Завантажити ZIP ({generatedFiles.length} файлів)
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* File Tabs - Below Input */}
+            {generatedFiles.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <CardTitle className="text-sm font-medium">Файли</CardTitle>
+                    <div className="flex gap-1">
+                      <Button
+                        variant={viewMode === "preview" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setViewMode("preview")}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Превью
+                      </Button>
+                      <Button
+                        variant={viewMode === "code" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setViewMode("code")}
+                      >
+                        <Code className="h-4 w-4 mr-1" />
+                        Код
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {generatedFiles.map((file) => (
+                      <Button
+                        key={file.path}
+                        variant={selectedFile?.path === file.path ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setSelectedFile(file)}
+                      >
+                        {file.path}
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
               </Card>
             )}
           </div>
+
+          {/* Right Column - Preview (70%) */}
+          {generatedFiles.length > 0 ? (
+            <div className="lg:w-[70%]">
+              {selectedFile && (
+                <FilePreview
+                  file={selectedFile}
+                  cssFile={getCssFile()}
+                  viewMode={viewMode}
+                />
+              )}
+            </div>
+          ) : (
+            <Card className="h-[400px] flex items-center justify-center max-w-2xl mx-auto w-full">
+              <div className="text-center text-muted-foreground">
+                <FileCode2 className="h-16 w-16 mx-auto mb-4 opacity-20" />
+                <p>Результат генерації з'явиться тут</p>
+              </div>
+            </Card>
+          )}
         </div>
       </div>
     </div>
