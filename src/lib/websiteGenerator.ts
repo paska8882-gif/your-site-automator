@@ -16,14 +16,18 @@ export interface GenerationResult {
 }
 
 export type AiModel = "junior" | "senior";
+export type WebsiteType = "html" | "react";
 
 export async function generateWebsite(
   prompt: string,
   language?: string,
-  aiModel: AiModel = "senior"
+  aiModel: AiModel = "senior",
+  websiteType: WebsiteType = "html"
 ): Promise<GenerationResult> {
+  const functionName = websiteType === "react" ? "generate-react-website" : "generate-website";
+  
   const { data, error } = await supabase.functions.invoke<GenerationResult>(
-    "generate-website",
+    functionName,
     {
       body: { prompt, language, aiModel },
     }

@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const SYSTEM_PROMPT = `Ти — створатор промптів для многосторінкових сайтів. Твоя задача — проаналізувати запит і створити промпт для генерації професійного многосторінкового сайту.
+const SYSTEM_PROMPT = `Ти — створатор промптів для React сайтів. Твоя задача — проаналізувати запит і створити детальний промпт для генерації професійного React сайту.
 
 **КРИТИЧНО ВАЖЛИВО: ВИЗНАЧЕННЯ МОВИ**
 При визначенні мови керуйся наступними пріоритетами:
@@ -15,102 +15,227 @@ const SYSTEM_PROMPT = `Ти — створатор промптів для мн�
 3. **За замовчуванням** — якщо мову неможливо визначити, використовуй англійську (EN)
 
 **ФОРМАТ ВИВОДУ:**
-Створи професійний БАГАТОСТОРІНКОВИЙ сайт з повною структурою.`;
+Створи детальний промпт для генерації React сайту з усіма необхідними компонентами та сторінками.`;
 
-const WEBSITE_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE WEBSITE WITH 10X BETTER UI AND STATIC HEADER/FOOTER
+const REACT_GENERATION_PROMPT = `IMPORTANT: FOLLOW EXACT PROMPT STRUCTURE FOR REACT WEBSITE GENERATION
 
-**DESIGN PHILOSOPHY - 10X BETTER UI:**
-🚀 **Start with FUNCTIONAL and BEAUTIFUL base UI** - Every pixel must serve a purpose
-🎯 **Always make 10X better UI than standard** - Go beyond expectations
-✨ **Use advanced CSS patterns** - CSS Grid, Flexbox, custom properties, clamp()
-📈 **Add visual hierarchy incrementally** - Build up from solid foundation
-🎨 **Think like a product designer** - Focus on user experience first
+Create a COMPLETE, PROFESSIONAL React website with EXCELLENT design and ALL files.
 
-**CRITICAL REQUIREMENT: STATIC HEADER AND FOOTER ACROSS ALL PAGES**
-⚠️ **HEADER/FOOTER MUST BE IDENTICAL ON EVERY PAGE**
-- **Same structure, same navigation items, same positioning**
-- **Navigation links must point to correct corresponding pages**
-- **Active page indicator should update based on current page**
-- **Logo, menu items, CTAs remain in identical positions**
-- **Footer content, layout, and styling must be identical**
+**CRITICAL DEPLOYMENT REQUIREMENTS - GUARANTEED BUILD & DEPLOY:**
 
-**VISUAL EXCELLENCE GUIDELINES:**
-- **Whitespace is king** - Generous spacing (1.5x standard)
-- **Clean typography system** - Hierarchy: H1 > H2 > H3 > Body > Small
-- **Strategic color use** - 60% primary, 30% secondary, 10% accent
-- **Consistent spacing scale** - 4px, 8px, 16px, 24px, 32px, 48px, 64px
-- **Subtle depth** - Minimal shadows, clean borders
-- **Smooth transitions** - 300ms ease-in-out for interactions
+**MANDATORY FILES FOR GUARANTEED DEPLOYMENT:**
 
-**MODERN CSS TECHNIQUES:**
-- CSS Grid for main layouts
-- Flexbox for components
-- CSS Custom Properties for theming
-- clamp() for fluid typography
-- aspect-ratio for responsive media
-- gap instead of margins where possible
-- min-height: 100vh for full-height sections
-- position: sticky for navigation
+1. <!-- FILE: package.json -->
+{
+  "name": "[company-name]-site",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.8.0",
+    "react-scripts": "5.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
 
-**IMAGE STRATEGY - CONTEXT AWARE:**
-- **Images MUST match page content** - Relevant to subject
+2. <!-- FILE: netlify.toml -->
+[build]
+  command = "npm run build"
+  publish = "build/"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+3. <!-- FILE: vercel.json -->
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
+
+4. <!-- FILE: public/_redirects -->
+/* /index.html 200
+
+**CRITICAL BUILD GUARANTEE:**
+- The EXACT package.json above MUST be used (tested and guaranteed)
+- NO additional dependencies that could cause conflicts
+- React-scripts 5.0.1 with React 18.2.0 - PROVEN compatibility
+- The site MUST build with npm run build without errors
+- Creates build/ folder with static files
+
+**IMPORTANT IMAGE FIX - USE EXTERNAL URLS ONLY:**
+- **USE ONLY EXTERNAL IMAGE URLs - NO LOCAL PATHS**
+- All images must use full https:// URL
+- No relative paths or image imports
 - Use picsum.photos for placeholder images
-- https://picsum.photos/800/600?random=hero (hero)
-- https://picsum.photos/600/400?random=business (business)
-- https://picsum.photos/400/400?random=team (team)
 
-**PERFORMANCE + BEAUTY:**
-- **CSS under 500 lines** but exceptionally crafted
-- **MAX 3 images per page** - each perfectly chosen
-- **Lazy loading** with loading="lazy"
-- **Semantic HTML** - accessibility built-in
+**CRITICAL DESIGN REQUIREMENTS:**
+- PERFECT responsive design - mobile-first approach
+- Modern, clean header with sticky navigation
+- Professional spacing and typography hierarchy
+- Smooth animations and hover effects
+- Perfectly aligned grid systems
+- Balanced visual hierarchy
 
-**MOBILE-FIRST BREAKPOINTS:**
-/* Mobile (default) */
-/* Tablet: 768px */
-@media (min-width: 768px) { ... }
-/* Desktop: 1024px */
-@media (min-width: 1024px) { ... }
+**ESSENTIAL FILES:**
+- public/index.html
+- src/index.js
+- src/App.js (with React Router)
+- Components: Header, Footer, CookieBanner, ScrollToTop
+- Pages: Home, About, Services, Contact, Terms, Privacy
+- src/styles/global.css (perfect responsive CSS)
+- public/robots.txt
+- public/sitemap.xml
 
-**COOKIE BANNER - DESIGN INTEGRATED:**
-- Subtle, non-intrusive design
-- Matches site color scheme
-- Clear Accept/Decline buttons
-- Smooth appear animation
+**ADVANCED WEBSITE SECTIONS:**
+- **Hero:** Compelling headline with animated CTA
+- **Stats:** Achievement counters with animations
+- **Services:** Interactive cards with hover effects
+- **Process:** Step-by-step workflow visualization
+- **Testimonials:** Carousel with customer quotes
+- **Team:** Interactive team member profiles
+- **Projects:** Filterable portfolio gallery
+- **FAQ:** Accordion with common questions
+- **Blog Preview:** Latest insights/updates
+- **CTA Section:** Strong conversion-focused design
 
-**OUTPUT FORMAT - ALL REQUIRED FILES:**
-<!-- FILE: styles.css -->
-[Complete CSS with all styles]
+**PERFECT RESPONSIVE BREAKPOINTS:**
+- Mobile: < 768px (perfect stacking)
+- Tablet: 768px - 1024px (adaptive grids)
+- Desktop: > 1024px (optimal multi-column)
 
-<!-- FILE: index.html -->
-[Main page with header/footer]
+**DYNAMIC IMAGES - EXTERNAL URLs ONLY:**
+- **USE ONLY FULL HTTPS:// URLs FOR ALL IMAGES**
+- **Hero:** https://picsum.photos/1600/900?random=1
+- **Content:** https://picsum.photos/800/600?random=2
+- **Team:** https://picsum.photos/400/400?random=3
+- **Projects:** https://picsum.photos/1200/800?random=4
+- **Logo:** Use text or simple SVG - NO image path
+- **Services:** https://picsum.photos/600/400?random=5
+- **Testimonials:** https://picsum.photos/200/200?random=6
+- **Use unique random parameters for each image**
+- **Professional alt text matching business context**
+- **IMPORTANT: All <img> tags must use src="https://..." format**
 
-<!-- FILE: about.html -->
-[About page, same header/footer]
+**MODERN HEADER REQUIREMENTS:**
+- Clean logo + navigation layout
+- Sticky behavior with smooth scroll
+- Mobile hamburger menu with smooth animation
+- Active page highlighting
+- Proper spacing and typography
 
-<!-- FILE: services.html -->
-[Services page, same header/footer]
+**INTERACTIVE FEATURES:**
+- Smooth scroll animations
+- Hover effects on cards/buttons
+- Loading states for external images
+- Form validation with user feedback
+- Mobile touch-friendly interactions
 
-<!-- FILE: contact.html -->
-[Contact page with form]
+**PERFECT CSS STRUCTURE:**
+- CSS Grid and Flexbox for layouts
+- CSS variables for consistent theming
+- Mobile-first responsive design
+- Smooth transitions and animations
+- Professional color scheme
+- Perfect typography scale
 
-<!-- FILE: terms.html -->
-[Terms of service page]
+**FORMAT:**
+<!-- FILE: package.json -->
+[EXACT content as above - with added browserslist]
 
-<!-- FILE: privacy.html -->
-[Privacy policy page]
+<!-- FILE: netlify.toml -->
+[EXACT content as above]
 
-<!-- FILE: 404.html -->
-[Error page, same header/footer]
+<!-- FILE: vercel.json -->
+[EXACT content as above]
 
-<!-- FILE: robots.txt -->
-User-agent: *
-Allow: /
+<!-- FILE: public/_redirects -->
+/* /index.html 200
 
-<!-- FILE: sitemap.xml -->
-[Complete sitemap with all pages]
+<!-- FILE: public/index.html -->
+[complete file content]
 
-**CRITICAL:** Generate ALL files listed above. Header/footer IDENTICAL across pages. Output ONLY the file markers and code, NO explanations, NO markdown backticks.`;
+<!-- FILE: src/index.js -->
+[complete file content]
+
+<!-- FILE: src/App.js -->
+[complete file content with all routes]
+
+<!-- FILE: src/components/Header.js -->
+[perfect responsive header with mobile menu - USE TEXT LOGO]
+
+<!-- FILE: src/components/Footer.js -->
+[professional footer with columns]
+
+<!-- FILE: src/components/CookieBanner.js -->
+[styled cookie banner]
+
+<!-- FILE: src/components/ScrollToTop.js -->
+[smooth scroll component]
+
+<!-- FILE: src/pages/Home.js -->
+[complete home with all advanced sections - USE ONLY EXTERNAL IMAGE URLs]
+
+<!-- FILE: src/pages/About.js -->
+[detailed about page with team - USE ONLY EXTERNAL IMAGE URLs]
+
+<!-- FILE: src/pages/Services.js -->
+[interactive services showcase - USE ONLY EXTERNAL IMAGE URLs]
+
+<!-- FILE: src/pages/Contact.js -->
+[professional contact form]
+
+<!-- FILE: src/pages/Terms.js -->
+[terms of service page]
+
+<!-- FILE: src/pages/Privacy.js -->
+[privacy policy page]
+
+<!-- FILE: src/styles/global.css -->
+[perfect responsive CSS with animations]
+
+<!-- FILE: public/robots.txt -->
+[complete file content]
+
+<!-- FILE: public/sitemap.xml -->
+[complete file content]
+
+**BUILD VERIFICATION:**
+The generated site MUST pass these checks:
+1. npm install completes without errors
+2. npm run build creates build/ folder
+3. **ALL images use EXTERNAL HTTPS:// URLs only**
+4. No missing imports or dependencies
+5. React Router configured correctly
+6. **GUARANTEED: No "Module not found" errors for images**
+
+Generate EXCELLENT, PROFESSIONAL code with PERFECT responsive design and GUARANTEED deployment on any platform.`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -118,7 +243,6 @@ serve(async (req) => {
   }
 
   try {
-    // Verify authentication - JWT is validated by Supabase, but we log for audit
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       console.warn('Request rejected: No authorization header');
@@ -140,9 +264,8 @@ serve(async (req) => {
     }
 
     const isJunior = aiModel === 'junior';
-    console.log(`Using ${isJunior ? 'Junior AI (OpenAI GPT-4o)' : 'Senior AI (Lovable AI)'}`);
+    console.log(`Using ${isJunior ? 'Junior AI (OpenAI GPT-4o)' : 'Senior AI (Lovable AI)'} for React generation`);
 
-    // Get appropriate API key
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
@@ -162,9 +285,8 @@ serve(async (req) => {
       );
     }
 
-    console.log('Generating website for prompt:', prompt.substring(0, 100));
+    console.log('Generating React website for prompt:', prompt.substring(0, 100));
 
-    // API configuration based on model choice
     const apiUrl = isJunior 
       ? 'https://api.openai.com/v1/chat/completions'
       : 'https://ai.gateway.lovable.dev/v1/chat/completions';
@@ -183,7 +305,7 @@ serve(async (req) => {
         model: refineModel,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: `Створи ОДИН промпт для генерації статичного HTML/CSS/JS сайту на основі цього запиту:\n\n"${prompt}"\n\nМова: ${language || 'auto-detect'}` }
+          { role: 'user', content: `Створи детальний промпт для генерації React сайту на основі цього запиту:\n\n"${prompt}"\n\nМова контенту: ${language || 'auto-detect'}` }
         ],
       }),
     });
@@ -214,25 +336,23 @@ serve(async (req) => {
     const agentData = await agentResponse.json();
     const refinedPrompt = agentData.choices?.[0]?.message?.content || prompt;
     
-    console.log('Refined prompt generated, now generating website...');
+    console.log('Refined prompt generated, now generating React website...');
 
-    // Step 2: Generate the actual website
+    // Step 2: Generate the actual React website
     const websiteRequestBody: any = {
       model: generateModel,
       messages: [
         {
           role: 'system',
-          content:
-            'You are a code generator. Return ONLY file blocks using the exact markers like: <!-- FILE: index.html -->. No explanations, no markdown, no backticks.',
+          content: 'You are a React code generator. Return ONLY file blocks using the exact markers like: <!-- FILE: src/App.js -->. No explanations, no markdown backticks around code. Generate complete, working React code.',
         },
         {
           role: 'user',
-          content: WEBSITE_GENERATION_PROMPT + '\n\n' + refinedPrompt,
+          content: REACT_GENERATION_PROMPT + '\n\nUser request:\n' + refinedPrompt,
         },
       ],
     };
 
-    // Only add max_tokens for OpenAI (Junior AI)
     if (isJunior) {
       websiteRequestBody.max_tokens = 16000;
     }
@@ -273,13 +393,11 @@ serve(async (req) => {
     const rawText = websiteData.choices?.[0]?.message?.content || '';
     const normalizedText = rawText.replace(/\r\n/g, "\n");
 
-    console.log('Website generated, parsing files...');
+    console.log('React website generated, parsing files...');
     console.log('Raw response length:', rawText.length);
-    console.log('First 500 chars:', rawText.substring(0, 500));
 
     const cleanFileContent = (content: string) => {
       let c = content.trim();
-      // Remove surrounding code fences if present
       c = c.replace(/^```[a-z0-9_-]*\s*\n/i, "");
       c = c.replace(/\n```\s*$/i, "");
       return c.trim();
@@ -295,20 +413,19 @@ serve(async (req) => {
       console.log(`✅ Found (${source}): ${cleanPath} (${cleanContent.length} chars)`);
     };
 
-    // Parse files from response - support multiple formats
-    // Format 1: <!-- FILE: filename.ext --> ...
+    // Format 1: <!-- FILE: filename -->
     const filePattern1 = /<!-- FILE: ([^>]+) -->([\s\S]*?)(?=<!-- FILE: |$)/g;
     let match;
     while ((match = filePattern1.exec(normalizedText)) !== null) {
       upsertFile(match[1], match[2], 'format1');
     }
 
-    // Format 2: OpenAI markdown headings (e.g. "### File: styles.css" or "### CSS (styles.css)" or "**styles.css**")
+    // Format 2: OpenAI markdown headings
     if (filesMap.size === 0) {
       console.log('Trying OpenAI markdown headings format...');
 
       const headers: { path: string; start: number; contentStart: number }[] = [];
-      const headerRegex = /(^|\n)(?:###\s*(?:File:\s*)?(?:[A-Za-z]+\s*\()?\s*([A-Za-z0-9_-]+\.(?:css|html|js|xml|txt|json|svg|md))\)?|\*\*([A-Za-z0-9_-]+\.(?:css|html|js|xml|txt|json|svg|md))\*\*)/gi;
+      const headerRegex = /(^|\n)(?:###\s*(?:File:\s*)?(?:[A-Za-z]+\s*\()?\s*([A-Za-z0-9_\-\/\.]+\.(?:css|html|js|jsx|json|xml|txt|toml|md))\)?|\*\*([A-Za-z0-9_\-\/\.]+\.(?:css|html|js|jsx|json|xml|txt|toml|md))\*\*)/gi;
 
       while ((match = headerRegex.exec(normalizedText)) !== null) {
         const fileName = (match[2] || match[3] || '').trim();
@@ -357,7 +474,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error generating website:', error);
+    console.error('Error generating React website:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),

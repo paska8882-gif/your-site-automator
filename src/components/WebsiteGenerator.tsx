@@ -4,8 +4,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Download, Eye, Code, FileCode2, Sparkles, LogOut, User, Zap, Crown } from "lucide-react";
-import { generateWebsite, createZipFromFiles, downloadBlob, saveToHistory, GeneratedFile, AiModel } from "@/lib/websiteGenerator";
+import { Loader2, Download, Eye, Code, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers } from "lucide-react";
+import { generateWebsite, createZipFromFiles, downloadBlob, saveToHistory, GeneratedFile, AiModel, WebsiteType } from "@/lib/websiteGenerator";
 import { FilePreview } from "./FilePreview";
 import { GenerationHistory } from "./GenerationHistory";
 import { useAuth } from "@/hooks/useAuth";
@@ -27,6 +27,7 @@ export function WebsiteGenerator() {
   const [prompt, setPrompt] = useState("");
   const [language, setLanguage] = useState("auto");
   const [aiModel, setAiModel] = useState<AiModel>("senior");
+  const [websiteType, setWebsiteType] = useState<WebsiteType>("html");
   const [isLoading, setIsLoading] = useState(false);
   const [generatedFiles, setGeneratedFiles] = useState<GeneratedFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<GeneratedFile | null>(null);
@@ -56,7 +57,7 @@ export function WebsiteGenerator() {
     setSelectedFile(null);
 
     try {
-      const result = await generateWebsite(prompt, language === "auto" ? undefined : language, aiModel);
+      const result = await generateWebsite(prompt, language === "auto" ? undefined : language, aiModel, websiteType);
 
       if (result.success && result.files) {
         setGeneratedFiles(result.files);
@@ -195,6 +196,28 @@ export function WebsiteGenerator() {
                         <div className="flex items-center gap-2">
                           <Zap className="h-4 w-4 text-blue-500" />
                           Junior AI
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Select value={websiteType} onValueChange={(v) => setWebsiteType(v as WebsiteType)} disabled={isLoading}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder="Тип сайту" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="html">
+                        <div className="flex items-center gap-2">
+                          <Globe className="h-4 w-4 text-green-500" />
+                          HTML/CSS
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="react">
+                        <div className="flex items-center gap-2">
+                          <Layers className="h-4 w-4 text-cyan-500" />
+                          React
                         </div>
                       </SelectItem>
                     </SelectContent>
