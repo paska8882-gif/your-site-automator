@@ -206,10 +206,15 @@ serve(async (req) => {
       body: JSON.stringify({
         model: 'gpt-4o',
         messages: [
-          { 
-            role: 'user', 
-            content: WEBSITE_GENERATION_PROMPT + '\n\n' + refinedPrompt 
-          }
+          {
+            role: 'system',
+            content:
+              'You are a code generator. Return ONLY file blocks using the exact markers like: <!-- FILE: index.html -->. No explanations, no markdown, no backticks.',
+          },
+          {
+            role: 'user',
+            content: WEBSITE_GENERATION_PROMPT + '\n\n' + refinedPrompt,
+          },
         ],
         max_tokens: 16000,
       }),
@@ -239,71 +244,88 @@ serve(async (req) => {
     }
 
     const websiteData = await websiteResponse.json();
-    let responseText = websiteData.choices?.[0]?.message?.content || '';
+    const rawText = websiteData.choices?.[0]?.message?.content || '';
+    const normalizedText = rawText.replace(/\r\n/g, "\n");
 
     console.log('Website generated, parsing files...');
-    console.log('Raw response length:', responseText.length);
-    console.log('First 500 chars:', responseText.substring(0, 500));
+    console.log('Raw response length:', rawText.length);
+    console.log('First 500 chars:', rawText.substring(0, 500));
 
-    // Clean markdown code blocks if present (OpenAI often wraps in ```html or ```)
-    responseText = responseText
-      .replace(/```html\n?/gi, '')
-      .replace(/```css\n?/gi, '')
-      .replace(/```xml\n?/gi, '')
-      .replace(/```txt\n?/gi, '')
-      .replace(/```\n?/g, '');
+    const cleanFileContent = (content: string) => {
+      let c = content.trim();
+      // Remove surrounding code fences if present
+      c = c.replace(/^```[a-z0-9_-]*\s*\n/i, "");
+      c = c.replace(/\n```\s*$/i, "");
+      return c.trim();
+    };
+
+    const filesMap = new Map<string, string>();
+
+    const upsertFile = (path: string, content: string, source: string) => {
+      const cleanPath = path.trim();
+      const cleanContent = cleanFileContent(content);
+      if (!cleanPath || cleanContent.length <= 10) return;
+      filesMap.set(cleanPath, cleanContent);
+      console.log(`✅ Found (${source}): ${cleanPath} (${cleanContent.length} chars)`);
+    };
 
     // Parse files from response - support multiple formats
-    const files: { path: string; content: string }[] = [];
-    
-    // Try format 1: <!-- FILE: filename.ext -->
+    // Format 1: <!-- FILE: filename.ext --> ...
     const filePattern1 = /<!-- FILE: ([^>]+) -->([\s\S]*?)(?=<!-- FILE: |$)/g;
     let match;
-    while ((match = filePattern1.exec(responseText)) !== null) {
-      const fileName = match[1].trim();
-      let fileContent = match[2].trim();
-      if (fileContent && fileContent.length > 10) {
-        files.push({ path: fileName, content: fileContent });
-        console.log(`✅ Found (format1): ${fileName} (${fileContent.length} chars)`);
+    while ((match = filePattern1.exec(normalizedText)) !== null) {
+      upsertFile(match[1], match[2], 'format1');
+    }
+
+    // Format 2: OpenAI markdown headings (e.g. "### File: styles.css" or "### CSS (styles.css)" or "**styles.css**")
+    if (filesMap.size === 0) {
+      console.log('Trying OpenAI markdown headings format...');
+
+      const headers: { path: string; start: number; contentStart: number }[] = [];
+      const headerRegex = /(^|\n)(?:###\s*(?:File:\s*)?(?:[A-Za-z]+\s*\()?\s*([A-Za-z0-9_-]+\.(?:css|html|js|xml|txt|json|svg|md))\)?|\*\*([A-Za-z0-9_-]+\.(?:css|html|js|xml|txt|json|svg|md))\*\*)/gi;
+
+      while ((match = headerRegex.exec(normalizedText)) !== null) {
+        const fileName = (match[2] || match[3] || '').trim();
+        if (!fileName) continue;
+
+        const afterHeader = match.index + match[0].length;
+        const lineBreak = normalizedText.indexOf('\n', afterHeader);
+        const contentStart = lineBreak === -1 ? normalizedText.length : lineBreak + 1;
+
+        headers.push({ path: fileName, start: match.index, contentStart });
+      }
+
+      for (let i = 0; i < headers.length; i++) {
+        const start = headers[i].contentStart;
+        const end = headers[i + 1]?.start ?? normalizedText.length;
+        const chunk = normalizedText.slice(start, end);
+        upsertFile(headers[i].path, chunk, 'format2');
       }
     }
 
-    // Try format 2: ### File: filename.ext or ### CSS (filename.ext) or **filename.ext** (OpenAI style)
-    if (files.length === 0) {
-      console.log('Trying OpenAI markdown format...');
-      // Match patterns like ### File: styles.css or ### CSS (styles.css) or **styles.css**
-      const filePattern2 = /(?:###\s*(?:File:\s*|CSS\s*\(|HTML\s*\()?|\*\*)([a-zA-Z0-9_\-]+\.(?:css|html|js|xml|txt))\)?(?:\*\*)?[^\n]*\n```(?:\w+)?\n([\s\S]*?)```/gi;
-      while ((match = filePattern2.exec(responseText)) !== null) {
-        const fileName = match[1].trim();
-        let fileContent = match[2].trim();
-        if (fileContent && fileContent.length > 10) {
-          files.push({ path: fileName, content: fileContent });
-          console.log(`✅ Found (format2): ${fileName} (${fileContent.length} chars)`);
-        }
-      }
-    }
+    const files = Array.from(filesMap.entries()).map(([path, content]) => ({ path, content }));
 
     console.log(`📁 Total files parsed: ${files.length}`);
 
     if (files.length === 0) {
       console.error('No files parsed from response');
       return new Response(
-        JSON.stringify({ 
-          success: false, 
+        JSON.stringify({
+          success: false,
           error: 'Failed to parse generated files',
-          rawResponse: responseText.substring(0, 500)
+          rawResponse: rawText.substring(0, 500),
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         files,
         refinedPrompt,
         totalFiles: files.length,
-        fileList: files.map(f => f.path)
+        fileList: files.map((f) => f.path),
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
