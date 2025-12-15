@@ -6,7 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `Ти — створатор промптів для React сайтів. Твоя задача — проаналізувати запит і створити детальний промпт для генерації професійного React сайту.
+const SYSTEM_PROMPT = `Ти — створатор промптів для **статичних HTML/CSS сайтів**.
+
+Твоя задача — проаналізувати запит користувача і створити детальний промпт для генерації професійного **статичного** сайту (без React, без збірки, без npm).
 
 **КРИТИЧНО ВАЖЛИВО: ВИЗНАЧЕННЯ МОВИ**
 При визначенні мови керуйся наступними пріоритетами:
@@ -15,227 +17,69 @@ const SYSTEM_PROMPT = `Ти — створатор промптів для React
 3. **За замовчуванням** — якщо мову неможливо визначити, використовуй англійську (EN)
 
 **ФОРМАТ ВИВОДУ:**
-Створи детальний промпт для генерації React сайту з усіма необхідними компонентами та сторінками.`;
+Створи структурований промпт з:
+- сторінками (головна + 3–6 додаткових)
+- секціями кожної сторінки
+- тональністю/стилем дизайну
+- SEO вимогами (title/description, один H1 на сторінку)
+- контентом (тексти, CTA, списки)
+- візуальними підказками (зображення лише через https URL)`.trim();
 
-const REACT_GENERATION_PROMPT = `IMPORTANT: FOLLOW EXACT PROMPT STRUCTURE FOR REACT WEBSITE GENERATION
+const HTML_GENERATION_PROMPT = `IMPORTANT: FOLLOW EXACT PROMPT STRUCTURE FOR STATIC HTML WEBSITE GENERATION
 
-Create a COMPLETE, PROFESSIONAL React website with EXCELLENT design and ALL files.
+Create a COMPLETE, PROFESSIONAL **static** website using ONLY:
+- HTML files (multi-page)
+- a single shared CSS file (styles.css)
+- optional vanilla JS (script.js)
 
-**CRITICAL DEPLOYMENT REQUIREMENTS - GUARANTEED BUILD & DEPLOY:**
+**ABSOLUTE RULES:**
+- DO NOT generate React, npm, package.json, src/, build tools, or frameworks.
+- Return ONLY file blocks using exact markers: <!-- FILE: filename.ext -->
+- No markdown backticks. No explanations.
 
-**MANDATORY FILES FOR GUARANTEED DEPLOYMENT:**
+**REQUIRED FILES (minimum):**
+1) <!-- FILE: index.html -->
+2) <!-- FILE: about.html -->
+3) <!-- FILE: services.html --> (or products.html if more suitable)
+4) <!-- FILE: contact.html -->
+5) <!-- FILE: privacy.html -->
+6) <!-- FILE: terms.html -->
+7) <!-- FILE: 404.html -->
+8) <!-- FILE: styles.css -->
+9) <!-- FILE: script.js --> (optional, but include if you add interactive UI)
+10) <!-- FILE: robots.txt -->
+11) <!-- FILE: sitemap.xml -->
 
-1. <!-- FILE: package.json -->
-{
-  "name": "[company-name]-site",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.8.0",
-    "react-scripts": "5.0.1"
-  },
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=8.0.0"
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  }
-}
+**SEO REQUIREMENTS (EVERY PAGE):**
+- Unique <title> under 60 characters and includes primary keyword
+- <meta name="description"> under 160 characters
+- <link rel="canonical" href="https://example.com/<page>" /> (use example.com)
+- Open Graph tags (og:title, og:description, og:type=website)
+- Exactly ONE <h1> per page
 
-2. <!-- FILE: netlify.toml -->
-[build]
-  command = "npm run build"
-  publish = "build/"
+**DESIGN & UX:**
+- Mobile-first responsive layout
+- Use semantic HTML: header/nav/main/section/article/footer
+- Accessible: proper labels, focus states, aria for menu, good contrast
+- Clean typography hierarchy and spacing
+- Use CSS variables in :root for colors, spacing, radius, shadows
+- Smooth hover/focus transitions
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+**IMAGES:**
+- Use ONLY full https:// URLs (e.g., https://picsum.photos/1200/800?random=1)
+- Add descriptive alt text
 
-3. <!-- FILE: vercel.json -->
-{
-  "buildCommand": "npm run build",
-  "outputDirectory": "build",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}
+**NAVIGATION:**
+- Consistent header navigation across all pages
+- Active link highlight via body class or JS (simple)
+- Footer with basic links (Terms/Privacy/Contact)
 
-4. <!-- FILE: public/_redirects -->
-/* /index.html 200
+**SITEMAP/ROBOTS:**
+- sitemap.xml must list all HTML pages with example.com URLs
+- robots.txt should allow crawling and point to sitemap.xml
 
-**CRITICAL BUILD GUARANTEE:**
-- The EXACT package.json above MUST be used (tested and guaranteed)
-- NO additional dependencies that could cause conflicts
-- React-scripts 5.0.1 with React 18.2.0 - PROVEN compatibility
-- The site MUST build with npm run build without errors
-- Creates build/ folder with static files
+Generate beautiful, production-quality HTML/CSS/JS that matches the user's request EXACTLY.`;
 
-**IMPORTANT IMAGE FIX - USE EXTERNAL URLS ONLY:**
-- **USE ONLY EXTERNAL IMAGE URLs - NO LOCAL PATHS**
-- All images must use full https:// URL
-- No relative paths or image imports
-- Use picsum.photos for placeholder images
-
-**CRITICAL DESIGN REQUIREMENTS:**
-- PERFECT responsive design - mobile-first approach
-- Modern, clean header with sticky navigation
-- Professional spacing and typography hierarchy
-- Smooth animations and hover effects
-- Perfectly aligned grid systems
-- Balanced visual hierarchy
-
-**ESSENTIAL FILES:**
-- public/index.html
-- src/index.js
-- src/App.js (with React Router)
-- Components: Header, Footer, CookieBanner, ScrollToTop
-- Pages: Home, About, Services, Contact, Terms, Privacy
-- src/styles/global.css (perfect responsive CSS)
-- public/robots.txt
-- public/sitemap.xml
-
-**ADVANCED WEBSITE SECTIONS:**
-- **Hero:** Compelling headline with animated CTA
-- **Stats:** Achievement counters with animations
-- **Services:** Interactive cards with hover effects
-- **Process:** Step-by-step workflow visualization
-- **Testimonials:** Carousel with customer quotes
-- **Team:** Interactive team member profiles
-- **Projects:** Filterable portfolio gallery
-- **FAQ:** Accordion with common questions
-- **Blog Preview:** Latest insights/updates
-- **CTA Section:** Strong conversion-focused design
-
-**PERFECT RESPONSIVE BREAKPOINTS:**
-- Mobile: < 768px (perfect stacking)
-- Tablet: 768px - 1024px (adaptive grids)
-- Desktop: > 1024px (optimal multi-column)
-
-**DYNAMIC IMAGES - EXTERNAL URLs ONLY:**
-- **USE ONLY FULL HTTPS:// URLs FOR ALL IMAGES**
-- **Hero:** https://picsum.photos/1600/900?random=1
-- **Content:** https://picsum.photos/800/600?random=2
-- **Team:** https://picsum.photos/400/400?random=3
-- **Projects:** https://picsum.photos/1200/800?random=4
-- **Logo:** Use text or simple SVG - NO image path
-- **Services:** https://picsum.photos/600/400?random=5
-- **Testimonials:** https://picsum.photos/200/200?random=6
-- **Use unique random parameters for each image**
-- **Professional alt text matching business context**
-- **IMPORTANT: All <img> tags must use src="https://..." format**
-
-**MODERN HEADER REQUIREMENTS:**
-- Clean logo + navigation layout
-- Sticky behavior with smooth scroll
-- Mobile hamburger menu with smooth animation
-- Active page highlighting
-- Proper spacing and typography
-
-**INTERACTIVE FEATURES:**
-- Smooth scroll animations
-- Hover effects on cards/buttons
-- Loading states for external images
-- Form validation with user feedback
-- Mobile touch-friendly interactions
-
-**PERFECT CSS STRUCTURE:**
-- CSS Grid and Flexbox for layouts
-- CSS variables for consistent theming
-- Mobile-first responsive design
-- Smooth transitions and animations
-- Professional color scheme
-- Perfect typography scale
-
-**FORMAT:**
-<!-- FILE: package.json -->
-[EXACT content as above - with added browserslist]
-
-<!-- FILE: netlify.toml -->
-[EXACT content as above]
-
-<!-- FILE: vercel.json -->
-[EXACT content as above]
-
-<!-- FILE: public/_redirects -->
-/* /index.html 200
-
-<!-- FILE: public/index.html -->
-[complete file content]
-
-<!-- FILE: src/index.js -->
-[complete file content]
-
-<!-- FILE: src/App.js -->
-[complete file content with all routes]
-
-<!-- FILE: src/components/Header.js -->
-[perfect responsive header with mobile menu - USE TEXT LOGO]
-
-<!-- FILE: src/components/Footer.js -->
-[professional footer with columns]
-
-<!-- FILE: src/components/CookieBanner.js -->
-[styled cookie banner]
-
-<!-- FILE: src/components/ScrollToTop.js -->
-[smooth scroll component]
-
-<!-- FILE: src/pages/Home.js -->
-[complete home with all advanced sections - USE ONLY EXTERNAL IMAGE URLs]
-
-<!-- FILE: src/pages/About.js -->
-[detailed about page with team - USE ONLY EXTERNAL IMAGE URLs]
-
-<!-- FILE: src/pages/Services.js -->
-[interactive services showcase - USE ONLY EXTERNAL IMAGE URLs]
-
-<!-- FILE: src/pages/Contact.js -->
-[professional contact form]
-
-<!-- FILE: src/pages/Terms.js -->
-[terms of service page]
-
-<!-- FILE: src/pages/Privacy.js -->
-[privacy policy page]
-
-<!-- FILE: src/styles/global.css -->
-[perfect responsive CSS with animations]
-
-<!-- FILE: public/robots.txt -->
-[complete file content]
-
-<!-- FILE: public/sitemap.xml -->
-[complete file content]
-
-**BUILD VERIFICATION:**
-The generated site MUST pass these checks:
-1. npm install completes without errors
-2. npm run build creates build/ folder
-3. **ALL images use EXTERNAL HTTPS:// URLs only**
-4. No missing imports or dependencies
-5. React Router configured correctly
-6. **GUARANTEED: No "Module not found" errors for images**
-
-Generate EXCELLENT, PROFESSIONAL code with PERFECT responsive design and GUARANTEED deployment on any platform.`;
 
 type GeneratedFile = { path: string; content: string };
 
@@ -312,7 +156,7 @@ async function runGeneration({
   aiModel: "junior" | "senior";
 }): Promise<GenerationResult> {
   const isJunior = aiModel === "junior";
-  console.log(`Using ${isJunior ? "Junior AI (OpenAI GPT-4o)" : "Senior AI (Lovable AI)"} for React generation`);
+  console.log(`Using ${isJunior ? "Junior AI (OpenAI GPT-4o)" : "Senior AI (Lovable AI)"} for HTML generation`);
 
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -327,7 +171,7 @@ async function runGeneration({
     return { success: false, error: "Lovable AI not configured for Senior AI" };
   }
 
-  console.log("Generating React website for prompt:", prompt.substring(0, 100));
+  console.log("Generating HTML website for prompt:", prompt.substring(0, 100));
 
   const apiUrl = isJunior
     ? "https://api.openai.com/v1/chat/completions"
@@ -349,7 +193,7 @@ async function runGeneration({
         { role: "system", content: SYSTEM_PROMPT },
         {
           role: "user",
-          content: `Створи детальний промпт для генерації React сайту на основі цього запиту:\n\n"${prompt}"\n\nМова контенту: ${language || "auto-detect"}`,
+          content: `Створи детальний промпт для генерації статичного HTML/CSS сайту на основі цього запиту:\n\n"${prompt}"\n\nМова контенту: ${language || "auto-detect"}`,
         },
       ],
     }),
@@ -367,19 +211,20 @@ async function runGeneration({
 
   const agentData = await agentResponse.json();
   const refinedPrompt = agentData.choices?.[0]?.message?.content || prompt;
-  console.log("Refined prompt generated, now generating React website...");
+  console.log("Refined prompt generated, now generating HTML website...");
 
-  // Step 2: React website generation (include original prompt explicitly)
+  // Step 2: Static HTML website generation (include original prompt explicitly)
   const websiteRequestBody: any = {
     model: generateModel,
     messages: [
       {
         role: "system",
-        content: `You are a React code generator. You MUST build a React website EXACTLY matching the user's original request.\n\nReturn ONLY file blocks using exact markers like: <!-- FILE: src/App.js -->.\nNo explanations, no markdown backticks.`,
+        content:
+          "You are an expert HTML/CSS/JS generator. You MUST build a static multi-page website EXACTLY matching the user's original request.\n\nReturn ONLY file blocks using exact markers like: <!-- FILE: index.html -->.\nNo explanations, no markdown backticks.",
       },
       {
         role: "user",
-        content: `=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== TECHNICAL REQUIREMENTS ===\n${REACT_GENERATION_PROMPT}\n\n=== ENHANCED DETAILS ===\n${refinedPrompt}\n\nIMPORTANT: Implement the React site to match the user's original request above.`,
+        content: `=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== TECHNICAL REQUIREMENTS ===\n${HTML_GENERATION_PROMPT}\n\n=== ENHANCED DETAILS ===\n${refinedPrompt}\n\nIMPORTANT: Implement the static site to match the user's original request above.`,
       },
     ],
   };
@@ -410,7 +255,7 @@ async function runGeneration({
   const websiteData = await websiteResponse.json();
   const rawText = websiteData.choices?.[0]?.message?.content || "";
 
-  console.log("React website generated, parsing files...");
+  console.log("HTML website generated, parsing files...");
   console.log("Raw response length:", rawText.length);
 
   const files = parseFilesFromModelText(rawText);
@@ -501,7 +346,7 @@ serve(async (req) => {
               send({ type: "error", error: result.error || "Generation failed", result });
             }
           } catch (e) {
-            console.error("Error generating React website:", e);
+            console.error("Error generating website:", e);
             const msg = e instanceof Error ? e.message : "Unknown error";
             send({ type: "error", error: msg });
           } finally {
@@ -539,7 +384,7 @@ serve(async (req) => {
       },
     });
   } catch (error) {
-    console.error("Error generating React website:", error);
+    console.error("Error generating website:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ success: false, error: errorMessage }), {
       status: 500,
