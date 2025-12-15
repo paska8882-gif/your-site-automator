@@ -59,7 +59,8 @@ export async function createZipBase64(files: GeneratedFile[]): Promise<string> {
 export async function saveToHistory(
   prompt: string,
   language: string,
-  files: GeneratedFile[]
+  files: GeneratedFile[],
+  userId: string
 ): Promise<void> {
   try {
     const zipBase64 = await createZipBase64(files);
@@ -68,6 +69,7 @@ export async function saveToHistory(
       prompt,
       language,
       zip_data: zipBase64,
+      user_id: userId,
     });
 
     if (error) {
