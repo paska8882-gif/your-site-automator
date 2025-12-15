@@ -39,66 +39,74 @@ Create a professional MULTI-PAGE React website for [Назва] with complete st
 - Style: [Стиль з запиту]
 - **PREMIUM DESIGN: Modern, professional, excellent UX**`.trim();
 
-const REACT_GENERATION_PROMPT = `You are an expert product designer and React developer.
+const REACT_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE REACT WEBSITE WITH 10X BETTER UI
 
-GOAL: generate a premium multi-page React website that matches the user's request EXACTLY.
+**DESIGN PHILOSOPHY - 10X BETTER UI:**
+- Start with FUNCTIONAL and BEAUTIFUL base UI - Every pixel must serve a purpose
+- Always make 10X better UI than standard - Go beyond expectations
+- Use advanced CSS patterns - CSS Grid, Flexbox, custom properties
+- Think like a product designer - Focus on user experience first
 
-ABSOLUTE RULES:
-- Output ONLY file blocks using EXACT markers: <!-- FILE: path/to/file.ext -->
-- NO markdown, NO backticks, NO explanations.
-- Use ONLY external https image URLs (no local images).
+**LAYOUT REQUIREMENTS:**
+- Header and Footer as REUSABLE components used in App.js layout
+- Active nav link highlight using React Router
+- Cookie banner with Accept/Decline and localStorage persistence
+- All pages share same header/footer structure
 
-REQUIRED PAGES (routes): Home, About, Services/Products, Contact, Terms, Privacy, NotFound.
+**VISUAL EXCELLENCE GUIDELINES:**
+- Whitespace is king - Generous spacing (1.5x standard)
+- Clean typography system - Hierarchy: H1 > H2 > H3 > Body > Small
+- Strategic color use - 60% primary, 30% secondary, 10% accent
+- Consistent spacing scale - 4px, 8px, 16px, 24px, 32px, 48px, 64px
+- Smooth transitions - 300ms ease-in-out for interactions
 
-LAYOUT REQUIREMENTS:
-- Header and Footer must be identical across all pages (single shared layout).
-- Active nav link highlight.
-- Cookie banner with Accept/Decline.
+**GLOBAL CSS (src/styles/global.css) MUST BE AT LEAST 250 LINES with:**
+- Reset/normalize styles
+- CSS variables in :root (colors, spacing, fonts)
+- Header with sticky navigation
+- Hero section with image overlay/background
+- Card/grid layouts for services/features
+- Image containers with proper sizing (object-fit: cover)
+- Footer with multi-column layout
+- Cookie banner styling (position: fixed; bottom: 0)
+- Mobile responsive breakpoints
+- Hover/focus states
+- Form styling
 
-DESIGN & UX (10x quality):
-- Mobile-first responsive layout; excellent spacing/typography; smooth transitions.
-- Use CSS variables and a well-structured global stylesheet.
+**IMAGE STRATEGY - MANDATORY ON EVERY PAGE:**
+Use picsum.photos with EXTERNAL URLs only:
+- Hero background: style={{backgroundImage: 'url(https://picsum.photos/1920/1080?random=1)'}}
+- Content image: <img src="https://picsum.photos/800/600?random=2" alt="..." loading="lazy" />
+- Card image: <img src="https://picsum.photos/600/400?random=3" alt="..." loading="lazy" />
+- Team photo: <img src="https://picsum.photos/400/400?random=4" alt="..." loading="lazy" />
+Change ?random=N for each unique image (1,2,3,4...)
 
-SEO:
-- Set <title>, meta description, canonical, and Open Graph in public/index.html.
-- Each page must have exactly ONE H1.
-
-**CRITICAL - IMAGES ARE MANDATORY:**
-Every page MUST have real images using picsum.photos. This is NON-NEGOTIABLE.
-
-IMAGE REQUIREMENTS:
-- Hero section: MUST have a large hero image (1200x600 or similar)
-- Each page: minimum 2-3 images relevant to content
-- Use these EXACT URL patterns in JSX:
-  * Hero: <img src="https://picsum.photos/1200/600?random=1" alt="descriptive text" loading="lazy" />
-  * Content: <img src="https://picsum.photos/800/500?random=2" alt="descriptive text" loading="lazy" />
-  * Cards/Features: <img src="https://picsum.photos/400/300?random=3" alt="descriptive text" loading="lazy" />
-  * Team/People: <img src="https://picsum.photos/300/300?random=4" alt="descriptive text" loading="lazy" />
-  * Background: Use inline style with backgroundImage: 'url(https://picsum.photos/1920/800?random=5)'
-- Change the ?random=N number for each unique image (1,2,3,4,5,6...)
-- All images MUST have descriptive alt text
-- All images MUST have loading="lazy"
-- Style images with proper CSS (border-radius, object-fit: cover, shadows)
-
-EXAMPLE HERO COMPONENT:
-function Hero() {
-  return (
-    <section className="hero">
-      <img src="https://picsum.photos/1920/800?random=hero" alt="Professional services" className="hero-image" loading="lazy" />
-      <div className="hero-content">
-        <h1>Welcome to Our Company</h1>
-        <p>Your tagline here</p>
-      </div>
-    </section>
-  );
+**REQUIRED CSS FOR IMAGES:**
+.hero {
+  position: relative;
+  min-height: 80vh;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+}
+.hero-content { position: relative; z-index: 1; color: white; text-align: center; }
+img { max-width: 100%; height: auto; display: block; }
+.card img { width: 100%; height: 200px; object-fit: cover; border-radius: 8px 8px 0 0; }
 
-DEPLOYMENT FILES (must include):
-- netlify.toml
-- vercel.json
-- public/_redirects
+**MOBILE-FIRST BREAKPOINTS:**
+@media (min-width: 768px) { /* Tablet */ }
+@media (min-width: 1024px) { /* Desktop */ }
+@media (min-width: 1280px) { /* Large */ }
 
-MANDATORY package.json (use EXACTLY this to avoid build issues):
+**REQUIRED FILES:**
 <!-- FILE: package.json -->
 {
   "name": "react-website",
@@ -122,7 +130,49 @@ MANDATORY package.json (use EXACTLY this to avoid build issues):
   }
 }
 
-Return the COMPLETE project with ALL images now.`;
+<!-- FILE: public/index.html -->
+[Complete HTML with meta tags, Open Graph]
+
+<!-- FILE: src/index.js -->
+[React entry point]
+
+<!-- FILE: src/App.js -->
+[React Router with Header/Footer layout wrapping all routes]
+
+<!-- FILE: src/components/Header.js -->
+[Reusable header with navigation, active link styling]
+
+<!-- FILE: src/components/Footer.js -->
+[Reusable footer]
+
+<!-- FILE: src/components/CookieBanner.js -->
+[Cookie consent with Accept/Decline]
+
+<!-- FILE: src/pages/Home.js -->
+[Hero with background image, feature cards with images]
+
+<!-- FILE: src/pages/Services.js -->
+[Service cards with images]
+
+<!-- FILE: src/pages/About.js -->
+[Team photos, company info with images]
+
+<!-- FILE: src/pages/Contact.js -->
+[Contact form, info section]
+
+<!-- FILE: src/pages/Terms.js -->
+<!-- FILE: src/pages/Privacy.js -->
+<!-- FILE: src/pages/NotFound.js -->
+
+<!-- FILE: src/styles/global.css -->
+[Complete CSS 250+ lines with all styles including image handling]
+
+<!-- FILE: netlify.toml -->
+<!-- FILE: vercel.json -->
+<!-- FILE: public/_redirects -->
+<!-- FILE: public/robots.txt -->
+
+Generate EXCEPTIONAL React website with 10X better UI, proper image styling, and outstanding user experience. All styles MUST render correctly, NO markdown code blocks, NO backticks.`;
 
 type GeneratedFile = { path: string; content: string };
 

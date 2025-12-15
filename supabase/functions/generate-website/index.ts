@@ -53,76 +53,141 @@ Create a professional MULTI-PAGE website for [Назва] with complete structur
 - All pages fully functional and complete
 - Working images from picsum.photos`.trim();
 
-const HTML_GENERATION_PROMPT = `You are an expert product designer and front-end developer.
+const HTML_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE WEBSITE WITH 10X BETTER UI AND STATIC HEADER/FOOTER
 
-GOAL: generate a premium, multi-page STATIC website (HTML/CSS + optional vanilla JS) that matches the user's request EXACTLY.
+**DESIGN PHILOSOPHY - 10X BETTER UI:**
+- Start with FUNCTIONAL and BEAUTIFUL base UI - Every pixel must serve a purpose
+- Always make 10X better UI than standard - Go beyond expectations
+- Use advanced CSS patterns - CSS Grid, Flexbox, custom properties, clamp()
+- Add visual hierarchy incrementally - Build up from solid foundation
+- Think like a product designer - Focus on user experience first
 
-ABSOLUTE RULES:
-- Output ONLY file blocks using EXACT markers: <!-- FILE: filename.ext -->
-- NO markdown, NO backticks, NO explanations.
-- Use ONLY static files (no React, no build tools, no npm).
+**CRITICAL REQUIREMENT: STATIC HEADER AND FOOTER ACROSS ALL PAGES**
+- HEADER/FOOTER MUST BE IDENTICAL ON EVERY PAGE
+- Same structure, same navigation items, same positioning
+- Navigation links must point to correct corresponding pages
+- Active page indicator should update based on current page
+- Logo, menu items, CTAs remain in identical positions
+- Footer content, layout, and styling must be identical
 
-REQUIRED FILES (must output ALL of these):
-- <!-- FILE: index.html -->
-- <!-- FILE: about.html -->
-- <!-- FILE: services.html --> (or products.html if clearly more suitable)
-- <!-- FILE: contact.html -->
-- <!-- FILE: privacy.html -->
-- <!-- FILE: terms.html -->
-- <!-- FILE: 404.html -->
-- <!-- FILE: styles.css --> (single shared stylesheet)
-- <!-- FILE: robots.txt -->
-- <!-- FILE: sitemap.xml -->
-- <!-- FILE: script.js --> (include only if you add interactive behavior like mobile menu/cookie banner)
+**VISUAL EXCELLENCE GUIDELINES:**
+- Whitespace is king - Generous spacing (1.5x standard)
+- Clean typography system - Hierarchy: H1 > H2 > H3 > Body > Small
+- Strategic color use - 60% primary, 30% secondary, 10% accent
+- Consistent spacing scale - 4px, 8px, 16px, 24px, 32px, 48px, 64px
+- Subtle depth - Minimal shadows, clean borders
+- Smooth transitions - 300ms ease-in-out for interactions
 
-DESIGN & UX (10x quality):
-- Consistent, identical header + footer across all pages (only active link state changes)
-- Mobile-first responsive layout; perfect spacing and typography hierarchy
-- Use CSS Grid/Flexbox and CSS variables (:root) for theming
-- Smooth hover/focus transitions (≈300ms)
-- Accessibility: labels, focus states, aria where needed
+**MODERN CSS TECHNIQUES (MANDATORY IN styles.css):**
+- CSS Grid for main layouts
+- Flexbox for components
+- CSS Custom Properties for theming (:root with variables)
+- clamp() for fluid typography
+- aspect-ratio for responsive media
+- gap instead of margins where possible
+- min-height: 100vh for full-height sections
+- position: sticky for navigation
 
-SEO (EVERY PAGE):
-- Unique <title> under 60 chars with primary keyword
-- <meta name="description"> under 160 chars
-- <link rel="canonical" href="https://example.com/<page>" />
-- Open Graph tags (og:title, og:description, og:type=website)
-- Exactly ONE <h1> per page
+**CSS MUST BE AT LEAST 300 LINES with complete styling for:**
+- Reset/normalize styles
+- CSS variables in :root (colors, spacing, fonts)
+- Header with sticky navigation
+- Hero section with image overlay/background
+- Card/grid layouts for services/features
+- Image containers with proper sizing
+- Footer with multi-column layout
+- Cookie banner styling
+- Mobile responsive breakpoints
+- Hover/focus states
+- Form styling
 
-**CRITICAL - IMAGES ARE MANDATORY:**
-Every page MUST have real images using picsum.photos. This is NON-NEGOTIABLE.
+**IMAGE STRATEGY - MANDATORY ON EVERY PAGE:**
+Images MUST match page content - Relevant to subject
+- Homepage hero: Large background or overlay image
+- Service pages: Images showing the service in action
+- About page: Team/office photos
+- Contact page: Location/office image
 
-IMAGE REQUIREMENTS:
-- Hero section: MUST have a large hero image (1200x600 or similar)
-- Each page: minimum 2-3 images relevant to content
-- Use these EXACT URL patterns:
-  * Hero: <img src="https://picsum.photos/1200/600?random=1" alt="[descriptive text]" loading="lazy">
-  * Content: <img src="https://picsum.photos/800/500?random=2" alt="[descriptive text]" loading="lazy">
-  * Cards/Features: <img src="https://picsum.photos/400/300?random=3" alt="[descriptive text]" loading="lazy">
-  * Team/People: <img src="https://picsum.photos/300/300?random=4" alt="[descriptive text]" loading="lazy">
-  * Background sections: Use CSS with url('https://picsum.photos/1920/800?random=5')
-- Change the ?random=N number for each unique image (1,2,3,4,5,6...)
-- All images MUST have descriptive alt text
-- All images MUST have loading="lazy"
-- Style images with proper CSS (border-radius, object-fit: cover, shadows)
+Use these EXACT URL patterns with picsum.photos:
+- Hero background: url('https://picsum.photos/1920/1080?random=1')
+- Content image: <img src="https://picsum.photos/800/600?random=2" alt="..." loading="lazy">
+- Card image: <img src="https://picsum.photos/600/400?random=3" alt="..." loading="lazy">
+- Team photo: <img src="https://picsum.photos/400/400?random=4" alt="..." loading="lazy">
+Change ?random=N number for each unique image (1,2,3,4...)
 
-EXAMPLE HERO SECTION:
-<section class="hero">
-  <img src="https://picsum.photos/1920/800?random=hero" alt="Professional business services" class="hero-image">
-  <div class="hero-content">
-    <h1>Welcome to Our Company</h1>
-    <p>Your tagline here</p>
-  </div>
-</section>
+**REQUIRED CSS FOR IMAGES:**
+.hero {
+  position: relative;
+  min-height: 80vh;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+}
+.hero-content { position: relative; z-index: 1; color: white; text-align: center; }
+img { max-width: 100%; height: auto; display: block; }
+.card img { width: 100%; height: 200px; object-fit: cover; border-radius: 8px 8px 0 0; }
 
-COOKIE BANNER:
-- Include a functional cookie consent banner with Accept/Decline, styled to match the site.
+**MOBILE-FIRST BREAKPOINTS:**
+/* Mobile (default) */
+/* Tablet: 768px */
+@media (min-width: 768px) { ... }
+/* Desktop: 1024px */
+@media (min-width: 1024px) { ... }
+/* Large: 1280px */
+@media (min-width: 1280px) { ... }
 
-SITEMAP/ROBOTS:
-- sitemap.xml must list all pages with example.com URLs
-- robots.txt should allow crawling and link to sitemap.xml
+**COOKIE BANNER - DESIGN INTEGRATED:**
+- Subtle, non-intrusive design at bottom
+- Matches site color scheme
+- Clear Accept/Decline buttons
+- position: fixed; bottom: 0
 
-Return the COMPLETE website with ALL images now.`;
+**OUTPUT FORMAT (MANDATORY):**
+<!-- FILE: styles.css -->
+[Complete CSS 300+ lines with all styles including image handling]
+
+<!-- FILE: index.html -->
+[Homepage with hero background image, feature cards with images]
+
+<!-- FILE: services.html -->
+[SAME header/footer, service cards with images]
+
+<!-- FILE: about.html -->
+[SAME header/footer, team photos, office images]
+
+<!-- FILE: contact.html -->
+[SAME header/footer, contact form, map area]
+
+<!-- FILE: privacy.html -->
+[SAME header/footer, legal text]
+
+<!-- FILE: terms.html -->
+[SAME header/footer, legal text]
+
+<!-- FILE: 404.html -->
+[SAME header/footer, helpful error page]
+
+<!-- FILE: script.js -->
+[Cookie banner, mobile menu toggle]
+
+<!-- FILE: robots.txt -->
+User-agent: *
+Allow: /
+
+<!-- FILE: sitemap.xml -->
+[Complete sitemap]
+
+IMPORTANT: Header and footer HTML structure MUST be identical across all HTML files. Only update the 'active' class on navigation links.
+
+Generate EXCEPTIONAL multi-page website with 10X better UI, STATIC identical header/footer, proper image styling, and outstanding user experience. All styles MUST render correctly in browser, NO markdown code blocks, NO backticks at beginning of files.`;
 
 
 type GeneratedFile = { path: string; content: string };
