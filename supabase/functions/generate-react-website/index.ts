@@ -63,6 +63,36 @@ SEO:
 - Set <title>, meta description, canonical, and Open Graph in public/index.html.
 - Each page must have exactly ONE H1.
 
+**CRITICAL - IMAGES ARE MANDATORY:**
+Every page MUST have real images using picsum.photos. This is NON-NEGOTIABLE.
+
+IMAGE REQUIREMENTS:
+- Hero section: MUST have a large hero image (1200x600 or similar)
+- Each page: minimum 2-3 images relevant to content
+- Use these EXACT URL patterns in JSX:
+  * Hero: <img src="https://picsum.photos/1200/600?random=1" alt="descriptive text" loading="lazy" />
+  * Content: <img src="https://picsum.photos/800/500?random=2" alt="descriptive text" loading="lazy" />
+  * Cards/Features: <img src="https://picsum.photos/400/300?random=3" alt="descriptive text" loading="lazy" />
+  * Team/People: <img src="https://picsum.photos/300/300?random=4" alt="descriptive text" loading="lazy" />
+  * Background: Use inline style with backgroundImage: 'url(https://picsum.photos/1920/800?random=5)'
+- Change the ?random=N number for each unique image (1,2,3,4,5,6...)
+- All images MUST have descriptive alt text
+- All images MUST have loading="lazy"
+- Style images with proper CSS (border-radius, object-fit: cover, shadows)
+
+EXAMPLE HERO COMPONENT:
+function Hero() {
+  return (
+    <section className="hero">
+      <img src="https://picsum.photos/1920/800?random=hero" alt="Professional services" className="hero-image" loading="lazy" />
+      <div className="hero-content">
+        <h1>Welcome to Our Company</h1>
+        <p>Your tagline here</p>
+      </div>
+    </section>
+  );
+}
+
 DEPLOYMENT FILES (must include):
 - netlify.toml
 - vercel.json
@@ -92,7 +122,7 @@ MANDATORY package.json (use EXACTLY this to avoid build issues):
   }
 }
 
-Return the COMPLETE project now.`;
+Return the COMPLETE project with ALL images now.`;
 
 type GeneratedFile = { path: string; content: string };
 

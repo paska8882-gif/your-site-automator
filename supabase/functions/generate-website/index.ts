@@ -89,9 +89,31 @@ SEO (EVERY PAGE):
 - Open Graph tags (og:title, og:description, og:type=website)
 - Exactly ONE <h1> per page
 
-IMAGES:
-- Use ONLY full https:// URLs (picsum.photos is OK)
-- Provide descriptive alt text related to content
+**CRITICAL - IMAGES ARE MANDATORY:**
+Every page MUST have real images using picsum.photos. This is NON-NEGOTIABLE.
+
+IMAGE REQUIREMENTS:
+- Hero section: MUST have a large hero image (1200x600 or similar)
+- Each page: minimum 2-3 images relevant to content
+- Use these EXACT URL patterns:
+  * Hero: <img src="https://picsum.photos/1200/600?random=1" alt="[descriptive text]" loading="lazy">
+  * Content: <img src="https://picsum.photos/800/500?random=2" alt="[descriptive text]" loading="lazy">
+  * Cards/Features: <img src="https://picsum.photos/400/300?random=3" alt="[descriptive text]" loading="lazy">
+  * Team/People: <img src="https://picsum.photos/300/300?random=4" alt="[descriptive text]" loading="lazy">
+  * Background sections: Use CSS with url('https://picsum.photos/1920/800?random=5')
+- Change the ?random=N number for each unique image (1,2,3,4,5,6...)
+- All images MUST have descriptive alt text
+- All images MUST have loading="lazy"
+- Style images with proper CSS (border-radius, object-fit: cover, shadows)
+
+EXAMPLE HERO SECTION:
+<section class="hero">
+  <img src="https://picsum.photos/1920/800?random=hero" alt="Professional business services" class="hero-image">
+  <div class="hero-content">
+    <h1>Welcome to Our Company</h1>
+    <p>Your tagline here</p>
+  </div>
+</section>
 
 COOKIE BANNER:
 - Include a functional cookie consent banner with Accept/Decline, styled to match the site.
@@ -100,7 +122,7 @@ SITEMAP/ROBOTS:
 - sitemap.xml must list all pages with example.com URLs
 - robots.txt should allow crawling and link to sitemap.xml
 
-Return the COMPLETE website now.`;
+Return the COMPLETE website with ALL images now.`;
 
 
 type GeneratedFile = { path: string; content: string };
