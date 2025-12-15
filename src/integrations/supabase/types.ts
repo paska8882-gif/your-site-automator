@@ -17,28 +17,37 @@ export type Database = {
       generation_history: {
         Row: {
           created_at: string
+          error_message: string | null
+          files_data: Json | null
           id: string
           language: string
           number: number
           prompt: string
+          status: string
           user_id: string | null
           zip_data: string | null
         }
         Insert: {
           created_at?: string
+          error_message?: string | null
+          files_data?: Json | null
           id?: string
           language?: string
           number?: number
           prompt: string
+          status?: string
           user_id?: string | null
           zip_data?: string | null
         }
         Update: {
           created_at?: string
+          error_message?: string | null
+          files_data?: Json | null
           id?: string
           language?: string
           number?: number
           prompt?: string
+          status?: string
           user_id?: string | null
           zip_data?: string | null
         }

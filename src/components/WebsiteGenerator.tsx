@@ -4,9 +4,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Download, Eye, Code, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers } from "lucide-react";
-import { generateWebsite, createZipFromFiles, downloadBlob, saveToHistory, GeneratedFile, AiModel, WebsiteType } from "@/lib/websiteGenerator";
-import { FilePreview } from "./FilePreview";
+import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers } from "lucide-react";
+import { startGeneration, AiModel, WebsiteType } from "@/lib/websiteGenerator";
 import { GenerationHistory } from "./GenerationHistory";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -28,11 +27,7 @@ export function WebsiteGenerator() {
   const [language, setLanguage] = useState("auto");
   const [aiModel, setAiModel] = useState<AiModel>("senior");
   const [websiteType, setWebsiteType] = useState<WebsiteType>("html");
-  const [isLoading, setIsLoading] = useState(false);
-  const [generatedFiles, setGeneratedFiles] = useState<GeneratedFile[]>([]);
-  const [selectedFile, setSelectedFile] = useState<GeneratedFile | null>(null);
-  const [historyKey, setHistoryKey] = useState(0);
-  const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -52,32 +47,26 @@ export function WebsiteGenerator() {
       return;
     }
 
-    setIsLoading(true);
-    setGeneratedFiles([]);
-    setSelectedFile(null);
+    setIsSubmitting(true);
 
     try {
-      const result = await generateWebsite(prompt, language === "auto" ? undefined : language, aiModel, websiteType);
+      const result = await startGeneration(
+        prompt,
+        language === "auto" ? undefined : language,
+        aiModel,
+        websiteType
+      );
 
-      if (result.success && result.files) {
-        setGeneratedFiles(result.files);
-        const indexFile = result.files.find((f) => f.path === "index.html");
-        setSelectedFile(indexFile || result.files[0]);
-        
-        // Save to history with user_id
-        if (user) {
-          await saveToHistory(prompt, language === "auto" ? "auto" : language, result.files, user.id);
-          setHistoryKey((prev) => prev + 1);
-        }
-        
+      if (result.success) {
         toast({
-          title: "Успіх!",
-          description: `Згенеровано ${result.totalFiles} файлів`,
+          title: "Генерацію розпочато",
+          description: "Сайт генерується у фоновому режимі. Слідкуйте за статусом в історії.",
         });
+        setPrompt("");
       } else {
         toast({
-          title: "Помилка генерації",
-          description: result.error || "Не вдалося згенерувати сайт",
+          title: "Помилка",
+          description: result.error || "Не вдалося запустити генерацію",
           variant: "destructive",
         });
       }
@@ -89,36 +78,13 @@ export function WebsiteGenerator() {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
-
-  const handleDownload = async () => {
-    if (generatedFiles.length === 0) return;
-
-    try {
-      const blob = await createZipFromFiles(generatedFiles);
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-      downloadBlob(blob, `website_${timestamp}.zip`);
-      
-      toast({
-        title: "Завантаження",
-        description: "ZIP-архів завантажено",
-      });
-    } catch (error) {
-      toast({
-        title: "Помилка",
-        description: "Не вдалося створити архів",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const getCssFile = () => generatedFiles.find((f) => f.path === "styles.css");
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6 max-w-7xl">
+      <div className="container mx-auto p-6 max-w-4xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
@@ -144,181 +110,104 @@ export function WebsiteGenerator() {
           </div>
         </div>
 
-        <div className={`flex flex-col ${generatedFiles.length > 0 ? 'lg:flex-row' : ''} gap-6`}>
-          {/* Left Column - Input + Files */}
-          <div className={`space-y-4 ${generatedFiles.length > 0 ? 'lg:w-[30%]' : 'w-full max-w-2xl mx-auto'}`}>
-            {/* Input Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileCode2 className="h-5 w-5" />
-                  Опис сайту
-                </CardTitle>
-                <CardDescription>
-                  Опишіть тип бізнесу, послуги, стиль дизайну та інші деталі
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Textarea
-                  placeholder="Наприклад: Сучасний сайт для IT-компанії з послугами веб-розробки. Темна тема, мінімалістичний дизайн. Сторінки: головна, послуги, портфоліо, контакти..."
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  className="min-h-[150px] resize-none"
-                  disabled={isLoading}
-                />
+        {/* Input Section */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileCode2 className="h-5 w-5" />
+              Опис сайту
+            </CardTitle>
+            <CardDescription>
+              Опишіть тип бізнесу, послуги, стиль дизайну та інші деталі. Можна запускати кілька генерацій паралельно.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Textarea
+              placeholder="Наприклад: Сучасний сайт для IT-компанії з послугами веб-розробки. Темна тема, мінімалістичний дизайн. Сторінки: головна, послуги, портфоліо, контакти..."
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              className="min-h-[150px] resize-none"
+              disabled={isSubmitting}
+            />
 
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <Select value={language} onValueChange={setLanguage} disabled={isLoading}>
-                    <SelectTrigger className="w-full sm:w-[180px]">
-                      <SelectValue placeholder="Мова сайту" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {languages.map((lang) => (
-                        <SelectItem key={lang.value} value={lang.value}>
-                          {lang.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Select value={language} onValueChange={setLanguage} disabled={isSubmitting}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Мова сайту" />
+                </SelectTrigger>
+                <SelectContent>
+                  {languages.map((lang) => (
+                    <SelectItem key={lang.value} value={lang.value}>
+                      {lang.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-                  <Select value={aiModel} onValueChange={(v) => setAiModel(v as AiModel)} disabled={isLoading}>
-                    <SelectTrigger className="w-full sm:w-[180px]">
-                      <SelectValue placeholder="AI модель" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="senior">
-                        <div className="flex items-center gap-2">
-                          <Crown className="h-4 w-4 text-amber-500" />
-                          Senior AI
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="junior">
-                        <div className="flex items-center gap-2">
-                          <Zap className="h-4 w-4 text-blue-500" />
-                          Junior AI
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <Select value={websiteType} onValueChange={(v) => setWebsiteType(v as WebsiteType)} disabled={isLoading}>
-                    <SelectTrigger className="w-full sm:w-[180px]">
-                      <SelectValue placeholder="Тип сайту" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="html">
-                        <div className="flex items-center gap-2">
-                          <Globe className="h-4 w-4 text-green-500" />
-                          HTML/CSS
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="react">
-                        <div className="flex items-center gap-2">
-                          <Layers className="h-4 w-4 text-cyan-500" />
-                          React
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Button
-                    onClick={handleGenerate}
-                    disabled={isLoading || !prompt.trim()}
-                    className="flex-1"
-                    size="lg"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Генерація...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        Згенерувати
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                {generatedFiles.length > 0 && (
-                  <Button onClick={handleDownload} variant="outline" className="w-full" size="lg">
-                    <Download className="mr-2 h-4 w-4" />
-                    Завантажити ZIP ({generatedFiles.length} файлів)
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* File Tabs - Below Input */}
-            {generatedFiles.length > 0 && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <CardTitle className="text-sm font-medium">Файли</CardTitle>
-                    <div className="flex gap-1">
-                      <Button
-                        variant={viewMode === "preview" ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setViewMode("preview")}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        Превью
-                      </Button>
-                      <Button
-                        variant={viewMode === "code" ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setViewMode("code")}
-                      >
-                        <Code className="h-4 w-4 mr-1" />
-                        Код
-                      </Button>
+              <Select value={aiModel} onValueChange={(v) => setAiModel(v as AiModel)} disabled={isSubmitting}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="AI модель" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="senior">
+                    <div className="flex items-center gap-2">
+                      <Crown className="h-4 w-4 text-amber-500" />
+                      Senior AI
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {generatedFiles.map((file) => (
-                      <Button
-                        key={file.path}
-                        variant={selectedFile?.path === file.path ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setSelectedFile(file)}
-                      >
-                        {file.path}
-                      </Button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+                  </SelectItem>
+                  <SelectItem value="junior">
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-blue-500" />
+                      Junior AI
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
 
-          {/* Right Column - Preview (70%) */}
-          {generatedFiles.length > 0 ? (
-            <div className="lg:w-[70%]">
-              {selectedFile && (
-                <FilePreview
-                  file={selectedFile}
-                  cssFile={getCssFile()}
-                  viewMode={viewMode}
-                />
-              )}
+              <Select value={websiteType} onValueChange={(v) => setWebsiteType(v as WebsiteType)} disabled={isSubmitting}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Тип сайту" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="html">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-green-500" />
+                      HTML/CSS
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="react">
+                    <div className="flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-cyan-500" />
+                      React
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button
+                onClick={handleGenerate}
+                disabled={isSubmitting || !prompt.trim()}
+                className="flex-1"
+                size="lg"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Відправка...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Згенерувати
+                  </>
+                )}
+              </Button>
             </div>
-          ) : (
-            <Card className="h-[400px] flex items-center justify-center max-w-2xl mx-auto w-full">
-              <div className="text-center text-muted-foreground">
-                <FileCode2 className="h-16 w-16 mx-auto mb-4 opacity-20" />
-                <p>Результат генерації з'явиться тут</p>
-              </div>
-            </Card>
-          )}
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* History Table */}
-        <GenerationHistory key={historyKey} />
+        {/* History with realtime updates and preview */}
+        <GenerationHistory />
       </div>
     </div>
   );
