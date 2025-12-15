@@ -164,26 +164,54 @@ IMPORTANT: Make ONLY this specific change. Do NOT modify anything else. Return a
     console.log("AI response length:", content.length);
 
     // Parse files from response
-    const fileMatches = content.matchAll(/<!--\s*FILE:\s*([^\s->]+)\s*-->([\s\S]*?)(?=<!--\s*FILE:|$)/gi);
-    const updatedFiles: GeneratedFile[] = [];
+    const fileMatches = content.matchAll(
+      /<!--\s*FILE:\s*([^\s->]+)\s*-->([\s\S]*?)(?=<!--\s*FILE:|$)/gi
+    );
+    const parsedFiles: GeneratedFile[] = [];
 
     for (const match of fileMatches) {
       const path = match[1].trim();
       let fileContent = match[2].trim();
 
-      // Clean up content
-      fileContent = fileContent.replace(/^```[\w]*\n?/gm, "").replace(/\n?```$/gm, "").trim();
+      // Clean up content (guard against accidental code fences)
+      fileContent = fileContent
+        .replace(/^```[\w]*\n?/gm, "")
+        .replace(/\n?```$/gm, "")
+        .trim();
 
       if (path && fileContent) {
-        updatedFiles.push({ path, content: fileContent });
+        parsedFiles.push({ path, content: fileContent });
         console.log(`Parsed file: ${path} (${fileContent.length} chars)`);
       }
     }
 
-    if (updatedFiles.length === 0) {
-      console.error("No files parsed from response. Content preview:", content.substring(0, 500));
+    if (parsedFiles.length === 0) {
+      console.error(
+        "No files parsed from response. Content preview:",
+        content.substring(0, 500)
+      );
       throw new Error("Failed to parse edited files from AI response");
     }
+
+    // Count what ACTUALLY changed vs what was just returned
+    const currentByPath = new Map<string, string>(
+      (currentFiles as GeneratedFile[]).map((f) => [f.path, f.content])
+    );
+
+    const changedPaths: string[] = [];
+    const updatedFiles: GeneratedFile[] = parsedFiles.map((f) => {
+      const current = currentByPath.get(f.path);
+      if (typeof current === "string" && current !== f.content) {
+        changedPaths.push(f.path);
+      }
+      // If identical, keep the original content exactly to avoid noise
+      if (typeof current === "string" && current === f.content) {
+        return { path: f.path, content: current };
+      }
+      return f;
+    });
+
+    const changedCount = changedPaths.length;
 
     // Create ZIP
     const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");
@@ -206,13 +234,21 @@ IMPORTANT: Make ONLY this specific change. Do NOT modify anything else. Return a
       throw new Error("Failed to save changes");
     }
 
-    console.log(`Successfully updated generation ${generationId} with ${updatedFiles.length} files`);
+    console.log(
+      `Successfully updated generation ${generationId}. Changed: ${changedCount}. Returned: ${updatedFiles.length}.`
+    );
 
     return new Response(
       JSON.stringify({
         success: true,
         files: updatedFiles,
-        message: `Застосовано зміни до ${updatedFiles.length} файлів`,
+        changedFiles: changedPaths,
+        message:
+          changedCount === 0
+            ? `Зміни не знайдено (повернуто ${updatedFiles.length} файлів)`
+            : `Змінено ${changedCount} файл(и) (повернуто ${updatedFiles.length} файлів): ${changedPaths.join(
+                ", "
+              )}`,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
