@@ -15,10 +15,9 @@ interface EditPreviewProps {
 // Build a standalone HTML that runs the React app in-browser
 function buildReactPreviewHtml(files: GeneratedFile[]): string {
   const globalCss = files.find(f => f.path.includes("global.css") || f.path.includes("index.css"));
-  const appJs = files.find(f => f.path.endsWith("App.js") || f.path.endsWith("App.jsx"));
   const indexHtml = files.find(f => f.path.endsWith("index.html"));
   
-  const componentFiles = files.filter(f => 
+  const jsFiles = files.filter(f => 
     (f.path.endsWith(".js") || f.path.endsWith(".jsx")) && 
     !f.path.includes("index.js") &&
     !f.path.includes("reportWebVitals")
@@ -30,59 +29,66 @@ function buildReactPreviewHtml(files: GeneratedFile[]): string {
     if (titleMatch) title = titleMatch[1];
   }
 
-  const processedComponents: string[] = [];
-  
-  for (const file of componentFiles) {
+  const getComponentName = (path: string): string => {
+    const fileName = path.split("/").pop() || "";
+    return fileName.replace(/\.(js|jsx)$/, "");
+  };
+
+  const processFile = (file: GeneratedFile): string => {
     let content = file.content;
-    content = content.replace(/^import\s+.*?;?\s*$/gm, '');
-    content = content.replace(/^import\s+[\s\S]*?from\s+['"][^'"]+['"];?\s*$/gm, '');
+    const componentName = getComponentName(file.path);
     
-    const defaultExportMatch = content.match(/export\s+default\s+(?:function\s+)?(\w+)/);
-    if (defaultExportMatch) {
-      const componentName = defaultExportMatch[1];
-      content = content.replace(/export\s+default\s+(?:function\s+)?(\w+)/, `window.${componentName} = $1`);
+    content = content.replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];?\s*/g, '');
+    content = content.replace(/import\s+['"][^'"]+['"];?\s*/g, '');
+    
+    content = content.replace(
+      /export\s+default\s+function\s+(\w+)/g, 
+      (_, name) => `window.${name} = function ${name}`
+    );
+    
+    content = content.replace(
+      /export\s+default\s+(\w+)\s*;?/g,
+      (_, name) => `window.${name} = ${name};`
+    );
+    
+    content = content.replace(
+      /export\s+function\s+(\w+)/g,
+      (_, name) => `window.${name} = function ${name}`
+    );
+    
+    content = content.replace(
+      /export\s+const\s+(\w+)/g,
+      (_, name) => `window.${name} = window.${name} || {}; const ${name}`
+    );
+    
+    if (!content.includes(`window.${componentName}`)) {
+      content = content.replace(
+        new RegExp(`function\\s+${componentName}\\s*\\(`),
+        `window.${componentName} = function ${componentName}(`
+      );
+      content = content.replace(
+        new RegExp(`const\\s+${componentName}\\s*=\\s*\\(`),
+        `window.${componentName} = (`
+      );
     }
     
-    content = content.replace(/export\s+(?:const|function|class)\s+(\w+)/g, 'window.$1 = $1; const $1');
-    
-    processedComponents.push(`// ${file.path}\n${content}`);
-  }
+    return `// === ${file.path} ===\n${content}`;
+  };
 
-  let appContent = appJs?.content || '';
-  appContent = appContent.replace(/^import\s+.*?;?\s*$/gm, '');
-  appContent = appContent.replace(/^import\s+[\s\S]*?from\s+['"][^'"]+['"];?\s*$/gm, '');
-  appContent = appContent.replace(/export\s+default\s+(?:function\s+)?App/, 'window.App = App; function App');
-  
-  const routerMock = `
-    window.BrowserRouter = ({ children }) => children;
-    window.Routes = ({ children }) => {
-      const [path, setPath] = React.useState(window.location.hash.slice(1) || '/');
-      React.useEffect(() => {
-        const handler = () => setPath(window.location.hash.slice(1) || '/');
-        window.addEventListener('hashchange', handler);
-        return () => window.removeEventListener('hashchange', handler);
-      }, []);
-      window.__currentPath = path;
-      return children;
-    };
-    window.Route = ({ path, element }) => {
-      if (window.__currentPath === path || (path === '/' && !window.__currentPath)) {
-        return element;
-      }
-      return null;
-    };
-    window.Link = ({ to, children, className }) => {
-      return React.createElement('a', { 
-        href: '#' + to, 
-        className,
-        onClick: (e) => { window.location.hash = to; }
-      }, children);
-    };
-    window.NavLink = window.Link;
-    window.useNavigate = () => (path) => { window.location.hash = path; };
-    window.useParams = () => ({});
-    window.useLocation = () => ({ pathname: window.__currentPath || '/' });
-  `;
+  const sortedFiles = [...jsFiles].sort((a, b) => {
+    const aIsApp = a.path.includes("App.");
+    const bIsApp = b.path.includes("App.");
+    const aIsComponent = a.path.includes("/components/");
+    const bIsComponent = b.path.includes("/components/");
+    
+    if (aIsApp) return 1;
+    if (bIsApp) return -1;
+    if (aIsComponent && !bIsComponent) return -1;
+    if (!aIsComponent && bIsComponent) return 1;
+    return 0;
+  });
+
+  const processedCode = sortedFiles.map(processFile).join('\n\n');
 
   return `<!DOCTYPE html>
 <html lang="uk">
@@ -92,27 +98,118 @@ function buildReactPreviewHtml(files: GeneratedFile[]): string {
   <title>${title}</title>
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
   <style>
-    ${globalCss?.content || ''}
+    ${globalCss?.content || '* { margin: 0; padding: 0; box-sizing: border-box; }'}
   </style>
 </head>
 <body>
   <div id="root"></div>
   
   <script type="text/babel" data-presets="react">
-    const { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } = React;
+    const { 
+      useState, useEffect, useRef, useCallback, useMemo, 
+      createContext, useContext, useLayoutEffect, Fragment 
+    } = React;
     
-    ${routerMock}
+    const RouterContext = React.createContext({ path: '/', navigate: () => {} });
     
-    ${processedComponents.join('\n\n')}
+    const BrowserRouter = ({ children }) => {
+      const [path, setPath] = useState(window.location.hash.slice(1) || '/');
+      
+      useEffect(() => {
+        const handler = () => setPath(window.location.hash.slice(1) || '/');
+        window.addEventListener('hashchange', handler);
+        return () => window.removeEventListener('hashchange', handler);
+      }, []);
+      
+      const navigate = (to) => { window.location.hash = to; };
+      
+      return React.createElement(
+        RouterContext.Provider, 
+        { value: { path, navigate } }, 
+        children
+      );
+    };
+    window.BrowserRouter = BrowserRouter;
     
-    // App component
-    ${appContent}
+    const Routes = ({ children }) => {
+      const { path } = useContext(RouterContext);
+      const childArray = React.Children.toArray(children);
+      
+      for (const child of childArray) {
+        if (child.props && child.props.path) {
+          const routePath = child.props.path;
+          if (routePath === path || routePath === '*' || 
+              (routePath === '/' && (path === '' || path === '/')) ||
+              (routePath !== '/' && path.startsWith(routePath))) {
+            return child.props.element;
+          }
+        }
+      }
+      
+      const notFound = childArray.find(c => c.props?.path === '*');
+      return notFound?.props?.element || null;
+    };
+    window.Routes = Routes;
     
-    // Render
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(React.createElement(window.App || App));
+    const Route = ({ path, element }) => null;
+    window.Route = Route;
+    
+    const Link = ({ to, children, className, ...props }) => {
+      const { navigate } = useContext(RouterContext);
+      return React.createElement('a', {
+        href: '#' + to,
+        className,
+        onClick: (e) => { e.preventDefault(); navigate(to); },
+        ...props
+      }, children);
+    };
+    window.Link = Link;
+    
+    const NavLink = ({ to, children, className, ...props }) => {
+      const { path } = useContext(RouterContext);
+      const isActive = path === to || (to !== '/' && path.startsWith(to));
+      const finalClassName = typeof className === 'function' 
+        ? className({ isActive }) 
+        : className + (isActive ? ' active' : '');
+      return React.createElement(Link, { to, className: finalClassName, ...props }, children);
+    };
+    window.NavLink = NavLink;
+    
+    const useNavigate = () => {
+      const { navigate } = useContext(RouterContext);
+      return navigate;
+    };
+    window.useNavigate = useNavigate;
+    
+    const useLocation = () => {
+      const { path } = useContext(RouterContext);
+      return { pathname: path, search: '', hash: '' };
+    };
+    window.useLocation = useLocation;
+    
+    const useParams = () => ({});
+    window.useParams = useParams;
+
+    ${processedCode}
+    
+    try {
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      const AppComponent = window.App;
+      if (AppComponent) {
+        root.render(
+          React.createElement(BrowserRouter, null,
+            React.createElement(AppComponent)
+          )
+        );
+      } else {
+        document.getElementById('root').innerHTML = '<p style="padding:20px;color:red;">App component not found</p>';
+      }
+    } catch (err) {
+      console.error('React render error:', err);
+      document.getElementById('root').innerHTML = '<pre style="padding:20px;color:red;">' + err.message + '</pre>';
+    }
   </script>
 </body>
 </html>`;
@@ -199,9 +296,9 @@ function FileTreeNode({ node, depth, selectedPath, expandedFolders, onToggleFold
   if (node.isFolder) {
     return (
       <div>
-        <button
+        <div
           onClick={() => onToggleFolder(node.path)}
-          className="w-full flex items-center gap-1 px-2 py-1 rounded-md text-sm text-left transition-colors hover:bg-muted"
+          className="w-full flex items-center gap-1 px-2 py-1 rounded-md text-sm text-left transition-colors hover:bg-muted cursor-pointer"
           style={{ paddingLeft: `${8 + depth * 12}px` }}
         >
           {isExpanded ? (
@@ -215,7 +312,7 @@ function FileTreeNode({ node, depth, selectedPath, expandedFolders, onToggleFold
             <Folder className="h-4 w-4 text-blue-400 shrink-0" />
           )}
           <span className="truncate">{node.name}</span>
-        </button>
+        </div>
         {isExpanded && (
           <div className="animate-accordion-down">
             {node.children.map((child) => (
@@ -236,10 +333,10 @@ function FileTreeNode({ node, depth, selectedPath, expandedFolders, onToggleFold
   }
 
   return (
-    <button
+    <div
       onClick={() => node.file && onSelectFile(node.file)}
       className={cn(
-        "w-full flex items-center gap-2 px-2 py-1 rounded-md text-sm text-left transition-colors",
+        "w-full flex items-center gap-2 px-2 py-1 rounded-md text-sm text-left transition-colors cursor-pointer",
         selectedPath === node.path
           ? "bg-primary/10 text-primary"
           : "hover:bg-muted text-foreground"
@@ -248,7 +345,7 @@ function FileTreeNode({ node, depth, selectedPath, expandedFolders, onToggleFold
     >
       {getFileIcon(node.name)}
       <span className="truncate">{node.name}</span>
-    </button>
+    </div>
   );
 }
 
@@ -286,7 +383,6 @@ export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: 
   };
 
   const getPreviewContent = () => {
-    // For React projects, build a standalone HTML preview
     if (isReact) {
       return buildReactPreviewHtml(files);
     }
@@ -313,7 +409,6 @@ export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: 
 
   const canPreview = isReact || selectedFile?.path.endsWith(".html");
 
-  // Fullscreen modal
   if (isFullscreen) {
     return (
       <div className="fixed inset-0 z-50 bg-background flex flex-col">
@@ -328,7 +423,6 @@ export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: 
           </Button>
         </div>
         <div className="flex-1 flex overflow-hidden">
-          {/* File sidebar in fullscreen */}
           <div className="w-56 border-r bg-muted/30 flex flex-col shrink-0">
             <div className="p-3 border-b">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Файли</span>
@@ -349,7 +443,6 @@ export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: 
               </div>
             </ScrollArea>
           </div>
-          {/* Preview area */}
           <div className="flex-1">
             <iframe
               srcDoc={getPreviewContent()}
@@ -365,7 +458,6 @@ export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: 
 
   return (
     <div className="flex h-full">
-      {/* File sidebar */}
       <div className="w-56 border-r bg-muted/30 flex flex-col shrink-0">
         <div className="p-3 border-b">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Files</span>
@@ -387,7 +479,6 @@ export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: 
         </ScrollArea>
       </div>
 
-      {/* Content area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="border-b px-4 py-2 flex items-center justify-between shrink-0 bg-muted/20">
           <div className="flex items-center gap-2 text-sm">
