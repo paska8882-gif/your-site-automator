@@ -279,9 +279,6 @@ export function GenerationHistory() {
                     onClick={() => item.status === "completed" && handleExpand(item)}
                   >
                     <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <span className="font-medium text-muted-foreground w-8">
-                        #{item.number}
-                      </span>
                       <div className="flex items-center" title={getStatusText(item.status)}>
                         {getStatusIcon(item.status)}
                       </div>
@@ -349,7 +346,7 @@ export function GenerationHistory() {
                   </div>
                 </CollapsibleTrigger>
 
-                {/* Expandable prompt */}
+                {/* Expandable details: domain + prompt */}
                 <div 
                   className="flex items-start gap-2 px-4 py-2 border-t bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={(e) => {
@@ -362,9 +359,10 @@ export function GenerationHistory() {
                       expandedPromptId === item.id ? "rotate-90" : ""
                     }`} 
                   />
-                  <p className={`text-sm text-muted-foreground ${expandedPromptId === item.id ? "" : "line-clamp-1"}`}>
-                    {item.prompt}
-                  </p>
+                  <div className={`text-sm ${expandedPromptId === item.id ? "" : "line-clamp-1"}`}>
+                    <span className="font-medium">{item.site_name || `Site ${item.number}`}</span>
+                    <span className="text-muted-foreground"> — {item.prompt}</span>
+                  </div>
                 </div>
 
                 <CollapsibleContent>
