@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Download, Trash2, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil } from "lucide-react";
+import { Download, Trash2, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { FilePreview } from "./FilePreview";
 import { GeneratedFile } from "@/lib/websiteGenerator";
@@ -32,8 +33,10 @@ export function GenerationHistory() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedPromptId, setExpandedPromptId] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<GeneratedFile | null>(null);
   const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const fetchHistory = async () => {
     setIsLoading(true);
@@ -230,6 +233,15 @@ export function GenerationHistory() {
     return files.find((f) => f.path === "styles.css");
   };
 
+  const filteredHistory = history.filter((item) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      (item.site_name?.toLowerCase().includes(query)) ||
+      (item.prompt?.toLowerCase().includes(query))
+    );
+  });
+
   if (history.length === 0 && !isLoading) {
     return null;
   }
@@ -246,10 +258,19 @@ export function GenerationHistory() {
             <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
           </Button>
         </div>
+        <div className="relative mt-2">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Пошук за назвою або промптом..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {history.map((item) => (
+          {filteredHistory.map((item) => (
             <Collapsible key={item.id} open={expandedId === item.id}>
               <div className="rounded-md border">
                 <CollapsibleTrigger asChild>
@@ -327,6 +348,24 @@ export function GenerationHistory() {
                     </div>
                   </div>
                 </CollapsibleTrigger>
+
+                {/* Expandable prompt */}
+                <div 
+                  className="flex items-start gap-2 px-4 py-2 border-t bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpandedPromptId(expandedPromptId === item.id ? null : item.id);
+                  }}
+                >
+                  <ChevronRight 
+                    className={`h-4 w-4 mt-0.5 text-muted-foreground transition-transform flex-shrink-0 ${
+                      expandedPromptId === item.id ? "rotate-90" : ""
+                    }`} 
+                  />
+                  <p className={`text-sm text-muted-foreground ${expandedPromptId === item.id ? "" : "line-clamp-1"}`}>
+                    {item.prompt}
+                  </p>
+                </div>
 
                 <CollapsibleContent>
                   {item.files_data && item.files_data.length > 0 && (
