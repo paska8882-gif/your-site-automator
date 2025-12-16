@@ -7,8 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, Languages, Hash, Wand2 } from "lucide-react";
-import { startGeneration, AiModel, WebsiteType } from "@/lib/websiteGenerator";
+import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, Languages, Hash, Wand2, Palette } from "lucide-react";
+import { startGeneration, AiModel, WebsiteType, LAYOUT_STYLES } from "@/lib/websiteGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { GenerationHistory } from "./GenerationHistory";
 import { useAuth } from "@/hooks/useAuth";
@@ -30,6 +30,7 @@ export function WebsiteGenerator() {
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["uk"]);
   const [customLanguage, setCustomLanguage] = useState("");
   const [isOtherSelected, setIsOtherSelected] = useState(false);
+  const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
   const [sitesPerLanguage, setSitesPerLanguage] = useState(1);
   const [aiModel, setAiModel] = useState<AiModel>("senior");
   const [websiteType, setWebsiteType] = useState<WebsiteType>("html");
@@ -108,7 +109,19 @@ export function WebsiteGenerator() {
     return langs;
   };
 
-  const totalGenerations = getAllSelectedLanguages().length * sitesPerLanguage;
+  const toggleStyle = (styleId: string) => {
+    setSelectedStyles((prev) => {
+      if (prev.includes(styleId)) {
+        return prev.filter((s) => s !== styleId);
+      }
+      return [...prev, styleId];
+    });
+  };
+
+  // Calculate total generations: languages × sites × (styles or 1 if random)
+  const allLanguages = getAllSelectedLanguages();
+  const styleCount = selectedStyles.length || 1; // If no styles selected, it's random (counts as 1)
+  const totalGenerations = allLanguages.length * sitesPerLanguage * styleCount;
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -135,13 +148,17 @@ export function WebsiteGenerator() {
 
     try {
       // Create all generation requests in parallel
+      // Combinations: languages × sitesPerLanguage × styles (or random if no styles)
       const generationPromises: Promise<any>[] = [];
+      const stylesToUse = selectedStyles.length > 0 ? selectedStyles : [undefined]; // undefined = random
 
       for (const lang of allLanguages) {
         for (let i = 0; i < sitesPerLanguage; i++) {
-          generationPromises.push(
-            startGeneration(prompt, lang, aiModel, websiteType)
-          );
+          for (const style of stylesToUse) {
+            generationPromises.push(
+              startGeneration(prompt, lang, aiModel, websiteType, style)
+            );
+          }
         }
       }
 
@@ -294,11 +311,42 @@ export function WebsiteGenerator() {
               )}
             </div>
 
+            {/* Style selection */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Palette className="h-4 w-4" />
+                Стилі лейауту (оберіть або залиште порожнім для рандому)
+              </Label>
+              <div className="flex flex-wrap gap-3">
+                {LAYOUT_STYLES.map((style) => (
+                  <div key={style.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`style-${style.id}`}
+                      checked={selectedStyles.includes(style.id)}
+                      onCheckedChange={() => toggleStyle(style.id)}
+                      disabled={isSubmitting}
+                    />
+                    <label
+                      htmlFor={`style-${style.id}`}
+                      className="text-sm cursor-pointer select-none"
+                    >
+                      {style.name}
+                    </label>
+                  </div>
+                ))}
+              </div>
+              {selectedStyles.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Якщо не обрано жодного стилю — буде випадковий вибір для кожного сайту
+                </p>
+              )}
+            </div>
+
             {/* Sites per language */}
             <div className="space-y-2">
               <Label htmlFor="sites-count" className="flex items-center gap-2">
                 <Hash className="h-4 w-4" />
-                Кількість сайтів на кожну мову
+                Кількість сайтів на комбінацію
               </Label>
               <div className="flex items-center gap-3">
                 <Input
@@ -313,9 +361,9 @@ export function WebsiteGenerator() {
                 />
                 <span className="text-sm text-muted-foreground">
                   Всього генерацій: <strong className="text-primary">{totalGenerations}</strong>
-                  {getAllSelectedLanguages().length > 1 && (
+                  {(allLanguages.length > 1 || styleCount > 1) && (
                     <span className="ml-1">
-                      ({getAllSelectedLanguages().length} мов × {sitesPerLanguage} сайтів)
+                      ({allLanguages.length} мов × {sitesPerLanguage} сайтів{styleCount > 1 ? ` × ${styleCount} стилів` : ""})
                     </span>
                   )}
                 </span>

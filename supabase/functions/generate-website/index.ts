@@ -53,9 +53,10 @@ Create a professional MULTI-PAGE website for [Назва] with complete structur
 - All pages fully functional and complete
 - Working images from picsum.photos`.trim();
 
-// 6 unique layout variations for randomization
+// 10 unique layout variations for randomization or manual selection
 const LAYOUT_VARIATIONS = [
   {
+    id: "classic",
     name: "Classic Corporate",
     description: `LAYOUT STYLE: Classic Corporate
 - Hero: Full-width hero with centered content, large background image with dark overlay
@@ -66,6 +67,7 @@ const LAYOUT_VARIATIONS = [
 - Footer: 4-column layout with newsletter subscription`
   },
   {
+    id: "asymmetric",
     name: "Modern Asymmetric",
     description: `LAYOUT STYLE: Modern Asymmetric
 - Hero: Split-screen layout - 60% text left, 40% large image right with overlap effect
@@ -76,6 +78,7 @@ const LAYOUT_VARIATIONS = [
 - Footer: Minimalist 2-column with large logo`
   },
   {
+    id: "editorial",
     name: "Editorial Magazine",
     description: `LAYOUT STYLE: Editorial Magazine
 - Hero: Minimal text-only hero with huge typography, small accent image in corner
@@ -86,6 +89,7 @@ const LAYOUT_VARIATIONS = [
 - Footer: Single-line footer with horizontal link list`
   },
   {
+    id: "bold",
     name: "Bold Blocks",
     description: `LAYOUT STYLE: Bold Blocks
 - Hero: Full-viewport hero with video or animated background, text at bottom
@@ -96,6 +100,7 @@ const LAYOUT_VARIATIONS = [
 - Footer: Compact dark footer with social icons prominent`
   },
   {
+    id: "minimalist",
     name: "Minimalist Zen",
     description: `LAYOUT STYLE: Minimalist Zen
 - Hero: Lots of whitespace, small centered text with subtle line animations
@@ -106,6 +111,7 @@ const LAYOUT_VARIATIONS = [
 - Footer: Ultra-minimal with only essential links`
   },
   {
+    id: "showcase",
     name: "Dynamic Showcase",
     description: `LAYOUT STYLE: Dynamic Showcase
 - Hero: Image gallery/slideshow hero with thumbnails below
@@ -114,6 +120,50 @@ const LAYOUT_VARIATIONS = [
 - Testimonials: Grid of small cards with photos and star ratings
 - CTA: Floating action button that follows scroll
 - Footer: Multi-level footer with expandable sections on mobile`
+  },
+  {
+    id: "gradient",
+    name: "Gradient Flow",
+    description: `LAYOUT STYLE: Gradient Flow
+- Hero: Animated gradient background with floating geometric shapes
+- Sections: Smooth color transitions between sections with wave dividers
+- Features: Glassmorphism cards with blur effects and subtle borders
+- Testimonials: Floating quote bubbles with gradient borders
+- CTA: Pulsing gradient button with glow effect
+- Footer: Dark footer with gradient accent line at top`
+  },
+  {
+    id: "brutalist",
+    name: "Brutalist Raw",
+    description: `LAYOUT STYLE: Brutalist Raw
+- Hero: Bold oversized typography, harsh contrasts, visible grid lines
+- Sections: Exposed structure with visible borders and raw edges
+- Features: Monospace font, numbered lists, stark black/white with one accent
+- Testimonials: Plain text with quotation marks, no styling
+- CTA: Thick bordered button with underline on hover
+- Footer: Minimal with just copyright and essential links`
+  },
+  {
+    id: "saas",
+    name: "SaaS Product",
+    description: `LAYOUT STYLE: SaaS Product
+- Hero: Product screenshot mockup in browser frame, floating UI elements
+- Sections: Feature comparison tables, pricing cards side by side
+- Features: Icon + title + description in 2x3 grid with hover animations
+- Testimonials: Company logos carousel + featured case study card
+- CTA: Free trial button with "No credit card required" text
+- Footer: Multi-column with product links, resources, company info`
+  },
+  {
+    id: "portfolio",
+    name: "Creative Portfolio",
+    description: `LAYOUT STYLE: Creative Portfolio
+- Hero: Full-screen image/video with name overlay and scroll indicator
+- Sections: Case study cards with large thumbnails and project details
+- Features: Skills as animated progress bars or tag clouds
+- Testimonials: Client logos with expandable reviews
+- CTA: "Let's work together" with contact form modal
+- Footer: Social links prominent with simple copyright`
   }
 ];
 
@@ -346,10 +396,12 @@ async function runGeneration({
   prompt,
   language,
   aiModel,
+  layoutStyle,
 }: {
   prompt: string;
   language?: string;
   aiModel: "junior" | "senior";
+  layoutStyle?: string;
 }): Promise<GenerationResult> {
   const isJunior = aiModel === "junior";
   console.log(`Using ${isJunior ? "Junior AI (OpenAI GPT-4o)" : "Senior AI (Lovable AI)"} for HTML generation`);
@@ -409,9 +461,11 @@ async function runGeneration({
   const refinedPrompt = agentData.choices?.[0]?.message?.content || prompt;
   console.log("Refined prompt generated, now generating HTML website...");
 
-  // Randomly select a layout variation for unique structure
-  const randomLayout = LAYOUT_VARIATIONS[Math.floor(Math.random() * LAYOUT_VARIATIONS.length)];
-  console.log(`Selected layout variation: ${randomLayout.name}`);
+  // Select layout: use provided layoutStyle or random
+  const selectedLayout = layoutStyle 
+    ? LAYOUT_VARIATIONS.find(l => l.id === layoutStyle) || LAYOUT_VARIATIONS[Math.floor(Math.random() * LAYOUT_VARIATIONS.length)]
+    : LAYOUT_VARIATIONS[Math.floor(Math.random() * LAYOUT_VARIATIONS.length)];
+  console.log(`Selected layout variation: ${selectedLayout.name} (${layoutStyle ? 'manual' : 'random'})`);
 
   // Step 2: Static HTML website generation
   const websiteRequestBody: Record<string, unknown> = {
@@ -424,7 +478,7 @@ async function runGeneration({
       },
       {
         role: "user",
-        content: `${HTML_GENERATION_PROMPT}\n\n=== MANDATORY LAYOUT STRUCTURE (FOLLOW EXACTLY) ===\n${randomLayout.description}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
+        content: `${HTML_GENERATION_PROMPT}\n\n=== MANDATORY LAYOUT STRUCTURE (FOLLOW EXACTLY) ===\n${selectedLayout.description}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
       },
     ],
   };
@@ -483,7 +537,8 @@ async function runBackgroundGeneration(
   historyId: string,
   prompt: string,
   language: string | undefined,
-  aiModel: "junior" | "senior"
+  aiModel: "junior" | "senior",
+  layoutStyle?: string
 ) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -498,7 +553,7 @@ async function runBackgroundGeneration(
       .update({ status: "generating" })
       .eq("id", historyId);
 
-    const result = await runGeneration({ prompt, language, aiModel });
+    const result = await runGeneration({ prompt, language, aiModel, layoutStyle });
 
     if (result.success && result.files) {
       // Create zip base64
@@ -574,7 +629,7 @@ serve(async (req) => {
 
     console.log("Authenticated request from user:", user.id);
 
-    const { prompt, language, aiModel = "senior" } = await req.json();
+    const { prompt, language, aiModel = "senior", layoutStyle } = await req.json();
 
     if (!prompt) {
       return new Response(JSON.stringify({ success: false, error: "Prompt is required" }), {
@@ -609,7 +664,7 @@ serve(async (req) => {
 
     // Start background generation using EdgeRuntime.waitUntil
     EdgeRuntime.waitUntil(
-      runBackgroundGeneration(historyEntry.id, prompt, language, aiModel)
+      runBackgroundGeneration(historyEntry.id, prompt, language, aiModel, layoutStyle)
     );
 
     // Return immediately with the history entry ID
