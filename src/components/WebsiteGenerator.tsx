@@ -27,6 +27,8 @@ export function WebsiteGenerator() {
   const { user, signOut } = useAuth();
   const [prompt, setPrompt] = useState("");
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["uk"]);
+  const [customLanguage, setCustomLanguage] = useState("");
+  const [isOtherSelected, setIsOtherSelected] = useState(false);
   const [sitesPerLanguage, setSitesPerLanguage] = useState(1);
   const [aiModel, setAiModel] = useState<AiModel>("senior");
   const [websiteType, setWebsiteType] = useState<WebsiteType>("html");
@@ -43,15 +45,31 @@ export function WebsiteGenerator() {
   const toggleLanguage = (langValue: string) => {
     setSelectedLanguages((prev) => {
       if (prev.includes(langValue)) {
-        // Don't allow deselecting if it's the last one
-        if (prev.length === 1) return prev;
+        // Allow deselecting if custom language is set or there are multiple selections
+        if (prev.length === 1 && !(isOtherSelected && customLanguage.trim())) return prev;
         return prev.filter((l) => l !== langValue);
       }
       return [...prev, langValue];
     });
   };
 
-  const totalGenerations = selectedLanguages.length * sitesPerLanguage;
+  const toggleOther = () => {
+    setIsOtherSelected((prev) => !prev);
+    if (isOtherSelected) {
+      setCustomLanguage("");
+    }
+  };
+
+  // Calculate all languages including custom
+  const getAllSelectedLanguages = () => {
+    const langs = [...selectedLanguages];
+    if (isOtherSelected && customLanguage.trim()) {
+      langs.push(customLanguage.trim());
+    }
+    return langs;
+  };
+
+  const totalGenerations = getAllSelectedLanguages().length * sitesPerLanguage;
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -63,7 +81,9 @@ export function WebsiteGenerator() {
       return;
     }
 
-    if (selectedLanguages.length === 0) {
+    const allLanguages = getAllSelectedLanguages();
+
+    if (allLanguages.length === 0) {
       toast({
         title: "Помилка",
         description: "Оберіть хоча б одну мову",
@@ -78,7 +98,7 @@ export function WebsiteGenerator() {
       // Create all generation requests in parallel
       const generationPromises: Promise<any>[] = [];
 
-      for (const lang of selectedLanguages) {
+      for (const lang of allLanguages) {
         for (let i = 0; i < sitesPerLanguage; i++) {
           generationPromises.push(
             startGeneration(prompt, lang, aiModel, websiteType)
@@ -188,7 +208,31 @@ export function WebsiteGenerator() {
                     </label>
                   </div>
                 ))}
+                {/* Other language option */}
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="lang-other"
+                    checked={isOtherSelected}
+                    onCheckedChange={toggleOther}
+                    disabled={isSubmitting}
+                  />
+                  <label
+                    htmlFor="lang-other"
+                    className="text-sm cursor-pointer select-none"
+                  >
+                    Інша
+                  </label>
+                </div>
               </div>
+              {isOtherSelected && (
+                <Input
+                  placeholder="Введіть назву мови (наприклад: Italiano, 日本語, العربية)"
+                  value={customLanguage}
+                  onChange={(e) => setCustomLanguage(e.target.value)}
+                  className="max-w-xs"
+                  disabled={isSubmitting}
+                />
+              )}
             </div>
 
             {/* Sites per language */}
@@ -210,9 +254,9 @@ export function WebsiteGenerator() {
                 />
                 <span className="text-sm text-muted-foreground">
                   Всього генерацій: <strong className="text-primary">{totalGenerations}</strong>
-                  {selectedLanguages.length > 1 && (
+                  {getAllSelectedLanguages().length > 1 && (
                     <span className="ml-1">
-                      ({selectedLanguages.length} мов × {sitesPerLanguage} сайтів)
+                      ({getAllSelectedLanguages().length} мов × {sitesPerLanguage} сайтів)
                     </span>
                   )}
                 </span>
@@ -262,7 +306,7 @@ export function WebsiteGenerator() {
 
               <Button
                 onClick={handleGenerate}
-                disabled={isSubmitting || !prompt.trim() || selectedLanguages.length === 0}
+                disabled={isSubmitting || !prompt.trim() || getAllSelectedLanguages().length === 0}
                 className="flex-1"
                 size="lg"
               >
