@@ -37,7 +37,18 @@ Create a professional MULTI-PAGE React website for [Назва] with complete st
 - Language: [Мова з запиту]
 - Colors: [Кольори з запиту АБО професійна палітра]
 - Style: [Стиль з запиту]
-- **PREMIUM DESIGN: Modern, professional, excellent UX**`.trim();
+- **PREMIUM DESIGN: Modern, professional, excellent UX**
+
+**TECHNICAL:**
+- **FUNCTIONAL COOKIE SYSTEM** - Real cookie collection with localStorage, not just a banner
+- All pages fully functional and complete
+
+**MANDATORY RESTRICTIONS:**
+- **NEVER include any prices, costs, pricing information, or financial figures**
+- **NEVER show currency symbols (€, $, £, ₴) with numbers**
+- **NEVER include pricing tables, cost estimates, or rate cards**
+- **NEVER mention specific monetary amounts or price ranges**
+- Instead of prices, use: "Contact us for pricing", "Request a quote", "Get custom pricing"`.trim();
 
 // 10 unique layout variations for randomization or manual selection
 const LAYOUT_VARIATIONS = [
@@ -190,8 +201,23 @@ Each main page component MUST include AT LEAST these sections (in order):
 **LAYOUT REQUIREMENTS:**
 - Header and Footer as REUSABLE components used in App.js layout
 - Active nav link highlight using React Router
-- Cookie banner with Accept/Decline and localStorage persistence
 - All pages share same header/footer structure
+
+**MANDATORY COOKIE SYSTEM (NOT OPTIONAL):**
+Every website MUST include a REAL, FUNCTIONAL cookie consent system:
+- CookieBanner component checks localStorage on mount: localStorage.getItem('cookieConsent')
+- "Accept" button: localStorage.setItem('cookieConsent', 'accepted'), hide banner
+- "Decline" button: localStorage.setItem('cookieConsent', 'declined'), hide banner
+- Banner shows ONLY if no consent value exists in localStorage
+- Use React useState for visibility, useEffect for initial check
+- Cookie banner must be styled professionally and positioned fixed at bottom
+
+**PRICING PROHIBITION (CRITICAL):**
+- NEVER include any prices, costs, or monetary figures anywhere on the site
+- NEVER use currency symbols with numbers ($99, €50, £100, ₴500, etc.)
+- NEVER create pricing tables, rate cards, or cost comparisons
+- NEVER mention specific price ranges or "starting from" prices
+- ALWAYS replace price references with: "Contact us", "Request a quote", "Get pricing", "Custom pricing available"
 
 **VISUAL EXCELLENCE GUIDELINES:**
 - Whitespace is king - Generous spacing (1.5x standard)
