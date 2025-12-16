@@ -589,6 +589,7 @@ async function runGeneration({
 
 async function runBackgroundGeneration(
   historyId: string,
+  userId: string,
   prompt: string,
   language: string | undefined,
   aiModel: "junior" | "senior",
@@ -616,6 +617,43 @@ async function runBackgroundGeneration(
       result.files.forEach((file) => zip.file(file.path, file.content));
       const zipBase64 = await zip.generateAsync({ type: "base64" });
 
+      // Get user's team membership and deduct balance
+      const { data: membership } = await supabase
+        .from("team_members")
+        .select("team_id")
+        .eq("user_id", userId)
+        .eq("status", "approved")
+        .limit(1)
+        .maybeSingle();
+
+      let salePrice = 0;
+
+      if (membership) {
+        const { data: pricing } = await supabase
+          .from("team_pricing")
+          .select("html_price")
+          .eq("team_id", membership.team_id)
+          .maybeSingle();
+
+        salePrice = pricing?.html_price || 0;
+
+        if (salePrice > 0) {
+          const { data: team } = await supabase
+            .from("teams")
+            .select("balance")
+            .eq("id", membership.team_id)
+            .single();
+
+          if (team) {
+            await supabase
+              .from("teams")
+              .update({ balance: (team.balance || 0) - salePrice })
+              .eq("id", membership.team_id);
+            console.log(`[BG] Deducted $${salePrice} from team ${membership.team_id}`);
+          }
+        }
+      }
+
       // Update with success
       await supabase
         .from("generation_history")
@@ -623,10 +661,11 @@ async function runBackgroundGeneration(
           status: "completed",
           files_data: result.files,
           zip_data: zipBase64,
+          sale_price: salePrice,
         })
         .eq("id", historyId);
 
-      console.log(`[BG] Generation completed for ${historyId}: ${result.files.length} files`);
+      console.log(`[BG] Generation completed for ${historyId}: ${result.files.length} files, price: $${salePrice}`);
     } else {
       // Update with error
       await supabase
@@ -719,7 +758,7 @@ serve(async (req) => {
 
     // Start background generation using EdgeRuntime.waitUntil
     EdgeRuntime.waitUntil(
-      runBackgroundGeneration(historyEntry.id, prompt, language, aiModel, layoutStyle)
+      runBackgroundGeneration(historyEntry.id, user.id, prompt, language, aiModel, layoutStyle)
     );
 
     // Return immediately with the history entry ID

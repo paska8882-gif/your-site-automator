@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      appeals: {
+        Row: {
+          admin_comment: string | null
+          amount_to_refund: number
+          created_at: string
+          generation_id: string
+          id: string
+          reason: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          admin_comment?: string | null
+          amount_to_refund?: number
+          created_at?: string
+          generation_id: string
+          id?: string
+          reason: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          admin_comment?: string | null
+          amount_to_refund?: number
+          created_at?: string
+          generation_id?: string
+          id?: string
+          reason?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appeals_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "generation_history"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appeals_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       generation_history: {
         Row: {
           ai_model: string | null
