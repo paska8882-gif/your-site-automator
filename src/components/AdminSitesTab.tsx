@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   Search, 
   Download, 
@@ -13,10 +14,10 @@ import {
   CheckCircle2, 
   XCircle, 
   Clock,
-  ChevronRight,
   Users,
   FileCode,
-  Filter
+  Filter,
+  User
 } from "lucide-react";
 
 interface GenerationItem {
@@ -40,18 +41,29 @@ interface UserProfile {
   display_name: string | null;
 }
 
+interface TeamInfo {
+  team_id: string;
+  team_name: string;
+  role: string;
+}
+
+interface UserTeamMap {
+  [userId: string]: TeamInfo | null;
+}
+
 export const AdminSitesTab = () => {
   const [history, setHistory] = useState<GenerationItem[]>([]);
   const [profiles, setProfiles] = useState<Record<string, UserProfile>>({});
+  const [userTeams, setUserTeams] = useState<UserTeamMap>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [aiModelFilter, setAiModelFilter] = useState<string>("all");
   const [websiteTypeFilter, setWebsiteTypeFilter] = useState<string>("all");
   const [languageFilter, setLanguageFilter] = useState<string>("all");
+  const [teamFilter, setTeamFilter] = useState<string>("all");
 
   useEffect(() => {
     fetchAllGenerations();
@@ -69,9 +81,10 @@ export const AdminSitesTab = () => {
     } else {
       setHistory(data || []);
       
-      // Fetch user profiles
-      const userIds = [...new Set((data || []).map(item => item.user_id).filter(Boolean))];
+      const userIds = [...new Set((data || []).map(item => item.user_id).filter(Boolean))] as string[];
+      
       if (userIds.length > 0) {
+        // Fetch user profiles
         const { data: profilesData } = await supabase
           .from("profiles")
           .select("user_id, display_name")
@@ -82,6 +95,33 @@ export const AdminSitesTab = () => {
           profilesMap[profile.user_id] = profile;
         });
         setProfiles(profilesMap);
+
+        // Fetch team memberships with team names
+        const { data: membershipsData } = await supabase
+          .from("team_members")
+          .select("user_id, team_id, role")
+          .in("user_id", userIds)
+          .eq("status", "approved");
+
+        if (membershipsData && membershipsData.length > 0) {
+          const teamIds = [...new Set(membershipsData.map(m => m.team_id))];
+          const { data: teamsData } = await supabase
+            .from("teams")
+            .select("id, name")
+            .in("id", teamIds);
+
+          const teamsMap = new Map(teamsData?.map(t => [t.id, t.name]) || []);
+          
+          const userTeamsMap: UserTeamMap = {};
+          membershipsData.forEach(m => {
+            userTeamsMap[m.user_id] = {
+              team_id: m.team_id,
+              team_name: teamsMap.get(m.team_id) || "Невідома команда",
+              role: m.role
+            };
+          });
+          setUserTeams(userTeamsMap);
+        }
       }
     }
     setLoading(false);
@@ -110,18 +150,6 @@ export const AdminSitesTab = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  };
-
-  const toggleExpanded = (id: string) => {
-    setExpandedItems(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
-    });
   };
 
   const getStatusIcon = (status: string) => {
@@ -159,21 +187,52 @@ export const AdminSitesTab = () => {
     return profile?.display_name || userId.slice(0, 8) + "...";
   };
 
+  const getTeamName = (userId: string | null) => {
+    if (!userId) return "—";
+    const teamInfo = userTeams[userId];
+    return teamInfo?.team_name || "—";
+  };
+
+  const getRoleBadge = (userId: string | null) => {
+    if (!userId) return null;
+    const teamInfo = userTeams[userId];
+    if (!teamInfo) return null;
+    
+    const roleLabels: Record<string, string> = {
+      owner: "Owner",
+      team_lead: "Team Lead",
+      buyer: "Buyer",
+      tech_dev: "Tech Dev"
+    };
+    
+    return (
+      <Badge variant="outline" className="text-xs">
+        {roleLabels[teamInfo.role] || teamInfo.role}
+      </Badge>
+    );
+  };
+
   // Get unique values for filters
   const uniqueLanguages = [...new Set(history.map(h => h.language))].filter(Boolean);
+  const uniqueTeams = [...new Set(Object.values(userTeams).filter(Boolean).map(t => t!.team_name))];
 
   const filteredHistory = history.filter(item => {
     if (statusFilter !== "all" && item.status !== statusFilter) return false;
     if (aiModelFilter !== "all" && (item.ai_model || "junior") !== aiModelFilter) return false;
     if (websiteTypeFilter !== "all" && (item.website_type || "html") !== websiteTypeFilter) return false;
     if (languageFilter !== "all" && item.language !== languageFilter) return false;
+    if (teamFilter !== "all") {
+      const teamName = getTeamName(item.user_id);
+      if (teamName !== teamFilter) return false;
+    }
     
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
       item.prompt.toLowerCase().includes(query) ||
       (item.site_name && item.site_name.toLowerCase().includes(query)) ||
-      getUserName(item.user_id).toLowerCase().includes(query)
+      getUserName(item.user_id).toLowerCase().includes(query) ||
+      getTeamName(item.user_id).toLowerCase().includes(query)
     );
   });
 
@@ -182,13 +241,14 @@ export const AdminSitesTab = () => {
     completed: history.filter(h => h.status === "completed").length,
     failed: history.filter(h => h.status === "failed").length,
     pending: history.filter(h => h.status === "pending" || h.status === "generating").length,
-    uniqueUsers: new Set(history.map(h => h.user_id).filter(Boolean)).size
+    uniqueUsers: new Set(history.map(h => h.user_id).filter(Boolean)).size,
+    uniqueTeams: uniqueTeams.length
   };
 
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold">{stats.total}</div>
@@ -214,12 +274,17 @@ export const AdminSitesTab = () => {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center flex items-center justify-center gap-2">
-            <Users className="h-5 w-5 text-muted-foreground" />
-            <div>
-              <div className="text-2xl font-bold">{stats.uniqueUsers}</div>
-              <div className="text-sm text-muted-foreground">Користувачів</div>
-            </div>
+          <CardContent className="p-4 text-center">
+            <User className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
+            <div className="text-2xl font-bold">{stats.uniqueUsers}</div>
+            <div className="text-sm text-muted-foreground">Користувачів</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <Users className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
+            <div className="text-2xl font-bold">{stats.uniqueTeams}</div>
+            <div className="text-sm text-muted-foreground">Команд</div>
           </CardContent>
         </Card>
       </div>
@@ -231,7 +296,7 @@ export const AdminSitesTab = () => {
             <Filter className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">Фільтри</span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
             <div className="relative col-span-2 md:col-span-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -241,6 +306,17 @@ export const AdminSitesTab = () => {
                 className="pl-10"
               />
             </div>
+            <Select value={teamFilter} onValueChange={setTeamFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Команда" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Всі команди</SelectItem>
+                {uniqueTeams.map(team => (
+                  <SelectItem key={team} value={team}>{team}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger>
                 <SelectValue placeholder="Статус" />
@@ -288,7 +364,7 @@ export const AdminSitesTab = () => {
         </CardContent>
       </Card>
 
-      {/* History List */}
+      {/* Table */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -306,81 +382,88 @@ export const AdminSitesTab = () => {
               {searchQuery ? "Нічого не знайдено" : "Немає генерацій"}
             </p>
           ) : (
-            <div className="space-y-2">
-              {filteredHistory.map((item) => (
-                <Collapsible key={item.id}>
-                  <CollapsibleTrigger asChild>
-                    <div
-                      className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors"
-                      onClick={() => toggleExpanded(item.id)}
-                    >
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <ChevronRight 
-                          className={`h-4 w-4 shrink-0 transition-transform ${
-                            expandedItems.has(item.id) ? "rotate-90" : ""
-                          }`}
-                        />
-                        {getStatusIcon(item.status)}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium truncate">
-                              {item.site_name || `Site ${item.number}`}
-                            </span>
-                            <Badge variant="outline" className="text-xs">
-                              {getUserName(item.user_id)}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[50px]">Статус</TableHead>
+                    <TableHead>Назва сайту</TableHead>
+                    <TableHead>Команда</TableHead>
+                    <TableHead>Користувач</TableHead>
+                    <TableHead>Роль</TableHead>
+                    <TableHead>Мова</TableHead>
+                    <TableHead>Тип</TableHead>
+                    <TableHead>AI</TableHead>
+                    <TableHead>Дата</TableHead>
+                    <TableHead className="w-[80px]">Дії</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredHistory.map((item) => (
+                    <Collapsible key={item.id} asChild>
+                      <>
+                        <TableRow className="cursor-pointer hover:bg-accent/50">
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              {getStatusIcon(item.status)}
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {item.site_name || `Site ${item.number}`}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="text-xs">
+                              <Users className="h-3 w-3 mr-1" />
+                              {getTeamName(item.user_id)}
                             </Badge>
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(item.created_at).toLocaleString("uk-UA")}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {getStatusBadge(item.status)}
-                        <Badge variant="outline">{item.language}</Badge>
-                        <Badge variant="secondary">{item.website_type || "html"}</Badge>
-                        <Badge variant={item.ai_model === "senior" ? "default" : "outline"}>
-                          {item.ai_model === "senior" ? "Senior" : "Junior"}
-                        </Badge>
-                        {item.status === "completed" && item.zip_data && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDownload(item);
-                            }}
-                            title="Завантажити ZIP"
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="ml-8 mt-2 p-3 rounded-lg bg-muted/50 space-y-2">
-                      <div>
-                        <span className="text-xs font-medium text-muted-foreground">Назва:</span>
-                        <p className="text-sm">{item.site_name || "—"}</p>
-                      </div>
-                      <div>
-                        <span className="text-xs font-medium text-muted-foreground">Промпт:</span>
-                        <p className="text-sm whitespace-pre-wrap">{item.prompt}</p>
-                      </div>
-                      {item.error_message && (
-                        <div>
-                          <span className="text-xs font-medium text-destructive">Помилка:</span>
-                          <p className="text-sm text-destructive">{item.error_message}</p>
-                        </div>
-                      )}
-                      <div className="text-xs text-muted-foreground">
-                        User ID: {item.user_id || "—"}
-                      </div>
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              ))}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <User className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-sm">{getUserName(item.user_id)}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {getRoleBadge(item.user_id)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{item.language}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{item.website_type || "html"}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={item.ai_model === "senior" ? "default" : "outline"}>
+                              {item.ai_model === "senior" ? "Senior" : "Junior"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {new Date(item.created_at).toLocaleString("uk-UA", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            })}
+                          </TableCell>
+                          <TableCell>
+                            {item.status === "completed" && item.zip_data && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDownload(item)}
+                                title="Завантажити ZIP"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      </>
+                    </Collapsible>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>
