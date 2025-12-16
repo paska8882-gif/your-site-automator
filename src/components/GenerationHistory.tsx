@@ -261,12 +261,11 @@ export function GenerationHistory() {
                       <span className="font-medium text-muted-foreground w-8">
                         #{item.number}
                       </span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center" title={getStatusText(item.status)}>
                         {getStatusIcon(item.status)}
-                        <span className="text-sm">{getStatusText(item.status)}</span>
                       </div>
-                      <span className="truncate flex-1" title={item.prompt}>
-                        {truncatePrompt(item.prompt, 60)}
+                      <span className="font-medium truncate flex-1" title={item.site_name || `Site ${item.number}`}>
+                        {item.site_name || `Site ${item.number}`}
                       </span>
                       <Badge variant={item.ai_model === "senior" ? "default" : "secondary"} className="text-xs">
                         {item.ai_model === "senior" ? "Senior AI" : "Junior AI"}
