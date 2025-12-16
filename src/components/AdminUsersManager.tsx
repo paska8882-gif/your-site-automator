@@ -15,7 +15,10 @@ import {
   Search,
   Crown,
   Ban,
-  ShieldCheck
+  ShieldCheck,
+  Pencil,
+  Check,
+  X
 } from "lucide-react";
 
 type TeamRole = "owner" | "team_lead" | "buyer" | "tech_dev";
@@ -63,6 +66,11 @@ export const AdminUsersManager = () => {
   const [selectedTeam, setSelectedTeam] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<TeamRole>("buyer");
   const [assigning, setAssigning] = useState(false);
+
+  // Edit display name
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editDisplayName, setEditDisplayName] = useState("");
+  const [savingName, setSavingName] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -235,6 +243,44 @@ export const AdminUsersManager = () => {
     setAssignDialogOpen(true);
   };
 
+  const startEditName = (user: UserWithRoles) => {
+    setEditingUserId(user.user_id);
+    setEditDisplayName(user.display_name || "");
+  };
+
+  const cancelEditName = () => {
+    setEditingUserId(null);
+    setEditDisplayName("");
+  };
+
+  const saveDisplayName = async (userId: string) => {
+    setSavingName(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ display_name: editDisplayName.trim() || null })
+        .eq("user_id", userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Успішно",
+        description: "Ім'я користувача оновлено"
+      });
+
+      setEditingUserId(null);
+      setEditDisplayName("");
+      fetchData();
+    } catch (error) {
+      toast({
+        title: "Помилка",
+        description: "Не вдалося оновити ім'я",
+        variant: "destructive"
+      });
+    }
+    setSavingName(false);
+  };
+
   const filteredUsers = users.filter(user => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
@@ -329,12 +375,58 @@ export const AdminUsersManager = () => {
                   <TableRow key={user.user_id}>
                     <TableCell>
                       <div>
-                        <div className="font-medium flex items-center gap-2">
-                          {user.display_name || "Без імені"}
-                          {user.isAdmin && (
-                            <Crown className="h-4 w-4 text-yellow-500" />
-                          )}
-                        </div>
+                        {editingUserId === user.user_id ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={editDisplayName}
+                              onChange={(e) => setEditDisplayName(e.target.value)}
+                              className="h-8 w-40"
+                              placeholder="Введіть ім'я"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") saveDisplayName(user.user_id);
+                                if (e.key === "Escape") cancelEditName();
+                              }}
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => saveDisplayName(user.user_id)}
+                              disabled={savingName}
+                            >
+                              {savingName ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Check className="h-4 w-4 text-green-500" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={cancelEditName}
+                              disabled={savingName}
+                            >
+                              <X className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="font-medium flex items-center gap-2">
+                            {user.display_name || "Без імені"}
+                            {user.isAdmin && (
+                              <Crown className="h-4 w-4 text-yellow-500" />
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => startEditName(user)}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
                         <div className="text-xs text-muted-foreground">
                           {user.user_id.slice(0, 8)}...
                         </div>
