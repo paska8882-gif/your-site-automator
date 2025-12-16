@@ -255,12 +255,12 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
       <CardContent>
         <div className="space-y-2">
           {filteredHistory.map((item) => (
-            <Collapsible key={item.id} open={expandedId === item.id}>
+            <Collapsible key={item.id} open={expandedId === item.id && item.website_type !== "react"}>
               <div className="rounded-md border">
                 <CollapsibleTrigger asChild>
                   <div
                     className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => item.status === "completed" && handleExpand(item)}
+                    onClick={() => item.status === "completed" && item.website_type !== "react" && handleExpand(item)}
                   >
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <div className="flex items-center" title={getStatusText(item.status)}>
@@ -325,11 +325,13 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
                           >
                             <Download className="h-4 w-4" />
                           </Button>
-                          <ChevronDown
-                            className={`h-4 w-4 transition-transform ${
-                              expandedId === item.id ? "rotate-180" : ""
-                            }`}
-                          />
+                          {item.website_type !== "react" && (
+                            <ChevronDown
+                              className={`h-4 w-4 transition-transform ${
+                                expandedId === item.id ? "rotate-180" : ""
+                              }`}
+                            />
+                          )}
                         </>
                       )}
                     </div>
