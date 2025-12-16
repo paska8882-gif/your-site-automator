@@ -54,9 +54,20 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
 
   const fetchHistory = async () => {
     setIsLoading(true);
+    
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
+    
+    // Fetch only current user's generations
     const { data, error } = await supabase
       .from("generation_history")
       .select("*")
+      .eq("user_id", user.id)
       .order("number", { ascending: false });
 
     if (error) {
@@ -77,51 +88,65 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
   };
 
   useEffect(() => {
-    fetchHistory();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    // Subscribe to realtime updates
-    const channel = supabase
-      .channel("generation_history_changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "generation_history",
-        },
-        (payload) => {
-          console.log("Realtime update:", payload);
-          
-          if (payload.eventType === "INSERT") {
-            const newItem = {
-              ...payload.new,
-              files_data: payload.new.files_data as GeneratedFile[] | null
-            } as HistoryItem;
-            setHistory((prev) => [newItem, ...prev]);
-          } else if (payload.eventType === "UPDATE") {
-            setHistory((prev) =>
-              prev.map((item) => {
-                if (item.id === payload.new.id) {
-                  return {
-                    ...item,
-                    ...payload.new,
-                    files_data: (payload.new.files_data as GeneratedFile[] | null) ?? item.files_data
-                  };
-                }
-                return item;
-              })
-            );
-          } else if (payload.eventType === "DELETE") {
-            setHistory((prev) =>
-              prev.filter((item) => item.id !== payload.old.id)
-            );
+    const setupRealtimeAndFetch = async () => {
+      await fetchHistory();
+      
+      // Get current user for realtime filter
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) return;
+
+      // Subscribe to realtime updates for current user only
+      channel = supabase
+        .channel("generation_history_changes")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "generation_history",
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log("Realtime update:", payload);
+            
+            if (payload.eventType === "INSERT") {
+              const newItem = {
+                ...payload.new,
+                files_data: payload.new.files_data as GeneratedFile[] | null
+              } as HistoryItem;
+              setHistory((prev) => [newItem, ...prev]);
+            } else if (payload.eventType === "UPDATE") {
+              setHistory((prev) =>
+                prev.map((item) => {
+                  if (item.id === payload.new.id) {
+                    return {
+                      ...item,
+                      ...payload.new,
+                      files_data: (payload.new.files_data as GeneratedFile[] | null) ?? item.files_data
+                    };
+                  }
+                  return item;
+                })
+              );
+            } else if (payload.eventType === "DELETE") {
+              setHistory((prev) =>
+                prev.filter((item) => item.id !== payload.old.id)
+              );
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
+    };
+
+    setupRealtimeAndFetch();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, []);
 
