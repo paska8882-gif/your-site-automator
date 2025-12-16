@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Eye, Code, FileCode, FileText, File, ChevronRight } from "lucide-react";
+import { Eye, Code, FileCode, FileText, File, ChevronRight, ChevronDown, Folder, FolderOpen } from "lucide-react";
 import { GeneratedFile } from "@/lib/websiteGenerator";
 import { cn } from "@/lib/utils";
 
@@ -12,20 +12,170 @@ interface EditPreviewProps {
 }
 
 function getFileIcon(path: string) {
-  if (path.endsWith(".html")) return <FileCode className="h-4 w-4 text-orange-500" />;
-  if (path.endsWith(".css")) return <FileCode className="h-4 w-4 text-blue-500" />;
-  if (path.endsWith(".js") || path.endsWith(".jsx")) return <FileCode className="h-4 w-4 text-yellow-500" />;
-  if (path.endsWith(".ts") || path.endsWith(".tsx")) return <FileCode className="h-4 w-4 text-blue-400" />;
-  if (path.endsWith(".json")) return <FileText className="h-4 w-4 text-green-500" />;
-  if (path.endsWith(".toml") || path.endsWith(".txt")) return <FileText className="h-4 w-4 text-muted-foreground" />;
+  const fileName = path.split("/").pop() || path;
+  if (fileName.endsWith(".html")) return <FileCode className="h-4 w-4 text-orange-500" />;
+  if (fileName.endsWith(".css")) return <FileCode className="h-4 w-4 text-blue-500" />;
+  if (fileName.endsWith(".js") || fileName.endsWith(".jsx")) return <FileCode className="h-4 w-4 text-yellow-500" />;
+  if (fileName.endsWith(".ts") || fileName.endsWith(".tsx")) return <FileCode className="h-4 w-4 text-blue-400" />;
+  if (fileName.endsWith(".json")) return <FileText className="h-4 w-4 text-green-500" />;
+  if (fileName.endsWith(".toml") || fileName.endsWith(".txt") || fileName.endsWith(".md")) return <FileText className="h-4 w-4 text-muted-foreground" />;
   return <File className="h-4 w-4 text-muted-foreground" />;
+}
+
+interface TreeNode {
+  name: string;
+  path: string;
+  isFolder: boolean;
+  children: TreeNode[];
+  file?: GeneratedFile;
+}
+
+function buildFileTree(files: GeneratedFile[]): TreeNode[] {
+  const root: TreeNode[] = [];
+
+  for (const file of files) {
+    const parts = file.path.split("/");
+    let currentLevel = root;
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const isLast = i === parts.length - 1;
+      const currentPath = parts.slice(0, i + 1).join("/");
+
+      let existing = currentLevel.find((n) => n.name === part);
+
+      if (!existing) {
+        existing = {
+          name: part,
+          path: currentPath,
+          isFolder: !isLast,
+          children: [],
+          file: isLast ? file : undefined,
+        };
+        currentLevel.push(existing);
+      }
+
+      if (!isLast) {
+        currentLevel = existing.children;
+      }
+    }
+  }
+
+  // Sort: folders first, then alphabetically
+  const sortNodes = (nodes: TreeNode[]): TreeNode[] => {
+    return nodes
+      .sort((a, b) => {
+        if (a.isFolder && !b.isFolder) return -1;
+        if (!a.isFolder && b.isFolder) return 1;
+        return a.name.localeCompare(b.name);
+      })
+      .map((node) => ({
+        ...node,
+        children: sortNodes(node.children),
+      }));
+  };
+
+  return sortNodes(root);
+}
+
+interface FileTreeNodeProps {
+  node: TreeNode;
+  depth: number;
+  selectedPath: string | null;
+  expandedFolders: Set<string>;
+  onToggleFolder: (path: string) => void;
+  onSelectFile: (file: GeneratedFile) => void;
+}
+
+function FileTreeNode({ node, depth, selectedPath, expandedFolders, onToggleFolder, onSelectFile }: FileTreeNodeProps) {
+  const isExpanded = expandedFolders.has(node.path);
+
+  if (node.isFolder) {
+    return (
+      <div>
+        <button
+          onClick={() => onToggleFolder(node.path)}
+          className="w-full flex items-center gap-1 px-2 py-1 rounded-md text-sm text-left transition-colors hover:bg-muted"
+          style={{ paddingLeft: `${8 + depth * 12}px` }}
+        >
+          {isExpanded ? (
+            <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
+          ) : (
+            <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+          )}
+          {isExpanded ? (
+            <FolderOpen className="h-4 w-4 text-blue-400 shrink-0" />
+          ) : (
+            <Folder className="h-4 w-4 text-blue-400 shrink-0" />
+          )}
+          <span className="truncate">{node.name}</span>
+        </button>
+        {isExpanded && (
+          <div className="animate-accordion-down">
+            {node.children.map((child) => (
+              <FileTreeNode
+                key={child.path}
+                node={child}
+                depth={depth + 1}
+                selectedPath={selectedPath}
+                expandedFolders={expandedFolders}
+                onToggleFolder={onToggleFolder}
+                onSelectFile={onSelectFile}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => node.file && onSelectFile(node.file)}
+      className={cn(
+        "w-full flex items-center gap-2 px-2 py-1 rounded-md text-sm text-left transition-colors",
+        selectedPath === node.path
+          ? "bg-primary/10 text-primary"
+          : "hover:bg-muted text-foreground"
+      )}
+      style={{ paddingLeft: `${20 + depth * 12}px` }}
+    >
+      {getFileIcon(node.name)}
+      <span className="truncate">{node.name}</span>
+    </button>
+  );
 }
 
 export function EditPreview({ files, selectedFile, onSelectFile }: EditPreviewProps) {
   const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => {
+    // Auto-expand all folders initially
+    const folders = new Set<string>();
+    files.forEach((file) => {
+      const parts = file.path.split("/");
+      for (let i = 1; i < parts.length; i++) {
+        folders.add(parts.slice(0, i).join("/"));
+      }
+    });
+    return folders;
+  });
+
+  const fileTree = useMemo(() => buildFileTree(files), [files]);
+
+  const toggleFolder = (path: string) => {
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  };
 
   const getCssFile = () => {
-    return files.find((f) => f.path === "styles.css");
+    return files.find((f) => f.path === "styles.css" || f.path.endsWith("/styles.css"));
   };
 
   const getPreviewContent = () => {
@@ -59,21 +209,17 @@ export function EditPreview({ files, selectedFile, onSelectFile }: EditPreviewPr
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Files</span>
         </div>
         <ScrollArea className="flex-1">
-          <div className="p-2">
-            {files.map((file) => (
-              <button
-                key={file.path}
-                onClick={() => onSelectFile(file)}
-                className={cn(
-                  "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-left transition-colors",
-                  selectedFile?.path === file.path
-                    ? "bg-primary/10 text-primary"
-                    : "hover:bg-muted text-foreground"
-                )}
-              >
-                {getFileIcon(file.path)}
-                <span className="truncate">{file.path}</span>
-              </button>
+          <div className="py-2">
+            {fileTree.map((node) => (
+              <FileTreeNode
+                key={node.path}
+                node={node}
+                depth={0}
+                selectedPath={selectedFile?.path || null}
+                expandedFolders={expandedFolders}
+                onToggleFolder={toggleFolder}
+                onSelectFile={onSelectFile}
+              />
             ))}
           </div>
         </ScrollArea>
