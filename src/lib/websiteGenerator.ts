@@ -146,18 +146,30 @@ async function startCodexGeneration(
     });
 
     if (!resp.ok) {
-      // Вебхук может вернуть HTML (например 524), поэтому сначала пробуем text
+      // codex-proxy returns JSON on errors (and sometimes plain text)
       const errText = await resp.text().catch(() => "");
-      const errorMsg = errText?.trim()
-        ? errText.slice(0, 500)
-        : `HTTP ${resp.status}`;
+      let errorMsg = "";
+
+      try {
+        const maybeJson = JSON.parse(errText);
+        if (maybeJson?.error && typeof maybeJson.error === "string") {
+          errorMsg = maybeJson.error;
+        } else {
+          errorMsg = errText;
+        }
+      } catch {
+        errorMsg = errText;
+      }
+
+      const cleaned = (errorMsg || "").trim();
+      const finalMsg = cleaned ? cleaned.slice(0, 500) : `HTTP ${resp.status}`;
 
       await supabase
         .from("generation_history")
-        .update({ status: "failed", error_message: errorMsg })
+        .update({ status: "failed", error_message: finalMsg })
         .eq("id", historyId);
 
-      return { success: false, error: errorMsg, historyId };
+      return { success: false, error: finalMsg, historyId };
     }
 
     const base64Zip = await resp.text();

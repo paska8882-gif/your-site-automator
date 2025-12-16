@@ -103,9 +103,22 @@ serve(async (req) => {
     }
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      console.error("Codex webhook error:", response.status, errorText);
-      return jsonError(response.status, errorText || `HTTP ${response.status}`);
+      const errorTextRaw = await response.text().catch(() => "");
+      const errorText = (errorTextRaw || "").trim();
+
+      // n8n cloud is behind Cloudflare and can return 524 (timeout) with an HTML body.
+      // Don't pass through the full HTML; return a short, actionable JSON error instead.
+      if (response.status === 524 || errorText.includes("Error code 524") || errorText.includes("A timeout occurred")) {
+        console.error("Codex webhook timeout (524)");
+        return jsonError(504, "Codex webhook timeout", {
+          status: response.status,
+          hint: "Сервис Codex не успел ответить. Ускорь workflow (меньше шагов/меньше генерации в одном запросе) или сделай async-режим (сначала jobId, потом отдельный endpoint для скачивания ZIP).",
+        });
+      }
+
+      const preview = errorText ? errorText.slice(0, 800) : `HTTP ${response.status}`;
+      console.error("Codex webhook error:", response.status, preview);
+      return jsonError(response.status, preview || `HTTP ${response.status}`);
     }
 
     const contentType = response.headers.get("content-type") || "";
