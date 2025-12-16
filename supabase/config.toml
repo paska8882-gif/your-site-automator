@@ -13,3 +13,7 @@ verify_jwt = true
 
 [functions.improve-prompt]
 verify_jwt = true
+
+[functions.codex-proxy]
+verify_jwt = true
+max_duration_seconds = 600
