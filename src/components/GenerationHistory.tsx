@@ -450,34 +450,6 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
                           >
                             <Download className="h-4 w-4" />
                           </Button>
-                          {/* Appeal button */}
-                          {item.sale_price && item.sale_price > 0 && (() => {
-                            const appeal = getAppealForItem(item.id);
-                            if (appeal) {
-                              return (
-                                <Badge 
-                                  variant={appeal.status === "approved" ? "default" : appeal.status === "rejected" ? "destructive" : "outline"}
-                                  className="text-xs"
-                                >
-                                  {appeal.status === "pending" ? "На розгляді" : appeal.status === "approved" ? "Схвалено" : "Відхилено"}
-                                </Badge>
-                              );
-                            }
-                            return (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openAppealDialog(item);
-                                }}
-                                title="Апеляція"
-                                className="text-yellow-600 hover:text-yellow-700"
-                              >
-                                <AlertTriangle className="h-4 w-4" />
-                              </Button>
-                            );
-                          })()}
                           <ChevronDown
                             className={`h-4 w-4 transition-transform ${
                               expandedId === item.id ? "rotate-180" : ""
@@ -581,6 +553,37 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
                           />
                         </div>
                       )}
+
+                      {/* Appeal section */}
+                      <div className="border-t pt-4 mt-4">
+                        {(() => {
+                          const appeal = getAppealForItem(item.id);
+                          if (appeal) {
+                            return (
+                              <div className="flex items-center gap-2 text-sm">
+                                <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                                <span>Апеляція:</span>
+                                <Badge 
+                                  variant={appeal.status === "approved" ? "default" : appeal.status === "rejected" ? "destructive" : "outline"}
+                                >
+                                  {appeal.status === "pending" ? "На розгляді" : appeal.status === "approved" ? "Схвалено" : "Відхилено"}
+                                </Badge>
+                              </div>
+                            );
+                          }
+                          return (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openAppealDialog(item)}
+                              className="text-yellow-600 border-yellow-500/50 hover:bg-yellow-500/10"
+                            >
+                              <AlertTriangle className="h-4 w-4 mr-2" />
+                              Подати апеляцію
+                            </Button>
+                          );
+                        })()}
+                      </div>
                     </div>
                   )}
 
