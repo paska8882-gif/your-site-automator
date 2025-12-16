@@ -190,6 +190,32 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE WEBSITE 
 - Add visual hierarchy incrementally - Build up from solid foundation
 - Think like a product designer - Focus on user experience first
 
+**CRITICAL REQUIREMENT: PAGE CONTENT LENGTH**
+Each page MUST have SUBSTANTIAL content with proper scroll depth:
+
+**MAIN PAGES (index.html, services.html, about.html) - MINIMUM 5 SCREENS OF CONTENT:**
+Each main page MUST include AT LEAST these sections (in order):
+1. Hero Section (100vh) - Full viewport hero with headline, subheadline, CTA button, background image
+2. Features/Benefits Section - 6-9 feature cards in grid (2-3 rows)
+3. About/Story Section - Company story with image, mission statement, values (3-4 paragraphs)
+4. Services/Products Section - Detailed service cards with descriptions, icons, pricing hints
+5. Testimonials Section - 3-6 client testimonials with photos, names, positions
+6. Statistics/Numbers Section - 4-6 key metrics with large numbers and descriptions
+7. FAQ Section - 5-8 frequently asked questions with expandable answers
+8. Call-to-Action Section - Final CTA with compelling copy and prominent button
+9. Partners/Clients Section - Logo grid of partner companies (6-12 logos)
+
+**SECONDARY PAGES (contact.html, privacy.html, terms.html) - MINIMUM 2 SCREENS OF CONTENT:**
+- Contact: Hero + contact form + map placeholder + office info + working hours
+- Privacy: Hero + full privacy policy text (15+ paragraphs covering all standard sections)
+- Terms: Hero + full terms of service text (15+ paragraphs covering all standard sections)
+
+**CONTENT DENSITY REQUIREMENTS:**
+- Each section MUST be at least 300px in height on desktop
+- Use generous padding (80px-120px vertical padding per section)
+- Include detailed, realistic placeholder text (not Lorem Ipsum - write real business content)
+- Every service/feature needs title, description (2-3 sentences), and icon/image
+
 **CRITICAL REQUIREMENT: STATIC HEADER AND FOOTER ACROSS ALL PAGES**
 - HEADER/FOOTER MUST BE IDENTICAL ON EVERY PAGE
 - Same structure, same navigation items, same positioning
@@ -213,7 +239,7 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE WEBSITE 
 - Whitespace is king - Generous spacing (1.5x standard)
 - Clean typography system - Hierarchy: H1 > H2 > H3 > Body > Small
 - Strategic color use - 60% primary, 30% secondary, 10% accent
-- Consistent spacing scale - 4px, 8px, 16px, 24px, 32px, 48px, 64px
+- Consistent spacing scale - 4px, 8px, 16px, 24px, 32px, 48px, 64px, 80px, 120px
 - Subtle depth - Minimal shadows, clean borders
 - Smooth transitions - 300ms ease-in-out for interactions
 
@@ -224,15 +250,20 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE WEBSITE 
 - clamp() for fluid typography
 - aspect-ratio for responsive media
 - gap instead of margins where possible
-- min-height: 100vh for full-height sections
+- min-height: 100vh for hero sections
 - position: sticky for navigation
+- Section padding: 80px 0 minimum
 
-**CSS MUST BE AT LEAST 300 LINES with complete styling for:**
+**CSS MUST BE AT LEAST 500 LINES with complete styling for:**
 - Reset/normalize styles
 - CSS variables in :root (colors, spacing, fonts)
 - Header with sticky navigation
-- Hero section with image overlay/background
+- Hero section with image overlay/background (min-height: 100vh)
+- Multiple section variations with different backgrounds
 - Card/grid layouts for services/features
+- Testimonial cards with photos
+- Statistics section with large numbers
+- FAQ accordion styling
 - Image containers with proper sizing
 - Footer with multi-column layout
 - Cookie banner styling
