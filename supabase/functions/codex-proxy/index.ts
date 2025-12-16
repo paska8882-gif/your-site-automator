@@ -60,16 +60,30 @@ serve(async (req) => {
       );
     }
 
-    // Get the response as blob (expecting ZIP file)
     const zipData = await response.arrayBuffer();
+
+    if (zipData.byteLength === 0) {
+      console.error("Codex webhook returned empty body (expected ZIP)");
+      return new Response(
+        JSON.stringify({
+          error:
+            "Codex webhook returned empty response body. Configure n8n webhook to respond with a ZIP file (binary) as the HTTP response.",
+        }),
+        {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     const base64Zip = btoa(String.fromCharCode(...new Uint8Array(zipData)));
-    
+
     console.log("Received ZIP from Codex, size:", zipData.byteLength, "bytes");
 
     return new Response(base64Zip, {
-      headers: { 
-        ...corsHeaders, 
-        "Content-Type": "text/plain" 
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/plain",
       },
     });
   } catch (error: unknown) {
