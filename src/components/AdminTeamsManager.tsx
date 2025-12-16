@@ -6,21 +6,37 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   Users, 
   Plus, 
   Copy, 
   Check, 
   Loader2,
-  RefreshCw
+  RefreshCw,
+  Eye,
+  Wallet
 } from "lucide-react";
 
 interface Team {
   id: string;
   name: string;
+  balance: number;
   created_at: string;
   owner_code?: string;
   members_count?: number;
+}
+
+interface Transaction {
+  id: string;
+  site_name: string | null;
+  sale_price: number | null;
+  generation_cost: number | null;
+  created_at: string;
+  status: string;
+  website_type: string | null;
+  ai_model: string | null;
+  user_email?: string;
 }
 
 const generateCode = () => {
@@ -40,6 +56,9 @@ export const AdminTeamsManager = () => {
   const [creating, setCreating] = useState(false);
   const [newTeamName, setNewTeamName] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
 
   useEffect(() => {
     fetchTeams();
@@ -48,7 +67,6 @@ export const AdminTeamsManager = () => {
   const fetchTeams = async () => {
     setLoading(true);
     
-    // Fetch teams
     const { data: teamsData, error } = await supabase
       .from("teams")
       .select("*")
@@ -60,9 +78,7 @@ export const AdminTeamsManager = () => {
       return;
     }
 
-    // For each team, get the owner invite code and members count
     const teamsWithDetails = await Promise.all((teamsData || []).map(async (team) => {
-      // Get owner invite code
       const { data: codeData } = await supabase
         .from("invite_codes")
         .select("code")
@@ -72,7 +88,6 @@ export const AdminTeamsManager = () => {
         .eq("is_active", true)
         .maybeSingle();
 
-      // Get members count
       const { count } = await supabase
         .from("team_members")
         .select("*", { count: "exact", head: true })
@@ -90,12 +105,59 @@ export const AdminTeamsManager = () => {
     setLoading(false);
   };
 
+  const fetchTeamTransactions = async (teamId: string) => {
+    setLoadingTransactions(true);
+    
+    // Get team members
+    const { data: members } = await supabase
+      .from("team_members")
+      .select("user_id")
+      .eq("team_id", teamId)
+      .eq("status", "approved");
+
+    if (!members || members.length === 0) {
+      setTransactions([]);
+      setLoadingTransactions(false);
+      return;
+    }
+
+    const userIds = members.map(m => m.user_id);
+
+    // Get generations for team members
+    const { data: generations } = await supabase
+      .from("generation_history")
+      .select("*")
+      .in("user_id", userIds)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    // Get user emails
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("user_id, display_name")
+      .in("user_id", userIds);
+
+    const profileMap = new Map(profiles?.map(p => [p.user_id, p.display_name]) || []);
+
+    const transactionsWithUsers = (generations || []).map(g => ({
+      ...g,
+      user_email: profileMap.get(g.user_id || "") || "Unknown"
+    }));
+
+    setTransactions(transactionsWithUsers);
+    setLoadingTransactions(false);
+  };
+
+  const handleViewTeam = (team: Team) => {
+    setSelectedTeam(team);
+    fetchTeamTransactions(team.id);
+  };
+
   const handleCreateTeam = async () => {
     if (!user || !newTeamName.trim()) return;
     
     setCreating(true);
 
-    // Create team
     const { data: team, error: teamError } = await supabase
       .from("teams")
       .insert({
@@ -115,7 +177,6 @@ export const AdminTeamsManager = () => {
       return;
     }
 
-    // Create owner invite code
     const ownerCode = generateCode();
     const { error: codeError } = await supabase
       .from("invite_codes")
@@ -147,16 +208,12 @@ export const AdminTeamsManager = () => {
     await navigator.clipboard.writeText(code);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
-    toast({
-      title: "Скопійовано",
-      description: code
-    });
+    toast({ title: "Скопійовано", description: code });
   };
 
   const handleGenerateNewOwnerCode = async (teamId: string, teamName: string) => {
     if (!user) return;
 
-    // Deactivate old owner codes
     await supabase
       .from("invite_codes")
       .update({ is_active: false })
@@ -164,7 +221,6 @@ export const AdminTeamsManager = () => {
       .eq("assigned_role", "owner")
       .is("used_by", null);
 
-    // Create new code
     const newCode = generateCode();
     const { error } = await supabase
       .from("invite_codes")
@@ -176,124 +232,167 @@ export const AdminTeamsManager = () => {
       });
 
     if (error) {
-      toast({
-        title: "Помилка",
-        description: "Не вдалося створити новий код",
-        variant: "destructive"
-      });
+      toast({ title: "Помилка", description: "Не вдалося створити новий код", variant: "destructive" });
     } else {
-      toast({
-        title: "Новий код створено",
-        description: `${teamName}: ${newCode}`
-      });
+      toast({ title: "Новий код створено", description: `${teamName}: ${newCode}` });
       fetchTeams();
     }
   };
 
-  return (
-    <Card>
-      <CardHeader className="py-3 px-4">
-        <CardTitle className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-1.5">
-            <Users className="h-4 w-4" />
-            Команди
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0"
-            onClick={fetchTeams}
-            disabled={loading}
-          >
-            <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
-          </Button>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 px-4 pb-4">
-        {/* Create new team */}
-        <div className="flex gap-2">
-          <Input
-            placeholder="Назва нової команди"
-            value={newTeamName}
-            onChange={(e) => setNewTeamName(e.target.value)}
-            disabled={creating}
-            className="h-8 text-xs"
-          />
-          <Button onClick={handleCreateTeam} disabled={creating || !newTeamName.trim()} size="sm" className="h-8 text-xs">
-            {creating ? (
-              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-            ) : (
-              <Plus className="h-3 w-3 mr-1" />
-            )}
-            Створити
-          </Button>
-        </div>
+  const totalSales = transactions.reduce((sum, t) => sum + (t.sale_price || 0), 0);
+  const totalCosts = transactions.reduce((sum, t) => sum + (t.generation_cost || 0), 0);
 
-        {/* Teams list */}
-        {loading ? (
-          <div className="flex items-center justify-center py-3">
-            <Loader2 className="h-4 w-4 animate-spin" />
+  return (
+    <>
+      <Card>
+        <CardHeader className="py-3 px-4">
+          <CardTitle className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-1.5">
+              <Users className="h-4 w-4" />
+              Команди
+            </div>
+            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={fetchTeams} disabled={loading}>
+              <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 px-4 pb-4">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Назва нової команди"
+              value={newTeamName}
+              onChange={(e) => setNewTeamName(e.target.value)}
+              disabled={creating}
+              className="h-8 text-xs"
+            />
+            <Button onClick={handleCreateTeam} disabled={creating || !newTeamName.trim()} size="sm" className="h-8 text-xs">
+              {creating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
+              Створити
+            </Button>
           </div>
-        ) : teams.length === 0 ? (
-          <p className="text-center text-muted-foreground py-3 text-xs">
-            Немає команд
-          </p>
-        ) : (
-          <div className="space-y-1.5 max-h-[250px] overflow-y-auto">
-            {teams.map((team) => (
-              <div
-                key={team.id}
-                className="p-2 rounded-md border bg-card space-y-1"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-medium text-xs">{team.name}</span>
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{team.members_count} членів</Badge>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-3">
+              <Loader2 className="h-4 w-4 animate-spin" />
+            </div>
+          ) : teams.length === 0 ? (
+            <p className="text-center text-muted-foreground py-3 text-xs">Немає команд</p>
+          ) : (
+            <div className="space-y-1.5 max-h-[250px] overflow-y-auto">
+              {teams.map((team) => (
+                <div key={team.id} className="p-2 rounded-md border bg-card space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium text-xs">{team.name}</span>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{team.members_count} членів</Badge>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                        <Wallet className="h-2.5 w-2.5 mr-0.5" />
+                        ${team.balance?.toFixed(2) || "0.00"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => handleViewTeam(team)}>
+                        <Eye className="h-3 w-3" />
+                      </Button>
+                      <span className="text-[10px] text-muted-foreground">
+                        {new Date(team.created_at).toLocaleDateString("uk-UA")}
+                      </span>
+                    </div>
                   </div>
-                  <span className="text-[10px] text-muted-foreground">
-                    {new Date(team.created_at).toLocaleDateString("uk-UA")}
-                  </span>
+                  
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className="text-muted-foreground">Owner:</span>
+                    {team.owner_code ? (
+                      <>
+                        <code className="font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">{team.owner_code}</code>
+                        <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => handleCopyCode(team.owner_code!, team.id)}>
+                          {copiedId === team.id ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Badge variant="outline" className="text-[10px] px-1 py-0">Використано</Badge>
+                        <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1" onClick={() => handleGenerateNewOwnerCode(team.id, team.name)}>
+                          Новий код
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                
-                <div className="flex items-center gap-1.5 text-xs">
-                  <span className="text-muted-foreground">Owner:</span>
-                  {team.owner_code ? (
-                    <>
-                      <code className="font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">
-                        {team.owner_code}
-                      </code>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-5 w-5 p-0"
-                        onClick={() => handleCopyCode(team.owner_code!, team.id)}
-                      >
-                        {copiedId === team.id ? (
-                          <Check className="h-3 w-3 text-green-500" />
-                        ) : (
-                          <Copy className="h-3 w-3" />
-                        )}
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Badge variant="outline" className="text-[10px] px-1 py-0">Використано</Badge>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-5 text-[10px] px-1"
-                        onClick={() => handleGenerateNewOwnerCode(team.id, team.name)}
-                      >
-                        Новий код
-                      </Button>
-                    </>
-                  )}
-                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!selectedTeam} onOpenChange={(open) => !open && setSelectedTeam(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              {selectedTeam?.name}
+              <Badge variant="outline" className="text-xs">
+                <Wallet className="h-3 w-3 mr-1" />
+                Баланс: ${selectedTeam?.balance?.toFixed(2) || "0.00"}
+              </Badge>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto">
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <div className="p-2 rounded border bg-muted/50 text-center">
+                <div className="text-[10px] text-muted-foreground">Генерацій</div>
+                <div className="text-sm font-medium">{transactions.length}</div>
               </div>
-            ))}
+              <div className="p-2 rounded border bg-muted/50 text-center">
+                <div className="text-[10px] text-muted-foreground">Сума продажів</div>
+                <div className="text-sm font-medium">${totalSales.toFixed(2)}</div>
+              </div>
+              <div className="p-2 rounded border bg-muted/50 text-center">
+                <div className="text-[10px] text-muted-foreground">Витрати AI</div>
+                <div className="text-sm font-medium">${totalCosts.toFixed(2)}</div>
+              </div>
+            </div>
+
+            <div className="text-xs font-medium mb-2">Історія транзакцій</div>
+            
+            {loadingTransactions ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            ) : transactions.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4 text-xs">Немає транзакцій</p>
+            ) : (
+              <div className="space-y-1 max-h-[300px] overflow-y-auto">
+                {transactions.map((t) => (
+                  <div key={t.id} className="p-2 rounded border bg-card text-xs flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium truncate">{t.site_name || "Без назви"}</span>
+                        <Badge variant={t.status === "completed" ? "default" : t.status === "failed" ? "destructive" : "secondary"} className="text-[9px] px-1 py-0">
+                          {t.status}
+                        </Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground flex items-center gap-2">
+                        <span>{t.user_email}</span>
+                        <span>•</span>
+                        <span>{t.website_type}</span>
+                        <span>•</span>
+                        <span>{t.ai_model}</span>
+                      </div>
+                    </div>
+                    <div className="text-right ml-2">
+                      <div className="font-medium text-green-600">+${t.sale_price?.toFixed(2) || "0.00"}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {new Date(t.created_at).toLocaleDateString("uk-UA")}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
