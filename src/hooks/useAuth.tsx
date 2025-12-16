@@ -6,6 +6,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  isBlocked: boolean;
   signUp: (email: string, password: string, displayName?: string) => Promise<{ data: { user: User | null } | null; error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -17,6 +18,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isBlocked, setIsBlocked] = useState(false);
+
+  const checkBlockedStatus = async (userId: string) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("is_blocked")
+      .eq("user_id", userId)
+      .maybeSingle();
+    
+    setIsBlocked(data?.is_blocked ?? false);
+  };
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -25,6 +37,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        
+        // Check blocked status when user logs in
+        if (session?.user) {
+          setTimeout(() => {
+            checkBlockedStatus(session.user.id);
+          }, 0);
+        } else {
+          setIsBlocked(false);
+        }
       }
     );
 
@@ -33,6 +54,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      
+      if (session?.user) {
+        checkBlockedStatus(session.user.id);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -67,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isBlocked, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

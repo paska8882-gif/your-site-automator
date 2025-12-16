@@ -1,11 +1,12 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { WebsiteGenerator } from "@/components/WebsiteGenerator";
+import { BlockedUserOverlay } from "@/components/BlockedUserOverlay";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 
 const Index = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, isBlocked } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,6 +25,10 @@ const Index = () => {
 
   if (!user) {
     return null;
+  }
+
+  if (isBlocked) {
+    return <BlockedUserOverlay />;
   }
 
   return <WebsiteGenerator />;
