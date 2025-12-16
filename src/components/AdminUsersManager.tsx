@@ -306,82 +306,82 @@ export const AdminUsersManager = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         <Card>
-          <CardContent className="p-4 text-center">
-            <Users className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <div className="text-xs text-muted-foreground">Всього</div>
+          <CardContent className="p-2 text-center">
+            <Users className="h-3.5 w-3.5 mx-auto mb-0.5 text-muted-foreground" />
+            <div className="text-lg font-bold">{stats.total}</div>
+            <div className="text-[10px] text-muted-foreground">Всього</div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <Crown className="h-5 w-5 mx-auto mb-1 text-yellow-500" />
-            <div className="text-2xl font-bold text-yellow-500">{stats.admins}</div>
-            <div className="text-xs text-muted-foreground">Адміністраторів</div>
+          <CardContent className="p-2 text-center">
+            <Crown className="h-3.5 w-3.5 mx-auto mb-0.5 text-yellow-500" />
+            <div className="text-lg font-bold text-yellow-500">{stats.admins}</div>
+            <div className="text-[10px] text-muted-foreground">Адмінів</div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <ShieldCheck className="h-5 w-5 mx-auto mb-1 text-green-500" />
-            <div className="text-2xl font-bold text-green-500">{stats.withTeam}</div>
-            <div className="text-xs text-muted-foreground">В командах</div>
+          <CardContent className="p-2 text-center">
+            <ShieldCheck className="h-3.5 w-3.5 mx-auto mb-0.5 text-green-500" />
+            <div className="text-lg font-bold text-green-500">{stats.withTeam}</div>
+            <div className="text-[10px] text-muted-foreground">В командах</div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <Ban className="h-5 w-5 mx-auto mb-1 text-destructive" />
-            <div className="text-2xl font-bold text-destructive">{stats.blocked}</div>
-            <div className="text-xs text-muted-foreground">Заблоковано</div>
+          <CardContent className="p-2 text-center">
+            <Ban className="h-3.5 w-3.5 mx-auto mb-0.5 text-destructive" />
+            <div className="text-lg font-bold text-destructive">{stats.blocked}</div>
+            <div className="text-[10px] text-muted-foreground">Заблоковано</div>
           </CardContent>
         </Card>
       </div>
 
       {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className="relative max-w-xs">
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
         <Input
           placeholder="Пошук користувачів..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
+          className="pl-7 h-7 text-xs"
         />
       </div>
 
       {/* Users Table */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
+        <CardHeader className="py-2 px-3">
+          <CardTitle className="flex items-center gap-1.5 text-sm">
+            <Users className="h-3.5 w-3.5" />
             Користувачі ({filteredUsers.length})
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 pb-3">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Користувач</TableHead>
-                  <TableHead>Команди</TableHead>
-                  <TableHead>Статус</TableHead>
-                  <TableHead>Реєстрація</TableHead>
-                  <TableHead className="text-right">Дії</TableHead>
+                  <TableHead className="text-xs py-1.5">Користувач</TableHead>
+                  <TableHead className="text-xs py-1.5">Команди</TableHead>
+                  <TableHead className="text-xs py-1.5">Статус</TableHead>
+                  <TableHead className="text-xs py-1.5">Реєстрація</TableHead>
+                  <TableHead className="text-xs py-1.5 text-right">Дії</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredUsers.map(user => (
                   <TableRow key={user.user_id}>
-                    <TableCell>
+                    <TableCell className="py-1.5">
                       <div>
                         {editingUserId === user.user_id ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1">
                             <Input
                               value={editDisplayName}
                               onChange={(e) => setEditDisplayName(e.target.value)}
-                              className="h-8 w-40"
-                              placeholder="Введіть ім'я"
+                              className="h-6 w-32 text-xs"
+                              placeholder="Ім'я"
                               autoFocus
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") saveDisplayName(user.user_id);
@@ -390,110 +390,112 @@ export const AdminUsersManager = () => {
                             />
                             <Button
                               variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
+                              size="sm"
+                              className="h-5 w-5 p-0"
                               onClick={() => saveDisplayName(user.user_id)}
                               disabled={savingName}
                             >
                               {savingName ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <Loader2 className="h-3 w-3 animate-spin" />
                               ) : (
-                                <Check className="h-4 w-4 text-green-500" />
+                                <Check className="h-3 w-3 text-green-500" />
                               )}
                             </Button>
                             <Button
                               variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
+                              size="sm"
+                              className="h-5 w-5 p-0"
                               onClick={cancelEditName}
                               disabled={savingName}
                             >
-                              <X className="h-4 w-4 text-destructive" />
+                              <X className="h-3 w-3 text-destructive" />
                             </Button>
                           </div>
                         ) : (
-                          <div className="font-medium flex items-center gap-2">
+                          <div className="font-medium text-xs flex items-center gap-1">
                             {user.display_name || "Без імені"}
                             {user.isAdmin && (
-                              <Crown className="h-4 w-4 text-yellow-500" />
+                              <Crown className="h-3 w-3 text-yellow-500" />
                             )}
                             <Button
                               variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
+                              size="sm"
+                              className="h-4 w-4 p-0"
                               onClick={() => startEditName(user)}
                             >
-                              <Pencil className="h-3 w-3" />
+                              <Pencil className="h-2.5 w-2.5" />
                             </Button>
                           </div>
                         )}
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-[10px] text-muted-foreground">
                           {user.user_id.slice(0, 8)}...
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="py-1.5">
                       {user.teams.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-0.5">
                           {user.teams.map(team => (
                             <Badge 
                               key={team.team_id} 
                               variant="secondary"
-                              className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground"
+                              className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground text-[10px] px-1 py-0"
                               onClick={() => handleRemoveFromTeam(user, team.team_id)}
-                              title="Клікніть щоб видалити"
+                              title="Видалити"
                             >
                               {team.team_name}
-                              <span className="ml-1 text-xs opacity-70">
+                              <span className="ml-0.5 opacity-70">
                                 ({roleLabels[team.role]})
                               </span>
                             </Badge>
                           ))}
                         </div>
                       ) : (
-                        <span className="text-muted-foreground text-sm">Немає</span>
+                        <span className="text-muted-foreground text-[10px]">Немає</span>
                       )}
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
+                    <TableCell className="py-1.5">
+                      <div className="flex items-center gap-1">
                         {user.isAdmin && (
-                          <Badge className="bg-yellow-500 text-black">Адмін</Badge>
+                          <Badge className="bg-yellow-500 text-black text-[10px] px-1 py-0">Адмін</Badge>
                         )}
                         {user.is_blocked && (
-                          <Badge variant="destructive">Заблоковано</Badge>
+                          <Badge variant="destructive" className="text-[10px] px-1 py-0">Заблок</Badge>
                         )}
                         {!user.isAdmin && !user.is_blocked && (
-                          <Badge variant="outline">Активний</Badge>
+                          <Badge variant="outline" className="text-[10px] px-1 py-0">Актив</Badge>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="py-1.5 text-[10px]">
                       {new Date(user.created_at).toLocaleDateString("uk-UA")}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
+                    <TableCell className="py-1.5 text-right">
+                      <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="outline"
                           size="sm"
+                          className="h-6 text-[10px] px-1.5"
                           onClick={() => openAssignDialog(user)}
                         >
-                          <UserPlus className="h-4 w-4 mr-1" />
-                          До команди
+                          <UserPlus className="h-3 w-3 mr-0.5" />
+                          Команда
                         </Button>
                         <Button
                           variant={user.is_blocked ? "default" : "destructive"}
                           size="sm"
+                          className="h-6 text-[10px] px-1.5"
                           onClick={() => toggleBlockUser(user)}
                         >
                           {user.is_blocked ? (
                             <>
-                              <ShieldCheck className="h-4 w-4 mr-1" />
-                              Розблокувати
+                              <ShieldCheck className="h-3 w-3 mr-0.5" />
+                              Розблок
                             </>
                           ) : (
                             <>
-                              <Ban className="h-4 w-4 mr-1" />
-                              Заблокувати
+                              <Ban className="h-3 w-3 mr-0.5" />
+                              Блок
                             </>
                           )}
                         </Button>

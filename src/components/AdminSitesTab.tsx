@@ -328,128 +328,126 @@ export const AdminSitesTab = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
         <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <div className="text-sm text-muted-foreground">Всього</div>
+          <CardContent className="p-2 text-center">
+            <div className="text-lg font-bold">{stats.total}</div>
+            <div className="text-[10px] text-muted-foreground">Всього</div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-green-500">{stats.completed}</div>
-            <div className="text-sm text-muted-foreground">Готово</div>
+          <CardContent className="p-2 text-center">
+            <div className="text-lg font-bold text-green-500">{stats.completed}</div>
+            <div className="text-[10px] text-muted-foreground">Готово</div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-destructive">{stats.failed}</div>
-            <div className="text-sm text-muted-foreground">Помилки</div>
+          <CardContent className="p-2 text-center">
+            <div className="text-lg font-bold text-destructive">{stats.failed}</div>
+            <div className="text-[10px] text-muted-foreground">Помилки</div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-yellow-500">{stats.pending}</div>
-            <div className="text-sm text-muted-foreground">В процесі</div>
+          <CardContent className="p-2 text-center">
+            <div className="text-lg font-bold text-yellow-500">{stats.pending}</div>
+            <div className="text-[10px] text-muted-foreground">В процесі</div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <User className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
-            <div className="text-2xl font-bold">{stats.uniqueUsers}</div>
-            <div className="text-sm text-muted-foreground">Користувачів</div>
+          <CardContent className="p-2 text-center">
+            <div className="text-lg font-bold">{stats.uniqueUsers}</div>
+            <div className="text-[10px] text-muted-foreground">Користувачів</div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <Users className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
-            <div className="text-2xl font-bold">{stats.uniqueTeams}</div>
-            <div className="text-sm text-muted-foreground">Команд</div>
+          <CardContent className="p-2 text-center">
+            <div className="text-lg font-bold">{stats.uniqueTeams}</div>
+            <div className="text-[10px] text-muted-foreground">Команд</div>
           </CardContent>
         </Card>
       </div>
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Фільтри</span>
+        <CardContent className="p-2">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Filter className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs font-medium">Фільтри</span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
             <div className="relative col-span-2 md:col-span-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
               <Input
                 placeholder="Пошук..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-7 h-7 text-xs"
               />
             </div>
             <Select value={teamFilter} onValueChange={setTeamFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="h-7 text-xs">
                 <SelectValue placeholder="Команда" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Всі команди</SelectItem>
+                <SelectItem value="all" className="text-xs">Всі команди</SelectItem>
                 {uniqueTeams.map(team => (
-                  <SelectItem key={team} value={team}>{team}</SelectItem>
+                  <SelectItem key={team} value={team} className="text-xs">{team}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select value={userFilter} onValueChange={setUserFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="h-7 text-xs">
                 <SelectValue placeholder="Користувач" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Всі користувачі</SelectItem>
+                <SelectItem value="all" className="text-xs">Всі користувачі</SelectItem>
                 {uniqueUsers.map(userId => (
-                  <SelectItem key={userId} value={userId}>{getUserName(userId)}</SelectItem>
+                  <SelectItem key={userId} value={userId} className="text-xs">{getUserName(userId)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="h-7 text-xs">
                 <SelectValue placeholder="Статус" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Всі статуси</SelectItem>
-                <SelectItem value="completed">Готово</SelectItem>
-                <SelectItem value="generating">Генерується</SelectItem>
-                <SelectItem value="pending">Очікує</SelectItem>
-                <SelectItem value="failed">Помилка</SelectItem>
+                <SelectItem value="all" className="text-xs">Всі статуси</SelectItem>
+                <SelectItem value="completed" className="text-xs">Готово</SelectItem>
+                <SelectItem value="generating" className="text-xs">Генерується</SelectItem>
+                <SelectItem value="pending" className="text-xs">Очікує</SelectItem>
+                <SelectItem value="failed" className="text-xs">Помилка</SelectItem>
               </SelectContent>
             </Select>
             <Select value={aiModelFilter} onValueChange={setAiModelFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="AI модель" />
+              <SelectTrigger className="h-7 text-xs">
+                <SelectValue placeholder="AI" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Всі моделі</SelectItem>
-                <SelectItem value="junior">Junior</SelectItem>
-                <SelectItem value="senior">Senior</SelectItem>
+                <SelectItem value="all" className="text-xs">Всі моделі</SelectItem>
+                <SelectItem value="junior" className="text-xs">Junior</SelectItem>
+                <SelectItem value="senior" className="text-xs">Senior</SelectItem>
               </SelectContent>
             </Select>
             <Select value={websiteTypeFilter} onValueChange={setWebsiteTypeFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Тип сайту" />
+              <SelectTrigger className="h-7 text-xs">
+                <SelectValue placeholder="Тип" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Всі типи</SelectItem>
-                <SelectItem value="html">HTML</SelectItem>
-                <SelectItem value="react">React</SelectItem>
+                <SelectItem value="all" className="text-xs">Всі типи</SelectItem>
+                <SelectItem value="html" className="text-xs">HTML</SelectItem>
+                <SelectItem value="react" className="text-xs">React</SelectItem>
               </SelectContent>
             </Select>
             <Select value={languageFilter} onValueChange={setLanguageFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="h-7 text-xs">
                 <SelectValue placeholder="Мова" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Всі мови</SelectItem>
+                <SelectItem value="all" className="text-xs">Всі мови</SelectItem>
                 {uniqueLanguages.map(lang => (
-                  <SelectItem key={lang} value={lang}>{lang}</SelectItem>
+                  <SelectItem key={lang} value={lang} className="text-xs">{lang}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -459,19 +457,19 @@ export const AdminSitesTab = () => {
 
       {/* Table */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileCode className="h-5 w-5" />
+        <CardHeader className="py-2 px-3">
+          <CardTitle className="flex items-center gap-1.5 text-sm">
+            <FileCode className="h-3.5 w-3.5" />
             Всі генерації ({sortedHistory.length})
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 pb-3">
           {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin" />
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-4 w-4 animate-spin" />
             </div>
           ) : sortedHistory.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
+            <p className="text-center text-muted-foreground py-4 text-xs">
               {searchQuery ? "Нічого не знайдено" : "Немає генерацій"}
             </p>
           ) : (

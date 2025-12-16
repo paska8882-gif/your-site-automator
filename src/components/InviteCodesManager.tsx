@@ -124,105 +124,70 @@ export const InviteCodesManager = () => {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Ticket className="h-5 w-5" />
+      <CardHeader className="py-2 px-3">
+        <CardTitle className="flex items-center justify-between text-sm">
+          <div className="flex items-center gap-1.5">
+            <Ticket className="h-3.5 w-3.5" />
             Інвайт-коди
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={fetchCodes}
-              disabled={loading}
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={fetchCodes} disabled={loading}>
+              <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
             </Button>
-            <Button
-              onClick={handleGenerateCode}
-              disabled={generating}
-              size="sm"
-            >
-              {generating ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4 mr-2" />
-              )}
-              Створити код
+            <Button onClick={handleGenerateCode} disabled={generating} size="sm" className="h-6 text-xs px-2">
+              {generating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
+              Створити
             </Button>
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-2 px-3 pb-3">
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="text-center p-2 rounded-lg bg-muted">
-            <div className="text-lg font-bold">{stats.total}</div>
-            <div className="text-xs text-muted-foreground">Всього</div>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="text-center p-1.5 rounded-md bg-muted">
+            <div className="text-sm font-bold">{stats.total}</div>
+            <div className="text-[10px] text-muted-foreground">Всього</div>
           </div>
-          <div className="text-center p-2 rounded-lg bg-muted">
-            <div className="text-lg font-bold text-green-500">{stats.active}</div>
-            <div className="text-xs text-muted-foreground">Активних</div>
+          <div className="text-center p-1.5 rounded-md bg-muted">
+            <div className="text-sm font-bold text-green-500">{stats.active}</div>
+            <div className="text-[10px] text-muted-foreground">Активних</div>
           </div>
-          <div className="text-center p-2 rounded-lg bg-muted">
-            <div className="text-lg font-bold text-blue-500">{stats.used}</div>
-            <div className="text-xs text-muted-foreground">Використано</div>
+          <div className="text-center p-1.5 rounded-md bg-muted">
+            <div className="text-sm font-bold text-blue-500">{stats.used}</div>
+            <div className="text-[10px] text-muted-foreground">Використано</div>
           </div>
         </div>
 
         {/* Codes list */}
         {loading ? (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin" />
+          <div className="flex items-center justify-center py-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
           </div>
         ) : codes.length === 0 ? (
-          <p className="text-center text-muted-foreground py-4">
-            Немає кодів
-          </p>
+          <p className="text-center text-muted-foreground py-2 text-xs">Немає кодів</p>
         ) : (
-          <div className="space-y-2 max-h-[300px] overflow-y-auto">
+          <div className="space-y-1 max-h-[200px] overflow-y-auto">
             {codes.map((code) => (
-              <div
-                key={code.id}
-                className="flex items-center justify-between p-2 rounded-lg border bg-card"
-              >
-                <div className="flex items-center gap-3">
-                  <code className="font-mono text-sm bg-muted px-2 py-1 rounded">
-                    {code.code}
-                  </code>
+              <div key={code.id} className="flex items-center justify-between p-1.5 rounded-md border bg-card">
+                <div className="flex items-center gap-2">
+                  <code className="font-mono text-[10px] bg-muted px-1.5 py-0.5 rounded">{code.code}</code>
                   {code.used_by ? (
-                    <Badge variant="secondary">Використано</Badge>
+                    <Badge variant="secondary" className="text-[10px] px-1 py-0">Використано</Badge>
                   ) : code.is_active ? (
-                    <Badge variant="default" className="bg-green-500">Активний</Badge>
+                    <Badge variant="default" className="bg-green-500 text-[10px] px-1 py-0">Активний</Badge>
                   ) : (
-                    <Badge variant="outline">Неактивний</Badge>
+                    <Badge variant="outline" className="text-[10px] px-1 py-0">Неактивний</Badge>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(code.created_at).toLocaleDateString("uk-UA")}
-                  </span>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-muted-foreground">{new Date(code.created_at).toLocaleDateString("uk-UA")}</span>
                   {!code.used_by && (
                     <>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleCopyCode(code.code, code.id)}
-                      >
-                        {copiedId === code.id ? (
-                          <Check className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
+                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => handleCopyCode(code.code, code.id)}>
+                        {copiedId === code.id ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleToggleActive(code.id, code.is_active)}
-                      >
-                        {code.is_active ? "Деактивувати" : "Активувати"}
+                      <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1" onClick={() => handleToggleActive(code.id, code.is_active)}>
+                        {code.is_active ? "Деактив" : "Актив"}
                       </Button>
                     </>
                   )}
