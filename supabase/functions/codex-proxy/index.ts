@@ -15,15 +15,18 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    console.log("Proxying request to Codex webhook:", body.siteName);
+    // Build URL with query parameters for GET request
+    const url = new URL(CODEX_WEBHOOK_URL);
+    url.searchParams.set("prompt", body.prompt || "");
+    url.searchParams.set("language", body.language || "");
+    url.searchParams.set("websiteType", body.websiteType || "");
+    url.searchParams.set("layoutStyle", body.layoutStyle || "");
+    url.searchParams.set("siteName", body.siteName || "");
+    url.searchParams.set("userId", body.userId || "");
 
-    // Forward request to n8n webhook
-    const response = await fetch(CODEX_WEBHOOK_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
+    // Forward request to n8n webhook as GET
+    const response = await fetch(url.toString(), {
+      method: "GET",
     });
 
     if (!response.ok) {
