@@ -226,18 +226,21 @@ export type Database = {
       }
       teams: {
         Row: {
+          balance: number
           created_at: string
           created_by: string
           id: string
           name: string
         }
         Insert: {
+          balance?: number
           created_at?: string
           created_by: string
           id?: string
           name: string
         }
         Update: {
+          balance?: number
           created_at?: string
           created_by?: string
           id?: string
