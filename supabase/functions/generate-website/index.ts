@@ -53,6 +53,70 @@ Create a professional MULTI-PAGE website for [Назва] with complete structur
 - All pages fully functional and complete
 - Working images from picsum.photos`.trim();
 
+// 6 unique layout variations for randomization
+const LAYOUT_VARIATIONS = [
+  {
+    name: "Classic Corporate",
+    description: `LAYOUT STYLE: Classic Corporate
+- Hero: Full-width hero with centered content, large background image with dark overlay
+- Sections: Alternating left-right content blocks with images
+- Features: 3-column grid of cards with icons on top
+- Testimonials: Carousel-style slider with large quotes
+- CTA: Full-width banner with gradient background
+- Footer: 4-column layout with newsletter subscription`
+  },
+  {
+    name: "Modern Asymmetric",
+    description: `LAYOUT STYLE: Modern Asymmetric
+- Hero: Split-screen layout - 60% text left, 40% large image right with overlap effect
+- Sections: Asymmetric grid with varying column widths (2:1, 1:2 ratio)
+- Features: Staggered cards with alternating sizes, some overlapping
+- Testimonials: Large single testimonial with portrait photo offset to corner
+- CTA: Diagonal section divider with angled background
+- Footer: Minimalist 2-column with large logo`
+  },
+  {
+    name: "Editorial Magazine",
+    description: `LAYOUT STYLE: Editorial Magazine
+- Hero: Minimal text-only hero with huge typography, small accent image in corner
+- Sections: Newspaper-style multi-column layout with pull quotes
+- Features: Masonry grid with varying heights and widths
+- Testimonials: Inline quotes styled as editorial callouts with decorative quotation marks
+- CTA: Text-heavy with minimal button, focus on copywriting
+- Footer: Single-line footer with horizontal link list`
+  },
+  {
+    name: "Bold Blocks",
+    description: `LAYOUT STYLE: Bold Blocks
+- Hero: Full-viewport hero with video or animated background, text at bottom
+- Sections: Large full-width color blocks alternating between content types
+- Features: Single row horizontal scroll cards on mobile, grid on desktop
+- Testimonials: Full-width color section with centered large text
+- CTA: Sticky bottom bar that appears on scroll
+- Footer: Compact dark footer with social icons prominent`
+  },
+  {
+    name: "Minimalist Zen",
+    description: `LAYOUT STYLE: Minimalist Zen
+- Hero: Lots of whitespace, small centered text with subtle line animations
+- Sections: Single column centered layout with generous margins (max-width: 800px)
+- Features: Vertical stack with large icons and minimal text
+- Testimonials: Simple italic text with em-dash attribution, no photos
+- CTA: Subtle underlined text link instead of button
+- Footer: Ultra-minimal with only essential links`
+  },
+  {
+    name: "Dynamic Showcase",
+    description: `LAYOUT STYLE: Dynamic Showcase
+- Hero: Image gallery/slideshow hero with thumbnails below
+- Sections: Card-heavy layout with hover effects revealing more content
+- Features: Hexagonal or circular icon grid with connecting lines
+- Testimonials: Grid of small cards with photos and star ratings
+- CTA: Floating action button that follows scroll
+- Footer: Multi-level footer with expandable sections on mobile`
+  }
+];
+
 const HTML_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE WEBSITE WITH 10X BETTER UI AND WORKING NAVIGATION
 
 **NAVIGATION LINKS - ABSOLUTELY CRITICAL:**
@@ -345,6 +409,10 @@ async function runGeneration({
   const refinedPrompt = agentData.choices?.[0]?.message?.content || prompt;
   console.log("Refined prompt generated, now generating HTML website...");
 
+  // Randomly select a layout variation for unique structure
+  const randomLayout = LAYOUT_VARIATIONS[Math.floor(Math.random() * LAYOUT_VARIATIONS.length)];
+  console.log(`Selected layout variation: ${randomLayout.name}`);
+
   // Step 2: Static HTML website generation
   const websiteRequestBody: Record<string, unknown> = {
     model: generateModel,
@@ -356,7 +424,7 @@ async function runGeneration({
       },
       {
         role: "user",
-        content: `${HTML_GENERATION_PROMPT}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
+        content: `${HTML_GENERATION_PROMPT}\n\n=== MANDATORY LAYOUT STRUCTURE (FOLLOW EXACTLY) ===\n${randomLayout.description}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
       },
     ],
   };
