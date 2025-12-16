@@ -10,3 +10,6 @@ max_duration_seconds = 600
 
 [functions.edit-website]
 verify_jwt = true
+
+[functions.improve-prompt]
+verify_jwt = true
