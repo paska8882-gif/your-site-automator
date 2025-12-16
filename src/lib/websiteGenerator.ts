@@ -121,10 +121,11 @@ async function startCodexGeneration(
       return { success: false, error: errData.error || `HTTP ${resp.status}` };
     }
 
-    // Получаем base64-encoded ZIP от прокси
     const base64Zip = await resp.text();
-    
-    // Декодируем base64 в бинарные данные
+
+    if (!base64Zip || base64Zip.trim().length === 0) {
+      return { success: false, error: "Codex webhook returned an empty ZIP response" };
+    }
     const binaryString = atob(base64Zip);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
