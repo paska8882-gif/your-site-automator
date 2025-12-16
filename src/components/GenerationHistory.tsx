@@ -4,12 +4,23 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { FilePreview } from "./FilePreview";
 import { GeneratedFile } from "@/lib/websiteGenerator";
+
+function getFileIcon(path: string) {
+  const fileName = path.split("/").pop() || path;
+  if (fileName.endsWith(".html")) return <FileCode className="h-4 w-4 text-orange-500" />;
+  if (fileName.endsWith(".css")) return <FileCode className="h-4 w-4 text-blue-500" />;
+  if (fileName.endsWith(".js") || fileName.endsWith(".jsx")) return <FileCode className="h-4 w-4 text-yellow-500" />;
+  if (fileName.endsWith(".json")) return <FileText className="h-4 w-4 text-green-500" />;
+  return <File className="h-4 w-4 text-muted-foreground" />;
+}
 
 interface HistoryItem {
   id: string;
@@ -358,19 +369,43 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
                 <CollapsibleContent>
                   {item.files_data && item.files_data.length > 0 && (
                     <div className="border-t p-4 space-y-4">
-                      {/* File tabs */}
-                      <div className="flex items-center justify-between flex-wrap gap-2">
-                        <div className="flex flex-wrap gap-2">
-                          {item.files_data.map((file) => (
-                            <Button
-                              key={file.path}
-                              variant={selectedFile?.path === file.path ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => setSelectedFile(file)}
-                            >
-                              {file.path}
-                            </Button>
-                          ))}
+                      {/* Controls row */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" size="sm" className="gap-2">
+                                <Files className="h-4 w-4" />
+                                Файли ({item.files_data.length})
+                                <ChevronDown className="h-3 w-3" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-64 p-0" align="start">
+                              <ScrollArea className="h-64">
+                                <div className="p-2 space-y-1">
+                                  {item.files_data.map((file) => (
+                                    <div
+                                      key={file.path}
+                                      onClick={() => setSelectedFile(file)}
+                                      className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-sm cursor-pointer transition-colors ${
+                                        selectedFile?.path === file.path
+                                          ? "bg-primary/10 text-primary"
+                                          : "hover:bg-muted"
+                                      }`}
+                                    >
+                                      {getFileIcon(file.path)}
+                                      <span className="truncate">{file.path}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </ScrollArea>
+                            </PopoverContent>
+                          </Popover>
+                          {selectedFile && (
+                            <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                              {selectedFile.path}
+                            </span>
+                          )}
                         </div>
                         <div className="flex gap-1">
                           <Button
