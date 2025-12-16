@@ -13,12 +13,14 @@ import {
   FileCode,
   LogOut,
   Settings,
-  UserCog
+  UserCog,
+  DollarSign
 } from "lucide-react";
 import { AdminTeamsTab } from "@/components/AdminTeamsTab";
 import { AdminSitesTab } from "@/components/AdminSitesTab";
 import { AdminAdministratorsTab } from "@/components/AdminAdministratorsTab";
 import { AdminUsersManager } from "@/components/AdminUsersManager";
+import { AdminFinanceTab } from "@/components/AdminFinanceTab";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -78,7 +80,7 @@ const Admin = () => {
 
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="teams" className="space-y-6">
-          <TabsList className="grid w-full max-w-2xl grid-cols-4">
+          <TabsList className="grid w-full max-w-3xl grid-cols-5">
             <TabsTrigger value="teams" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Команди
@@ -91,9 +93,13 @@ const Admin = () => {
               <UserCog className="h-4 w-4" />
               Користувачі
             </TabsTrigger>
+            <TabsTrigger value="finance" className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Фінанси
+            </TabsTrigger>
             <TabsTrigger value="admin" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
-              Адміністратори
+              Адміни
             </TabsTrigger>
           </TabsList>
 
@@ -107,6 +113,10 @@ const Admin = () => {
 
           <TabsContent value="users">
             <AdminUsersManager />
+          </TabsContent>
+
+          <TabsContent value="finance">
+            <AdminFinanceTab />
           </TabsContent>
 
           <TabsContent value="admin">
