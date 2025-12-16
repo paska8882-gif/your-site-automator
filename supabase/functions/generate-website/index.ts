@@ -383,6 +383,33 @@ CRITICAL: ALL navigation links MUST use relative paths like href="about.html", N
 
 type GeneratedFile = { path: string; content: string };
 
+type TokenUsage = {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+};
+
+// Pricing per 1000 tokens (in USD)
+const TOKEN_PRICING = {
+  "gpt-4o-mini": { input: 0.00015, output: 0.0006 },
+  "gpt-4o": { input: 0.0025, output: 0.01 },
+  "google/gemini-2.5-flash": { input: 0.000075, output: 0.0003 },
+  "google/gemini-2.5-pro": { input: 0.00125, output: 0.005 },
+};
+
+const calculateCost = (usage: TokenUsage, model: string): number => {
+  const pricing = TOKEN_PRICING[model as keyof typeof TOKEN_PRICING];
+  if (!pricing) {
+    console.log(`Unknown model for pricing: ${model}, using default`);
+    return 0;
+  }
+  const inputCost = (usage.prompt_tokens / 1000) * pricing.input;
+  const outputCost = (usage.completion_tokens / 1000) * pricing.output;
+  const totalCost = inputCost + outputCost;
+  console.log(`💰 Token usage for ${model}: ${usage.prompt_tokens} in, ${usage.completion_tokens} out = $${totalCost.toFixed(6)}`);
+  return totalCost;
+};
+
 type GenerationResult = {
   success: boolean;
   files?: GeneratedFile[];
@@ -391,6 +418,7 @@ type GenerationResult = {
   fileList?: string[];
   error?: string;
   rawResponse?: string;
+  totalCost?: number;
 };
 
 const cleanFileContent = (content: string) => {
@@ -513,6 +541,14 @@ async function runGeneration({
 
   const agentData = await agentResponse.json();
   const refinedPrompt = agentData.choices?.[0]?.message?.content || prompt;
+  
+  // Track token usage for refine step
+  let totalCost = 0;
+  const agentUsage = agentData.usage as TokenUsage | undefined;
+  if (agentUsage) {
+    totalCost += calculateCost(agentUsage, refineModel);
+  }
+  
   console.log("Refined prompt generated, now generating HTML website...");
 
   // Select layout: use provided layoutStyle or random
@@ -554,14 +590,22 @@ async function runGeneration({
     const errorText = await websiteResponse.text();
     console.error("Website generation error:", websiteResponse.status, errorText);
 
-    if (websiteResponse.status === 429) return { success: false, error: "Rate limit exceeded. Please try again later." };
-    if (websiteResponse.status === 402) return { success: false, error: "AI credits exhausted. Please add funds." };
+    if (websiteResponse.status === 429) return { success: false, error: "Rate limit exceeded. Please try again later.", totalCost };
+    if (websiteResponse.status === 402) return { success: false, error: "AI credits exhausted. Please add funds.", totalCost };
 
-    return { success: false, error: "Website generation failed" };
+    return { success: false, error: "Website generation failed", totalCost };
   }
 
   const websiteData = await websiteResponse.json();
   const rawText = websiteData.choices?.[0]?.message?.content || "";
+
+  // Track token usage for generation step
+  const websiteUsage = websiteData.usage as TokenUsage | undefined;
+  if (websiteUsage) {
+    totalCost += calculateCost(websiteUsage, generateModel);
+  }
+  
+  console.log(`💰 Total generation cost: $${totalCost.toFixed(6)}`);
 
   console.log("HTML website generated, parsing files...");
   console.log("Raw response length:", rawText.length);
@@ -575,6 +619,7 @@ async function runGeneration({
       success: false,
       error: "Failed to parse generated files",
       rawResponse: rawText.substring(0, 500),
+      totalCost,
     };
   }
 
@@ -584,6 +629,7 @@ async function runGeneration({
     refinedPrompt,
     totalFiles: files.length,
     fileList: files.map((f) => f.path),
+    totalCost,
   };
 }
 
@@ -654,7 +700,8 @@ async function runBackgroundGeneration(
         }
       }
 
-      // Update with success
+      // Update with success including generation cost
+      const generationCost = result.totalCost || 0;
       await supabase
         .from("generation_history")
         .update({
@@ -662,10 +709,11 @@ async function runBackgroundGeneration(
           files_data: result.files,
           zip_data: zipBase64,
           sale_price: salePrice,
+          generation_cost: generationCost,
         })
         .eq("id", historyId);
 
-      console.log(`[BG] Generation completed for ${historyId}: ${result.files.length} files, price: $${salePrice}`);
+      console.log(`[BG] Generation completed for ${historyId}: ${result.files.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}`);
     } else {
       // Update with error
       await supabase

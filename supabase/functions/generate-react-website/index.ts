@@ -348,6 +348,33 @@ Generate EXCEPTIONAL React website with 10X better UI, proper image styling, and
 
 type GeneratedFile = { path: string; content: string };
 
+type TokenUsage = {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+};
+
+// Pricing per 1000 tokens (in USD)
+const TOKEN_PRICING = {
+  "gpt-4o-mini": { input: 0.00015, output: 0.0006 },
+  "gpt-4o": { input: 0.0025, output: 0.01 },
+  "google/gemini-2.5-flash": { input: 0.000075, output: 0.0003 },
+  "google/gemini-2.5-pro": { input: 0.00125, output: 0.005 },
+};
+
+const calculateCost = (usage: TokenUsage, model: string): number => {
+  const pricing = TOKEN_PRICING[model as keyof typeof TOKEN_PRICING];
+  if (!pricing) {
+    console.log(`Unknown model for pricing: ${model}, using default`);
+    return 0;
+  }
+  const inputCost = (usage.prompt_tokens / 1000) * pricing.input;
+  const outputCost = (usage.completion_tokens / 1000) * pricing.output;
+  const totalCost = inputCost + outputCost;
+  console.log(`💰 Token usage for ${model}: ${usage.prompt_tokens} in, ${usage.completion_tokens} out = $${totalCost.toFixed(6)}`);
+  return totalCost;
+};
+
 type GenerationResult = {
   success: boolean;
   files?: GeneratedFile[];
@@ -356,6 +383,7 @@ type GenerationResult = {
   fileList?: string[];
   error?: string;
   rawResponse?: string;
+  totalCost?: number;
 };
 
 const cleanFileContent = (content: string) => {
@@ -478,6 +506,14 @@ async function runGeneration({
 
   const agentData = await agentResponse.json();
   const refinedPrompt = agentData.choices?.[0]?.message?.content || prompt;
+  
+  // Track token usage for refine step
+  let totalCost = 0;
+  const agentUsage = agentData.usage as TokenUsage | undefined;
+  if (agentUsage) {
+    totalCost += calculateCost(agentUsage, refineModel);
+  }
+  
   console.log("Refined prompt generated, now generating React website...");
 
   // Select layout: use provided layoutStyle or random
@@ -519,14 +555,22 @@ async function runGeneration({
     const errorText = await websiteResponse.text();
     console.error("Website generation error:", websiteResponse.status, errorText);
 
-    if (websiteResponse.status === 429) return { success: false, error: "Rate limit exceeded. Please try again later." };
-    if (websiteResponse.status === 402) return { success: false, error: "AI credits exhausted. Please add funds." };
+    if (websiteResponse.status === 429) return { success: false, error: "Rate limit exceeded. Please try again later.", totalCost };
+    if (websiteResponse.status === 402) return { success: false, error: "AI credits exhausted. Please add funds.", totalCost };
 
-    return { success: false, error: "Website generation failed" };
+    return { success: false, error: "Website generation failed", totalCost };
   }
 
   const websiteData = await websiteResponse.json();
   const rawText = websiteData.choices?.[0]?.message?.content || "";
+
+  // Track token usage for generation step
+  const websiteUsage = websiteData.usage as TokenUsage | undefined;
+  if (websiteUsage) {
+    totalCost += calculateCost(websiteUsage, generateModel);
+  }
+  
+  console.log(`💰 Total generation cost: $${totalCost.toFixed(6)}`);
 
   console.log("React website generated, parsing files...");
   console.log("Raw response length:", rawText.length);
@@ -540,6 +584,7 @@ async function runGeneration({
       success: false,
       error: "Failed to parse generated files",
       rawResponse: rawText.substring(0, 500),
+      totalCost,
     };
   }
 
@@ -549,11 +594,13 @@ async function runGeneration({
     refinedPrompt,
     totalFiles: files.length,
     fileList: files.map((f) => f.path),
+    totalCost,
   };
 }
 
 async function runBackgroundGeneration(
   historyId: string,
+  userId: string,
   prompt: string,
   language: string | undefined,
   aiModel: "junior" | "senior",
@@ -581,17 +628,57 @@ async function runBackgroundGeneration(
       result.files.forEach((file) => zip.file(file.path, file.content));
       const zipBase64 = await zip.generateAsync({ type: "base64" });
 
-      // Update with success
+      // Get user's team membership and deduct balance
+      const { data: membership } = await supabase
+        .from("team_members")
+        .select("team_id")
+        .eq("user_id", userId)
+        .eq("status", "approved")
+        .limit(1)
+        .maybeSingle();
+
+      let salePrice = 0;
+
+      if (membership) {
+        const { data: pricing } = await supabase
+          .from("team_pricing")
+          .select("react_price")
+          .eq("team_id", membership.team_id)
+          .maybeSingle();
+
+        salePrice = pricing?.react_price || 0;
+
+        if (salePrice > 0) {
+          const { data: team } = await supabase
+            .from("teams")
+            .select("balance")
+            .eq("id", membership.team_id)
+            .single();
+
+          if (team) {
+            await supabase
+              .from("teams")
+              .update({ balance: (team.balance || 0) - salePrice })
+              .eq("id", membership.team_id);
+            console.log(`[BG] Deducted $${salePrice} from team ${membership.team_id}`);
+          }
+        }
+      }
+
+      // Update with success including generation cost
+      const generationCost = result.totalCost || 0;
       await supabase
         .from("generation_history")
         .update({
           status: "completed",
           files_data: result.files,
           zip_data: zipBase64,
+          sale_price: salePrice,
+          generation_cost: generationCost,
         })
         .eq("id", historyId);
 
-      console.log(`[BG] React generation completed for ${historyId}: ${result.files.length} files`);
+      console.log(`[BG] React generation completed for ${historyId}: ${result.files.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}`);
     } else {
       // Update with error
       await supabase
@@ -684,7 +771,7 @@ serve(async (req) => {
 
     // Start background generation using EdgeRuntime.waitUntil
     EdgeRuntime.waitUntil(
-      runBackgroundGeneration(historyEntry.id, prompt, language, aiModel, layoutStyle)
+      runBackgroundGeneration(historyEntry.id, user.id, prompt, language, aiModel, layoutStyle)
     );
 
     // Return immediately with the history entry ID
