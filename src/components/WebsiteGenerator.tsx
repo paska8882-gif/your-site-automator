@@ -315,7 +315,7 @@ export function WebsiteGenerator() {
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
                 <Palette className="h-4 w-4" />
-                Стилі лейауту (оберіть або залиште порожнім для рандому)
+                Стиль (оберіть або залиште порожнім для рандому)
               </Label>
               <div className="flex flex-wrap gap-3">
                 {LAYOUT_STYLES.map((style) => (
