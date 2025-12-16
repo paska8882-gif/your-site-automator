@@ -161,6 +161,32 @@ const REACT_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE REACT W
 - Use advanced CSS patterns - CSS Grid, Flexbox, custom properties
 - Think like a product designer - Focus on user experience first
 
+**CRITICAL REQUIREMENT: PAGE CONTENT LENGTH**
+Each page MUST have SUBSTANTIAL content with proper scroll depth:
+
+**MAIN PAGES (Home.js, Services.js, About.js) - MINIMUM 5 SCREENS OF CONTENT:**
+Each main page component MUST include AT LEAST these sections (in order):
+1. Hero Section (100vh) - Full viewport hero with headline, subheadline, CTA button, background image
+2. Features/Benefits Section - 6-9 feature cards in grid (2-3 rows)
+3. About/Story Section - Company story with image, mission statement, values (3-4 paragraphs)
+4. Services/Products Section - Detailed service cards with descriptions, icons, pricing hints
+5. Testimonials Section - 3-6 client testimonials with photos, names, positions
+6. Statistics/Numbers Section - 4-6 key metrics with large numbers and descriptions
+7. FAQ Section - 5-8 frequently asked questions with expandable answers
+8. Call-to-Action Section - Final CTA with compelling copy and prominent button
+9. Partners/Clients Section - Logo grid of partner companies (6-12 logos)
+
+**SECONDARY PAGES (Contact.js, Privacy.js, Terms.js) - MINIMUM 2 SCREENS OF CONTENT:**
+- Contact: Hero + contact form + map placeholder + office info + working hours
+- Privacy: Hero + full privacy policy text (15+ paragraphs covering all standard sections)
+- Terms: Hero + full terms of service text (15+ paragraphs covering all standard sections)
+
+**CONTENT DENSITY REQUIREMENTS:**
+- Each section MUST be at least 300px in height on desktop
+- Use generous padding (80px-120px vertical padding per section)
+- Include detailed, realistic placeholder text (not Lorem Ipsum - write real business content)
+- Every service/feature needs title, description (2-3 sentences), and icon/image
+
 **LAYOUT REQUIREMENTS:**
 - Header and Footer as REUSABLE components used in App.js layout
 - Active nav link highlight using React Router
@@ -171,15 +197,20 @@ const REACT_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE REACT W
 - Whitespace is king - Generous spacing (1.5x standard)
 - Clean typography system - Hierarchy: H1 > H2 > H3 > Body > Small
 - Strategic color use - 60% primary, 30% secondary, 10% accent
-- Consistent spacing scale - 4px, 8px, 16px, 24px, 32px, 48px, 64px
+- Consistent spacing scale - 4px, 8px, 16px, 24px, 32px, 48px, 64px, 80px, 120px
 - Smooth transitions - 300ms ease-in-out for interactions
 
-**GLOBAL CSS (src/styles/global.css) MUST BE AT LEAST 250 LINES with:**
+**GLOBAL CSS (src/styles/global.css) MUST BE AT LEAST 500 LINES with:**
 - Reset/normalize styles
 - CSS variables in :root (colors, spacing, fonts)
 - Header with sticky navigation
-- Hero section with image overlay/background
+- Hero section with image overlay/background (min-height: 100vh)
+- Multiple section variations with different backgrounds
+- Section padding: 80px 0 minimum
 - Card/grid layouts for services/features
+- Testimonial cards with photos
+- Statistics section with large numbers
+- FAQ accordion styling
 - Image containers with proper sizing (object-fit: cover)
 - Footer with multi-column layout
 - Cookie banner styling (position: fixed; bottom: 0)
@@ -198,7 +229,7 @@ Change ?random=N for each unique image (1,2,3,4...)
 **REQUIRED CSS FOR IMAGES:**
 .hero {
   position: relative;
-  min-height: 80vh;
+  min-height: 100vh;
   background-size: cover;
   background-position: center;
   display: flex;
@@ -212,6 +243,7 @@ Change ?random=N for each unique image (1,2,3,4...)
   background: rgba(0,0,0,0.5);
 }
 .hero-content { position: relative; z-index: 1; color: white; text-align: center; }
+.section { padding: 80px 0; min-height: 50vh; }
 img { max-width: 100%; height: auto; display: block; }
 .card img { width: 100%; height: 200px; object-fit: cover; border-radius: 8px 8px 0 0; }
 
