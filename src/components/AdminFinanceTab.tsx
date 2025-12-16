@@ -23,12 +23,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Loader2, Save, DollarSign, TrendingUp, TrendingDown, ChevronDown, Settings } from "lucide-react";
+import { Loader2, Save, DollarSign, TrendingUp, TrendingDown, ChevronDown, Settings, Wallet, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 interface Team {
   id: string;
   name: string;
+  balance: number;
 }
 
 interface TeamPricing {
@@ -63,6 +64,9 @@ export function AdminFinanceTab() {
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>("all");
   const [editingPrices, setEditingPrices] = useState<Record<string, Partial<TeamPricing>>>({});
   const [isPricingOpen, setIsPricingOpen] = useState(false);
+  const [isBalanceOpen, setIsBalanceOpen] = useState(false);
+  const [topUpAmounts, setTopUpAmounts] = useState<Record<string, string>>({});
+  const [savingBalance, setSavingBalance] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -74,7 +78,7 @@ export function AdminFinanceTab() {
       // Fetch teams
       const { data: teamsData } = await supabase
         .from("teams")
-        .select("id, name")
+        .select("id, name, balance")
         .order("name");
 
       // Fetch team pricing
@@ -191,6 +195,34 @@ export function AdminFinanceTab() {
       toast.error("Помилка збереження цін");
     } finally {
       setSavingPricing(null);
+    }
+  };
+
+  const topUpBalance = async (teamId: string) => {
+    const amount = parseFloat(topUpAmounts[teamId] || "0");
+    if (amount <= 0) {
+      toast.error("Введіть суму більше 0");
+      return;
+    }
+
+    setSavingBalance(teamId);
+    try {
+      const team = teams.find(t => t.id === teamId);
+      const newBalance = (team?.balance || 0) + amount;
+
+      await supabase
+        .from("teams")
+        .update({ balance: newBalance })
+        .eq("id", teamId);
+
+      toast.success(`Баланс поповнено на $${amount.toFixed(2)}`);
+      setTopUpAmounts(prev => ({ ...prev, [teamId]: "" }));
+      fetchData();
+    } catch (error) {
+      console.error("Error topping up balance:", error);
+      toast.error("Помилка поповнення балансу");
+    } finally {
+      setSavingBalance(null);
     }
   };
 
@@ -318,6 +350,71 @@ export function AdminFinanceTab() {
                         <Save className="h-4 w-4" />
                       )}
                     </Button>
+                  </div>
+                ))}
+                {teams.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">Немає команд</p>
+                )}
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Team Balances - Collapsible */}
+      <Collapsible open={isBalanceOpen} onOpenChange={setIsBalanceOpen}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-base">Баланси команд</CardTitle>
+                </div>
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isBalanceOpen ? 'rotate-180' : ''}`} />
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              <div className="space-y-3">
+                {teams.map((team) => (
+                  <div key={team.id} className="flex items-center gap-4 p-3 rounded-lg border bg-card">
+                    <span className="font-medium min-w-32">{team.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Баланс:</span>
+                      <span className={`font-bold ${team.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        ${team.balance.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 ml-auto">
+                      <span className="text-xs text-muted-foreground">Поповнити:</span>
+                      <div className="flex items-center">
+                        <span className="text-xs text-muted-foreground mr-1">$</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0"
+                          className="w-20 h-8 text-sm"
+                          value={topUpAmounts[team.id] || ""}
+                          onChange={(e) => setTopUpAmounts(prev => ({ ...prev, [team.id]: e.target.value }))}
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="h-8"
+                        onClick={() => topUpBalance(team.id)}
+                        disabled={savingBalance === team.id || !topUpAmounts[team.id]}
+                      >
+                        {savingBalance === team.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Plus className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 ))}
                 {teams.length === 0 && (
