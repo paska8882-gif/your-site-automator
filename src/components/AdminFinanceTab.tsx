@@ -278,46 +278,32 @@ export function AdminFinanceTab() {
               <div className="space-y-3">
                 {teams.map((team) => (
                   <div key={team.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-                    <span className="font-medium min-w-24">{team.name}</span>
+                    <span className="font-medium min-w-32">{team.name}</span>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">HTML:</span>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        className="w-20 h-8 text-sm"
-                        value={getPricingValue(team.id, "html_price")}
-                        onChange={(e) => handlePricingChange(team.id, "html_price", e.target.value)}
-                      />
+                      <div className="flex items-center">
+                        <span className="text-xs text-muted-foreground mr-1">$</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          className="w-16 h-8 text-sm"
+                          value={getPricingValue(team.id, "html_price")}
+                          onChange={(e) => handlePricingChange(team.id, "html_price", e.target.value)}
+                        />
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">React:</span>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        className="w-20 h-8 text-sm"
-                        value={getPricingValue(team.id, "react_price")}
-                        onChange={(e) => handlePricingChange(team.id, "react_price", e.target.value)}
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">Junior:</span>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        className="w-20 h-8 text-sm"
-                        value={getPricingValue(team.id, "generation_cost_junior")}
-                        onChange={(e) => handlePricingChange(team.id, "generation_cost_junior", e.target.value)}
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">Senior:</span>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        className="w-20 h-8 text-sm"
-                        value={getPricingValue(team.id, "generation_cost_senior")}
-                        onChange={(e) => handlePricingChange(team.id, "generation_cost_senior", e.target.value)}
-                      />
+                      <div className="flex items-center">
+                        <span className="text-xs text-muted-foreground mr-1">$</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          className="w-16 h-8 text-sm"
+                          value={getPricingValue(team.id, "react_price")}
+                          onChange={(e) => handlePricingChange(team.id, "react_price", e.target.value)}
+                        />
+                      </div>
                     </div>
                     <Button
                       size="sm"
