@@ -318,6 +318,49 @@ export function AdminFinanceTab() {
     
     return Object.values(teamStats);
   }, [filteredGenerations]);
+
+  // AI costs by day
+  const aiCostsByDayData = useMemo(() => {
+    const days = parseInt(chartPeriod);
+    const now = new Date();
+    const data: { date: string; junior: number; senior: number; total: number }[] = [];
+    
+    for (let i = days - 1; i >= 0; i--) {
+      const day = subDays(now, i);
+      const dayStart = startOfDay(day);
+      const dayEnd = endOfDay(day);
+      
+      const dayGens = filteredGenerations.filter(g => {
+        const genDate = new Date(g.created_at);
+        return genDate >= dayStart && genDate <= dayEnd;
+      });
+      
+      const junior = dayGens.filter(g => g.ai_model === 'junior').reduce((sum, g) => sum + (g.generation_cost || 0), 0);
+      const senior = dayGens.filter(g => g.ai_model === 'senior').reduce((sum, g) => sum + (g.generation_cost || 0), 0);
+      
+      data.push({
+        date: format(day, "dd.MM", { locale: uk }),
+        junior,
+        senior,
+        total: junior + senior
+      });
+    }
+    
+    return data;
+  }, [filteredGenerations, chartPeriod]);
+
+  // AI costs by model summary
+  const aiCostsByModelData = useMemo(() => {
+    const juniorCost = filteredGenerations.filter(g => g.ai_model === 'junior').reduce((sum, g) => sum + (g.generation_cost || 0), 0);
+    const seniorCost = filteredGenerations.filter(g => g.ai_model === 'senior').reduce((sum, g) => sum + (g.generation_cost || 0), 0);
+    const juniorCount = filteredGenerations.filter(g => g.ai_model === 'junior').length;
+    const seniorCount = filteredGenerations.filter(g => g.ai_model === 'senior').length;
+    
+    return [
+      { name: 'Junior AI', cost: juniorCost, count: juniorCount, avgCost: juniorCount > 0 ? juniorCost / juniorCount : 0 },
+      { name: 'Senior AI', cost: seniorCost, count: seniorCount, avgCost: seniorCount > 0 ? seniorCost / seniorCount : 0 }
+    ];
+  }, [filteredGenerations]);
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -409,6 +452,69 @@ export function AdminFinanceTab() {
                   <Bar dataKey="expenses" name="Витрати" fill="#ef4444" radius={[0, 2, 2, 0]} />
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* AI Costs by Day */}
+        <Card>
+          <CardHeader className="py-2 px-3">
+            <div className="flex items-center gap-1.5">
+              <BarChart3 className="h-3 w-3 text-muted-foreground" />
+              <CardTitle className="text-xs font-medium">Витрати AI по днях</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="px-3 pb-3">
+            <div className="h-32">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={aiCostsByDayData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                  <XAxis dataKey="date" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 9 }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
+                  <Tooltip 
+                    contentStyle={{ fontSize: 10, padding: '4px 8px' }}
+                    formatter={(value: number) => [`$${value.toFixed(4)}`, '']}
+                  />
+                  <Bar dataKey="junior" name="Junior AI" fill="#3b82f6" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="senior" name="Senior AI" fill="#8b5cf6" radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* AI Costs by Model */}
+        <Card>
+          <CardHeader className="py-2 px-3">
+            <div className="flex items-center gap-1.5">
+              <BarChart3 className="h-3 w-3 text-muted-foreground" />
+              <CardTitle className="text-xs font-medium">Витрати по моделях</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="px-3 pb-3">
+            <div className="h-32">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={aiCostsByModelData} layout="vertical" margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+                  <XAxis type="number" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={60} />
+                  <Tooltip 
+                    contentStyle={{ fontSize: 10, padding: '4px 8px' }}
+                    formatter={(value: number, name: string) => [
+                      name === 'cost' ? `$${value.toFixed(4)}` : name === 'avgCost' ? `$${value.toFixed(4)}/шт` : value,
+                      name === 'cost' ? 'Загалом' : name === 'count' ? 'Кількість' : 'Середня'
+                    ]}
+                  />
+                  <Bar dataKey="cost" name="Загалом" fill="#f59e0b" radius={[0, 2, 2, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-around mt-2 text-[10px]">
+              {aiCostsByModelData.map(m => (
+                <div key={m.name} className="text-center">
+                  <div className="font-medium">{m.name}</div>
+                  <div className="text-muted-foreground">{m.count} шт • ${m.cost.toFixed(4)}</div>
+                  <div className="text-muted-foreground">~${m.avgCost.toFixed(4)}/шт</div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
