@@ -16,7 +16,17 @@ serve(async (req) => {
     const body = await req.json();
     const historyId = body.historyId;
     
-    console.log("Starting Codex generation (fire-and-forget) for:", body?.siteName, "historyId:", historyId);
+    // Get Supabase credentials
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    console.log("Starting Codex generation for:", body?.siteName, "historyId:", historyId);
+    console.log("SUPABASE_URL:", supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : "UNDEFINED");
+    console.log("SUPABASE_SERVICE_ROLE_KEY:", supabaseKey ? "SET (hidden)" : "UNDEFINED");
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("Missing Supabase credentials! URL:", !!supabaseUrl, "Key:", !!supabaseKey);
+    }
 
     // Відправляємо запит до n8n і НЕ чекаємо відповіді
     // n8n сам запише результат в базу через Supabase REST API
@@ -26,8 +36,8 @@ serve(async (req) => {
       body: JSON.stringify({
         ...body,
         // Передаємо дані для запису в БД
-        supabaseUrl: Deno.env.get("SUPABASE_URL"),
-        supabaseKey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+        supabaseUrl,
+        supabaseKey,
       }),
     }).catch((err) => {
       console.error("Failed to call Codex webhook:", err);
