@@ -300,9 +300,10 @@ export function WebsiteGenerator() {
         setSiteName("");
         setPrompt("");
       } else {
+        const firstError = results.find((r) => !r.success)?.error;
         toast({
           title: "Помилка",
-          description: "Не вдалося запустити жодну генерацію",
+          description: firstError || "Не вдалося запустити жодну генерацію",
           variant: "destructive",
         });
       }

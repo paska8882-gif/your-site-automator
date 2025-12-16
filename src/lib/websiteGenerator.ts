@@ -148,21 +148,20 @@ async function startCodexGeneration(
     if (!resp.ok) {
       // codex-proxy returns JSON on errors (and sometimes plain text)
       const errText = await resp.text().catch(() => "");
-      let errorMsg = "";
 
+      let finalMsg = "";
       try {
         const maybeJson = JSON.parse(errText);
-        if (maybeJson?.error && typeof maybeJson.error === "string") {
-          errorMsg = maybeJson.error;
-        } else {
-          errorMsg = errText;
-        }
+        const base = typeof maybeJson?.error === "string" ? maybeJson.error : "";
+        const hint = typeof maybeJson?.details?.hint === "string" ? maybeJson.details.hint : "";
+        finalMsg = [base, hint].filter(Boolean).join(" — ");
       } catch {
-        errorMsg = errText;
+        finalMsg = errText;
       }
 
-      const cleaned = (errorMsg || "").trim();
-      const finalMsg = cleaned ? cleaned.slice(0, 500) : `HTTP ${resp.status}`;
+      finalMsg = (finalMsg || "").trim();
+      if (!finalMsg) finalMsg = `HTTP ${resp.status}`;
+      finalMsg = finalMsg.slice(0, 500);
 
       await supabase
         .from("generation_history")
