@@ -3,9 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Download, Trash2, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight } from "lucide-react";
+import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -160,25 +159,6 @@ export function GenerationHistory() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    const { error } = await supabase
-      .from("generation_history")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      toast({
-        title: "Помилка",
-        description: "Не вдалося видалити запис",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Видалено",
-        description: "Запис успішно видалено",
-      });
-    }
-  };
 
   const truncatePrompt = (text: string, maxLength: number = 100) => {
     if (text.length <= maxLength) return text;
@@ -331,17 +311,6 @@ export function GenerationHistory() {
                           />
                         </>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(item.id);
-                        }}
-                        title="Видалити"
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
                     </div>
                   </div>
                 </CollapsibleTrigger>
