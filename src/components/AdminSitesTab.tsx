@@ -74,6 +74,7 @@ export const AdminSitesTab = () => {
   const [websiteTypeFilter, setWebsiteTypeFilter] = useState<string>("all");
   const [languageFilter, setLanguageFilter] = useState<string>("all");
   const [teamFilter, setTeamFilter] = useState<string>("all");
+  const [userFilter, setUserFilter] = useState<string>("all");
 
   useEffect(() => {
     fetchAllGenerations();
@@ -224,6 +225,7 @@ export const AdminSitesTab = () => {
 
   // Get unique values for filters
   const uniqueLanguages = [...new Set(history.map(h => h.language))].filter(Boolean);
+  const uniqueUsers = [...new Set(history.map(h => h.user_id).filter(Boolean))] as string[];
   const uniqueTeams = [...new Set(Object.values(userTeams).filter(Boolean).map(t => t!.team_name))];
 
   const filteredHistory = history.filter(item => {
@@ -235,6 +237,7 @@ export const AdminSitesTab = () => {
       const teamName = getTeamName(item.user_id);
       if (teamName !== teamFilter) return false;
     }
+    if (userFilter !== "all" && item.user_id !== userFilter) return false;
     
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
@@ -375,7 +378,7 @@ export const AdminSitesTab = () => {
             <Filter className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">Фільтри</span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
             <div className="relative col-span-2 md:col-span-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -393,6 +396,17 @@ export const AdminSitesTab = () => {
                 <SelectItem value="all">Всі команди</SelectItem>
                 {uniqueTeams.map(team => (
                   <SelectItem key={team} value={team}>{team}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={userFilter} onValueChange={setUserFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Користувач" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Всі користувачі</SelectItem>
+                {uniqueUsers.map(userId => (
+                  <SelectItem key={userId} value={userId}>{getUserName(userId)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
