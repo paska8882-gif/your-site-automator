@@ -20,10 +20,12 @@ export type Database = {
           created_at: string
           error_message: string | null
           files_data: Json | null
+          generation_cost: number | null
           id: string
           language: string
           number: number
           prompt: string
+          sale_price: number | null
           site_name: string | null
           status: string
           user_id: string | null
@@ -35,10 +37,12 @@ export type Database = {
           created_at?: string
           error_message?: string | null
           files_data?: Json | null
+          generation_cost?: number | null
           id?: string
           language?: string
           number?: number
           prompt: string
+          sale_price?: number | null
           site_name?: string | null
           status?: string
           user_id?: string | null
@@ -50,10 +54,12 @@ export type Database = {
           created_at?: string
           error_message?: string | null
           files_data?: Json | null
+          generation_cost?: number | null
           id?: string
           language?: string
           number?: number
           prompt?: string
+          sale_price?: number | null
           site_name?: string | null
           status?: string
           user_id?: string | null
@@ -172,6 +178,47 @@ export type Database = {
             foreignKeyName: "team_members_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_pricing: {
+        Row: {
+          created_at: string
+          generation_cost_junior: number
+          generation_cost_senior: number
+          html_price: number
+          id: string
+          react_price: number
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          generation_cost_junior?: number
+          generation_cost_senior?: number
+          html_price?: number
+          id?: string
+          react_price?: number
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          generation_cost_junior?: number
+          generation_cost_senior?: number
+          html_price?: number
+          id?: string
+          react_price?: number
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_pricing_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: true
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
