@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Shield, 
@@ -16,8 +17,11 @@ import {
   Loader2,
   Crown,
   AlertTriangle,
-  Lock
+  Lock,
+  Check,
+  ChevronsUpDown
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const SUPER_ADMIN_EMAIL = "paska8882@gmail.com";
 
@@ -31,6 +35,7 @@ interface Admin {
 interface UserProfile {
   user_id: string;
   display_name: string | null;
+  email?: string;
 }
 
 export const AdminAdministratorsTab = () => {
@@ -44,6 +49,7 @@ export const AdminAdministratorsTab = () => {
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [superAdminPassword, setSuperAdminPassword] = useState("");
   const [verifying, setVerifying] = useState(false);
+  const [userComboboxOpen, setUserComboboxOpen] = useState(false);
   
   // Remove admin dialog  
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
@@ -285,18 +291,55 @@ export const AdminAdministratorsTab = () => {
               <div className="space-y-4">
                 <div>
                   <Label>Користувач</Label>
-                  <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Виберіть користувача" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allUsers.map(user => (
-                        <SelectItem key={user.user_id} value={user.user_id}>
-                          {user.display_name || user.user_id.slice(0, 8) + "..."}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={userComboboxOpen} onOpenChange={setUserComboboxOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={userComboboxOpen}
+                        className="w-full justify-between"
+                      >
+                        {selectedUserId
+                          ? allUsers.find(u => u.user_id === selectedUserId)?.display_name || 
+                            allUsers.find(u => u.user_id === selectedUserId)?.user_id.slice(0, 8) + "..."
+                          : "Пошук користувача..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Введіть ім'я або email..." />
+                        <CommandList>
+                          <CommandEmpty>Користувача не знайдено</CommandEmpty>
+                          <CommandGroup>
+                            {allUsers.map(user => (
+                              <CommandItem
+                                key={user.user_id}
+                                value={`${user.display_name || ""} ${user.user_id}`}
+                                onSelect={() => {
+                                  setSelectedUserId(user.user_id);
+                                  setUserComboboxOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedUserId === user.user_id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span>{user.display_name || "Без імені"}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {user.user_id.slice(0, 12)}...
+                                  </span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div>
                   <Label>Пароль супер-адміністратора</Label>
