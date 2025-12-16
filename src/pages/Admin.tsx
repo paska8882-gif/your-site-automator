@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Shield, 
   ArrowLeft, 
@@ -19,7 +20,9 @@ import {
   Clock,
   ChevronRight,
   Users,
-  FileCode
+  FileCode,
+  Filter,
+  LogOut
 } from "lucide-react";
 
 interface GenerationItem {
@@ -52,6 +55,12 @@ const Admin = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  
+  // Filters
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [aiModelFilter, setAiModelFilter] = useState<string>("all");
+  const [websiteTypeFilter, setWebsiteTypeFilter] = useState<string>("all");
+  const [languageFilter, setLanguageFilter] = useState<string>("all");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -173,7 +182,23 @@ const Admin = () => {
     return profile?.display_name || userId.slice(0, 8) + "...";
   };
 
+  // Get unique values for filters
+  const uniqueLanguages = [...new Set(history.map(h => h.language))].filter(Boolean);
+
   const filteredHistory = history.filter(item => {
+    // Status filter
+    if (statusFilter !== "all" && item.status !== statusFilter) return false;
+    
+    // AI model filter
+    if (aiModelFilter !== "all" && (item.ai_model || "junior") !== aiModelFilter) return false;
+    
+    // Website type filter
+    if (websiteTypeFilter !== "all" && (item.website_type || "html") !== websiteTypeFilter) return false;
+    
+    // Language filter
+    if (languageFilter !== "all" && item.language !== languageFilter) return false;
+    
+    // Search query
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -206,14 +231,27 @@ const Admin = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <Shield className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold">Адмін-панель</h1>
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <Shield className="h-6 w-6 text-primary" />
+              <h1 className="text-xl font-bold">Адмін-панель</h1>
+            </div>
           </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={async () => {
+              await supabase.auth.signOut();
+              navigate("/admin-login");
+            }}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Вийти
+          </Button>
         </div>
       </header>
 
@@ -255,16 +293,69 @@ const Admin = () => {
           </Card>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Пошук за назвою, промптом або користувачем..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+        {/* Filters */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Фільтри</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="relative col-span-2 md:col-span-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Пошук..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Статус" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Всі статуси</SelectItem>
+                  <SelectItem value="completed">Готово</SelectItem>
+                  <SelectItem value="generating">Генерується</SelectItem>
+                  <SelectItem value="pending">Очікує</SelectItem>
+                  <SelectItem value="failed">Помилка</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={aiModelFilter} onValueChange={setAiModelFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="AI модель" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Всі моделі</SelectItem>
+                  <SelectItem value="junior">Junior</SelectItem>
+                  <SelectItem value="senior">Senior</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={websiteTypeFilter} onValueChange={setWebsiteTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Тип сайту" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Всі типи</SelectItem>
+                  <SelectItem value="html">HTML</SelectItem>
+                  <SelectItem value="react">React</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={languageFilter} onValueChange={setLanguageFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Мова" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Всі мови</SelectItem>
+                  {uniqueLanguages.map(lang => (
+                    <SelectItem key={lang} value={lang}>{lang}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* History List */}
         <Card>
