@@ -17,8 +17,14 @@ import {
   Users,
   FileCode,
   Filter,
-  User
+  User,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
+
+type SortColumn = "site_name" | "team" | "user" | "language" | "website_type" | "ai_model" | "created_at" | "status";
+type SortDirection = "asc" | "desc";
 
 interface GenerationItem {
   id: string;
@@ -57,6 +63,10 @@ export const AdminSitesTab = () => {
   const [userTeams, setUserTeams] = useState<UserTeamMap>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Sorting
+  const [sortColumn, setSortColumn] = useState<SortColumn>("created_at");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -236,6 +246,75 @@ export const AdminSitesTab = () => {
     );
   });
 
+  // Sorting logic
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (column: SortColumn) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
+    }
+    return sortDirection === "asc" 
+      ? <ArrowUp className="h-3 w-3 ml-1" />
+      : <ArrowDown className="h-3 w-3 ml-1" />;
+  };
+
+  const sortedHistory = [...filteredHistory].sort((a, b) => {
+    let aVal: string | number = "";
+    let bVal: string | number = "";
+
+    switch (sortColumn) {
+      case "site_name":
+        aVal = a.site_name || `site-${a.number}`;
+        bVal = b.site_name || `site-${b.number}`;
+        break;
+      case "team":
+        aVal = getTeamName(a.user_id);
+        bVal = getTeamName(b.user_id);
+        break;
+      case "user":
+        aVal = getUserName(a.user_id);
+        bVal = getUserName(b.user_id);
+        break;
+      case "language":
+        aVal = a.language;
+        bVal = b.language;
+        break;
+      case "website_type":
+        aVal = a.website_type || "html";
+        bVal = b.website_type || "html";
+        break;
+      case "ai_model":
+        aVal = a.ai_model || "junior";
+        bVal = b.ai_model || "junior";
+        break;
+      case "created_at":
+        aVal = new Date(a.created_at).getTime();
+        bVal = new Date(b.created_at).getTime();
+        break;
+      case "status":
+        aVal = a.status;
+        bVal = b.status;
+        break;
+    }
+
+    if (typeof aVal === "string" && typeof bVal === "string") {
+      return sortDirection === "asc" 
+        ? aVal.localeCompare(bVal)
+        : bVal.localeCompare(aVal);
+    }
+    
+    return sortDirection === "asc" 
+      ? (aVal as number) - (bVal as number)
+      : (bVal as number) - (aVal as number);
+  });
+
   const stats = {
     total: history.length,
     completed: history.filter(h => h.status === "completed").length,
@@ -369,7 +448,7 @@ export const AdminSitesTab = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileCode className="h-5 w-5" />
-            Всі генерації ({filteredHistory.length})
+            Всі генерації ({sortedHistory.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -377,7 +456,7 @@ export const AdminSitesTab = () => {
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin" />
             </div>
-          ) : filteredHistory.length === 0 ? (
+          ) : sortedHistory.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
               {searchQuery ? "Нічого не знайдено" : "Немає генерацій"}
             </p>
@@ -386,20 +465,84 @@ export const AdminSitesTab = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[50px]">Статус</TableHead>
-                    <TableHead>Назва сайту</TableHead>
-                    <TableHead>Команда</TableHead>
-                    <TableHead>Користувач</TableHead>
+                    <TableHead 
+                      className="w-[50px] cursor-pointer hover:bg-accent/50"
+                      onClick={() => handleSort("status")}
+                    >
+                      <div className="flex items-center">
+                        Статус
+                        {getSortIcon("status")}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-accent/50"
+                      onClick={() => handleSort("site_name")}
+                    >
+                      <div className="flex items-center">
+                        Назва сайту
+                        {getSortIcon("site_name")}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-accent/50"
+                      onClick={() => handleSort("team")}
+                    >
+                      <div className="flex items-center">
+                        Команда
+                        {getSortIcon("team")}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-accent/50"
+                      onClick={() => handleSort("user")}
+                    >
+                      <div className="flex items-center">
+                        Користувач
+                        {getSortIcon("user")}
+                      </div>
+                    </TableHead>
                     <TableHead>Роль</TableHead>
-                    <TableHead>Мова</TableHead>
-                    <TableHead>Тип</TableHead>
-                    <TableHead>AI</TableHead>
-                    <TableHead>Дата</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-accent/50"
+                      onClick={() => handleSort("language")}
+                    >
+                      <div className="flex items-center">
+                        Мова
+                        {getSortIcon("language")}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-accent/50"
+                      onClick={() => handleSort("website_type")}
+                    >
+                      <div className="flex items-center">
+                        Тип
+                        {getSortIcon("website_type")}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-accent/50"
+                      onClick={() => handleSort("ai_model")}
+                    >
+                      <div className="flex items-center">
+                        AI
+                        {getSortIcon("ai_model")}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-accent/50"
+                      onClick={() => handleSort("created_at")}
+                    >
+                      <div className="flex items-center">
+                        Дата
+                        {getSortIcon("created_at")}
+                      </div>
+                    </TableHead>
                     <TableHead className="w-[80px]">Дії</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredHistory.map((item) => (
+                  {sortedHistory.map((item) => (
                     <Collapsible key={item.id} asChild>
                       <>
                         <TableRow className="cursor-pointer hover:bg-accent/50">
