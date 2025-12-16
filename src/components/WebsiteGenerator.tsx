@@ -122,11 +122,29 @@ export function WebsiteGenerator() {
 
     setIsImproving(true);
     try {
+      // Перевіряємо сесію перед викликом
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        toast({
+          title: "Помилка авторизації",
+          description: "Будь ласка, перезавантажте сторінку або увійдіть знову",
+          variant: "destructive",
+        });
+        setIsImproving(false);
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('improve-prompt', {
         body: { prompt }
       });
 
-      if (error) throw error;
+      if (error) {
+        // Якщо помилка авторизації - показуємо відповідне повідомлення
+        if (error.message?.includes('401') || error.message?.includes('JWT')) {
+          throw new Error('Сесія застаріла. Перезавантажте сторінку.');
+        }
+        throw error;
+      }
 
       if (data.improvedPrompt) {
         setPrompt(data.improvedPrompt);
@@ -135,7 +153,7 @@ export function WebsiteGenerator() {
           description: "AI покращив ваш опис сайту",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error improving prompt:", error);
       toast({
         title: "Помилка",
