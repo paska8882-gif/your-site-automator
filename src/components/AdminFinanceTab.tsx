@@ -46,6 +46,7 @@ interface GenerationWithFinance {
   site_name: string;
   website_type: string;
   ai_model: string;
+  specific_ai_model: string | null;
   status: string;
   created_at: string;
   sale_price: number | null;
@@ -81,6 +82,7 @@ export function AdminFinanceTab() {
   const [teamTransactions, setTeamTransactions] = useState<TeamTransaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [chartPeriod, setChartPeriod] = useState<"7" | "14" | "30">("7");
+  const [detailedModelView, setDetailedModelView] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -100,7 +102,7 @@ export function AdminFinanceTab() {
 
       const { data: generationsData } = await supabase
         .from("generation_history")
-        .select(`id, site_name, website_type, ai_model, status, created_at, sale_price, generation_cost, user_id`)
+        .select(`id, site_name, website_type, ai_model, specific_ai_model, status, created_at, sale_price, generation_cost, user_id`)
         .eq("status", "completed")
         .order("created_at", { ascending: false });
 
@@ -349,7 +351,7 @@ export function AdminFinanceTab() {
     return data;
   }, [filteredGenerations, chartPeriod]);
 
-  // AI costs by model summary
+  // AI costs by model summary (simple view)
   const aiCostsByModelData = useMemo(() => {
     const juniorCost = filteredGenerations.filter(g => g.ai_model === 'junior').reduce((sum, g) => sum + (g.generation_cost || 0), 0);
     const seniorCost = filteredGenerations.filter(g => g.ai_model === 'senior').reduce((sum, g) => sum + (g.generation_cost || 0), 0);
@@ -360,6 +362,34 @@ export function AdminFinanceTab() {
       { name: 'Junior AI', cost: juniorCost, count: juniorCount, avgCost: juniorCount > 0 ? juniorCost / juniorCount : 0 },
       { name: 'Senior AI', cost: seniorCost, count: seniorCount, avgCost: seniorCount > 0 ? seniorCost / seniorCount : 0 }
     ];
+  }, [filteredGenerations]);
+
+  // AI costs by specific model (detailed view)
+  const aiCostsBySpecificModelData = useMemo(() => {
+    const modelStats: Record<string, { cost: number; count: number }> = {};
+    
+    filteredGenerations.forEach(g => {
+      const model = g.specific_ai_model || (g.ai_model === 'junior' ? 'gpt-4o' : 'gemini-2.5-pro');
+      if (!modelStats[model]) {
+        modelStats[model] = { cost: 0, count: 0 };
+      }
+      modelStats[model].cost += g.generation_cost || 0;
+      modelStats[model].count += 1;
+    });
+    
+    const modelLabels: Record<string, string> = {
+      'gpt-4o': 'GPT-4o',
+      'gpt-4o-mini': 'GPT-4o Mini',
+      'google/gemini-2.5-pro': 'Gemini 2.5 Pro',
+      'google/gemini-2.5-flash': 'Gemini 2.5 Flash',
+    };
+    
+    return Object.entries(modelStats).map(([model, stats]) => ({
+      name: modelLabels[model] || model,
+      cost: stats.cost,
+      count: stats.count,
+      avgCost: stats.count > 0 ? stats.cost / stats.count : 0
+    })).sort((a, b) => b.cost - a.cost);
   }, [filteredGenerations]);
   if (loading) {
     return (
@@ -484,18 +514,30 @@ export function AdminFinanceTab() {
 
         {/* AI Costs by Model */}
         <Card>
-          <CardHeader className="py-2 px-3">
+          <CardHeader className="py-2 px-3 flex flex-row items-center justify-between">
             <div className="flex items-center gap-1.5">
               <BarChart3 className="h-3 w-3 text-muted-foreground" />
               <CardTitle className="text-xs font-medium">Витрати по моделях</CardTitle>
             </div>
+            <Button
+              size="sm"
+              variant={detailedModelView ? "default" : "outline"}
+              className="h-5 text-[10px] px-2"
+              onClick={() => setDetailedModelView(!detailedModelView)}
+            >
+              {detailedModelView ? "Детально" : "Простий"}
+            </Button>
           </CardHeader>
           <CardContent className="px-3 pb-3">
-            <div className="h-32">
+            <div className={detailedModelView && aiCostsBySpecificModelData.length > 2 ? "h-40" : "h-32"}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={aiCostsByModelData} layout="vertical" margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+                <BarChart 
+                  data={detailedModelView ? aiCostsBySpecificModelData : aiCostsByModelData} 
+                  layout="vertical" 
+                  margin={{ top: 5, right: 5, left: 0, bottom: 0 }}
+                >
                   <XAxis type="number" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={60} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={detailedModelView ? 100 : 60} />
                   <Tooltip 
                     contentStyle={{ fontSize: 10, padding: '4px 8px' }}
                     formatter={(value: number, name: string) => [
@@ -507,10 +549,10 @@ export function AdminFinanceTab() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className="flex justify-around mt-2 text-[10px]">
-              {aiCostsByModelData.map(m => (
-                <div key={m.name} className="text-center">
-                  <div className="font-medium">{m.name}</div>
+            <div className={`grid ${detailedModelView ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2'} gap-2 mt-2 text-[10px]`}>
+              {(detailedModelView ? aiCostsBySpecificModelData : aiCostsByModelData).map(m => (
+                <div key={m.name} className="text-center p-1 rounded bg-muted/30">
+                  <div className="font-medium truncate">{m.name}</div>
                   <div className="text-muted-foreground">{m.count} шт • ${m.cost.toFixed(4)}</div>
                   <div className="text-muted-foreground">~${m.avgCost.toFixed(4)}/шт</div>
                 </div>

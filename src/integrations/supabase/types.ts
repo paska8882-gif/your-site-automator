@@ -84,6 +84,7 @@ export type Database = {
           prompt: string
           sale_price: number | null
           site_name: string | null
+          specific_ai_model: string | null
           status: string
           user_id: string | null
           website_type: string | null
@@ -101,6 +102,7 @@ export type Database = {
           prompt: string
           sale_price?: number | null
           site_name?: string | null
+          specific_ai_model?: string | null
           status?: string
           user_id?: string | null
           website_type?: string | null
@@ -118,6 +120,7 @@ export type Database = {
           prompt?: string
           sale_price?: number | null
           site_name?: string | null
+          specific_ai_model?: string | null
           status?: string
           user_id?: string | null
           website_type?: string | null
