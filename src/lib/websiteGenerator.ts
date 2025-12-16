@@ -81,7 +81,7 @@ export async function startGeneration(
   }
 }
 
-// Генерация через внешний вебхук Codex (ожидает ZIP в ответе)
+// Генерация через внешний вебхук Codex (через прокси Edge Function)
 async function startCodexGeneration(
   prompt: string,
   language?: string,
@@ -89,8 +89,6 @@ async function startCodexGeneration(
   layoutStyle?: string,
   siteName?: string
 ): Promise<GenerationResult> {
-  const CODEX_WEBHOOK_URL = "https://tryred.app.n8n.cloud/webhook/964e523f-9fd0-4462-99fd-3c94bb6d37af";
-
   try {
     const {
       data: { session },
@@ -100,10 +98,13 @@ async function startCodexGeneration(
       return { success: false, error: "Authentication required" };
     }
 
-    const resp = await fetch(CODEX_WEBHOOK_URL, {
+    // Вызываем Edge Function прокси
+    const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/codex-proxy`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
         prompt,
@@ -116,15 +117,22 @@ async function startCodexGeneration(
     });
 
     if (!resp.ok) {
-      const errText = await resp.text().catch(() => "");
-      return { success: false, error: errText || `HTTP ${resp.status}` };
+      const errData = await resp.json().catch(() => ({}));
+      return { success: false, error: errData.error || `HTTP ${resp.status}` };
     }
 
-    // Получаем ZIP-файл как blob
-    const zipBlob = await resp.blob();
+    // Получаем base64-encoded ZIP от прокси
+    const base64Zip = await resp.text();
+    
+    // Декодируем base64 в бинарные данные
+    const binaryString = atob(base64Zip);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
     
     // Распаковываем ZIP и извлекаем файлы
-    const zip = await JSZip.loadAsync(zipBlob);
+    const zip = await JSZip.loadAsync(bytes);
     const files: GeneratedFile[] = [];
     
     for (const [path, zipEntry] of Object.entries(zip.files)) {
