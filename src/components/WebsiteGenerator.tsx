@@ -7,8 +7,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, Languages, Hash } from "lucide-react";
+import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, Languages, Hash, Wand2 } from "lucide-react";
 import { startGeneration, AiModel, WebsiteType } from "@/lib/websiteGenerator";
+import { supabase } from "@/integrations/supabase/client";
 import { GenerationHistory } from "./GenerationHistory";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -33,6 +34,44 @@ export function WebsiteGenerator() {
   const [aiModel, setAiModel] = useState<AiModel>("senior");
   const [websiteType, setWebsiteType] = useState<WebsiteType>("html");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isImproving, setIsImproving] = useState(false);
+
+  const handleImprovePrompt = async () => {
+    if (!prompt.trim()) {
+      toast({
+        title: "Помилка",
+        description: "Спочатку введіть опис сайту",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsImproving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('improve-prompt', {
+        body: { prompt }
+      });
+
+      if (error) throw error;
+
+      if (data.improvedPrompt) {
+        setPrompt(data.improvedPrompt);
+        toast({
+          title: "Промпт покращено",
+          description: "AI покращив ваш опис сайту",
+        });
+      }
+    } catch (error) {
+      console.error("Error improving prompt:", error);
+      toast({
+        title: "Помилка",
+        description: error instanceof Error ? error.message : "Не вдалося покращити промпт",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImproving(false);
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -177,13 +216,33 @@ export function WebsiteGenerator() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Textarea
-              placeholder="Наприклад: Сучасний сайт для IT-компанії з послугами веб-розробки. Темна тема, мінімалістичний дизайн. Сторінки: головна, послуги, портфоліо, контакти..."
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              className="min-h-[150px] resize-none"
-              disabled={isSubmitting}
-            />
+            <div className="space-y-2">
+              <Textarea
+                placeholder="Наприклад: Сучасний сайт для IT-компанії з послугами веб-розробки. Темна тема, мінімалістичний дизайн. Сторінки: головна, послуги, портфоліо, контакти..."
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                className="min-h-[150px] resize-none"
+                disabled={isSubmitting || isImproving}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleImprovePrompt}
+                disabled={isImproving || isSubmitting || !prompt.trim()}
+              >
+                {isImproving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Покращення...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="mr-2 h-4 w-4" />
+                    Покращити промпт
+                  </>
+                )}
+              </Button>
+            </div>
 
             {/* Languages Multi-Select */}
             <div className="space-y-2">
