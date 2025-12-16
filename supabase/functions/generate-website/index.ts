@@ -419,6 +419,7 @@ type GenerationResult = {
   error?: string;
   rawResponse?: string;
   totalCost?: number;
+  specificModel?: string;
 };
 
 const cleanFileContent = (content: string) => {
@@ -630,6 +631,7 @@ async function runGeneration({
     totalFiles: files.length,
     fileList: files.map((f) => f.path),
     totalCost,
+    specificModel: generateModel,
   };
 }
 
@@ -710,6 +712,7 @@ async function runBackgroundGeneration(
           zip_data: zipBase64,
           sale_price: salePrice,
           generation_cost: generationCost,
+          specific_ai_model: result.specificModel || null,
         })
         .eq("id", historyId);
 
