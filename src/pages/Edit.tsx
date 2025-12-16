@@ -139,6 +139,7 @@ const Edit = () => {
             files={files}
             selectedFile={selectedFile}
             onSelectFile={setSelectedFile}
+            websiteType={generation.website_type || undefined}
           />
         </div>
       </div>
