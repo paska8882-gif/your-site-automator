@@ -329,131 +329,111 @@ export const AdminSitesTab = () => {
 
   return (
     <div className="space-y-3">
-      {/* Stats */}
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-        <Card>
-          <CardContent className="p-2 text-center">
-            <div className="text-lg font-bold">{stats.total}</div>
-            <div className="text-[10px] text-muted-foreground">Всього</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-2 text-center">
-            <div className="text-lg font-bold text-green-500">{stats.completed}</div>
-            <div className="text-[10px] text-muted-foreground">Готово</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-2 text-center">
-            <div className="text-lg font-bold text-destructive">{stats.failed}</div>
-            <div className="text-[10px] text-muted-foreground">Помилки</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-2 text-center">
-            <div className="text-lg font-bold text-yellow-500">{stats.pending}</div>
-            <div className="text-[10px] text-muted-foreground">В процесі</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-2 text-center">
-            <div className="text-lg font-bold">{stats.uniqueUsers}</div>
-            <div className="text-[10px] text-muted-foreground">Користувачів</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-2 text-center">
-            <div className="text-lg font-bold">{stats.uniqueTeams}</div>
-            <div className="text-[10px] text-muted-foreground">Команд</div>
-          </CardContent>
-        </Card>
+      {/* Stats - compact row */}
+      <div className="flex flex-wrap gap-2">
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
+          <span className="text-xs text-muted-foreground">Всього:</span>
+          <span className="text-sm font-bold">{stats.total}</span>
+        </div>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
+          <span className="text-xs text-muted-foreground">Готово:</span>
+          <span className="text-sm font-bold text-green-500">{stats.completed}</span>
+        </div>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
+          <span className="text-xs text-muted-foreground">Помилки:</span>
+          <span className="text-sm font-bold text-destructive">{stats.failed}</span>
+        </div>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
+          <span className="text-xs text-muted-foreground">В процесі:</span>
+          <span className="text-sm font-bold text-yellow-500">{stats.pending}</span>
+        </div>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
+          <span className="text-xs text-muted-foreground">Юзерів:</span>
+          <span className="text-sm font-bold">{stats.uniqueUsers}</span>
+        </div>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
+          <span className="text-xs text-muted-foreground">Команд:</span>
+          <span className="text-sm font-bold">{stats.uniqueTeams}</span>
+        </div>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-2">
-          <div className="flex items-center gap-1.5 mb-2">
-            <Filter className="h-3 w-3 text-muted-foreground" />
-            <span className="text-xs font-medium">Фільтри</span>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
-            <div className="relative col-span-2 md:col-span-1">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-              <Input
-                placeholder="Пошук..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-7 h-7 text-xs"
-              />
-            </div>
-            <Select value={teamFilter} onValueChange={setTeamFilter}>
-              <SelectTrigger className="h-7 text-xs">
-                <SelectValue placeholder="Команда" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-xs">Всі команди</SelectItem>
-                {uniqueTeams.map(team => (
-                  <SelectItem key={team} value={team} className="text-xs">{team}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={userFilter} onValueChange={setUserFilter}>
-              <SelectTrigger className="h-7 text-xs">
-                <SelectValue placeholder="Користувач" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-xs">Всі користувачі</SelectItem>
-                {uniqueUsers.map(userId => (
-                  <SelectItem key={userId} value={userId} className="text-xs">{getUserName(userId)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-7 text-xs">
-                <SelectValue placeholder="Статус" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-xs">Всі статуси</SelectItem>
-                <SelectItem value="completed" className="text-xs">Готово</SelectItem>
-                <SelectItem value="generating" className="text-xs">Генерується</SelectItem>
-                <SelectItem value="pending" className="text-xs">Очікує</SelectItem>
-                <SelectItem value="failed" className="text-xs">Помилка</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={aiModelFilter} onValueChange={setAiModelFilter}>
-              <SelectTrigger className="h-7 text-xs">
-                <SelectValue placeholder="AI" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-xs">Всі моделі</SelectItem>
-                <SelectItem value="junior" className="text-xs">Junior</SelectItem>
-                <SelectItem value="senior" className="text-xs">Senior</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={websiteTypeFilter} onValueChange={setWebsiteTypeFilter}>
-              <SelectTrigger className="h-7 text-xs">
-                <SelectValue placeholder="Тип" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-xs">Всі типи</SelectItem>
-                <SelectItem value="html" className="text-xs">HTML</SelectItem>
-                <SelectItem value="react" className="text-xs">React</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={languageFilter} onValueChange={setLanguageFilter}>
-              <SelectTrigger className="h-7 text-xs">
-                <SelectValue placeholder="Мова" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-xs">Всі мови</SelectItem>
-                {uniqueLanguages.map(lang => (
-                  <SelectItem key={lang} value={lang} className="text-xs">{lang}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Filters - compact inline */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+          <Input
+            placeholder="Пошук..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-7 h-7 text-xs w-32"
+          />
+        </div>
+        <Select value={teamFilter} onValueChange={setTeamFilter}>
+          <SelectTrigger className="h-7 text-xs w-28">
+            <SelectValue placeholder="Команда" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">Всі команди</SelectItem>
+            {uniqueTeams.map(team => (
+              <SelectItem key={team} value={team} className="text-xs">{team}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={userFilter} onValueChange={setUserFilter}>
+          <SelectTrigger className="h-7 text-xs w-28">
+            <SelectValue placeholder="Юзер" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">Всі</SelectItem>
+            {uniqueUsers.map(userId => (
+              <SelectItem key={userId} value={userId} className="text-xs">{getUserName(userId)}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="h-7 text-xs w-24">
+            <SelectValue placeholder="Статус" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">Всі</SelectItem>
+            <SelectItem value="completed" className="text-xs">Готово</SelectItem>
+            <SelectItem value="generating" className="text-xs">Генерується</SelectItem>
+            <SelectItem value="pending" className="text-xs">Очікує</SelectItem>
+            <SelectItem value="failed" className="text-xs">Помилка</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={aiModelFilter} onValueChange={setAiModelFilter}>
+          <SelectTrigger className="h-7 text-xs w-20">
+            <SelectValue placeholder="AI" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">Всі</SelectItem>
+            <SelectItem value="junior" className="text-xs">Jr</SelectItem>
+            <SelectItem value="senior" className="text-xs">Sr</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={websiteTypeFilter} onValueChange={setWebsiteTypeFilter}>
+          <SelectTrigger className="h-7 text-xs w-20">
+            <SelectValue placeholder="Тип" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">Всі</SelectItem>
+            <SelectItem value="html" className="text-xs">HTML</SelectItem>
+            <SelectItem value="react" className="text-xs">React</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={languageFilter} onValueChange={setLanguageFilter}>
+          <SelectTrigger className="h-7 text-xs w-24">
+            <SelectValue placeholder="Мова" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">Всі</SelectItem>
+            {uniqueLanguages.map(lang => (
+              <SelectItem key={lang} value={lang} className="text-xs">{lang}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* Table */}
       <Card>

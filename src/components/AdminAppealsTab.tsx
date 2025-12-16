@@ -205,33 +205,23 @@ export function AdminAppealsTab() {
 
   return (
     <div className="space-y-3">
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-2 max-w-sm">
-        <Card>
-          <CardContent className="p-2 text-center">
-            <Clock className="h-3.5 w-3.5 mx-auto mb-0.5 text-yellow-500" />
-            <div className="text-lg font-bold text-yellow-500">{pendingCount}</div>
-            <div className="text-[10px] text-muted-foreground">Очікують</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-2 text-center">
-            <CheckCircle className="h-3.5 w-3.5 mx-auto mb-0.5 text-green-500" />
-            <div className="text-lg font-bold text-green-500">
-              {appeals.filter(a => a.status === "approved").length}
-            </div>
-            <div className="text-[10px] text-muted-foreground">Схвалено</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-2 text-center">
-            <XCircle className="h-3.5 w-3.5 mx-auto mb-0.5 text-destructive" />
-            <div className="text-lg font-bold text-destructive">
-              {appeals.filter(a => a.status === "rejected").length}
-            </div>
-            <div className="text-[10px] text-muted-foreground">Відхилено</div>
-          </CardContent>
-        </Card>
+      {/* Stats inline */}
+      <div className="flex flex-wrap gap-2">
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
+          <Clock className="h-3 w-3 text-yellow-500" />
+          <span className="text-xs text-muted-foreground">Очікують:</span>
+          <span className="text-sm font-bold text-yellow-500">{pendingCount}</span>
+        </div>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
+          <CheckCircle className="h-3 w-3 text-green-500" />
+          <span className="text-xs text-muted-foreground">Схвалено:</span>
+          <span className="text-sm font-bold text-green-500">{appeals.filter(a => a.status === "approved").length}</span>
+        </div>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
+          <XCircle className="h-3 w-3 text-destructive" />
+          <span className="text-xs text-muted-foreground">Відхилено:</span>
+          <span className="text-sm font-bold text-destructive">{appeals.filter(a => a.status === "rejected").length}</span>
+        </div>
       </div>
 
       {/* Appeals Table */}
