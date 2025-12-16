@@ -204,47 +204,47 @@ export function AdminAppealsTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 max-w-md">
+      <div className="grid grid-cols-3 gap-2 max-w-sm">
         <Card>
-          <CardContent className="p-4 text-center">
-            <Clock className="h-5 w-5 mx-auto mb-1 text-yellow-500" />
-            <div className="text-2xl font-bold text-yellow-500">{pendingCount}</div>
-            <div className="text-xs text-muted-foreground">Очікують</div>
+          <CardContent className="p-2 text-center">
+            <Clock className="h-3.5 w-3.5 mx-auto mb-0.5 text-yellow-500" />
+            <div className="text-lg font-bold text-yellow-500">{pendingCount}</div>
+            <div className="text-[10px] text-muted-foreground">Очікують</div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <CheckCircle className="h-5 w-5 mx-auto mb-1 text-green-500" />
-            <div className="text-2xl font-bold text-green-500">
+          <CardContent className="p-2 text-center">
+            <CheckCircle className="h-3.5 w-3.5 mx-auto mb-0.5 text-green-500" />
+            <div className="text-lg font-bold text-green-500">
               {appeals.filter(a => a.status === "approved").length}
             </div>
-            <div className="text-xs text-muted-foreground">Схвалено</div>
+            <div className="text-[10px] text-muted-foreground">Схвалено</div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <XCircle className="h-5 w-5 mx-auto mb-1 text-destructive" />
-            <div className="text-2xl font-bold text-destructive">
+          <CardContent className="p-2 text-center">
+            <XCircle className="h-3.5 w-3.5 mx-auto mb-0.5 text-destructive" />
+            <div className="text-lg font-bold text-destructive">
               {appeals.filter(a => a.status === "rejected").length}
             </div>
-            <div className="text-xs text-muted-foreground">Відхилено</div>
+            <div className="text-[10px] text-muted-foreground">Відхилено</div>
           </CardContent>
         </Card>
       </div>
 
       {/* Appeals Table */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5" />
+        <CardHeader className="py-2 px-3">
+          <CardTitle className="flex items-center gap-1.5 text-sm">
+            <MessageSquare className="h-3.5 w-3.5" />
             Апеляції ({appeals.length})
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 pb-3">
           {appeals.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="text-center py-4 text-muted-foreground text-xs">
               Немає апеляцій
             </div>
           ) : (
@@ -252,41 +252,42 @@ export function AdminAppealsTab() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Статус</TableHead>
-                    <TableHead>Користувач</TableHead>
-                    <TableHead>Команда</TableHead>
-                    <TableHead>Сайт</TableHead>
-                    <TableHead>Сума</TableHead>
-                    <TableHead>Дата</TableHead>
-                    <TableHead className="text-right">Дії</TableHead>
+                    <TableHead className="text-xs py-1.5">Статус</TableHead>
+                    <TableHead className="text-xs py-1.5">Користувач</TableHead>
+                    <TableHead className="text-xs py-1.5">Команда</TableHead>
+                    <TableHead className="text-xs py-1.5">Сайт</TableHead>
+                    <TableHead className="text-xs py-1.5">Сума</TableHead>
+                    <TableHead className="text-xs py-1.5">Дата</TableHead>
+                    <TableHead className="text-xs py-1.5 text-right">Дії</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {appeals.map(appeal => (
                     <TableRow key={appeal.id}>
-                      <TableCell>{getStatusBadge(appeal.status)}</TableCell>
-                      <TableCell>{appeal.user_name}</TableCell>
-                      <TableCell>{appeal.team_name}</TableCell>
-                      <TableCell className="max-w-[200px] truncate" title={appeal.site_name}>
+                      <TableCell className="py-1.5">{getStatusBadge(appeal.status)}</TableCell>
+                      <TableCell className="py-1.5 text-xs">{appeal.user_name}</TableCell>
+                      <TableCell className="py-1.5 text-xs">{appeal.team_name}</TableCell>
+                      <TableCell className="py-1.5 text-xs max-w-[120px] truncate" title={appeal.site_name}>
                         {appeal.site_name}
                       </TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell className="py-1.5 text-xs font-medium">
                         ${appeal.amount_to_refund.toFixed(2)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-1.5 text-[10px]">
                         {new Date(appeal.created_at).toLocaleDateString("uk-UA")}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="py-1.5 text-right">
                         <Button
                           variant="outline"
                           size="sm"
+                          className="h-6 text-[10px] px-1.5"
                           onClick={() => {
                             setSelectedAppeal(appeal);
                             setAdminComment(appeal.admin_comment || "");
                           }}
                         >
-                          <Eye className="h-4 w-4 mr-1" />
-                          Переглянути
+                          <Eye className="h-3 w-3 mr-0.5" />
+                          Деталі
                         </Button>
                       </TableCell>
                     </TableRow>

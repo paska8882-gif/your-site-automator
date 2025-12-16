@@ -56,55 +56,56 @@ const Admin = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
-              <ArrowLeft className="h-5 w-5" />
+        <div className="container mx-auto px-3 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => navigate("/")}>
+              <ArrowLeft className="h-4 w-4" />
             </Button>
-            <div className="flex items-center gap-2">
-              <Shield className="h-6 w-6 text-primary" />
-              <h1 className="text-xl font-bold">Адмін-панель</h1>
+            <div className="flex items-center gap-1.5">
+              <Shield className="h-4 w-4 text-primary" />
+              <h1 className="text-sm font-semibold">Адмін-панель</h1>
             </div>
           </div>
           <Button 
             variant="outline" 
-            size="sm" 
+            size="sm"
+            className="h-7 text-xs"
             onClick={async () => {
               await supabase.auth.signOut();
               navigate("/admin-login");
             }}
           >
-            <LogOut className="h-4 w-4 mr-2" />
+            <LogOut className="h-3 w-3 mr-1" />
             Вийти
           </Button>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
-        <Tabs defaultValue="teams" className="space-y-6">
-          <TabsList className="grid w-full max-w-4xl grid-cols-6">
-            <TabsTrigger value="teams" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
+      <main className="container mx-auto px-3 py-3">
+        <Tabs defaultValue="teams" className="space-y-3">
+          <TabsList className="grid w-full max-w-3xl grid-cols-6 h-8">
+            <TabsTrigger value="teams" className="flex items-center gap-1 text-xs h-7">
+              <Users className="h-3 w-3" />
               Команди
             </TabsTrigger>
-            <TabsTrigger value="sites" className="flex items-center gap-2">
-              <FileCode className="h-4 w-4" />
+            <TabsTrigger value="sites" className="flex items-center gap-1 text-xs h-7">
+              <FileCode className="h-3 w-3" />
               Сайти
             </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center gap-2">
-              <UserCog className="h-4 w-4" />
+            <TabsTrigger value="users" className="flex items-center gap-1 text-xs h-7">
+              <UserCog className="h-3 w-3" />
               Користувачі
             </TabsTrigger>
-            <TabsTrigger value="appeals" className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
+            <TabsTrigger value="appeals" className="flex items-center gap-1 text-xs h-7">
+              <MessageSquare className="h-3 w-3" />
               Апеляції
             </TabsTrigger>
-            <TabsTrigger value="finance" className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
+            <TabsTrigger value="finance" className="flex items-center gap-1 text-xs h-7">
+              <DollarSign className="h-3 w-3" />
               Фінанси
             </TabsTrigger>
-            <TabsTrigger value="admin" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
+            <TabsTrigger value="admin" className="flex items-center gap-1 text-xs h-7">
+              <Settings className="h-3 w-3" />
               Адміни
             </TabsTrigger>
           </TabsList>

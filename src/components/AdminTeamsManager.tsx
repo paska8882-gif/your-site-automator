@@ -192,23 +192,24 @@ export const AdminTeamsManager = () => {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
+      <CardHeader className="py-3 px-4">
+        <CardTitle className="flex items-center justify-between text-sm">
+          <div className="flex items-center gap-1.5">
+            <Users className="h-4 w-4" />
             Команди
           </div>
           <Button
             variant="ghost"
-            size="icon"
+            size="sm"
+            className="h-6 w-6 p-0"
             onClick={fetchTeams}
             disabled={loading}
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
           </Button>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 px-4 pb-4">
         {/* Create new team */}
         <div className="flex gap-2">
           <Input
@@ -216,12 +217,13 @@ export const AdminTeamsManager = () => {
             value={newTeamName}
             onChange={(e) => setNewTeamName(e.target.value)}
             disabled={creating}
+            className="h-8 text-xs"
           />
-          <Button onClick={handleCreateTeam} disabled={creating || !newTeamName.trim()}>
+          <Button onClick={handleCreateTeam} disabled={creating || !newTeamName.trim()} size="sm" className="h-8 text-xs">
             {creating ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
             ) : (
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-3 w-3 mr-1" />
             )}
             Створити
           </Button>
@@ -229,41 +231,41 @@ export const AdminTeamsManager = () => {
 
         {/* Teams list */}
         {loading ? (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin" />
+          <div className="flex items-center justify-center py-3">
+            <Loader2 className="h-4 w-4 animate-spin" />
           </div>
         ) : teams.length === 0 ? (
-          <p className="text-center text-muted-foreground py-4">
+          <p className="text-center text-muted-foreground py-3 text-xs">
             Немає команд
           </p>
         ) : (
-          <div className="space-y-2 max-h-[300px] overflow-y-auto">
+          <div className="space-y-1.5 max-h-[250px] overflow-y-auto">
             {teams.map((team) => (
               <div
                 key={team.id}
-                className="p-3 rounded-lg border bg-card space-y-2"
+                className="p-2 rounded-md border bg-card space-y-1"
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{team.name}</span>
-                    <Badge variant="secondary">{team.members_count} членів</Badge>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-medium text-xs">{team.name}</span>
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{team.members_count} членів</Badge>
                   </div>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-[10px] text-muted-foreground">
                     {new Date(team.created_at).toLocaleDateString("uk-UA")}
                   </span>
                 </div>
                 
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">Owner код:</span>
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span className="text-muted-foreground">Owner:</span>
                   {team.owner_code ? (
                     <>
-                      <code className="font-mono bg-muted px-2 py-0.5 rounded">
+                      <code className="font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">
                         {team.owner_code}
                       </code>
                       <Button
                         variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
+                        size="sm"
+                        className="h-5 w-5 p-0"
                         onClick={() => handleCopyCode(team.owner_code!, team.id)}
                       >
                         {copiedId === team.id ? (
@@ -275,11 +277,11 @@ export const AdminTeamsManager = () => {
                     </>
                   ) : (
                     <>
-                      <Badge variant="outline">Використано</Badge>
+                      <Badge variant="outline" className="text-[10px] px-1 py-0">Використано</Badge>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 text-xs"
+                        className="h-5 text-[10px] px-1"
                         onClick={() => handleGenerateNewOwnerCode(team.id, team.name)}
                       >
                         Новий код
