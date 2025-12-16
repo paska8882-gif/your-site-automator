@@ -64,33 +64,47 @@ export type Database = {
       }
       invite_codes: {
         Row: {
+          assigned_role: Database["public"]["Enums"]["team_role"] | null
           code: string
           created_at: string
           created_by: string
           id: string
           is_active: boolean
+          team_id: string | null
           used_at: string | null
           used_by: string | null
         }
         Insert: {
+          assigned_role?: Database["public"]["Enums"]["team_role"] | null
           code: string
           created_at?: string
           created_by: string
           id?: string
           is_active?: boolean
+          team_id?: string | null
           used_at?: string | null
           used_by?: string | null
         }
         Update: {
+          assigned_role?: Database["public"]["Enums"]["team_role"] | null
           code?: string
           created_at?: string
           created_by?: string
           id?: string
           is_active?: boolean
+          team_id?: string | null
           used_at?: string | null
           used_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "invite_codes_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -116,6 +130,68 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      team_members: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["team_role"]
+          status: Database["public"]["Enums"]["member_status"]
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["team_role"]
+          status?: Database["public"]["Enums"]["member_status"]
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["team_role"]
+          status?: Database["public"]["Enums"]["member_status"]
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
         }
         Relationships: []
       }
@@ -152,9 +228,19 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_team_member: {
+        Args: { _team_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_team_owner: {
+        Args: { _team_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "user"
+      member_status: "pending" | "approved" | "rejected"
+      team_role: "owner" | "team_lead" | "buyer" | "tech_dev"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -283,6 +369,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      member_status: ["pending", "approved", "rejected"],
+      team_role: ["owner", "team_lead", "buyer", "tech_dev"],
     },
   },
 } as const

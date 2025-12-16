@@ -25,6 +25,7 @@ import {
   LogOut,
   Ticket
 } from "lucide-react";
+import { AdminTeamsManager } from "@/components/AdminTeamsManager";
 import { InviteCodesManager } from "@/components/InviteCodesManager";
 
 interface GenerationItem {
@@ -258,7 +259,10 @@ const Admin = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
-        {/* Invite Codes Manager */}
+        {/* Teams Manager */}
+        <AdminTeamsManager />
+        
+        {/* Legacy Invite Codes */}
         <InviteCodesManager />
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
