@@ -9,6 +9,113 @@ interface EditPreviewProps {
   files: GeneratedFile[];
   selectedFile: GeneratedFile | null;
   onSelectFile: (file: GeneratedFile) => void;
+  websiteType?: string;
+}
+
+// Build a standalone HTML that runs the React app in-browser
+function buildReactPreviewHtml(files: GeneratedFile[]): string {
+  const globalCss = files.find(f => f.path.includes("global.css") || f.path.includes("index.css"));
+  const appJs = files.find(f => f.path.endsWith("App.js") || f.path.endsWith("App.jsx"));
+  const indexHtml = files.find(f => f.path.endsWith("index.html"));
+  
+  const componentFiles = files.filter(f => 
+    (f.path.endsWith(".js") || f.path.endsWith(".jsx")) && 
+    !f.path.includes("index.js") &&
+    !f.path.includes("reportWebVitals")
+  );
+
+  let title = "React Preview";
+  if (indexHtml) {
+    const titleMatch = indexHtml.content.match(/<title>([^<]+)<\/title>/);
+    if (titleMatch) title = titleMatch[1];
+  }
+
+  const processedComponents: string[] = [];
+  
+  for (const file of componentFiles) {
+    let content = file.content;
+    content = content.replace(/^import\s+.*?;?\s*$/gm, '');
+    content = content.replace(/^import\s+[\s\S]*?from\s+['"][^'"]+['"];?\s*$/gm, '');
+    
+    const defaultExportMatch = content.match(/export\s+default\s+(?:function\s+)?(\w+)/);
+    if (defaultExportMatch) {
+      const componentName = defaultExportMatch[1];
+      content = content.replace(/export\s+default\s+(?:function\s+)?(\w+)/, `window.${componentName} = $1`);
+    }
+    
+    content = content.replace(/export\s+(?:const|function|class)\s+(\w+)/g, 'window.$1 = $1; const $1');
+    
+    processedComponents.push(`// ${file.path}\n${content}`);
+  }
+
+  let appContent = appJs?.content || '';
+  appContent = appContent.replace(/^import\s+.*?;?\s*$/gm, '');
+  appContent = appContent.replace(/^import\s+[\s\S]*?from\s+['"][^'"]+['"];?\s*$/gm, '');
+  appContent = appContent.replace(/export\s+default\s+(?:function\s+)?App/, 'window.App = App; function App');
+  
+  const routerMock = `
+    window.BrowserRouter = ({ children }) => children;
+    window.Routes = ({ children }) => {
+      const [path, setPath] = React.useState(window.location.hash.slice(1) || '/');
+      React.useEffect(() => {
+        const handler = () => setPath(window.location.hash.slice(1) || '/');
+        window.addEventListener('hashchange', handler);
+        return () => window.removeEventListener('hashchange', handler);
+      }, []);
+      window.__currentPath = path;
+      return children;
+    };
+    window.Route = ({ path, element }) => {
+      if (window.__currentPath === path || (path === '/' && !window.__currentPath)) {
+        return element;
+      }
+      return null;
+    };
+    window.Link = ({ to, children, className }) => {
+      return React.createElement('a', { 
+        href: '#' + to, 
+        className,
+        onClick: (e) => { window.location.hash = to; }
+      }, children);
+    };
+    window.NavLink = window.Link;
+    window.useNavigate = () => (path) => { window.location.hash = path; };
+    window.useParams = () => ({});
+    window.useLocation = () => ({ pathname: window.__currentPath || '/' });
+  `;
+
+  return `<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    ${globalCss?.content || ''}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } = React;
+    
+    ${routerMock}
+    
+    ${processedComponents.join('\n\n')}
+    
+    // App component
+    ${appContent}
+    
+    // Render
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(window.App || App));
+  </script>
+</body>
+</html>`;
 }
 
 function getFileIcon(path: string) {
@@ -61,7 +168,6 @@ function buildFileTree(files: GeneratedFile[]): TreeNode[] {
     }
   }
 
-  // Sort: folders first, then alphabetically
   const sortNodes = (nodes: TreeNode[]): TreeNode[] => {
     return nodes
       .sort((a, b) => {
@@ -146,7 +252,7 @@ function FileTreeNode({ node, depth, selectedPath, expandedFolders, onToggleFold
   );
 }
 
-export function EditPreview({ files, selectedFile, onSelectFile }: EditPreviewProps) {
+export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: EditPreviewProps) {
   const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => {
@@ -161,6 +267,7 @@ export function EditPreview({ files, selectedFile, onSelectFile }: EditPreviewPr
   });
 
   const fileTree = useMemo(() => buildFileTree(files), [files]);
+  const isReact = websiteType === "react";
 
   const toggleFolder = (path: string) => {
     setExpandedFolders((prev) => {
@@ -179,6 +286,11 @@ export function EditPreview({ files, selectedFile, onSelectFile }: EditPreviewPr
   };
 
   const getPreviewContent = () => {
+    // For React projects, build a standalone HTML preview
+    if (isReact) {
+      return buildReactPreviewHtml(files);
+    }
+    
     if (!selectedFile) return "";
     if (!selectedFile.path.endsWith(".html")) return selectedFile.content;
 
@@ -199,7 +311,7 @@ export function EditPreview({ files, selectedFile, onSelectFile }: EditPreviewPr
     return html;
   };
 
-  const canPreview = selectedFile?.path.endsWith(".html");
+  const canPreview = isReact || selectedFile?.path.endsWith(".html");
 
   // Fullscreen modal
   if (isFullscreen) {
@@ -208,7 +320,7 @@ export function EditPreview({ files, selectedFile, onSelectFile }: EditPreviewPr
         <div className="border-b px-4 py-2 flex items-center justify-between shrink-0 bg-muted/20">
           <div className="flex items-center gap-2 text-sm">
             {selectedFile && getFileIcon(selectedFile.path)}
-            <span className="font-medium">{selectedFile?.path || "No file selected"}</span>
+            <span className="font-medium">{isReact ? "React App" : (selectedFile?.path || "No file selected")}</span>
           </div>
           <Button variant="ghost" size="sm" onClick={() => setIsFullscreen(false)}>
             <Minimize2 className="h-4 w-4 mr-1" />
@@ -219,7 +331,7 @@ export function EditPreview({ files, selectedFile, onSelectFile }: EditPreviewPr
           {/* File sidebar in fullscreen */}
           <div className="w-56 border-r bg-muted/30 flex flex-col shrink-0">
             <div className="p-3 border-b">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Сторінки</span>
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Файли</span>
             </div>
             <ScrollArea className="flex-1">
               <div className="py-2">
@@ -243,7 +355,7 @@ export function EditPreview({ files, selectedFile, onSelectFile }: EditPreviewPr
               srcDoc={getPreviewContent()}
               className="w-full h-full border-0 bg-white"
               title={`Fullscreen preview of ${selectedFile?.path}`}
-              sandbox="allow-scripts"
+              sandbox="allow-scripts allow-same-origin"
             />
           </div>
         </div>
@@ -280,7 +392,7 @@ export function EditPreview({ files, selectedFile, onSelectFile }: EditPreviewPr
         <div className="border-b px-4 py-2 flex items-center justify-between shrink-0 bg-muted/20">
           <div className="flex items-center gap-2 text-sm">
             {selectedFile && getFileIcon(selectedFile.path)}
-            <span className="font-medium">{selectedFile?.path || "No file selected"}</span>
+            <span className="font-medium">{isReact && viewMode === "preview" ? "React App" : (selectedFile?.path || "No file selected")}</span>
           </div>
           <div className="flex gap-1">
             {canPreview && viewMode === "preview" && (
@@ -314,7 +426,7 @@ export function EditPreview({ files, selectedFile, onSelectFile }: EditPreviewPr
               srcDoc={getPreviewContent()}
               className="w-full h-full border-0 bg-white"
               title={`Preview of ${selectedFile?.path}`}
-              sandbox="allow-scripts"
+              sandbox="allow-scripts allow-same-origin"
             />
           ) : (
             <ScrollArea className="h-full">
