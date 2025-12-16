@@ -21,16 +21,16 @@ export type WebsiteType = "html" | "react";
 
 // Layout styles available for selection
 export const LAYOUT_STYLES = [
-  { id: "classic", name: "Classic Corporate" },
-  { id: "asymmetric", name: "Modern Asymmetric" },
-  { id: "editorial", name: "Editorial Magazine" },
-  { id: "bold", name: "Bold Blocks" },
-  { id: "minimalist", name: "Minimalist Zen" },
-  { id: "showcase", name: "Dynamic Showcase" },
-  { id: "gradient", name: "Gradient Flow" },
-  { id: "brutalist", name: "Brutalist Raw" },
-  { id: "saas", name: "SaaS Product" },
-  { id: "portfolio", name: "Creative Portfolio" },
+  { id: "classic", name: "Класичний корпоративний" },
+  { id: "asymmetric", name: "Модерн асиметричний" },
+  { id: "editorial", name: "Журнальний" },
+  { id: "bold", name: "Сміливі блоки" },
+  { id: "minimalist", name: "Мінімалізм" },
+  { id: "showcase", name: "Динамічна вітрина" },
+  { id: "gradient", name: "Градієнтний" },
+  { id: "brutalist", name: "Бруталізм" },
+  { id: "saas", name: "SaaS продукт" },
+  { id: "portfolio", name: "Креативне портфоліо" },
 ];
 
 export async function startGeneration(
