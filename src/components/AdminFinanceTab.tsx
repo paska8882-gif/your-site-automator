@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -18,12 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { Loader2, Save, DollarSign, TrendingUp, TrendingDown, ChevronDown, Settings, Wallet, Plus } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, Save, DollarSign, TrendingUp, TrendingDown, Settings, Wallet, Plus, Eye } from "lucide-react";
 import { toast } from "sonner";
 
 interface Team {
@@ -55,6 +52,18 @@ interface GenerationWithFinance {
   team_name?: string;
 }
 
+interface TeamTransaction {
+  id: string;
+  site_name: string | null;
+  sale_price: number | null;
+  generation_cost: number | null;
+  created_at: string;
+  status: string;
+  website_type: string | null;
+  ai_model: string | null;
+  user_display_name?: string;
+}
+
 export function AdminFinanceTab() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamPricing, setTeamPricing] = useState<Record<string, TeamPricing>>({});
@@ -63,10 +72,11 @@ export function AdminFinanceTab() {
   const [savingPricing, setSavingPricing] = useState<string | null>(null);
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>("all");
   const [editingPrices, setEditingPrices] = useState<Record<string, Partial<TeamPricing>>>({});
-  const [isPricingOpen, setIsPricingOpen] = useState(false);
-  const [isBalanceOpen, setIsBalanceOpen] = useState(false);
   const [topUpAmounts, setTopUpAmounts] = useState<Record<string, string>>({});
   const [savingBalance, setSavingBalance] = useState<string | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [teamTransactions, setTeamTransactions] = useState<TeamTransaction[]>([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -75,35 +85,27 @@ export function AdminFinanceTab() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch teams
       const { data: teamsData } = await supabase
         .from("teams")
         .select("id, name, balance")
         .order("name");
 
-      // Fetch team pricing
       const { data: pricingData } = await supabase
         .from("team_pricing")
         .select("*");
 
-      // Fetch generations with profiles
       const { data: generationsData } = await supabase
         .from("generation_history")
-        .select(`
-          id, site_name, website_type, ai_model, status, created_at, 
-          sale_price, generation_cost, user_id
-        `)
+        .select(`id, site_name, website_type, ai_model, status, created_at, sale_price, generation_cost, user_id`)
         .eq("status", "completed")
         .order("created_at", { ascending: false });
 
-      // Fetch profiles for user names
       const userIds = [...new Set(generationsData?.map(g => g.user_id).filter(Boolean) || [])];
       const { data: profilesData } = await supabase
         .from("profiles")
         .select("user_id, display_name")
         .in("user_id", userIds);
 
-      // Fetch team memberships
       const { data: membershipsData } = await supabase
         .from("team_members")
         .select("user_id, team_id")
@@ -112,27 +114,19 @@ export function AdminFinanceTab() {
 
       setTeams(teamsData || []);
 
-      // Map pricing by team_id
       const pricingMap: Record<string, TeamPricing> = {};
-      pricingData?.forEach(p => {
-        pricingMap[p.team_id] = p;
-      });
+      pricingData?.forEach(p => { pricingMap[p.team_id] = p; });
       setTeamPricing(pricingMap);
 
-      // Map profiles by user_id
       const profilesMap: Record<string, { display_name: string | null }> = {};
-      profilesData?.forEach(p => {
-        profilesMap[p.user_id] = { display_name: p.display_name };
-      });
+      profilesData?.forEach(p => { profilesMap[p.user_id] = { display_name: p.display_name }; });
 
-      // Map user to team
       const userTeamMap: Record<string, string> = {};
       membershipsData?.forEach(m => {
         const team = teamsData?.find(t => t.id === m.team_id);
         if (team) userTeamMap[m.user_id] = team.name;
       });
 
-      // Enrich generations
       const enrichedGenerations = generationsData?.map(g => ({
         ...g,
         profile: g.user_id ? profilesMap[g.user_id] : undefined,
@@ -148,13 +142,55 @@ export function AdminFinanceTab() {
     }
   };
 
+  const fetchTeamTransactions = async (teamId: string) => {
+    setLoadingTransactions(true);
+    
+    const { data: members } = await supabase
+      .from("team_members")
+      .select("user_id")
+      .eq("team_id", teamId)
+      .eq("status", "approved");
+
+    if (!members || members.length === 0) {
+      setTeamTransactions([]);
+      setLoadingTransactions(false);
+      return;
+    }
+
+    const userIds = members.map(m => m.user_id);
+
+    const { data: gens } = await supabase
+      .from("generation_history")
+      .select("*")
+      .in("user_id", userIds)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("user_id, display_name")
+      .in("user_id", userIds);
+
+    const profileMap = new Map(profiles?.map(p => [p.user_id, p.display_name]) || []);
+
+    const transactions = (gens || []).map(g => ({
+      ...g,
+      user_display_name: profileMap.get(g.user_id || "") || "Unknown"
+    }));
+
+    setTeamTransactions(transactions);
+    setLoadingTransactions(false);
+  };
+
+  const handleViewTeam = (team: Team) => {
+    setSelectedTeam(team);
+    fetchTeamTransactions(team.id);
+  };
+
   const handlePricingChange = (teamId: string, field: keyof TeamPricing, value: string) => {
     setEditingPrices(prev => ({
       ...prev,
-      [teamId]: {
-        ...prev[teamId],
-        [field]: parseFloat(value) || 0,
-      },
+      [teamId]: { ...prev[teamId], [field]: parseFloat(value) || 0 },
     }));
   };
 
@@ -173,23 +209,14 @@ export function AdminFinanceTab() {
       };
 
       if (existingPricing) {
-        await supabase
-          .from("team_pricing")
-          .update(pricingData)
-          .eq("team_id", teamId);
+        await supabase.from("team_pricing").update(pricingData).eq("team_id", teamId);
       } else {
-        await supabase
-          .from("team_pricing")
-          .insert(pricingData);
+        await supabase.from("team_pricing").insert(pricingData);
       }
 
       toast.success("Ціни збережено");
       fetchData();
-      setEditingPrices(prev => {
-        const newPrices = { ...prev };
-        delete newPrices[teamId];
-        return newPrices;
-      });
+      setEditingPrices(prev => { const newPrices = { ...prev }; delete newPrices[teamId]; return newPrices; });
     } catch (error) {
       console.error("Error saving pricing:", error);
       toast.error("Помилка збереження цін");
@@ -210,10 +237,7 @@ export function AdminFinanceTab() {
       const team = teams.find(t => t.id === teamId);
       const newBalance = (team?.balance || 0) + amount;
 
-      await supabase
-        .from("teams")
-        .update({ balance: newBalance })
-        .eq("id", teamId);
+      await supabase.from("teams").update({ balance: newBalance }).eq("id", teamId);
 
       toast.success(`Баланс поповнено на $${amount.toFixed(2)}`);
       setTopUpAmounts(prev => ({ ...prev, [teamId]: "" }));
@@ -230,12 +254,7 @@ export function AdminFinanceTab() {
     if (editingPrices[teamId]?.[field] !== undefined) {
       return editingPrices[teamId][field] as number;
     }
-    const defaults: Record<string, number> = {
-      html_price: 7,
-      react_price: 9,
-      generation_cost_junior: 0.10,
-      generation_cost_senior: 0.25,
-    };
+    const defaults: Record<string, number> = { html_price: 7, react_price: 9, generation_cost_junior: 0.10, generation_cost_senior: 0.25 };
     return (teamPricing[teamId]?.[field] as number) ?? defaults[field] ?? 0;
   };
 
@@ -243,10 +262,12 @@ export function AdminFinanceTab() {
     ? generations
     : generations.filter(g => g.team_name === selectedTeamFilter);
 
-  // Calculate totals
   const totalSales = filteredGenerations.reduce((sum, g) => sum + (g.sale_price || 0), 0);
   const totalCosts = filteredGenerations.reduce((sum, g) => sum + (g.generation_cost || 0), 0);
   const totalProfit = totalSales - totalCosts;
+
+  const teamTotalSales = teamTransactions.reduce((sum, t) => sum + (t.sale_price || 0), 0);
+  const teamTotalCosts = teamTransactions.reduce((sum, t) => sum + (t.generation_cost || 0), 0);
 
   if (loading) {
     return (
@@ -281,69 +302,71 @@ export function AdminFinanceTab() {
 
       {/* Two column layout for pricing and balances */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-
-      {/* Team Pricing */}
-      <Card>
-        <CardHeader className="py-2 px-3">
-          <div className="flex items-center gap-1.5">
-            <Settings className="h-3 w-3 text-muted-foreground" />
-            <CardTitle className="text-xs font-medium">Ціни команд</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="px-3 pb-3">
-          <div className="space-y-1">
-            {teams.map((team) => (
-              <div key={team.id} className="flex items-center gap-1.5 p-1.5 rounded border bg-card">
-                <span className="font-medium text-[10px] min-w-16 truncate">{team.name}</span>
-                <span className="text-[10px] text-muted-foreground">H:</span>
-                <Input type="number" step="0.01" className="w-10 h-5 text-[10px] px-1"
-                  value={getPricingValue(team.id, "html_price")}
-                  onChange={(e) => handlePricingChange(team.id, "html_price", e.target.value)} />
-                <span className="text-[10px] text-muted-foreground">R:</span>
-                <Input type="number" step="0.01" className="w-10 h-5 text-[10px] px-1"
-                  value={getPricingValue(team.id, "react_price")}
-                  onChange={(e) => handlePricingChange(team.id, "react_price", e.target.value)} />
-                <Button size="sm" variant="ghost" className="h-5 w-5 p-0 ml-auto"
-                  onClick={() => savePricing(team.id)} disabled={savingPricing === team.id}>
-                  {savingPricing === team.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Save className="h-2.5 w-2.5" />}
-                </Button>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Team Balances */}
-      <Card>
-        <CardHeader className="py-2 px-3">
-          <div className="flex items-center gap-1.5">
-            <Wallet className="h-3 w-3 text-muted-foreground" />
-            <CardTitle className="text-xs font-medium">Баланси</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="px-3 pb-3">
-          <div className="space-y-1">
-            {teams.map((team) => (
-              <div key={team.id} className="flex items-center gap-1.5 p-1.5 rounded border bg-card">
-                <span className="font-medium text-[10px] min-w-16 truncate">{team.name}</span>
-                <span className={`font-bold text-[10px] ${team.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ${team.balance.toFixed(2)}
-                </span>
-                <div className="flex items-center gap-0.5 ml-auto">
-                  <Input type="number" step="0.01" min="0" placeholder="$" className="w-12 h-5 text-[10px] px-1"
-                    value={topUpAmounts[team.id] || ""}
-                    onChange={(e) => setTopUpAmounts(prev => ({ ...prev, [team.id]: e.target.value }))} />
-                  <Button size="sm" variant="default" className="h-5 w-5 p-0"
-                    onClick={() => topUpBalance(team.id)} disabled={savingBalance === team.id || !topUpAmounts[team.id]}>
-                    {savingBalance === team.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Plus className="h-2.5 w-2.5" />}
+        {/* Team Pricing */}
+        <Card>
+          <CardHeader className="py-2 px-3">
+            <div className="flex items-center gap-1.5">
+              <Settings className="h-3 w-3 text-muted-foreground" />
+              <CardTitle className="text-xs font-medium">Ціни команд</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="px-3 pb-3">
+            <div className="space-y-1">
+              {teams.map((team) => (
+                <div key={team.id} className="flex items-center gap-1.5 p-1.5 rounded border bg-card">
+                  <span className="font-medium text-[10px] min-w-16 truncate">{team.name}</span>
+                  <span className="text-[10px] text-muted-foreground">H:</span>
+                  <Input type="number" step="0.01" className="w-10 h-5 text-[10px] px-1"
+                    value={getPricingValue(team.id, "html_price")}
+                    onChange={(e) => handlePricingChange(team.id, "html_price", e.target.value)} />
+                  <span className="text-[10px] text-muted-foreground">R:</span>
+                  <Input type="number" step="0.01" className="w-10 h-5 text-[10px] px-1"
+                    value={getPricingValue(team.id, "react_price")}
+                    onChange={(e) => handlePricingChange(team.id, "react_price", e.target.value)} />
+                  <Button size="sm" variant="ghost" className="h-5 w-5 p-0 ml-auto"
+                    onClick={() => savePricing(team.id)} disabled={savingPricing === team.id}>
+                    {savingPricing === team.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Save className="h-2.5 w-2.5" />}
                   </Button>
                 </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Team Balances */}
+        <Card>
+          <CardHeader className="py-2 px-3">
+            <div className="flex items-center gap-1.5">
+              <Wallet className="h-3 w-3 text-muted-foreground" />
+              <CardTitle className="text-xs font-medium">Баланси</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="px-3 pb-3">
+            <div className="space-y-1">
+              {teams.map((team) => (
+                <div key={team.id} className="flex items-center gap-1.5 p-1.5 rounded border bg-card">
+                  <span className="font-medium text-[10px] min-w-16 truncate">{team.name}</span>
+                  <span className={`font-bold text-[10px] ${team.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    ${team.balance.toFixed(2)}
+                  </span>
+                  <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => handleViewTeam(team)}>
+                    <Eye className="h-2.5 w-2.5" />
+                  </Button>
+                  <div className="flex items-center gap-0.5 ml-auto">
+                    <Input type="number" step="0.01" min="0" placeholder="$" className="w-12 h-5 text-[10px] px-1"
+                      value={topUpAmounts[team.id] || ""}
+                      onChange={(e) => setTopUpAmounts(prev => ({ ...prev, [team.id]: e.target.value }))} />
+                    <Button size="sm" variant="default" className="h-5 w-5 p-0"
+                      onClick={() => topUpBalance(team.id)} disabled={savingBalance === team.id || !topUpAmounts[team.id]}>
+                      {savingBalance === team.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Plus className="h-2.5 w-2.5" />}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Generations Finance Table */}
       <Card>
@@ -397,6 +420,76 @@ export function AdminFinanceTab() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Team Detail Dialog */}
+      <Dialog open={!!selectedTeam} onOpenChange={(open) => !open && setSelectedTeam(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              {selectedTeam?.name}
+              <Badge variant="outline" className="text-xs">
+                <Wallet className="h-3 w-3 mr-1" />
+                ${selectedTeam?.balance?.toFixed(2) || "0.00"}
+              </Badge>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto">
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <div className="p-2 rounded border bg-muted/50 text-center">
+                <div className="text-[10px] text-muted-foreground">Генерацій</div>
+                <div className="text-sm font-medium">{teamTransactions.length}</div>
+              </div>
+              <div className="p-2 rounded border bg-muted/50 text-center">
+                <div className="text-[10px] text-muted-foreground">Сума продажів</div>
+                <div className="text-sm font-medium text-green-600">${teamTotalSales.toFixed(2)}</div>
+              </div>
+              <div className="p-2 rounded border bg-muted/50 text-center">
+                <div className="text-[10px] text-muted-foreground">Витрати AI</div>
+                <div className="text-sm font-medium text-red-600">${teamTotalCosts.toFixed(2)}</div>
+              </div>
+            </div>
+
+            <div className="text-xs font-medium mb-2">Історія транзакцій</div>
+            
+            {loadingTransactions ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            ) : teamTransactions.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4 text-xs">Немає транзакцій</p>
+            ) : (
+              <div className="space-y-1 max-h-[300px] overflow-y-auto">
+                {teamTransactions.map((t) => (
+                  <div key={t.id} className="p-2 rounded border bg-card text-xs flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium truncate">{t.site_name || "Без назви"}</span>
+                        <Badge variant={t.status === "completed" ? "default" : t.status === "failed" ? "destructive" : "secondary"} className="text-[9px] px-1 py-0">
+                          {t.status}
+                        </Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground flex items-center gap-2">
+                        <span>{t.user_display_name}</span>
+                        <span>•</span>
+                        <span>{t.website_type}</span>
+                        <span>•</span>
+                        <span>{t.ai_model}</span>
+                      </div>
+                    </div>
+                    <div className="text-right ml-2">
+                      <div className="font-medium text-green-600">+${t.sale_price?.toFixed(2) || "0.00"}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {new Date(t.created_at).toLocaleDateString("uk-UA")}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
