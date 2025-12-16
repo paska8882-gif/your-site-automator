@@ -127,7 +127,8 @@ async function startCodexGeneration(
     // 2. Обновляем статус на generating
     await supabase.from("generation_history").update({ status: "generating" }).eq("id", historyId);
 
-    // 3. Вызываем Edge Function прокси
+    // 3. Вызываем Edge Function прокси (fire-and-forget)
+    // n8n сам запишет результат в БД когда закончит
     const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/codex-proxy`, {
       method: "POST",
       headers: {
@@ -142,26 +143,20 @@ async function startCodexGeneration(
         layoutStyle,
         siteName,
         userId: session.user.id,
+        historyId, // передаём ID записи чтобы n8n мог обновить её
       }),
     });
 
     if (!resp.ok) {
-      // codex-proxy returns JSON on errors (and sometimes plain text)
       const errText = await resp.text().catch(() => "");
-
       let finalMsg = "";
       try {
         const maybeJson = JSON.parse(errText);
-        const base = typeof maybeJson?.error === "string" ? maybeJson.error : "";
-        const hint = typeof maybeJson?.details?.hint === "string" ? maybeJson.details.hint : "";
-        finalMsg = [base, hint].filter(Boolean).join(" — ");
+        finalMsg = typeof maybeJson?.error === "string" ? maybeJson.error : errText;
       } catch {
         finalMsg = errText;
       }
-
-      finalMsg = (finalMsg || "").trim();
-      if (!finalMsg) finalMsg = `HTTP ${resp.status}`;
-      finalMsg = finalMsg.slice(0, 500);
+      finalMsg = (finalMsg || `HTTP ${resp.status}`).trim().slice(0, 500);
 
       await supabase
         .from("generation_history")
@@ -171,49 +166,11 @@ async function startCodexGeneration(
       return { success: false, error: finalMsg, historyId };
     }
 
-    const base64Zip = await resp.text();
-
-    if (!base64Zip || base64Zip.trim().length === 0) {
-      await supabase
-        .from("generation_history")
-        .update({ status: "failed", error_message: "Codex webhook returned an empty ZIP response" })
-        .eq("id", historyId);
-      return { success: false, error: "Codex webhook returned an empty ZIP response", historyId };
-    }
-
-    const binaryString = atob(base64Zip.trim());
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-
-    // Распаковываем ZIP и извлекаем файлы
-    const zip = await JSZip.loadAsync(bytes);
-    const files: GeneratedFile[] = [];
-
-    for (const [path, zipEntry] of Object.entries(zip.files)) {
-      if (!zipEntry.dir) {
-        const content = await zipEntry.async("string");
-        files.push({ path, content });
-      }
-    }
-
-    // 4. Обновляем запись с файлами и статусом completed
-    await supabase
-      .from("generation_history")
-      .update({
-        status: "completed",
-        files_data: JSON.parse(JSON.stringify(files)) as Json,
-        zip_data: base64Zip.trim(),
-      })
-      .eq("id", historyId);
-
+    // Успех — генерація запущена у фоні
+    // n8n сам оновить запис в БД коли закінчить
     return {
       success: true,
       historyId,
-      files,
-      totalFiles: files.length,
-      fileList: files.map((f) => f.path),
     };
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
