@@ -137,8 +137,7 @@ export function WebsiteGenerator() {
   const toggleLanguage = (langValue: string) => {
     setSelectedLanguages((prev) => {
       if (prev.includes(langValue)) {
-        // Allow deselecting if custom language is set or there are multiple selections
-        if (prev.length === 1 && !(isOtherSelected && customLanguage.trim())) return prev;
+        // Always allow deselecting
         return prev.filter((l) => l !== langValue);
       }
       return [...prev, langValue];
@@ -146,10 +145,12 @@ export function WebsiteGenerator() {
   };
 
   const toggleOther = () => {
-    setIsOtherSelected((prev) => !prev);
-    if (isOtherSelected) {
-      setCustomLanguage("");
-    }
+    setIsOtherSelected((prev) => {
+      if (prev) {
+        setCustomLanguage("");
+      }
+      return !prev;
+    });
   };
 
   // Calculate all languages including custom
@@ -398,32 +399,33 @@ export function WebsiteGenerator() {
                   <PopoverContent className="w-56 p-2" align="start">
                     <div className="space-y-1">
                       {languages.map((lang) => (
-                        <div 
+                        <label 
                           key={lang.value} 
                           className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer"
-                          onClick={() => toggleLanguage(lang.value)}
                         >
                           <Checkbox
                             checked={selectedLanguages.includes(lang.value)}
                             onCheckedChange={() => toggleLanguage(lang.value)}
                           />
                           <span className="text-sm">{lang.label}</span>
-                        </div>
+                        </label>
                       ))}
-                      <div 
+                      <label 
                         className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer border-t mt-1 pt-2"
-                        onClick={toggleOther}
                       >
-                        <Checkbox checked={isOtherSelected} onCheckedChange={toggleOther} />
+                        <Checkbox 
+                          checked={isOtherSelected} 
+                          onCheckedChange={() => toggleOther()} 
+                        />
                         <span className="text-sm">Інша...</span>
-                      </div>
+                      </label>
                       {isOtherSelected && (
                         <Input
                           placeholder="Назва мови"
                           value={customLanguage}
                           onChange={(e) => setCustomLanguage(e.target.value)}
                           className="mt-2"
-                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
                         />
                       )}
                     </div>
