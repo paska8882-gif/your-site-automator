@@ -4,14 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Users, 
-  Shield, 
-  ShieldOff,
   UserPlus,
   Loader2,
   Search,
@@ -119,49 +117,6 @@ export const AdminUsersManager = () => {
     setUsers(usersWithRoles);
     setTeams(teamsData || []);
     setLoading(false);
-  };
-
-  const handleToggleAdmin = async (user: UserWithRoles) => {
-    try {
-      if (user.isAdmin) {
-        // Remove admin role
-        const { error } = await supabase
-          .from("user_roles")
-          .delete()
-          .eq("user_id", user.user_id)
-          .eq("role", "admin");
-
-        if (error) throw error;
-
-        toast({
-          title: "Успішно",
-          description: `Права адміністратора знято з ${user.display_name || user.user_id.slice(0, 8)}`
-        });
-      } else {
-        // Add admin role
-        const { error } = await supabase
-          .from("user_roles")
-          .insert({
-            user_id: user.user_id,
-            role: "admin"
-          });
-
-        if (error) throw error;
-
-        toast({
-          title: "Успішно",
-          description: `${user.display_name || user.user_id.slice(0, 8)} тепер адміністратор`
-        });
-      }
-      
-      fetchData();
-    } catch (error) {
-      toast({
-        title: "Помилка",
-        description: "Не вдалося змінити права",
-        variant: "destructive"
-      });
-    }
   };
 
   const handleAssignToTeam = async () => {
@@ -288,8 +243,8 @@ export const AdminUsersManager = () => {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <Shield className="h-5 w-5 mx-auto mb-1 text-primary" />
-            <div className="text-2xl font-bold text-primary">{stats.admins}</div>
+            <Crown className="h-5 w-5 mx-auto mb-1 text-yellow-500" />
+            <div className="text-2xl font-bold text-yellow-500">{stats.admins}</div>
             <div className="text-xs text-muted-foreground">Адміністраторів</div>
           </CardContent>
         </Card>
@@ -333,7 +288,7 @@ export const AdminUsersManager = () => {
                 <TableRow>
                   <TableHead>Користувач</TableHead>
                   <TableHead>Команди</TableHead>
-                  <TableHead>Адмін</TableHead>
+                  <TableHead>Статус</TableHead>
                   <TableHead>Реєстрація</TableHead>
                   <TableHead className="text-right">Дії</TableHead>
                 </TableRow>
@@ -378,7 +333,7 @@ export const AdminUsersManager = () => {
                     </TableCell>
                     <TableCell>
                       {user.isAdmin ? (
-                        <Badge className="bg-primary">Адмін</Badge>
+                        <Badge className="bg-yellow-500 text-black">Адмін</Badge>
                       ) : (
                         <Badge variant="outline">Користувач</Badge>
                       )}
@@ -387,33 +342,14 @@ export const AdminUsersManager = () => {
                       {new Date(user.created_at).toLocaleDateString("uk-UA")}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openAssignDialog(user)}
-                        >
-                          <UserPlus className="h-4 w-4 mr-1" />
-                          До команди
-                        </Button>
-                        <Button
-                          variant={user.isAdmin ? "destructive" : "default"}
-                          size="sm"
-                          onClick={() => handleToggleAdmin(user)}
-                        >
-                          {user.isAdmin ? (
-                            <>
-                              <ShieldOff className="h-4 w-4 mr-1" />
-                              Зняти
-                            </>
-                          ) : (
-                            <>
-                              <Shield className="h-4 w-4 mr-1" />
-                              Адмін
-                            </>
-                          )}
-                        </Button>
-                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openAssignDialog(user)}
+                      >
+                        <UserPlus className="h-4 w-4 mr-1" />
+                        До команди
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
