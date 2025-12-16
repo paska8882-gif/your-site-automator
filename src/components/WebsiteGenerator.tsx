@@ -24,6 +24,7 @@ import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, 
 import { startGeneration, AiModel, WebsiteType, LAYOUT_STYLES } from "@/lib/websiteGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { GenerationHistory } from "./GenerationHistory";
+import { UserTeamInfo } from "./UserTeamInfo";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
@@ -355,6 +356,9 @@ export function WebsiteGenerator() {
             </Button>
           </div>
         </div>
+
+        {/* Team Info */}
+        <UserTeamInfo />
 
         {/* Input Section */}
         <Card className="mb-6">

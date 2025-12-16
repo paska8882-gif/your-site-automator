@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -35,6 +37,13 @@ interface HistoryItem {
   ai_model: string | null;
   website_type: string | null;
   site_name: string | null;
+  sale_price: number | null;
+}
+
+interface Appeal {
+  id: string;
+  generation_id: string;
+  status: string;
 }
 
 interface GenerationHistoryProps {
@@ -45,12 +54,19 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [appeals, setAppeals] = useState<Appeal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedPromptId, setExpandedPromptId] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<GeneratedFile | null>(null);
   const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Appeal dialog
+  const [appealDialogOpen, setAppealDialogOpen] = useState(false);
+  const [appealItem, setAppealItem] = useState<HistoryItem | null>(null);
+  const [appealReason, setAppealReason] = useState("");
+  const [submittingAppeal, setSubmittingAppeal] = useState(false);
 
   const fetchHistory = async () => {
     setIsLoading(true);
@@ -84,6 +100,14 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
       }));
       setHistory(typedData);
     }
+
+    // Fetch user's appeals
+    const { data: appealsData } = await supabase
+      .from("appeals")
+      .select("id, generation_id, status")
+      .eq("user_id", user.id);
+    
+    setAppeals(appealsData || []);
     setIsLoading(false);
   };
 
@@ -253,6 +277,71 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
     return files.find((f) => f.path === "styles.css");
   };
 
+  const getAppealForItem = (itemId: string) => {
+    return appeals.find(a => a.generation_id === itemId);
+  };
+
+  const openAppealDialog = (item: HistoryItem) => {
+    setAppealItem(item);
+    setAppealReason("");
+    setAppealDialogOpen(true);
+  };
+
+  const submitAppeal = async () => {
+    if (!appealItem || !appealReason.trim()) return;
+    
+    setSubmittingAppeal(true);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Get user's team
+      const { data: membership } = await supabase
+        .from("team_members")
+        .select("team_id")
+        .eq("user_id", user.id)
+        .eq("status", "approved")
+        .limit(1)
+        .maybeSingle();
+
+      if (!membership) {
+        throw new Error("Ви не належите до жодної команди");
+      }
+
+      const { error } = await supabase
+        .from("appeals")
+        .insert({
+          generation_id: appealItem.id,
+          user_id: user.id,
+          team_id: membership.team_id,
+          reason: appealReason.trim(),
+          amount_to_refund: appealItem.sale_price || 0
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Апеляцію надіслано",
+        description: "Адміністратор розгляне вашу апеляцію найближчим часом"
+      });
+
+      setAppealDialogOpen(false);
+      setAppealItem(null);
+      setAppealReason("");
+      fetchHistory();
+    } catch (error) {
+      console.error("Error submitting appeal:", error);
+      toast({
+        title: "Помилка",
+        description: error instanceof Error ? error.message : "Не вдалося надіслати апеляцію",
+        variant: "destructive"
+      });
+    }
+    
+    setSubmittingAppeal(false);
+  };
+
   const filteredHistory = history.filter((item) => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
@@ -361,6 +450,34 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
                           >
                             <Download className="h-4 w-4" />
                           </Button>
+                          {/* Appeal button */}
+                          {item.sale_price && item.sale_price > 0 && (() => {
+                            const appeal = getAppealForItem(item.id);
+                            if (appeal) {
+                              return (
+                                <Badge 
+                                  variant={appeal.status === "approved" ? "default" : appeal.status === "rejected" ? "destructive" : "outline"}
+                                  className="text-xs"
+                                >
+                                  {appeal.status === "pending" ? "На розгляді" : appeal.status === "approved" ? "Схвалено" : "Відхилено"}
+                                </Badge>
+                              );
+                            }
+                            return (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openAppealDialog(item);
+                                }}
+                                title="Апеляція"
+                                className="text-yellow-600 hover:text-yellow-700"
+                              >
+                                <AlertTriangle className="h-4 w-4" />
+                              </Button>
+                            );
+                          })()}
                           <ChevronDown
                             className={`h-4 w-4 transition-transform ${
                               expandedId === item.id ? "rotate-180" : ""
@@ -480,6 +597,49 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
           ))}
         </div>
       </CardContent>
+
+      {/* Appeal Dialog */}
+      <Dialog open={appealDialogOpen} onOpenChange={setAppealDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Апеляція на генерацію</DialogTitle>
+          </DialogHeader>
+          {appealItem && (
+            <div className="space-y-4">
+              <div className="text-sm">
+                <p><span className="text-muted-foreground">Сайт:</span> {appealItem.site_name}</p>
+                <p><span className="text-muted-foreground">Сума:</span> ${appealItem.sale_price?.toFixed(2) || "0.00"}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Причина апеляції</label>
+                <Textarea
+                  value={appealReason}
+                  onChange={(e) => setAppealReason(e.target.value)}
+                  placeholder="Опишіть, чому ви вважаєте, що генерація не відповідає вашим вимогам..."
+                  className="mt-1"
+                  rows={4}
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setAppealDialogOpen(false)}>
+                  Скасувати
+                </Button>
+                <Button 
+                  onClick={submitAppeal} 
+                  disabled={!appealReason.trim() || submittingAppeal}
+                >
+                  {submittingAppeal ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                  )}
+                  Надіслати апеляцію
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
