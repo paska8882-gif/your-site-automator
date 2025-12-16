@@ -6,8 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, Languages, Hash, Wand2, Palette } from "lucide-react";
+import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, Languages, Hash, Wand2, Palette, ChevronDown } from "lucide-react";
 import { startGeneration, AiModel, WebsiteType, LAYOUT_STYLES } from "@/lib/websiteGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { GenerationHistory } from "./GenerationHistory";
@@ -261,112 +262,123 @@ export function WebsiteGenerator() {
               </Button>
             </div>
 
-            {/* Languages Multi-Select */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Languages className="h-4 w-4" />
-                Мови сайту (оберіть одну або кілька)
-              </Label>
-              <div className="flex flex-wrap gap-3">
-                {languages.map((lang) => (
-                  <div key={lang.value} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`lang-${lang.value}`}
-                      checked={selectedLanguages.includes(lang.value)}
-                      onCheckedChange={() => toggleLanguage(lang.value)}
-                      disabled={isSubmitting}
-                    />
-                    <label
-                      htmlFor={`lang-${lang.value}`}
-                      className="text-sm cursor-pointer select-none"
-                    >
-                      {lang.label}
-                    </label>
-                  </div>
-                ))}
-                {/* Other language option */}
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="lang-other"
-                    checked={isOtherSelected}
-                    onCheckedChange={toggleOther}
+            {/* Compact row: Language, Style, Quantity */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Language Multi-Select Dropdown */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Мова</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between" disabled={isSubmitting}>
+                      <span className="truncate">
+                        {allLanguages.length === 0 
+                          ? "Оберіть мови" 
+                          : allLanguages.length === 1 
+                            ? languages.find(l => l.value === allLanguages[0])?.label || allLanguages[0]
+                            : `${allLanguages.length} мов`}
+                      </span>
+                      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-2" align="start">
+                    <div className="space-y-1">
+                      {languages.map((lang) => (
+                        <div 
+                          key={lang.value} 
+                          className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer"
+                          onClick={() => toggleLanguage(lang.value)}
+                        >
+                          <Checkbox
+                            checked={selectedLanguages.includes(lang.value)}
+                            onCheckedChange={() => toggleLanguage(lang.value)}
+                          />
+                          <span className="text-sm">{lang.label}</span>
+                        </div>
+                      ))}
+                      <div 
+                        className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer border-t mt-1 pt-2"
+                        onClick={toggleOther}
+                      >
+                        <Checkbox checked={isOtherSelected} onCheckedChange={toggleOther} />
+                        <span className="text-sm">Інша...</span>
+                      </div>
+                      {isOtherSelected && (
+                        <Input
+                          placeholder="Назва мови"
+                          value={customLanguage}
+                          onChange={(e) => setCustomLanguage(e.target.value)}
+                          className="mt-2"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Style Multi-Select Dropdown */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Стиль</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between" disabled={isSubmitting}>
+                      <span className="truncate">
+                        {selectedStyles.length === 0 
+                          ? "Рандом" 
+                          : selectedStyles.length === 1 
+                            ? LAYOUT_STYLES.find(s => s.id === selectedStyles[0])?.name
+                            : `${selectedStyles.length} стилів`}
+                      </span>
+                      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-2" align="start">
+                    <div className="space-y-1 max-h-64 overflow-y-auto">
+                      {LAYOUT_STYLES.map((style) => (
+                        <div 
+                          key={style.id} 
+                          className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer"
+                          onClick={() => toggleStyle(style.id)}
+                        >
+                          <Checkbox
+                            checked={selectedStyles.includes(style.id)}
+                            onCheckedChange={() => toggleStyle(style.id)}
+                          />
+                          <span className="text-sm">{style.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {selectedStyles.length > 0 && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="w-full mt-2 text-xs"
+                        onClick={() => setSelectedStyles([])}
+                      >
+                        Скинути (рандом)
+                      </Button>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Quantity */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Кількість</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={sitesPerLanguage}
+                    onChange={(e) => setSitesPerLanguage(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                    className="w-20"
                     disabled={isSubmitting}
                   />
-                  <label
-                    htmlFor="lang-other"
-                    className="text-sm cursor-pointer select-none"
-                  >
-                    Інша
-                  </label>
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">
+                    = <strong className="text-primary">{totalGenerations}</strong> сайтів
+                  </span>
                 </div>
-              </div>
-              {isOtherSelected && (
-                <Input
-                  placeholder="Введіть назву мови (наприклад: Italiano, 日本語, العربية)"
-                  value={customLanguage}
-                  onChange={(e) => setCustomLanguage(e.target.value)}
-                  className="max-w-xs"
-                  disabled={isSubmitting}
-                />
-              )}
-            </div>
-
-            {/* Style selection */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Palette className="h-4 w-4" />
-                Стиль (оберіть або залиште порожнім для рандому)
-              </Label>
-              <div className="flex flex-wrap gap-3">
-                {LAYOUT_STYLES.map((style) => (
-                  <div key={style.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`style-${style.id}`}
-                      checked={selectedStyles.includes(style.id)}
-                      onCheckedChange={() => toggleStyle(style.id)}
-                      disabled={isSubmitting}
-                    />
-                    <label
-                      htmlFor={`style-${style.id}`}
-                      className="text-sm cursor-pointer select-none"
-                    >
-                      {style.name}
-                    </label>
-                  </div>
-                ))}
-              </div>
-              {selectedStyles.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Якщо не обрано жодного стилю — буде випадковий вибір для кожного сайту
-                </p>
-              )}
-            </div>
-
-            {/* Sites per language */}
-            <div className="space-y-2">
-              <Label htmlFor="sites-count" className="flex items-center gap-2">
-                <Hash className="h-4 w-4" />
-                Кількість сайтів на комбінацію
-              </Label>
-              <div className="flex items-center gap-3">
-                <Input
-                  id="sites-count"
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={sitesPerLanguage}
-                  onChange={(e) => setSitesPerLanguage(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
-                  className="w-24"
-                  disabled={isSubmitting}
-                />
-                <span className="text-sm text-muted-foreground">
-                  Всього генерацій: <strong className="text-primary">{totalGenerations}</strong>
-                  {(allLanguages.length > 1 || styleCount > 1) && (
-                    <span className="ml-1">
-                      ({allLanguages.length} мов × {sitesPerLanguage} сайтів{styleCount > 1 ? ` × ${styleCount} стилів` : ""})
-                    </span>
-                  )}
-                </span>
               </div>
             </div>
 
