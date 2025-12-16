@@ -53,7 +53,21 @@ Create a professional MULTI-PAGE website for [Назва] with complete structur
 - All pages fully functional and complete
 - Working images from picsum.photos`.trim();
 
-const HTML_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE WEBSITE WITH 10X BETTER UI AND STATIC HEADER/FOOTER
+const HTML_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE WEBSITE WITH 10X BETTER UI AND WORKING NAVIGATION
+
+**NAVIGATION LINKS - ABSOLUTELY CRITICAL:**
+- ALL navigation links MUST use RELATIVE paths: href="about.html" NOT href="/about"
+- Header navigation MUST include links to ALL pages
+- Footer MUST include links to key pages
+- EVERY link MUST work when files are in the same folder
+- Example correct links:
+  - href="index.html" - Homepage
+  - href="about.html" - About page
+  - href="services.html" - Services
+  - href="contact.html" - Contact
+  - href="privacy.html" - Privacy policy
+- NEVER use absolute paths like href="/about" or href="/services"
+- ALWAYS use .html extension in ALL links
 
 **DESIGN PHILOSOPHY - 10X BETTER UI:**
 - Start with FUNCTIONAL and BEAUTIFUL base UI - Every pixel must serve a purpose
@@ -65,10 +79,21 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE WEBSITE 
 **CRITICAL REQUIREMENT: STATIC HEADER AND FOOTER ACROSS ALL PAGES**
 - HEADER/FOOTER MUST BE IDENTICAL ON EVERY PAGE
 - Same structure, same navigation items, same positioning
-- Navigation links must point to correct corresponding pages
-- Active page indicator should update based on current page
+- Navigation links must point to correct corresponding pages using RELATIVE .html paths
+- Active page indicator should update based on current page (add 'active' class)
 - Logo, menu items, CTAs remain in identical positions
 - Footer content, layout, and styling must be identical
+
+**HEADER NAVIGATION TEMPLATE (USE ON EVERY PAGE):**
+<nav class="main-nav">
+  <a href="index.html" class="logo">Logo</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="services.html">Services</a></li>
+    <li><a href="contact.html">Contact</a></li>
+  </ul>
+</nav>
 
 **VISUAL EXCELLENCE GUIDELINES:**
 - Whitespace is king - Generous spacing (1.5x standard)
@@ -100,6 +125,7 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE WEBSITE 
 - Mobile responsive breakpoints
 - Hover/focus states
 - Form styling
+- Active navigation link styling
 
 **IMAGE STRATEGY - MANDATORY ON EVERY PAGE:**
 Images MUST match page content - Relevant to subject
@@ -144,6 +170,11 @@ img { max-width: 100%; height: auto; display: block; }
 /* Large: 1280px */
 @media (min-width: 1280px) { ... }
 
+**MOBILE MENU (MANDATORY in script.js):**
+- Hamburger button visible on mobile
+- Toggle menu open/close
+- Close menu when clicking a link
+
 **COOKIE BANNER - DESIGN INTEGRATED:**
 - Subtle, non-intrusive design at bottom
 - Matches site color scheme
@@ -155,25 +186,19 @@ img { max-width: 100%; height: auto; display: block; }
 [Complete CSS 300+ lines with all styles including image handling]
 
 <!-- FILE: index.html -->
-[Homepage with hero background image, feature cards with images]
-
-<!-- FILE: services.html -->
-[SAME header/footer, service cards with images]
+[Homepage with hero background image, feature cards with images, WORKING navigation with href="page.html" format]
 
 <!-- FILE: about.html -->
-[SAME header/footer, team photos, office images]
+[SAME header/footer with IDENTICAL navigation, about content]
+
+<!-- FILE: services.html -->
+[SAME header/footer with IDENTICAL navigation, services content]
 
 <!-- FILE: contact.html -->
-[SAME header/footer, contact form, map area]
+[SAME header/footer with IDENTICAL navigation, contact form]
 
 <!-- FILE: privacy.html -->
-[SAME header/footer, legal text]
-
-<!-- FILE: terms.html -->
-[SAME header/footer, legal text]
-
-<!-- FILE: 404.html -->
-[SAME header/footer, helpful error page]
+[SAME header/footer with IDENTICAL navigation, privacy policy]
 
 <!-- FILE: script.js -->
 [Cookie banner, mobile menu toggle]
@@ -183,11 +208,9 @@ User-agent: *
 Allow: /
 
 <!-- FILE: sitemap.xml -->
-[Complete sitemap]
+[Complete sitemap with relative URLs]
 
-IMPORTANT: Header and footer HTML structure MUST be identical across all HTML files. Only update the 'active' class on navigation links.
-
-Generate EXCEPTIONAL multi-page website with 10X better UI, STATIC identical header/footer, proper image styling, and outstanding user experience. All styles MUST render correctly in browser, NO markdown code blocks, NO backticks at beginning of files.`;
+CRITICAL: ALL navigation links MUST use relative paths like href="about.html", NOT absolute paths. Header and footer HTML structure MUST be identical across all HTML files with working links between pages.`;
 
 
 type GeneratedFile = { path: string; content: string };
