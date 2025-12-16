@@ -81,7 +81,7 @@ export async function startGeneration(
   }
 }
 
-// Генерация через внешний вебхук Codex
+// Генерация через внешний вебхук Codex (ожидает ZIP в ответе)
 async function startCodexGeneration(
   prompt: string,
   language?: string,
@@ -120,16 +120,25 @@ async function startCodexGeneration(
       return { success: false, error: errText || `HTTP ${resp.status}` };
     }
 
-    const data = await resp.json();
+    // Получаем ZIP-файл как blob
+    const zipBlob = await resp.blob();
     
-    // Преобразуем ответ вебхука в формат GenerationResult
+    // Распаковываем ZIP и извлекаем файлы
+    const zip = await JSZip.loadAsync(zipBlob);
+    const files: GeneratedFile[] = [];
+    
+    for (const [path, zipEntry] of Object.entries(zip.files)) {
+      if (!zipEntry.dir) {
+        const content = await zipEntry.async("string");
+        files.push({ path, content });
+      }
+    }
+
     return {
       success: true,
-      historyId: data.historyId,
-      files: data.files,
-      refinedPrompt: data.refinedPrompt,
-      totalFiles: data.totalFiles || data.files?.length,
-      fileList: data.fileList || data.files?.map((f: GeneratedFile) => f.path),
+      files,
+      totalFiles: files.length,
+      fileList: files.map((f) => f.path),
     };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
