@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -19,7 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Save, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Loader2, Save, DollarSign, TrendingUp, TrendingDown, ChevronDown, Settings } from "lucide-react";
 import { toast } from "sonner";
 
 interface Team {
@@ -58,6 +62,7 @@ export function AdminFinanceTab() {
   const [savingPricing, setSavingPricing] = useState<string | null>(null);
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>("all");
   const [editingPrices, setEditingPrices] = useState<Record<string, Partial<TeamPricing>>>({});
+  const [isPricingOpen, setIsPricingOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -157,8 +162,8 @@ export function AdminFinanceTab() {
       
       const pricingData = {
         team_id: teamId,
-        html_price: editedValues.html_price ?? existingPricing?.html_price ?? 0,
-        react_price: editedValues.react_price ?? existingPricing?.react_price ?? 0,
+        html_price: editedValues.html_price ?? existingPricing?.html_price ?? 7,
+        react_price: editedValues.react_price ?? existingPricing?.react_price ?? 9,
         generation_cost_junior: editedValues.generation_cost_junior ?? existingPricing?.generation_cost_junior ?? 0.10,
         generation_cost_senior: editedValues.generation_cost_senior ?? existingPricing?.generation_cost_senior ?? 0.25,
       };
@@ -193,7 +198,13 @@ export function AdminFinanceTab() {
     if (editingPrices[teamId]?.[field] !== undefined) {
       return editingPrices[teamId][field] as number;
     }
-    return (teamPricing[teamId]?.[field] as number) ?? 0;
+    const defaults: Record<string, number> = {
+      html_price: 7,
+      react_price: 9,
+      generation_cost_junior: 0.10,
+      generation_cost_senior: 0.25,
+    };
+    return (teamPricing[teamId]?.[field] as number) ?? defaults[field] ?? 0;
   };
 
   const filteredGenerations = selectedTeamFilter === "all"
@@ -248,66 +259,70 @@ export function AdminFinanceTab() {
         </Card>
       </div>
 
-      {/* Team Pricing Configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Ціни для команд</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Команда</TableHead>
-                <TableHead>HTML ціна ($)</TableHead>
-                <TableHead>React ціна ($)</TableHead>
-                <TableHead>Вартість Junior ($)</TableHead>
-                <TableHead>Вартість Senior ($)</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {teams.map((team) => (
-                <TableRow key={team.id}>
-                  <TableCell className="font-medium">{team.name}</TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      className="w-24"
-                      value={getPricingValue(team.id, "html_price")}
-                      onChange={(e) => handlePricingChange(team.id, "html_price", e.target.value)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      className="w-24"
-                      value={getPricingValue(team.id, "react_price")}
-                      onChange={(e) => handlePricingChange(team.id, "react_price", e.target.value)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      className="w-24"
-                      value={getPricingValue(team.id, "generation_cost_junior")}
-                      onChange={(e) => handlePricingChange(team.id, "generation_cost_junior", e.target.value)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      className="w-24"
-                      value={getPricingValue(team.id, "generation_cost_senior")}
-                      onChange={(e) => handlePricingChange(team.id, "generation_cost_senior", e.target.value)}
-                    />
-                  </TableCell>
-                  <TableCell>
+      {/* Team Pricing Configuration - Collapsible */}
+      <Collapsible open={isPricingOpen} onOpenChange={setIsPricingOpen}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-base">Ціни для команд</CardTitle>
+                </div>
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isPricingOpen ? 'rotate-180' : ''}`} />
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              <div className="space-y-3">
+                {teams.map((team) => (
+                  <div key={team.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+                    <span className="font-medium min-w-24">{team.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">HTML:</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        className="w-20 h-8 text-sm"
+                        value={getPricingValue(team.id, "html_price")}
+                        onChange={(e) => handlePricingChange(team.id, "html_price", e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">React:</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        className="w-20 h-8 text-sm"
+                        value={getPricingValue(team.id, "react_price")}
+                        onChange={(e) => handlePricingChange(team.id, "react_price", e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Junior:</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        className="w-20 h-8 text-sm"
+                        value={getPricingValue(team.id, "generation_cost_junior")}
+                        onChange={(e) => handlePricingChange(team.id, "generation_cost_junior", e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Senior:</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        className="w-20 h-8 text-sm"
+                        value={getPricingValue(team.id, "generation_cost_senior")}
+                        onChange={(e) => handlePricingChange(team.id, "generation_cost_senior", e.target.value)}
+                      />
+                    </div>
                     <Button
                       size="sm"
+                      variant="ghost"
+                      className="h-8"
                       onClick={() => savePricing(team.id)}
                       disabled={savingPricing === team.id}
                     >
@@ -317,13 +332,16 @@ export function AdminFinanceTab() {
                         <Save className="h-4 w-4" />
                       )}
                     </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                  </div>
+                ))}
+                {teams.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">Немає команд</p>
+                )}
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Generations Finance Table */}
       <Card>
