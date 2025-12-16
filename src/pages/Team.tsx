@@ -4,10 +4,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, Users } from "lucide-react";
 import { TeamManagement } from "@/components/TeamManagement";
+import { BlockedUserOverlay } from "@/components/BlockedUserOverlay";
 
 export default function Team() {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, loading, isBlocked } = useAuth();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -25,6 +26,10 @@ export default function Team() {
 
   if (!user) {
     return null;
+  }
+
+  if (isBlocked) {
+    return <BlockedUserOverlay />;
   }
 
   return (

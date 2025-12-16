@@ -13,7 +13,9 @@ import {
   UserPlus,
   Loader2,
   Search,
-  Crown
+  Crown,
+  Ban,
+  ShieldCheck
 } from "lucide-react";
 
 type TeamRole = "owner" | "team_lead" | "buyer" | "tech_dev";
@@ -22,6 +24,7 @@ interface UserProfile {
   user_id: string;
   display_name: string | null;
   created_at: string;
+  is_blocked: boolean;
 }
 
 interface Team {
@@ -71,7 +74,7 @@ export const AdminUsersManager = () => {
     // Fetch all profiles
     const { data: profilesData } = await supabase
       .from("profiles")
-      .select("user_id, display_name, created_at")
+      .select("user_id, display_name, created_at, is_blocked")
       .order("created_at", { ascending: false });
 
     // Fetch all admin roles
@@ -201,6 +204,32 @@ export const AdminUsersManager = () => {
     }
   };
 
+  const toggleBlockUser = async (user: UserWithRoles) => {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_blocked: !user.is_blocked })
+        .eq("user_id", user.user_id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Успішно",
+        description: user.is_blocked 
+          ? "Користувача розблоковано" 
+          : "Користувача заблоковано"
+      });
+      
+      fetchData();
+    } catch (error) {
+      toast({
+        title: "Помилка",
+        description: "Не вдалося змінити статус блокування",
+        variant: "destructive"
+      });
+    }
+  };
+
   const openAssignDialog = (user: UserWithRoles) => {
     setSelectedUser(user);
     setAssignDialogOpen(true);
@@ -219,7 +248,7 @@ export const AdminUsersManager = () => {
     total: users.length,
     admins: users.filter(u => u.isAdmin).length,
     withTeam: users.filter(u => u.teams.length > 0).length,
-    noTeam: users.filter(u => u.teams.length === 0).length
+    blocked: users.filter(u => u.is_blocked).length
   };
 
   if (loading) {
@@ -250,14 +279,16 @@ export const AdminUsersManager = () => {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
+            <ShieldCheck className="h-5 w-5 mx-auto mb-1 text-green-500" />
             <div className="text-2xl font-bold text-green-500">{stats.withTeam}</div>
             <div className="text-xs text-muted-foreground">В командах</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-muted-foreground">{stats.noTeam}</div>
-            <div className="text-xs text-muted-foreground">Без команди</div>
+            <Ban className="h-5 w-5 mx-auto mb-1 text-destructive" />
+            <div className="text-2xl font-bold text-destructive">{stats.blocked}</div>
+            <div className="text-xs text-muted-foreground">Заблоковано</div>
           </CardContent>
         </Card>
       </div>
@@ -332,24 +363,49 @@ export const AdminUsersManager = () => {
                       )}
                     </TableCell>
                     <TableCell>
-                      {user.isAdmin ? (
-                        <Badge className="bg-yellow-500 text-black">Адмін</Badge>
-                      ) : (
-                        <Badge variant="outline">Користувач</Badge>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {user.isAdmin && (
+                          <Badge className="bg-yellow-500 text-black">Адмін</Badge>
+                        )}
+                        {user.is_blocked && (
+                          <Badge variant="destructive">Заблоковано</Badge>
+                        )}
+                        {!user.isAdmin && !user.is_blocked && (
+                          <Badge variant="outline">Активний</Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       {new Date(user.created_at).toLocaleDateString("uk-UA")}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openAssignDialog(user)}
-                      >
-                        <UserPlus className="h-4 w-4 mr-1" />
-                        До команди
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openAssignDialog(user)}
+                        >
+                          <UserPlus className="h-4 w-4 mr-1" />
+                          До команди
+                        </Button>
+                        <Button
+                          variant={user.is_blocked ? "default" : "destructive"}
+                          size="sm"
+                          onClick={() => toggleBlockUser(user)}
+                        >
+                          {user.is_blocked ? (
+                            <>
+                              <ShieldCheck className="h-4 w-4 mr-1" />
+                              Розблокувати
+                            </>
+                          ) : (
+                            <>
+                              <Ban className="h-4 w-4 mr-1" />
+                              Заблокувати
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

@@ -6,6 +6,7 @@ import { Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditChat } from "@/components/EditChat";
 import { EditPreview } from "@/components/EditPreview";
+import { BlockedUserOverlay } from "@/components/BlockedUserOverlay";
 import { GeneratedFile } from "@/lib/websiteGenerator";
 
 interface GenerationData {
@@ -22,7 +23,7 @@ interface GenerationData {
 const Edit = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isBlocked } = useAuth();
   const [generation, setGeneration] = useState<GenerationData | null>(null);
   const [files, setFiles] = useState<GeneratedFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<GeneratedFile | null>(null);
@@ -34,6 +35,10 @@ const Edit = () => {
       navigate("/auth");
     }
   }, [user, authLoading, navigate]);
+
+  if (isBlocked) {
+    return <BlockedUserOverlay />;
+  }
 
   useEffect(() => {
     if (!id || !user) return;
