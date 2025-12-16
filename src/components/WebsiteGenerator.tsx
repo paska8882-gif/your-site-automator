@@ -81,6 +81,8 @@ export function WebsiteGenerator() {
   const [customLanguage, setCustomLanguage] = useState("");
   const [isOtherSelected, setIsOtherSelected] = useState(false);
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
+  const [customStyle, setCustomStyle] = useState("");
+  const [isOtherStyleSelected, setIsOtherStyleSelected] = useState(false);
   const [sitesPerLanguage, setSitesPerLanguage] = useState(1);
   const [aiModel, setAiModel] = useState<AiModel>("senior");
   const [websiteType, setWebsiteType] = useState<WebsiteType>("html");
@@ -171,9 +173,28 @@ export function WebsiteGenerator() {
     });
   };
 
+  const toggleOtherStyle = () => {
+    setIsOtherStyleSelected((prev) => {
+      if (prev) {
+        setCustomStyle("");
+      }
+      return !prev;
+    });
+  };
+
+  // Calculate all styles including custom
+  const getAllSelectedStyles = () => {
+    const styles = [...selectedStyles];
+    if (isOtherStyleSelected && customStyle.trim()) {
+      styles.push(customStyle.trim());
+    }
+    return styles;
+  };
+
   // Calculate total generations: languages × sites × (styles or 1 if random)
   const allLanguages = getAllSelectedLanguages();
-  const styleCount = selectedStyles.length || 1; // If no styles selected, it's random (counts as 1)
+  const allStyles = getAllSelectedStyles();
+  const styleCount = allStyles.length || 1; // If no styles selected, it's random (counts as 1)
   const totalGenerations = allLanguages.length * sitesPerLanguage * styleCount;
 
   const handleGenerateClick = () => {
@@ -220,7 +241,7 @@ export function WebsiteGenerator() {
     try {
       // Create all generation requests in parallel
       // Combinations: languages × sitesPerLanguage × styles (or random if no styles)
-      const stylesToUse = selectedStyles.length > 0 ? selectedStyles : [undefined]; // undefined = random
+      const stylesToUse = allStyles.length > 0 ? allStyles : [undefined]; // undefined = random
       const langs = getAllSelectedLanguages();
       const totalCount = langs.length * sitesPerLanguage * stylesToUse.length;
       
@@ -440,11 +461,11 @@ export function WebsiteGenerator() {
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between" disabled={isSubmitting}>
                       <span className="truncate">
-                        {selectedStyles.length === 0 
+                        {allStyles.length === 0 
                           ? "Рандом" 
-                          : selectedStyles.length === 1 
-                            ? LAYOUT_STYLES.find(s => s.id === selectedStyles[0])?.name
-                            : `${selectedStyles.length} стилів`}
+                          : allStyles.length === 1 
+                            ? LAYOUT_STYLES.find(s => s.id === allStyles[0])?.name || allStyles[0]
+                            : `${allStyles.length} стилів`}
                       </span>
                       <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
                     </Button>
@@ -452,25 +473,46 @@ export function WebsiteGenerator() {
                   <PopoverContent className="w-56 p-2" align="start">
                     <div className="space-y-1 max-h-64 overflow-y-auto">
                       {LAYOUT_STYLES.map((style) => (
-                        <div 
+                        <label 
                           key={style.id} 
                           className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer"
-                          onClick={() => toggleStyle(style.id)}
                         >
                           <Checkbox
                             checked={selectedStyles.includes(style.id)}
                             onCheckedChange={() => toggleStyle(style.id)}
                           />
                           <span className="text-sm">{style.name}</span>
-                        </div>
+                        </label>
                       ))}
+                      <label 
+                        className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer border-t mt-1 pt-2"
+                      >
+                        <Checkbox 
+                          checked={isOtherStyleSelected} 
+                          onCheckedChange={() => toggleOtherStyle()} 
+                        />
+                        <span className="text-sm">Інший...</span>
+                      </label>
+                      {isOtherStyleSelected && (
+                        <Input
+                          placeholder="Назва стилю"
+                          value={customStyle}
+                          onChange={(e) => setCustomStyle(e.target.value)}
+                          className="mt-2"
+                          autoFocus
+                        />
+                      )}
                     </div>
-                    {selectedStyles.length > 0 && (
+                    {(selectedStyles.length > 0 || isOtherStyleSelected) && (
                       <Button 
                         variant="ghost" 
                         size="sm" 
                         className="w-full mt-2 text-xs"
-                        onClick={() => setSelectedStyles([])}
+                        onClick={() => {
+                          setSelectedStyles([]);
+                          setIsOtherStyleSelected(false);
+                          setCustomStyle("");
+                        }}
                       >
                         Скинути (рандом)
                       </Button>
