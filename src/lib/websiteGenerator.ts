@@ -90,6 +90,8 @@ async function startCodexGeneration(
   layoutStyle?: string,
   siteName?: string
 ): Promise<GenerationResult> {
+  let historyId: string | null = null;
+
   try {
     const {
       data: { session },
@@ -120,13 +122,10 @@ async function startCodexGeneration(
       return { success: false, error: "Failed to create generation record" };
     }
 
-    const historyId = historyRecord.id;
+    historyId = historyRecord.id;
 
     // 2. Обновляем статус на generating
-    await supabase
-      .from("generation_history")
-      .update({ status: "generating" })
-      .eq("id", historyId);
+    await supabase.from("generation_history").update({ status: "generating" }).eq("id", historyId);
 
     // 3. Вызываем Edge Function прокси
     const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/codex-proxy`, {
@@ -147,15 +146,17 @@ async function startCodexGeneration(
     });
 
     if (!resp.ok) {
-      const errData = await resp.json().catch(() => ({}));
-      const errorMsg = errData.error || `HTTP ${resp.status}`;
-      
-      // Обновляем запись со статусом failed
+      // Вебхук может вернуть HTML (например 524), поэтому сначала пробуем text
+      const errText = await resp.text().catch(() => "");
+      const errorMsg = errText?.trim()
+        ? errText.slice(0, 500)
+        : `HTTP ${resp.status}`;
+
       await supabase
         .from("generation_history")
         .update({ status: "failed", error_message: errorMsg })
         .eq("id", historyId);
-        
+
       return { success: false, error: errorMsg, historyId };
     }
 
@@ -169,16 +170,16 @@ async function startCodexGeneration(
       return { success: false, error: "Codex webhook returned an empty ZIP response", historyId };
     }
 
-    const binaryString = atob(base64Zip);
+    const binaryString = atob(base64Zip.trim());
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
       bytes[i] = binaryString.charCodeAt(i);
     }
-    
+
     // Распаковываем ZIP и извлекаем файлы
     const zip = await JSZip.loadAsync(bytes);
     const files: GeneratedFile[] = [];
-    
+
     for (const [path, zipEntry] of Object.entries(zip.files)) {
       if (!zipEntry.dir) {
         const content = await zipEntry.async("string");
@@ -192,7 +193,7 @@ async function startCodexGeneration(
       .update({
         status: "completed",
         files_data: JSON.parse(JSON.stringify(files)) as Json,
-        zip_data: base64Zip,
+        zip_data: base64Zip.trim(),
       })
       .eq("id", historyId);
 
@@ -204,7 +205,21 @@ async function startCodexGeneration(
       fileList: files.map((f) => f.path),
     };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+    const msg = error instanceof Error ? error.message : "Unknown error";
+
+    if (historyId) {
+      try {
+        await supabase
+          .from("generation_history")
+          .update({ status: "failed", error_message: msg })
+          .eq("id", historyId);
+      } catch {
+        // ignore
+      }
+      return { success: false, error: msg, historyId };
+    }
+
+    return { success: false, error: msg };
   }
 }
 
