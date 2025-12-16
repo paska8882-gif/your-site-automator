@@ -55,13 +55,13 @@ const Admin = () => {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      navigate("/auth");
+      navigate("/admin-login");
     }
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
     if (!adminLoading && !isAdmin && user) {
-      navigate("/");
+      navigate("/admin-login");
     }
   }, [isAdmin, adminLoading, user, navigate]);
 
