@@ -7,8 +7,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, Languages, Hash, Wand2, Palette, ChevronDown } from "lucide-react";
+import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, Languages, Hash, Wand2, Palette, ChevronDown, AlertTriangle } from "lucide-react";
 import { startGeneration, AiModel, WebsiteType, LAYOUT_STYLES } from "@/lib/websiteGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { GenerationHistory } from "./GenerationHistory";
@@ -37,6 +47,7 @@ export function WebsiteGenerator() {
   const [websiteType, setWebsiteType] = useState<WebsiteType>("html");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImproving, setIsImproving] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   const handleImprovePrompt = async () => {
     if (!prompt.trim()) {
@@ -124,7 +135,7 @@ export function WebsiteGenerator() {
   const styleCount = selectedStyles.length || 1; // If no styles selected, it's random (counts as 1)
   const totalGenerations = allLanguages.length * sitesPerLanguage * styleCount;
 
-  const handleGenerate = async () => {
+  const handleGenerateClick = () => {
     if (!prompt.trim()) {
       toast({
         title: "Помилка",
@@ -133,8 +144,6 @@ export function WebsiteGenerator() {
       });
       return;
     }
-
-    const allLanguages = getAllSelectedLanguages();
 
     if (allLanguages.length === 0) {
       toast({
@@ -145,6 +154,17 @@ export function WebsiteGenerator() {
       return;
     }
 
+    // Show confirmation if more than 10 sites
+    if (totalGenerations > 10) {
+      setShowConfirmDialog(true);
+      return;
+    }
+
+    executeGeneration();
+  };
+
+  const executeGeneration = async () => {
+    setShowConfirmDialog(false);
     setIsSubmitting(true);
 
     try {
@@ -152,8 +172,9 @@ export function WebsiteGenerator() {
       // Combinations: languages × sitesPerLanguage × styles (or random if no styles)
       const generationPromises: Promise<any>[] = [];
       const stylesToUse = selectedStyles.length > 0 ? selectedStyles : [undefined]; // undefined = random
+      const langs = getAllSelectedLanguages();
 
-      for (const lang of allLanguages) {
+      for (const lang of langs) {
         for (let i = 0; i < sitesPerLanguage; i++) {
           for (const style of stylesToUse) {
             generationPromises.push(
@@ -424,7 +445,7 @@ export function WebsiteGenerator() {
               </Select>
 
               <Button
-                onClick={handleGenerate}
+                onClick={handleGenerateClick}
                 disabled={isSubmitting || !prompt.trim() || getAllSelectedLanguages().length === 0}
                 className="flex-1"
                 size="lg"
@@ -448,6 +469,32 @@ export function WebsiteGenerator() {
         {/* History with realtime updates and preview */}
         <GenerationHistory />
       </div>
+
+      {/* Confirmation Dialog for large orders */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Підтвердження замовлення
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Ви збираєтесь запустити <strong className="text-foreground">{totalGenerations} генерацій</strong> одночасно.
+              </p>
+              <p className="text-amber-600 dark:text-amber-400">
+                Ця дія запустить всі процеси одразу і є невідворотньою. Всі генерації будуть виконуватись паралельно.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Скасувати</AlertDialogCancel>
+            <AlertDialogAction onClick={executeGeneration}>
+              Так, запустити {totalGenerations} генерацій
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
