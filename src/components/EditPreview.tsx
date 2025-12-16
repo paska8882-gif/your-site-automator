@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Eye, Code, FileCode, FileText, File, ChevronRight, ChevronDown, Folder, FolderOpen } from "lucide-react";
+import { Eye, Code, FileCode, FileText, File, ChevronRight, ChevronDown, Folder, FolderOpen, Maximize2, Minimize2 } from "lucide-react";
 import { GeneratedFile } from "@/lib/websiteGenerator";
 import { cn } from "@/lib/utils";
 
@@ -148,8 +148,8 @@ function FileTreeNode({ node, depth, selectedPath, expandedFolders, onToggleFold
 
 export function EditPreview({ files, selectedFile, onSelectFile }: EditPreviewProps) {
   const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => {
-    // Auto-expand all folders initially
     const folders = new Set<string>();
     files.forEach((file) => {
       const parts = file.path.split("/");
@@ -201,6 +201,32 @@ export function EditPreview({ files, selectedFile, onSelectFile }: EditPreviewPr
 
   const canPreview = selectedFile?.path.endsWith(".html");
 
+  // Fullscreen modal
+  if (isFullscreen) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background flex flex-col">
+        <div className="border-b px-4 py-2 flex items-center justify-between shrink-0 bg-muted/20">
+          <div className="flex items-center gap-2 text-sm">
+            {selectedFile && getFileIcon(selectedFile.path)}
+            <span className="font-medium">{selectedFile?.path || "No file selected"}</span>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setIsFullscreen(false)}>
+            <Minimize2 className="h-4 w-4 mr-1" />
+            Вийти з повноекранного
+          </Button>
+        </div>
+        <div className="flex-1">
+          <iframe
+            srcDoc={getPreviewContent()}
+            className="w-full h-full border-0 bg-white"
+            title={`Fullscreen preview of ${selectedFile?.path}`}
+            sandbox="allow-scripts"
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full">
       {/* File sidebar */}
@@ -227,13 +253,17 @@ export function EditPreview({ files, selectedFile, onSelectFile }: EditPreviewPr
 
       {/* Content area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top bar with file name and view toggle */}
         <div className="border-b px-4 py-2 flex items-center justify-between shrink-0 bg-muted/20">
           <div className="flex items-center gap-2 text-sm">
             {selectedFile && getFileIcon(selectedFile.path)}
             <span className="font-medium">{selectedFile?.path || "No file selected"}</span>
           </div>
           <div className="flex gap-1">
+            {canPreview && viewMode === "preview" && (
+              <Button variant="ghost" size="sm" onClick={() => setIsFullscreen(true)}>
+                <Maximize2 className="h-4 w-4" />
+              </Button>
+            )}
             <Button
               variant={viewMode === "preview" ? "default" : "ghost"}
               size="sm"
@@ -254,7 +284,6 @@ export function EditPreview({ files, selectedFile, onSelectFile }: EditPreviewPr
           </div>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-hidden">
           {viewMode === "preview" && canPreview ? (
             <iframe
