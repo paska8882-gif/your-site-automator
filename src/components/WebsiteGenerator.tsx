@@ -103,7 +103,7 @@ export function WebsiteGenerator() {
   const [isOtherStyleSelected, setIsOtherStyleSelected] = useState(false);
   const [sitesPerLanguage, setSitesPerLanguage] = useState(1);
   const [aiModel, setAiModel] = useState<AiModel>("senior");
-  const [seniorMode, setSeniorMode] = useState<SeniorMode>("codex");
+  const [seniorMode, setSeniorMode] = useState<SeniorMode>(undefined);
   const [websiteType, setWebsiteType] = useState<WebsiteType>("html");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImproving, setIsImproving] = useState(false);
@@ -587,11 +587,17 @@ export function WebsiteGenerator() {
 
               {/* Senior Mode - тільки для адміністраторів */}
               {aiModel === "senior" && isAdmin && (
-                <Select value={seniorMode} onValueChange={(v) => setSeniorMode(v as SeniorMode)} disabled={isSubmitting}>
+                <Select value={seniorMode || "none"} onValueChange={(v) => setSeniorMode(v === "none" ? undefined : v as SeniorMode)} disabled={isSubmitting}>
                   <SelectTrigger className="w-full sm:w-[220px]">
                     <SelectValue placeholder="Режим Senior AI" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">
+                      <div className="flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-gray-400" />
+                        Без режиму
+                      </div>
+                    </SelectItem>
                     <SelectItem value="codex">
                       <div className="flex items-center gap-2">
                         <FileCode2 className="h-4 w-4 text-purple-500" />

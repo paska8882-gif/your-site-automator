@@ -18,7 +18,7 @@ export interface GenerationResult {
 
 export type AiModel = "junior" | "senior";
 export type WebsiteType = "html" | "react";
-export type SeniorMode = "codex" | "onepage" | "v0";
+export type SeniorMode = "codex" | "onepage" | "v0" | undefined;
 
 // Layout styles available for selection
 export const LAYOUT_STYLES = [
