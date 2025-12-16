@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Progress } from "@/components/ui/progress";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +48,7 @@ export function WebsiteGenerator() {
   const [websiteType, setWebsiteType] = useState<WebsiteType>("html");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImproving, setIsImproving] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 });
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   const handleImprovePrompt = async () => {
@@ -170,16 +172,24 @@ export function WebsiteGenerator() {
     try {
       // Create all generation requests in parallel
       // Combinations: languages × sitesPerLanguage × styles (or random if no styles)
-      const generationPromises: Promise<any>[] = [];
       const stylesToUse = selectedStyles.length > 0 ? selectedStyles : [undefined]; // undefined = random
       const langs = getAllSelectedLanguages();
+      const totalCount = langs.length * sitesPerLanguage * stylesToUse.length;
+      
+      setGenerationProgress({ completed: 0, total: totalCount });
 
+      // Create wrapped promises that update progress on completion
+      const createTrackedPromise = async (lang: string, style: string | undefined) => {
+        const result = await startGeneration(prompt, lang, aiModel, websiteType, style);
+        setGenerationProgress(prev => ({ ...prev, completed: prev.completed + 1 }));
+        return result;
+      };
+
+      const generationPromises: Promise<any>[] = [];
       for (const lang of langs) {
         for (let i = 0; i < sitesPerLanguage; i++) {
           for (const style of stylesToUse) {
-            generationPromises.push(
-              startGeneration(prompt, lang, aiModel, websiteType, style)
-            );
+            generationPromises.push(createTrackedPromise(lang, style));
           }
         }
       }
@@ -212,6 +222,7 @@ export function WebsiteGenerator() {
       });
     } finally {
       setIsSubmitting(false);
+      setGenerationProgress({ completed: 0, total: 0 });
     }
   };
 
@@ -463,6 +474,20 @@ export function WebsiteGenerator() {
                 )}
               </Button>
             </div>
+
+            {/* Progress bar for bulk generation */}
+            {isSubmitting && generationProgress.total > 1 && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Прогрес генерації</span>
+                  <span>{generationProgress.completed} / {generationProgress.total}</span>
+                </div>
+                <Progress 
+                  value={(generationProgress.completed / generationProgress.total) * 100} 
+                  className="h-2"
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
 
