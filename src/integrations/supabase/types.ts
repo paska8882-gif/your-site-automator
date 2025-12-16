@@ -24,6 +24,7 @@ export type Database = {
           language: string
           number: number
           prompt: string
+          site_name: string | null
           status: string
           user_id: string | null
           website_type: string | null
@@ -38,6 +39,7 @@ export type Database = {
           language?: string
           number?: number
           prompt: string
+          site_name?: string | null
           status?: string
           user_id?: string | null
           website_type?: string | null
@@ -52,6 +54,7 @@ export type Database = {
           language?: string
           number?: number
           prompt?: string
+          site_name?: string | null
           status?: string
           user_id?: string | null
           website_type?: string | null

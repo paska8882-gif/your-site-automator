@@ -23,6 +23,7 @@ interface HistoryItem {
   created_at: string;
   ai_model: string | null;
   website_type: string | null;
+  site_name: string | null;
 }
 
 export function GenerationHistory() {
@@ -126,10 +127,17 @@ export function GenerationHistory() {
       const byteArray = new Uint8Array(byteNumbers);
       const blob = new Blob([byteArray], { type: "application/zip" });
 
+      // Generate filename: siteName-language-type-aiModel.zip
+      const siteName = item.site_name || `website_${item.number}`;
+      const lang = item.language?.toUpperCase() || "AUTO";
+      const type = item.website_type?.toUpperCase() || "HTML";
+      const aiLabel = item.ai_model === "senior" ? "Senior_AI" : "Junior_AI";
+      const filename = `${siteName}-${lang}-${type}-${aiLabel}.zip`;
+
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `website_${item.number}.zip`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

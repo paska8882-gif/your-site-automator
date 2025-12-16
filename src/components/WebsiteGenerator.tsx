@@ -69,6 +69,7 @@ const playCompletionSound = (success: boolean) => {
 export function WebsiteGenerator() {
   const { toast } = useToast();
   const { user, signOut } = useAuth();
+  const [siteName, setSiteName] = useState("");
   const [prompt, setPrompt] = useState("");
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["uk"]);
   const [customLanguage, setCustomLanguage] = useState("");
@@ -169,6 +170,15 @@ export function WebsiteGenerator() {
   const totalGenerations = allLanguages.length * sitesPerLanguage * styleCount;
 
   const handleGenerateClick = () => {
+    if (!siteName.trim()) {
+      toast({
+        title: "Помилка",
+        description: "Будь ласка, введіть назву/домен сайту",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!prompt.trim()) {
       toast({
         title: "Помилка",
@@ -211,7 +221,7 @@ export function WebsiteGenerator() {
 
       // Create wrapped promises that update progress on completion
       const createTrackedPromise = async (lang: string, style: string | undefined) => {
-        const result = await startGeneration(prompt, lang, aiModel, websiteType, style);
+        const result = await startGeneration(prompt, lang, aiModel, websiteType, style, siteName);
         setGenerationProgress(prev => ({ ...prev, completed: prev.completed + 1 }));
         return result;
       };
@@ -239,6 +249,7 @@ export function WebsiteGenerator() {
           title: "Генерації розпочато",
           description: `Запущено ${successCount} генерацій${failCount > 0 ? `, ${failCount} помилок` : ""}. Слідкуйте за статусом в історії.`,
         });
+        setSiteName("");
         setPrompt("");
       } else {
         toast({
@@ -293,14 +304,34 @@ export function WebsiteGenerator() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileCode2 className="h-5 w-5" />
-              Опис сайту
+              Новий сайт
             </CardTitle>
             <CardDescription>
-              Опишіть тип бізнесу, послуги, стиль дизайну та інші деталі. Можна запускати кілька генерацій паралельно.
+              Введіть назву та опишіть сайт. Можна запускати кілька генерацій паралельно.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Site Name Field */}
             <div className="space-y-2">
+              <Label htmlFor="siteName" className="flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                Назва / Домен <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="siteName"
+                placeholder="Наприклад: my-company, techsolutions, coffee-shop"
+                value={siteName}
+                onChange={(e) => setSiteName(e.target.value)}
+                disabled={isSubmitting || isImproving}
+              />
+            </div>
+
+            {/* Description Field */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <FileCode2 className="h-4 w-4" />
+                Опис сайту <span className="text-destructive">*</span>
+              </Label>
               <Textarea
                 placeholder="Наприклад: Сучасний сайт для IT-компанії з послугами веб-розробки. Темна тема, мінімалістичний дизайн. Сторінки: головна, послуги, портфоліо, контакти..."
                 value={prompt}
@@ -491,7 +522,7 @@ export function WebsiteGenerator() {
 
               <Button
                 onClick={handleGenerateClick}
-                disabled={isSubmitting || !prompt.trim() || getAllSelectedLanguages().length === 0}
+                disabled={isSubmitting || !siteName.trim() || !prompt.trim() || getAllSelectedLanguages().length === 0}
                 className="flex-1"
                 size="lg"
               >

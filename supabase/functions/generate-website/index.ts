@@ -629,7 +629,7 @@ serve(async (req) => {
 
     console.log("Authenticated request from user:", user.id);
 
-    const { prompt, language, aiModel = "senior", layoutStyle } = await req.json();
+    const { prompt, language, aiModel = "senior", layoutStyle, siteName } = await req.json();
 
     if (!prompt) {
       return new Response(JSON.stringify({ success: false, error: "Prompt is required" }), {
@@ -648,6 +648,7 @@ serve(async (req) => {
         status: "pending",
         ai_model: aiModel,
         website_type: "html",
+        site_name: siteName || null,
       })
       .select()
       .single();
