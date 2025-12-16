@@ -307,67 +307,54 @@ export const AdminUsersManager = () => {
 
   return (
     <div className="space-y-3">
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <Card>
-          <CardContent className="p-2 text-center">
-            <Users className="h-3.5 w-3.5 mx-auto mb-0.5 text-muted-foreground" />
-            <div className="text-lg font-bold">{stats.total}</div>
-            <div className="text-[10px] text-muted-foreground">Всього</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-2 text-center">
-            <Crown className="h-3.5 w-3.5 mx-auto mb-0.5 text-yellow-500" />
-            <div className="text-lg font-bold text-yellow-500">{stats.admins}</div>
-            <div className="text-[10px] text-muted-foreground">Адмінів</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-2 text-center">
-            <ShieldCheck className="h-3.5 w-3.5 mx-auto mb-0.5 text-green-500" />
-            <div className="text-lg font-bold text-green-500">{stats.withTeam}</div>
-            <div className="text-[10px] text-muted-foreground">В командах</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-2 text-center">
-            <Ban className="h-3.5 w-3.5 mx-auto mb-0.5 text-destructive" />
-            <div className="text-lg font-bold text-destructive">{stats.blocked}</div>
-            <div className="text-[10px] text-muted-foreground">Заблоковано</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Search */}
-      <div className="relative max-w-xs">
-        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-        <Input
-          placeholder="Пошук користувачів..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-7 h-7 text-xs"
-        />
+      {/* Stats + Search row */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
+          <Users className="h-3 w-3 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">Всього:</span>
+          <span className="text-sm font-bold">{stats.total}</span>
+        </div>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
+          <Crown className="h-3 w-3 text-yellow-500" />
+          <span className="text-xs text-muted-foreground">Адмінів:</span>
+          <span className="text-sm font-bold text-yellow-500">{stats.admins}</span>
+        </div>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
+          <ShieldCheck className="h-3 w-3 text-green-500" />
+          <span className="text-xs text-muted-foreground">В командах:</span>
+          <span className="text-sm font-bold text-green-500">{stats.withTeam}</span>
+        </div>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
+          <Ban className="h-3 w-3 text-destructive" />
+          <span className="text-xs text-muted-foreground">Заблок:</span>
+          <span className="text-sm font-bold text-destructive">{stats.blocked}</span>
+        </div>
+        <div className="relative ml-auto">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+          <Input
+            placeholder="Пошук..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-7 h-7 text-xs w-40"
+          />
+        </div>
       </div>
 
       {/* Users Table */}
       <Card>
         <CardHeader className="py-2 px-3">
-          <CardTitle className="flex items-center gap-1.5 text-sm">
-            <Users className="h-3.5 w-3.5" />
-            Користувачі ({filteredUsers.length})
-          </CardTitle>
+          <CardTitle className="text-xs font-medium">Користувачі ({filteredUsers.length})</CardTitle>
         </CardHeader>
         <CardContent className="px-3 pb-3">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-xs py-1.5">Користувач</TableHead>
-                  <TableHead className="text-xs py-1.5">Команди</TableHead>
-                  <TableHead className="text-xs py-1.5">Статус</TableHead>
-                  <TableHead className="text-xs py-1.5">Реєстрація</TableHead>
-                  <TableHead className="text-xs py-1.5 text-right">Дії</TableHead>
+                  <TableHead className="text-[10px] py-1">Користувач</TableHead>
+                  <TableHead className="text-[10px] py-1">Команди</TableHead>
+                  <TableHead className="text-[10px] py-1">Статус</TableHead>
+                  <TableHead className="text-[10px] py-1">Дата</TableHead>
+                  <TableHead className="text-[10px] py-1 text-right">Дії</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
