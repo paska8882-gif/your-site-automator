@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Download, Trash2, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { FilePreview } from "./FilePreview";
 import { GeneratedFile } from "@/lib/websiteGenerator";
@@ -20,6 +21,8 @@ interface HistoryItem {
   status: string;
   error_message: string | null;
   created_at: string;
+  ai_model: string | null;
+  website_type: string | null;
 }
 
 export function GenerationHistory() {
@@ -257,6 +260,12 @@ export function GenerationHistory() {
                       <span className="truncate flex-1" title={item.prompt}>
                         {truncatePrompt(item.prompt, 60)}
                       </span>
+                      <Badge variant={item.ai_model === "senior" ? "default" : "secondary"} className="text-xs">
+                        {item.ai_model === "senior" ? "Senior AI" : "Junior AI"}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {item.website_type === "react" ? "React" : "HTML"}
+                      </Badge>
                       <span className="text-sm text-muted-foreground hidden sm:block">
                         {item.language}
                       </span>
