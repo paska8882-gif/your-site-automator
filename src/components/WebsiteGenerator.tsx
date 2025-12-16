@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, Languages, Hash, Wand2, Palette, ChevronDown, AlertTriangle, Shield, Users } from "lucide-react";
-import { startGeneration, AiModel, WebsiteType, LAYOUT_STYLES } from "@/lib/websiteGenerator";
+import { startGeneration, AiModel, WebsiteType, SeniorMode, LAYOUT_STYLES } from "@/lib/websiteGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { GenerationHistory } from "./GenerationHistory";
 import { UserTeamInfo } from "./UserTeamInfo";
@@ -103,7 +103,7 @@ export function WebsiteGenerator() {
   const [isOtherStyleSelected, setIsOtherStyleSelected] = useState(false);
   const [sitesPerLanguage, setSitesPerLanguage] = useState(1);
   const [aiModel, setAiModel] = useState<AiModel>("senior");
-  const [seniorMode, setSeniorMode] = useState<"codex" | "onepage" | "v0">("codex");
+  const [seniorMode, setSeniorMode] = useState<SeniorMode>("codex");
   const [websiteType, setWebsiteType] = useState<WebsiteType>("html");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImproving, setIsImproving] = useState(false);
@@ -268,7 +268,8 @@ export function WebsiteGenerator() {
 
       // Create wrapped promises that update progress on completion
       const createTrackedPromise = async (lang: string, style: string | undefined) => {
-        const result = await startGeneration(prompt, lang, aiModel, websiteType, style, siteName);
+        const currentSeniorMode = aiModel === "senior" ? seniorMode : undefined;
+        const result = await startGeneration(prompt, lang, aiModel, websiteType, style, siteName, currentSeniorMode);
         setGenerationProgress(prev => ({ ...prev, completed: prev.completed + 1 }));
         return result;
       };
@@ -586,7 +587,7 @@ export function WebsiteGenerator() {
 
               {/* Senior Mode - тільки для адміністраторів */}
               {aiModel === "senior" && isAdmin && (
-                <Select value={seniorMode} onValueChange={(v) => setSeniorMode(v as "codex" | "onepage" | "v0")} disabled={isSubmitting}>
+                <Select value={seniorMode} onValueChange={(v) => setSeniorMode(v as SeniorMode)} disabled={isSubmitting}>
                   <SelectTrigger className="w-full sm:w-[220px]">
                     <SelectValue placeholder="Режим Senior AI" />
                   </SelectTrigger>

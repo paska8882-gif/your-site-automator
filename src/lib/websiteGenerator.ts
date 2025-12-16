@@ -18,6 +18,7 @@ export interface GenerationResult {
 
 export type AiModel = "junior" | "senior";
 export type WebsiteType = "html" | "react";
+export type SeniorMode = "codex" | "onepage" | "v0";
 
 // Layout styles available for selection
 export const LAYOUT_STYLES = [
@@ -39,8 +40,14 @@ export async function startGeneration(
   aiModel: AiModel = "senior",
   websiteType: WebsiteType = "html",
   layoutStyle?: string,
-  siteName?: string
+  siteName?: string,
+  seniorMode?: SeniorMode
 ): Promise<GenerationResult> {
+  // Если выбран режим Codex для Senior AI - обращаемся к внешнему вебхуку
+  if (aiModel === "senior" && seniorMode === "codex") {
+    return startCodexGeneration(prompt, language, websiteType, layoutStyle, siteName);
+  }
+
   const functionName = websiteType === "react" ? "generate-react-website" : "generate-website";
 
   try {
@@ -59,7 +66,7 @@ export async function startGeneration(
         apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ prompt, language, aiModel, layoutStyle, siteName }),
+      body: JSON.stringify({ prompt, language, aiModel, layoutStyle, siteName, seniorMode }),
     });
 
     if (!resp.ok) {
@@ -69,6 +76,61 @@ export async function startGeneration(
 
     const data = await resp.json();
     return data;
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+  }
+}
+
+// Генерация через внешний вебхук Codex
+async function startCodexGeneration(
+  prompt: string,
+  language?: string,
+  websiteType?: WebsiteType,
+  layoutStyle?: string,
+  siteName?: string
+): Promise<GenerationResult> {
+  const CODEX_WEBHOOK_URL = "https://tryred.app.n8n.cloud/webhook/964e523f-9fd0-4462-99fd-3c94bb6d37af";
+
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      return { success: false, error: "Authentication required" };
+    }
+
+    const resp = await fetch(CODEX_WEBHOOK_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        prompt,
+        language,
+        websiteType,
+        layoutStyle,
+        siteName,
+        userId: session.user.id,
+      }),
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => "");
+      return { success: false, error: errText || `HTTP ${resp.status}` };
+    }
+
+    const data = await resp.json();
+    
+    // Преобразуем ответ вебхука в формат GenerationResult
+    return {
+      success: true,
+      historyId: data.historyId,
+      files: data.files,
+      refinedPrompt: data.refinedPrompt,
+      totalFiles: data.totalFiles || data.files?.length,
+      fileList: data.fileList || data.files?.map((f: GeneratedFile) => f.path),
+    };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
