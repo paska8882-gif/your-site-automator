@@ -20,12 +20,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, Languages, Hash, Wand2, Palette, ChevronDown, AlertTriangle, Shield } from "lucide-react";
+import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, Languages, Hash, Wand2, Palette, ChevronDown, AlertTriangle, Shield, Users } from "lucide-react";
 import { startGeneration, AiModel, WebsiteType, LAYOUT_STYLES } from "@/lib/websiteGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { GenerationHistory } from "./GenerationHistory";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useTeamOwner } from "@/hooks/useTeamOwner";
 
 const languages = [
   { value: "uk", label: "Українська" },
@@ -72,6 +73,7 @@ export function WebsiteGenerator() {
   const { toast } = useToast();
   const { user, signOut } = useAuth();
   const { isAdmin } = useAdmin();
+  const { isTeamOwner } = useTeamOwner();
   const navigate = useNavigate();
   const [siteName, setSiteName] = useState("");
   const [prompt, setPrompt] = useState("");
@@ -292,6 +294,12 @@ export function WebsiteGenerator() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {isTeamOwner && (
+              <Button variant="outline" size="sm" onClick={() => navigate("/team")}>
+                <Users className="h-4 w-4 mr-1" />
+                Команда
+              </Button>
+            )}
             {isAdmin && (
               <Button variant="outline" size="sm" onClick={() => navigate("/admin")}>
                 <Shield className="h-4 w-4 mr-1" />

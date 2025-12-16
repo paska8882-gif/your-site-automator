@@ -59,16 +59,24 @@ export default function Auth() {
     }
   };
 
-  const validateInviteCode = async (code: string): Promise<boolean> => {
+  const validateInviteCode = async (code: string): Promise<{ valid: boolean; teamId?: string; role?: string }> => {
     const { data, error } = await supabase
       .from("invite_codes")
-      .select("id")
+      .select("id, team_id, assigned_role")
       .eq("code", code.toUpperCase())
       .eq("is_active", true)
       .is("used_by", null)
-      .single();
+      .maybeSingle();
     
-    return !error && !!data;
+    if (error || !data) {
+      return { valid: false };
+    }
+    
+    return { 
+      valid: true, 
+      teamId: data.team_id || undefined,
+      role: data.assigned_role || undefined
+    };
   };
 
   const markInviteCodeAsUsed = async (code: string, userId: string) => {
@@ -76,6 +84,20 @@ export default function Auth() {
       .from("invite_codes")
       .update({ used_by: userId, used_at: new Date().toISOString() })
       .eq("code", code.toUpperCase());
+  };
+
+  const joinTeam = async (userId: string, teamId: string, role: string) => {
+    // For owner role, auto-approve. For others, set as pending
+    const isOwner = role === "owner";
+
+    await supabase.from("team_members").insert({
+      team_id: teamId,
+      user_id: userId,
+      role: role as "owner" | "team_lead" | "buyer" | "tech_dev",
+      status: (isOwner ? "approved" : "pending") as "approved" | "pending",
+      approved_at: isOwner ? new Date().toISOString() : null,
+      approved_by: isOwner ? userId : null
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -110,8 +132,8 @@ export default function Auth() {
         }
       } else {
         // Validate invite code first
-        const isValidCode = await validateInviteCode(inviteCode);
-        if (!isValidCode) {
+        const codeResult = await validateInviteCode(inviteCode);
+        if (!codeResult.valid) {
           toast({
             title: "Помилка реєстрації",
             description: "Невірний або використаний інвайт-код",
@@ -137,13 +159,24 @@ export default function Auth() {
             });
           }
         } else {
-          // Mark invite code as used
+          // Mark invite code as used and join team if applicable
           if (data?.user) {
             await markInviteCodeAsUsed(inviteCode, data.user.id);
+            
+            // If invite code has a team, join the team
+            if (codeResult.teamId && codeResult.role) {
+              await joinTeam(data.user.id, codeResult.teamId, codeResult.role);
+            }
           }
+          
+          const isOwner = codeResult.role === "owner";
+          const isPending = codeResult.teamId && !isOwner;
+          
           toast({
             title: "Реєстрація успішна",
-            description: "Ваш акаунт створено!",
+            description: isPending 
+              ? "Ваш акаунт створено! Очікуйте затвердження від Owner команди." 
+              : "Ваш акаунт створено!",
           });
         }
       }
