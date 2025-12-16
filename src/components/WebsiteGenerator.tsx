@@ -135,7 +135,10 @@ export function WebsiteGenerator() {
       }
 
       const { data, error } = await supabase.functions.invoke('improve-prompt', {
-        body: { prompt }
+        body: { prompt },
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
       });
 
       if (error) {
