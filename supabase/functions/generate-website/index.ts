@@ -49,9 +49,16 @@ Create a professional MULTI-PAGE website for [Назва] with complete structur
 - Semantic HTML5 with working navigation between pages
 - CSS Grid/Flexbox, mobile-first responsive
 - Consistent header/footer across ALL pages
-- **FUNCTIONAL COOKIE BANNER with Accept/Decline buttons**
+- **FUNCTIONAL COOKIE SYSTEM** - Real cookie collection with localStorage, not just a banner
 - All pages fully functional and complete
-- Working images from picsum.photos`.trim();
+- Working images from picsum.photos
+
+**MANDATORY RESTRICTIONS:**
+- **NEVER include any prices, costs, pricing information, or financial figures**
+- **NEVER show currency symbols (€, $, £, ₴) with numbers**
+- **NEVER include pricing tables, cost estimates, or rate cards**
+- **NEVER mention specific monetary amounts or price ranges**
+- Instead of prices, use: "Contact us for pricing", "Request a quote", "Get custom pricing"`.trim();
 
 // 10 unique layout variations for randomization or manual selection
 const LAYOUT_VARIATIONS = [
@@ -189,6 +196,22 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE WEBSITE 
 - Use advanced CSS patterns - CSS Grid, Flexbox, custom properties, clamp()
 - Add visual hierarchy incrementally - Build up from solid foundation
 - Think like a product designer - Focus on user experience first
+
+**MANDATORY COOKIE SYSTEM (NOT OPTIONAL):**
+Every website MUST include a REAL, FUNCTIONAL cookie consent system:
+- Cookie banner appears on first visit
+- "Accept" button saves consent to localStorage: localStorage.setItem('cookieConsent', 'accepted')
+- "Decline" button saves decline to localStorage: localStorage.setItem('cookieConsent', 'declined')
+- Banner NEVER shows again after user makes a choice (check localStorage on page load)
+- Include JavaScript to check consent status and conditionally load analytics/tracking
+- Cookie banner must be styled professionally and positioned fixed at bottom
+
+**PRICING PROHIBITION (CRITICAL):**
+- NEVER include any prices, costs, or monetary figures anywhere on the site
+- NEVER use currency symbols with numbers ($99, €50, £100, ₴500, etc.)
+- NEVER create pricing tables, rate cards, or cost comparisons
+- NEVER mention specific price ranges or "starting from" prices
+- ALWAYS replace price references with: "Contact us", "Request a quote", "Get pricing", "Custom pricing available"
 
 **CRITICAL REQUIREMENT: PAGE CONTENT LENGTH**
 Each page MUST have SUBSTANTIAL content with proper scroll depth:
