@@ -19,11 +19,26 @@ export interface GenerationResult {
 export type AiModel = "junior" | "senior";
 export type WebsiteType = "html" | "react";
 
+// Layout styles available for selection
+export const LAYOUT_STYLES = [
+  { id: "classic", name: "Classic Corporate" },
+  { id: "asymmetric", name: "Modern Asymmetric" },
+  { id: "editorial", name: "Editorial Magazine" },
+  { id: "bold", name: "Bold Blocks" },
+  { id: "minimalist", name: "Minimalist Zen" },
+  { id: "showcase", name: "Dynamic Showcase" },
+  { id: "gradient", name: "Gradient Flow" },
+  { id: "brutalist", name: "Brutalist Raw" },
+  { id: "saas", name: "SaaS Product" },
+  { id: "portfolio", name: "Creative Portfolio" },
+];
+
 export async function startGeneration(
   prompt: string,
   language?: string,
   aiModel: AiModel = "senior",
-  websiteType: WebsiteType = "html"
+  websiteType: WebsiteType = "html",
+  layoutStyle?: string
 ): Promise<GenerationResult> {
   const functionName = websiteType === "react" ? "generate-react-website" : "generate-website";
 
@@ -43,7 +58,7 @@ export async function startGeneration(
         apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ prompt, language, aiModel }),
+      body: JSON.stringify({ prompt, language, aiModel, layoutStyle }),
     });
 
     if (!resp.ok) {
@@ -63,9 +78,10 @@ export async function generateWebsite(
   prompt: string,
   language?: string,
   aiModel: AiModel = "senior",
-  websiteType: WebsiteType = "html"
+  websiteType: WebsiteType = "html",
+  layoutStyle?: string
 ): Promise<GenerationResult> {
-  return startGeneration(prompt, language, aiModel, websiteType);
+  return startGeneration(prompt, language, aiModel, websiteType, layoutStyle);
 }
 
 export async function createZipFromFiles(files: GeneratedFile[]): Promise<Blob> {
