@@ -38,7 +38,8 @@ export async function startGeneration(
   language?: string,
   aiModel: AiModel = "senior",
   websiteType: WebsiteType = "html",
-  layoutStyle?: string
+  layoutStyle?: string,
+  siteName?: string
 ): Promise<GenerationResult> {
   const functionName = websiteType === "react" ? "generate-react-website" : "generate-website";
 
@@ -58,7 +59,7 @@ export async function startGeneration(
         apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ prompt, language, aiModel, layoutStyle }),
+      body: JSON.stringify({ prompt, language, aiModel, layoutStyle, siteName }),
     });
 
     if (!resp.ok) {
