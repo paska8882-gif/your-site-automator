@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import JSZip from "jszip";
 
 export interface GeneratedFile {
@@ -98,7 +99,36 @@ async function startCodexGeneration(
       return { success: false, error: "Authentication required" };
     }
 
-    // Вызываем Edge Function прокси
+    // 1. Создаём запись в generation_history со статусом pending
+    const { data: historyRecord, error: insertError } = await supabase
+      .from("generation_history")
+      .insert({
+        user_id: session.user.id,
+        prompt,
+        language: language || "en",
+        status: "pending",
+        site_name: siteName,
+        website_type: websiteType || "html",
+        ai_model: "senior",
+        specific_ai_model: "codex-external",
+      })
+      .select("id")
+      .single();
+
+    if (insertError || !historyRecord) {
+      console.error("Failed to create history record:", insertError);
+      return { success: false, error: "Failed to create generation record" };
+    }
+
+    const historyId = historyRecord.id;
+
+    // 2. Обновляем статус на generating
+    await supabase
+      .from("generation_history")
+      .update({ status: "generating" })
+      .eq("id", historyId);
+
+    // 3. Вызываем Edge Function прокси
     const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/codex-proxy`, {
       method: "POST",
       headers: {
@@ -118,14 +148,27 @@ async function startCodexGeneration(
 
     if (!resp.ok) {
       const errData = await resp.json().catch(() => ({}));
-      return { success: false, error: errData.error || `HTTP ${resp.status}` };
+      const errorMsg = errData.error || `HTTP ${resp.status}`;
+      
+      // Обновляем запись со статусом failed
+      await supabase
+        .from("generation_history")
+        .update({ status: "failed", error_message: errorMsg })
+        .eq("id", historyId);
+        
+      return { success: false, error: errorMsg, historyId };
     }
 
     const base64Zip = await resp.text();
 
     if (!base64Zip || base64Zip.trim().length === 0) {
-      return { success: false, error: "Codex webhook returned an empty ZIP response" };
+      await supabase
+        .from("generation_history")
+        .update({ status: "failed", error_message: "Codex webhook returned an empty ZIP response" })
+        .eq("id", historyId);
+      return { success: false, error: "Codex webhook returned an empty ZIP response", historyId };
     }
+
     const binaryString = atob(base64Zip);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
@@ -143,8 +186,19 @@ async function startCodexGeneration(
       }
     }
 
+    // 4. Обновляем запись с файлами и статусом completed
+    await supabase
+      .from("generation_history")
+      .update({
+        status: "completed",
+        files_data: JSON.parse(JSON.stringify(files)) as Json,
+        zip_data: base64Zip,
+      })
+      .eq("id", historyId);
+
     return {
       success: true,
+      historyId,
       files,
       totalFiles: files.length,
       fileList: files.map((f) => f.path),
