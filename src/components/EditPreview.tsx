@@ -215,13 +215,37 @@ export function EditPreview({ files, selectedFile, onSelectFile }: EditPreviewPr
             Вийти з повноекранного
           </Button>
         </div>
-        <div className="flex-1">
-          <iframe
-            srcDoc={getPreviewContent()}
-            className="w-full h-full border-0 bg-white"
-            title={`Fullscreen preview of ${selectedFile?.path}`}
-            sandbox="allow-scripts"
-          />
+        <div className="flex-1 flex overflow-hidden">
+          {/* File sidebar in fullscreen */}
+          <div className="w-56 border-r bg-muted/30 flex flex-col shrink-0">
+            <div className="p-3 border-b">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Сторінки</span>
+            </div>
+            <ScrollArea className="flex-1">
+              <div className="py-2">
+                {fileTree.map((node) => (
+                  <FileTreeNode
+                    key={node.path}
+                    node={node}
+                    depth={0}
+                    selectedPath={selectedFile?.path || null}
+                    expandedFolders={expandedFolders}
+                    onToggleFolder={toggleFolder}
+                    onSelectFile={onSelectFile}
+                  />
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+          {/* Preview area */}
+          <div className="flex-1">
+            <iframe
+              srcDoc={getPreviewContent()}
+              className="w-full h-full border-0 bg-white"
+              title={`Fullscreen preview of ${selectedFile?.path}`}
+              sandbox="allow-scripts"
+            />
+          </div>
         </div>
       </div>
     );
