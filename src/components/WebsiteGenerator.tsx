@@ -575,7 +575,11 @@ export function WebsiteGenerator() {
         </Card>
 
         {/* History with realtime updates and preview */}
-        <GenerationHistory />
+        <GenerationHistory onUsePrompt={(name, desc) => {
+          setSiteName(name);
+          setPrompt(desc);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }} />
       </div>
 
       {/* Confirmation Dialog for large orders */}

@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight } from "lucide-react";
+import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -26,7 +26,11 @@ interface HistoryItem {
   site_name: string | null;
 }
 
-export function GenerationHistory() {
+interface GenerationHistoryProps {
+  onUsePrompt?: (siteName: string, prompt: string) => void;
+}
+
+export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -279,6 +283,23 @@ export function GenerationHistory() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 ml-4">
+                      {onUsePrompt && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onUsePrompt(item.site_name || "", item.prompt);
+                            toast({
+                              title: "Промпт завантажено",
+                              description: "Назва та опис підтягнуті з історії",
+                            });
+                          }}
+                          title="Використати промпт"
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </Button>
+                      )}
                       {item.status === "completed" && (
                         <>
                           <Button
