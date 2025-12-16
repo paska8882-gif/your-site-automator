@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,8 +20,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Save, DollarSign, TrendingUp, TrendingDown, Settings, Wallet, Plus, Eye } from "lucide-react";
+import { Loader2, Save, DollarSign, TrendingUp, TrendingDown, Settings, Wallet, Plus, Eye, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import { uk } from "date-fns/locale";
 
 interface Team {
   id: string;
@@ -77,6 +80,7 @@ export function AdminFinanceTab() {
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [teamTransactions, setTeamTransactions] = useState<TeamTransaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [chartPeriod, setChartPeriod] = useState<"7" | "14" | "30">("7");
 
   useEffect(() => {
     fetchData();
@@ -269,6 +273,51 @@ export function AdminFinanceTab() {
   const teamTotalSales = teamTransactions.reduce((sum, t) => sum + (t.sale_price || 0), 0);
   const teamTotalCosts = teamTransactions.reduce((sum, t) => sum + (t.generation_cost || 0), 0);
 
+  // Chart data by date
+  const chartData = useMemo(() => {
+    const days = parseInt(chartPeriod);
+    const now = new Date();
+    const data: { date: string; income: number; expenses: number; profit: number }[] = [];
+    
+    for (let i = days - 1; i >= 0; i--) {
+      const day = subDays(now, i);
+      const dayStart = startOfDay(day);
+      const dayEnd = endOfDay(day);
+      
+      const dayGens = filteredGenerations.filter(g => {
+        const genDate = new Date(g.created_at);
+        return genDate >= dayStart && genDate <= dayEnd;
+      });
+      
+      const income = dayGens.reduce((sum, g) => sum + (g.sale_price || 0), 0);
+      const expenses = dayGens.reduce((sum, g) => sum + (g.generation_cost || 0), 0);
+      
+      data.push({
+        date: format(day, "dd.MM", { locale: uk }),
+        income,
+        expenses,
+        profit: income - expenses
+      });
+    }
+    
+    return data;
+  }, [filteredGenerations, chartPeriod]);
+
+  // Chart data by team
+  const teamChartData = useMemo(() => {
+    const teamStats: Record<string, { name: string; income: number; expenses: number }> = {};
+    
+    filteredGenerations.forEach(g => {
+      const teamName = g.team_name || "Невідома";
+      if (!teamStats[teamName]) {
+        teamStats[teamName] = { name: teamName, income: 0, expenses: 0 };
+      }
+      teamStats[teamName].income += g.sale_price || 0;
+      teamStats[teamName].expenses += g.generation_cost || 0;
+    });
+    
+    return Object.values(teamStats);
+  }, [filteredGenerations]);
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -298,6 +347,71 @@ export function AdminFinanceTab() {
             ${totalProfit.toFixed(2)}
           </span>
         </div>
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        {/* Daily Chart */}
+        <Card>
+          <CardHeader className="py-2 px-3 flex flex-row items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <BarChart3 className="h-3 w-3 text-muted-foreground" />
+              <CardTitle className="text-xs font-medium">Динаміка по днях</CardTitle>
+            </div>
+            <Select value={chartPeriod} onValueChange={(v) => setChartPeriod(v as "7" | "14" | "30")}>
+              <SelectTrigger className="w-20 h-5 text-[10px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7" className="text-xs">7 днів</SelectItem>
+                <SelectItem value="14" className="text-xs">14 днів</SelectItem>
+                <SelectItem value="30" className="text-xs">30 днів</SelectItem>
+              </SelectContent>
+            </Select>
+          </CardHeader>
+          <CardContent className="px-3 pb-3">
+            <div className="h-32">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                  <XAxis dataKey="date" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 9 }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
+                  <Tooltip 
+                    contentStyle={{ fontSize: 10, padding: '4px 8px' }}
+                    formatter={(value: number) => [`$${value.toFixed(2)}`, '']}
+                  />
+                  <Bar dataKey="income" name="Дохід" fill="#22c55e" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="expenses" name="Витрати" fill="#ef4444" radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Team Chart */}
+        <Card>
+          <CardHeader className="py-2 px-3">
+            <div className="flex items-center gap-1.5">
+              <BarChart3 className="h-3 w-3 text-muted-foreground" />
+              <CardTitle className="text-xs font-medium">По командах</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="px-3 pb-3">
+            <div className="h-32">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={teamChartData} layout="vertical" margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+                  <XAxis type="number" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={60} />
+                  <Tooltip 
+                    contentStyle={{ fontSize: 10, padding: '4px 8px' }}
+                    formatter={(value: number) => [`$${value.toFixed(2)}`, '']}
+                  />
+                  <Bar dataKey="income" name="Дохід" fill="#22c55e" radius={[0, 2, 2, 0]} />
+                  <Bar dataKey="expenses" name="Витрати" fill="#ef4444" radius={[0, 2, 2, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Two column layout for pricing and balances */}
