@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +14,7 @@ const authSchema = z.object({
   email: z.string().trim().email({ message: "Невірний формат email" }),
   password: z.string().min(6, { message: "Пароль має бути мінімум 6 символів" }),
   displayName: z.string().trim().optional(),
+  inviteCode: z.string().trim().optional(),
 });
 
 export default function Auth() {
@@ -24,6 +26,7 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -34,7 +37,12 @@ export default function Auth() {
 
   const validateForm = () => {
     try {
-      authSchema.parse({ email, password, displayName: displayName || undefined });
+      const schema = isLogin 
+        ? authSchema.omit({ inviteCode: true, displayName: true })
+        : authSchema.extend({
+            inviteCode: z.string().trim().min(1, { message: "Введіть інвайт-код" })
+          });
+      schema.parse({ email, password, displayName: displayName || undefined, inviteCode: inviteCode || undefined });
       setErrors({});
       return true;
     } catch (err) {
@@ -49,6 +57,25 @@ export default function Auth() {
       }
       return false;
     }
+  };
+
+  const validateInviteCode = async (code: string): Promise<boolean> => {
+    const { data, error } = await supabase
+      .from("invite_codes")
+      .select("id")
+      .eq("code", code.toUpperCase())
+      .eq("is_active", true)
+      .is("used_by", null)
+      .single();
+    
+    return !error && !!data;
+  };
+
+  const markInviteCodeAsUsed = async (code: string, userId: string) => {
+    await supabase
+      .from("invite_codes")
+      .update({ used_by: userId, used_at: new Date().toISOString() })
+      .eq("code", code.toUpperCase());
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,7 +109,19 @@ export default function Auth() {
           });
         }
       } else {
-        const { error } = await signUp(email, password, displayName);
+        // Validate invite code first
+        const isValidCode = await validateInviteCode(inviteCode);
+        if (!isValidCode) {
+          toast({
+            title: "Помилка реєстрації",
+            description: "Невірний або використаний інвайт-код",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
+        const { data, error } = await signUp(email, password, displayName);
         if (error) {
           if (error.message.includes("User already registered")) {
             toast({
@@ -98,6 +137,10 @@ export default function Auth() {
             });
           }
         } else {
+          // Mark invite code as used
+          if (data?.user) {
+            await markInviteCodeAsUsed(inviteCode, data.user.id);
+          }
           toast({
             title: "Реєстрація успішна",
             description: "Ваш акаунт створено!",
@@ -136,17 +179,35 @@ export default function Auth() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="displayName">Ім'я (необов'язково)</Label>
-                <Input
-                  id="displayName"
-                  type="text"
-                  placeholder="Ваше ім'я"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="inviteCode">Інвайт-код *</Label>
+                  <Input
+                    id="inviteCode"
+                    type="text"
+                    placeholder="XXXXXXXX"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                    disabled={isSubmitting}
+                    className={errors.inviteCode ? "border-destructive" : ""}
+                    maxLength={8}
+                  />
+                  {errors.inviteCode && (
+                    <p className="text-sm text-destructive">{errors.inviteCode}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="displayName">Ім'я (необов'язково)</Label>
+                  <Input
+                    id="displayName"
+                    type="text"
+                    placeholder="Ваше ім'я"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </>
             )}
 
             <div className="space-y-2">
