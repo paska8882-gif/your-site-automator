@@ -313,9 +313,12 @@ export function WebsiteGenerator() {
   const totalGenerations = allLanguages.length * sitesPerLanguage * styleCount;
 
   // Calculate total cost for current generation
-  const pricePerSite = websiteType === "react" 
+  const basePrice = websiteType === "react" 
     ? (teamPricing?.reactPrice || 9) 
     : (teamPricing?.htmlPrice || 7);
+  
+  // Add $2 for AI photo search
+  const pricePerSite = basePrice + (imageSource === "ai" ? 2 : 0);
   
   const calculateTotalCost = () => {
     return allLanguages.length * sitesPerLanguage * styleCount * pricePerSite;
