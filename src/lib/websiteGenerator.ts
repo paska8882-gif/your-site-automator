@@ -190,36 +190,17 @@ async function startCodexGeneration(
     // 2. Update status to generating
     await supabase.from("generation_history").update({ status: "generating" }).eq("id", historyId);
 
-    // 3. Вызываем Edge Function прокси (fire-and-forget)
-    // n8n сам запишет результат в БД когда закончит
-    const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/codex-proxy`, {
-      method: "POST",
+    // 3. Вызываем backend-функцию (fire-and-forget)
+    // Чтобы было стабильнее (без CORS/Failed to fetch) — вызываем через supabase SDK и передаем только historyId.
+    const { error: invokeError } = await supabase.functions.invoke("codex-proxy", {
+      body: { historyId },
       headers: {
-        "Content-Type": "application/json",
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({
-        prompt,
-        language,
-        websiteType,
-        layoutStyle,
-        siteName,
-        userId: session.user.id,
-        historyId, // передаём ID записи чтобы n8n мог обновить её
-      }),
     });
 
-    if (!resp.ok) {
-      const errText = await resp.text().catch(() => "");
-      let finalMsg = "";
-      try {
-        const maybeJson = JSON.parse(errText);
-        finalMsg = typeof maybeJson?.error === "string" ? maybeJson.error : errText;
-      } catch {
-        finalMsg = errText;
-      }
-      finalMsg = (finalMsg || `HTTP ${resp.status}`).trim().slice(0, 500);
+    if (invokeError) {
+      const finalMsg = (invokeError.message || "Failed to start generation").trim().slice(0, 500);
 
       // Refund balance
       if (teamId && salePrice > 0) {
@@ -238,7 +219,7 @@ async function startCodexGeneration(
     }
 
     // Success — generation started in background
-    // n8n will update the record when finished
+    // codex-proxy will update the record when finished
     return {
       success: true,
       historyId,

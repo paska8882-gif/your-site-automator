@@ -1267,13 +1267,33 @@ export function WebsiteGenerator() {
                     });
                     return;
                   }
+
+                  if (!selectedAdminTeamId) {
+                    toast({
+                      title: "Оберіть команду",
+                      description: "Для «Кодувальник Кирил» потрібно обрати команду для списання коштів",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+
                   setIsSubmitting(true);
                   const externalLanguage = selectedLanguages[0] || "uk";
                   try {
-                    await startGeneration(prompt, externalLanguage, "senior", "html", undefined, siteName, seniorMode, "basic");
+                    await startGeneration(
+                      prompt,
+                      externalLanguage,
+                      "senior",
+                      "html",
+                      undefined,
+                      siteName,
+                      seniorMode,
+                      "basic",
+                      selectedAdminTeamId
+                    );
                     toast({
                       title: "Генерацію запущено",
-                      description: `Запит відправлено на ${seniorMode} (${languages.find(l => l.value === externalLanguage)?.label || externalLanguage})`,
+                      description: `Запит відправлено на ${seniorMode} (${languages.find((l) => l.value === externalLanguage)?.label || externalLanguage})`,
                     });
                   } catch (error) {
                     toast({

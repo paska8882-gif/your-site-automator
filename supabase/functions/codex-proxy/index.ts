@@ -328,28 +328,53 @@ serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const { historyId, prompt, language, siteName } = body;
+    const { historyId } = body;
 
     if (!historyId || typeof historyId !== "string") {
       return new Response(JSON.stringify({ error: "Missing historyId" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (!prompt || typeof prompt !== "string") {
-      return new Response(JSON.stringify({ error: "Missing prompt" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
       });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
 
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabaseUrl || !serviceRoleKey || !anonKey) {
       throw new Error("Missing backend credentials");
     }
+
+    const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Missing authorization header" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
+      });
+    }
+
+    // Read the generation record under RLS (so users can't запускать чужие historyId)
+    const authed = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: history, error: historyErr } = await (authed as any)
+      .from("generation_history")
+      .select("prompt, language, site_name")
+      .eq("id", historyId)
+      .single();
+
+    if (historyErr || !history?.prompt) {
+      const msg = historyErr?.message || "Generation not found";
+      return new Response(JSON.stringify({ error: msg }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
+      });
+    }
+
+    const prompt: string = history.prompt;
+    const language: string = history.language || "en";
+    const siteName: string = history.site_name || "Website";
 
     console.log("🎯 Queuing Codex generation for:", siteName, "historyId:", historyId);
 
@@ -357,12 +382,12 @@ serve(async (req) => {
     EdgeRuntime.waitUntil(
       (async () => {
         try {
-          await runCodexGeneration(prompt, language, siteName, historyId, supabaseUrl, supabaseKey);
+          await runCodexGeneration(prompt, language, siteName, historyId, supabaseUrl, serviceRoleKey);
         } catch (e) {
           const msg = e instanceof Error ? e.message : "Unknown error";
           console.error("❌ Background generation crashed:", msg);
 
-          const supabase = createClient(supabaseUrl, supabaseKey);
+          const supabase = createClient(supabaseUrl, serviceRoleKey);
           await (supabase as any)
             .from("generation_history")
             .update({ status: "failed", error_message: msg, sale_price: 0 })
