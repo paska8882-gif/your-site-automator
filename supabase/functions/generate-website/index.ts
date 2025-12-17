@@ -358,6 +358,12 @@ url('https://loremflickr.com/1920/1080/[THEME-KEYWORDS]?random=1')
 2. Numbers must be DIFFERENT for each image (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, etc.)
 3. Use comma-separated keywords that match the SPECIFIC section content
 4. Alt text MUST be in the same language as the website content
+
+**FALLBACK REQUIRED FOR ALL IMAGES:**
+Add onerror handler to EVERY <img> tag to fallback to picsum.photos if loremflickr fails:
+<img src="https://loremflickr.com/800/600/keywords?random=1" onerror="this.onerror=null;this.src='https://picsum.photos/800/600?random=1'" alt="..." loading="lazy">
+
+For CSS background images, no fallback needed as they're more reliable.
 `.trim();
 
 // CSS for images - common to both strategies
