@@ -84,6 +84,8 @@ export function AdminFinanceTab() {
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [chartPeriod, setChartPeriod] = useState<"7" | "14" | "30">("7");
   const [detailedModelView, setDetailedModelView] = useState(false);
+  const [bulkPrices, setBulkPrices] = useState({ html: "", react: "", external: "" });
+  const [savingBulk, setSavingBulk] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -230,6 +232,47 @@ export function AdminFinanceTab() {
       toast.error("Помилка збереження цін");
     } finally {
       setSavingPricing(null);
+    }
+  };
+
+  const saveBulkPricing = async () => {
+    const htmlPrice = bulkPrices.html ? parseFloat(bulkPrices.html) : null;
+    const reactPrice = bulkPrices.react ? parseFloat(bulkPrices.react) : null;
+    const externalPrice = bulkPrices.external ? parseFloat(bulkPrices.external) : null;
+
+    if (htmlPrice === null && reactPrice === null && externalPrice === null) {
+      toast.error("Введіть хоча б одну ціну");
+      return;
+    }
+
+    setSavingBulk(true);
+    try {
+      for (const team of teams) {
+        const existingPricing = teamPricing[team.id];
+        const pricingData = {
+          team_id: team.id,
+          html_price: htmlPrice ?? existingPricing?.html_price ?? 7,
+          react_price: reactPrice ?? existingPricing?.react_price ?? 9,
+          external_price: externalPrice ?? existingPricing?.external_price ?? 7,
+          generation_cost_junior: existingPricing?.generation_cost_junior ?? 0.10,
+          generation_cost_senior: existingPricing?.generation_cost_senior ?? 0.25,
+        };
+
+        if (existingPricing) {
+          await supabase.from("team_pricing").update(pricingData).eq("team_id", team.id);
+        } else {
+          await supabase.from("team_pricing").insert(pricingData);
+        }
+      }
+
+      toast.success(`Ціни оновлено для ${teams.length} команд`);
+      setBulkPrices({ html: "", react: "", external: "" });
+      fetchData();
+    } catch (error) {
+      console.error("Error saving bulk pricing:", error);
+      toast.error("Помилка масового оновлення цін");
+    } finally {
+      setSavingBulk(false);
     }
   };
 
@@ -591,6 +634,27 @@ export function AdminFinanceTab() {
             </div>
           </CardHeader>
           <CardContent className="px-3 pb-3">
+            {/* Bulk pricing row */}
+            <div className="flex items-center gap-1.5 p-1.5 mb-2 rounded border-2 border-dashed border-primary/30 bg-primary/5">
+              <span className="font-medium text-[10px] min-w-14 text-primary">Всі:</span>
+              <span className="text-[10px] text-muted-foreground">H:</span>
+              <Input type="number" step="0.01" placeholder="7" className="w-10 h-5 text-[10px] px-1"
+                value={bulkPrices.html}
+                onChange={(e) => setBulkPrices(prev => ({ ...prev, html: e.target.value }))} />
+              <span className="text-[10px] text-muted-foreground">R:</span>
+              <Input type="number" step="0.01" placeholder="9" className="w-10 h-5 text-[10px] px-1"
+                value={bulkPrices.react}
+                onChange={(e) => setBulkPrices(prev => ({ ...prev, react: e.target.value }))} />
+              <span className="text-[10px] text-amber-600">E:</span>
+              <Input type="number" step="0.01" placeholder="7" className="w-10 h-5 text-[10px] px-1"
+                value={bulkPrices.external}
+                onChange={(e) => setBulkPrices(prev => ({ ...prev, external: e.target.value }))} />
+              <Button size="sm" variant="default" className="h-5 px-2 text-[10px] ml-auto"
+                onClick={saveBulkPricing} disabled={savingBulk}>
+                {savingBulk ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : "Застосувати"}
+              </Button>
+            </div>
+            
             <div className="space-y-1">
               {teams.map((team) => (
                 <div key={team.id} className="flex items-center gap-1.5 p-1.5 rounded border bg-card">
