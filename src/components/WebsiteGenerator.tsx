@@ -183,18 +183,6 @@ export function WebsiteGenerator() {
     };
   }, []);
 
-  // Calculate total cost for current generation
-  const pricePerSite = websiteType === "react" 
-    ? (teamPricing?.reactPrice || 9) 
-    : (teamPricing?.htmlPrice || 7);
-  
-  const calculateTotalCost = () => {
-    const allLangs = getAllSelectedLanguages();
-    const allStylesCount = getAllSelectedStyles().length || 1;
-    return allLangs.length * sitesPerLanguage * allStylesCount * pricePerSite;
-  };
-
-  const insufficientBalance = teamPricing ? calculateTotalCost() > teamPricing.balance : false;
 
   const handleImprovePrompt = async () => {
     if (!prompt.trim()) {
@@ -322,6 +310,17 @@ export function WebsiteGenerator() {
   const allStyles = getAllSelectedStyles();
   const styleCount = allStyles.length || 1; // If no styles selected, it's random (counts as 1)
   const totalGenerations = allLanguages.length * sitesPerLanguage * styleCount;
+
+  // Calculate total cost for current generation
+  const pricePerSite = websiteType === "react" 
+    ? (teamPricing?.reactPrice || 9) 
+    : (teamPricing?.htmlPrice || 7);
+  
+  const calculateTotalCost = () => {
+    return allLanguages.length * sitesPerLanguage * styleCount * pricePerSite;
+  };
+
+  const insufficientBalance = teamPricing ? calculateTotalCost() > teamPricing.balance : false;
 
   const handleGenerateClick = () => {
     if (!siteName.trim()) {
