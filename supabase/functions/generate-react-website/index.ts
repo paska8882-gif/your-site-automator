@@ -493,11 +493,13 @@ async function runGeneration({
   language,
   aiModel,
   layoutStyle,
+  imageSource = "basic",
 }: {
   prompt: string;
   language?: string;
   aiModel: "junior" | "senior";
   layoutStyle?: string;
+  imageSource?: "basic" | "ai";
 }): Promise<GenerationResult> {
   const isJunior = aiModel === "junior";
   console.log(`Using ${isJunior ? "Junior AI (OpenAI GPT-4o)" : "Senior AI (Lovable AI)"} for React generation`);
@@ -582,7 +584,7 @@ async function runGeneration({
       },
       {
         role: "user",
-        content: `${REACT_GENERATION_PROMPT}\n\n=== MANDATORY LAYOUT STRUCTURE (FOLLOW EXACTLY) ===\n${selectedLayout.description}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
+        content: `${REACT_GENERATION_PROMPT}\n\n${imageSource === "ai" ? IMAGE_STRATEGY_AI : IMAGE_STRATEGY_BASIC}\n\n${IMAGE_CSS}\n\n=== MANDATORY LAYOUT STRUCTURE (FOLLOW EXACTLY) ===\n${selectedLayout.description}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
       },
     ],
   };
@@ -654,7 +656,8 @@ async function runBackgroundGeneration(
   prompt: string,
   language: string | undefined,
   aiModel: "junior" | "senior",
-  layoutStyle?: string
+  layoutStyle?: string,
+  imageSource: "basic" | "ai" = "basic"
 ) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -709,7 +712,7 @@ async function runBackgroundGeneration(
       .update({ status: "generating", sale_price: salePrice })
       .eq("id", historyId);
 
-    const result = await runGeneration({ prompt, language, aiModel, layoutStyle });
+    const result = await runGeneration({ prompt, language, aiModel, layoutStyle, imageSource });
 
     if (result.success && result.files) {
       // Create zip base64
@@ -829,7 +832,7 @@ serve(async (req) => {
 
     console.log("Authenticated request from user:", user.id);
 
-    const { prompt, language, aiModel = "senior", layoutStyle, siteName } = await req.json();
+    const { prompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic" } = await req.json();
 
     if (!prompt) {
       return new Response(JSON.stringify({ success: false, error: "Prompt is required" }), {
@@ -865,7 +868,7 @@ serve(async (req) => {
 
     // Start background generation using EdgeRuntime.waitUntil
     EdgeRuntime.waitUntil(
-      runBackgroundGeneration(historyEntry.id, user.id, prompt, language, aiModel, layoutStyle)
+      runBackgroundGeneration(historyEntry.id, user.id, prompt, language, aiModel, layoutStyle, imageSource)
     );
 
     // Return immediately with the history entry ID
