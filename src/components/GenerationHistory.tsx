@@ -111,11 +111,39 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
     setIsLoading(false);
   };
 
+  // Check for stale generations (older than 30 minutes) and mark them as failed
+  const checkStaleGenerations = async () => {
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    
+    const { data: staleItems } = await supabase
+      .from("generation_history")
+      .select("id")
+      .in("status", ["pending", "generating"])
+      .lt("created_at", thirtyMinutesAgo);
+    
+    if (staleItems && staleItems.length > 0) {
+      for (const item of staleItems) {
+        await supabase
+          .from("generation_history")
+          .update({
+            status: "failed",
+            error_message: "Перевищено час очікування (30 хв). Зверніться в підтримку https://t.me/assanatraf"
+          })
+          .eq("id", item.id);
+      }
+    }
+  };
+
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    let staleCheckInterval: NodeJS.Timeout | null = null;
 
     const setupRealtimeAndFetch = async () => {
       await fetchHistory();
+      
+      // Check for stale generations on load and every minute
+      await checkStaleGenerations();
+      staleCheckInterval = setInterval(checkStaleGenerations, 60 * 1000);
       
       // Get current user for realtime filter
       const { data: { user } } = await supabase.auth.getUser();
@@ -170,6 +198,9 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
     return () => {
       if (channel) {
         supabase.removeChannel(channel);
+      }
+      if (staleCheckInterval) {
+        clearInterval(staleCheckInterval);
       }
     };
   }, []);
