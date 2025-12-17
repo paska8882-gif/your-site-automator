@@ -868,71 +868,20 @@ async function runBackgroundGeneration(
   aiModel: "junior" | "senior",
   layoutStyle?: string,
   imageSource: "basic" | "ai" = "basic",
-  overrideTeamId?: string
+  teamId: string | null = null,
+  salePrice: number = 0
 ) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  console.log(`[BG] Starting background generation for history ID: ${historyId}${overrideTeamId ? `, override team: ${overrideTeamId}` : ''}`);
-
-  // Track team and sale price for potential refund
-  let teamId: string | null = overrideTeamId || null;
-  let salePrice = 0;
+  console.log(`[BG] Starting background generation for history ID: ${historyId}, team: ${teamId}, salePrice: $${salePrice}`);
 
   try {
-    // If no override teamId, get user's team membership
-    if (!teamId) {
-      const { data: membership } = await supabase
-        .from("team_members")
-        .select("team_id")
-        .eq("user_id", userId)
-        .eq("status", "approved")
-        .limit(1)
-        .maybeSingle();
-
-      if (membership) {
-        teamId = membership.team_id;
-      }
-    }
-
-    // Get pricing and deduct balance
-    if (teamId) {
-      const { data: pricing } = await supabase
-        .from("team_pricing")
-        .select("html_price")
-        .eq("team_id", teamId)
-        .maybeSingle();
-
-      salePrice = pricing?.html_price || 0;
-      
-      // Add $2 for AI photo search
-      if (imageSource === "ai") {
-        salePrice += 2;
-        console.log(`[BG] Added $2 for AI photo search. New salePrice: $${salePrice}`);
-      }
-
-      if (salePrice > 0) {
-        const { data: team } = await supabase
-          .from("teams")
-          .select("balance")
-          .eq("id", teamId)
-          .single();
-
-        if (team) {
-          await supabase
-            .from("teams")
-            .update({ balance: (team.balance || 0) - salePrice })
-            .eq("id", teamId);
-          console.log(`[BG] Deducted $${salePrice} from team ${teamId} at START`);
-        }
-      }
-    }
-
-    // Update status to generating with sale_price
+    // Balance was already deducted in main handler - just update status to generating
     await supabase
       .from("generation_history")
-      .update({ status: "generating", sale_price: salePrice })
+      .update({ status: "generating" })
       .eq("id", historyId);
 
     const result = await runGeneration({ prompt, language, aiModel, layoutStyle, imageSource });
@@ -1073,7 +1022,7 @@ serve(async (req) => {
 
     console.log("Authenticated request from user:", user.id);
 
-    const { prompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId } = await req.json();
+    const { prompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId } = await req.json();
 
     if (!prompt) {
       return new Response(JSON.stringify({ success: false, error: "Prompt is required" }), {
@@ -1082,7 +1031,59 @@ serve(async (req) => {
       });
     }
 
-    // Create history entry immediately with pending status
+    // IMMEDIATELY determine team and deduct balance BEFORE starting generation
+    let teamId: string | null = overrideTeamId || null;
+    let salePrice = 0;
+
+    // If no override teamId, get user's team membership
+    if (!teamId) {
+      const { data: membership } = await supabase
+        .from("team_members")
+        .select("team_id")
+        .eq("user_id", user.id)
+        .eq("status", "approved")
+        .limit(1)
+        .maybeSingle();
+
+      if (membership) {
+        teamId = membership.team_id;
+      }
+    }
+
+    // Get pricing and DEDUCT balance IMMEDIATELY
+    if (teamId) {
+      const { data: pricing } = await supabase
+        .from("team_pricing")
+        .select("html_price")
+        .eq("team_id", teamId)
+        .maybeSingle();
+
+      salePrice = pricing?.html_price || 0;
+      
+      // Add $2 for AI photo search
+      if (imageSource === "ai") {
+        salePrice += 2;
+        console.log(`Added $2 for AI photo search. Total salePrice: $${salePrice}`);
+      }
+
+      if (salePrice > 0) {
+        const { data: team } = await supabase
+          .from("teams")
+          .select("balance")
+          .eq("id", teamId)
+          .single();
+
+        if (team) {
+          await supabase
+            .from("teams")
+            .update({ balance: (team.balance || 0) - salePrice })
+            .eq("id", teamId);
+          console.log(`💰 IMMEDIATELY deducted $${salePrice} from team ${teamId} BEFORE starting generation`);
+        }
+      }
+    }
+
+    // Create history entry immediately with pending status AND sale_price
     const { data: historyEntry, error: insertError } = await supabase
       .from("generation_history")
       .insert({
@@ -1094,12 +1095,28 @@ serve(async (req) => {
         website_type: "html",
         site_name: siteName || null,
         image_source: imageSource || "basic",
+        sale_price: salePrice,
       })
       .select()
       .single();
 
     if (insertError || !historyEntry) {
       console.error("Failed to create history entry:", insertError);
+      // REFUND if we already deducted
+      if (teamId && salePrice > 0) {
+        const { data: team } = await supabase
+          .from("teams")
+          .select("balance")
+          .eq("id", teamId)
+          .single();
+        if (team) {
+          await supabase
+            .from("teams")
+            .update({ balance: (team.balance || 0) + salePrice })
+            .eq("id", teamId);
+          console.log(`REFUNDED $${salePrice} to team ${teamId} due to history creation failure`);
+        }
+      }
       return new Response(JSON.stringify({ success: false, error: "Failed to start generation" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -1109,8 +1126,9 @@ serve(async (req) => {
     console.log("Created history entry:", historyEntry.id);
 
     // Start background generation using EdgeRuntime.waitUntil
+    // Pass salePrice and teamId for potential refund on error
     EdgeRuntime.waitUntil(
-      runBackgroundGeneration(historyEntry.id, user.id, prompt, language, aiModel, layoutStyle, imageSource, teamId)
+      runBackgroundGeneration(historyEntry.id, user.id, prompt, language, aiModel, layoutStyle, imageSource, teamId, salePrice)
     );
 
     // Return immediately with the history entry ID
