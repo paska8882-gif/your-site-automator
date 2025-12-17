@@ -727,9 +727,9 @@ export function WebsiteGenerator() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none" disabled>Оберіть сервіс</SelectItem>
-                      <SelectItem value="codex">🤖 Кодекс</SelectItem>
+                      <SelectItem value="codex">🤖 Кодувальник Кирил</SelectItem>
                       <SelectItem value="onepage">📄 Одностраничник</SelectItem>
-                      <SelectItem value="v0">⚡ v0</SelectItem>
+                      <SelectItem value="v0">⚡ Вова нуляра</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
