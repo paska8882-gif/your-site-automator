@@ -111,26 +111,28 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
     setIsLoading(false);
   };
 
-  // Check for stale generations (older than 30 minutes) and mark them as failed
+  // Check for stale generations (older than 30 minutes) and mark them as failed with refund
   const checkStaleGenerations = async () => {
-    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-    
-    const { data: staleItems } = await supabase
-      .from("generation_history")
-      .select("id")
-      .in("status", ["pending", "generating"])
-      .lt("created_at", thirtyMinutesAgo);
-    
-    if (staleItems && staleItems.length > 0) {
-      for (const item of staleItems) {
-        await supabase
-          .from("generation_history")
-          .update({
-            status: "failed",
-            error_message: "Перевищено час очікування (30 хв). Зверніться в підтримку https://t.me/assanatraf"
-          })
-          .eq("id", item.id);
+    try {
+      // Call edge function that handles cleanup with refunds
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cleanup-stale-generations`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.processed > 0) {
+          console.log(`Stale cleanup: ${result.processed} processed, ${result.refunded} refunded`);
+          // Refresh history to show updated statuses
+          fetchHistory();
+        }
       }
+    } catch (error) {
+      console.error("Error checking stale generations:", error);
     }
   };
 
