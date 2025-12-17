@@ -20,6 +20,7 @@ export interface GenerationResult {
 export type AiModel = "junior" | "senior";
 export type WebsiteType = "html" | "react";
 export type SeniorMode = "codex" | "onepage" | "v0" | undefined;
+export type ImageSource = "basic" | "ai";
 
 // Layout styles available for selection
 export const LAYOUT_STYLES = [
@@ -42,7 +43,8 @@ export async function startGeneration(
   websiteType: WebsiteType = "html",
   layoutStyle?: string,
   siteName?: string,
-  seniorMode?: SeniorMode
+  seniorMode?: SeniorMode,
+  imageSource: ImageSource = "basic"
 ): Promise<GenerationResult> {
   // Если выбран режим Codex для Senior AI - обращаемся к внешнему вебхуку
   if (aiModel === "senior" && seniorMode === "codex") {
@@ -67,7 +69,7 @@ export async function startGeneration(
         apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ prompt, language, aiModel, layoutStyle, siteName, seniorMode }),
+      body: JSON.stringify({ prompt, language, aiModel, layoutStyle, siteName, seniorMode, imageSource }),
     });
 
     if (!resp.ok) {

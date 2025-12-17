@@ -244,8 +244,33 @@ Every website MUST include a REAL, FUNCTIONAL cookie consent system:
 - Hover/focus states
 - Form styling
 
-**IMAGE STRATEGY - USE LOREMFLICKR FOR THEMED IMAGES:**
-Use loremflickr.com for ALL images - it supports keyword search and is reliable:
+`.trim();
+
+// Image strategy - Basic (reliable random photos)
+const IMAGE_STRATEGY_BASIC = `
+**IMAGE STRATEGY - RELIABLE RANDOM PHOTOS:**
+Use picsum.photos for ALL images - it's reliable and always loads:
+
+**Hero background:** 
+style={{backgroundImage: 'url(https://picsum.photos/1920/1080?random=1)'}}
+
+**Content images:**
+<img src="https://picsum.photos/800/600?random=2" alt="[Descriptive alt text in site language]" loading="lazy" />
+
+**Card images:**
+<img src="https://picsum.photos/600/400?random=3" alt="[Description]" loading="lazy" />
+
+**Portrait images:**
+<img src="https://picsum.photos/400/400?random=4" alt="[Name or role]" loading="lazy" />
+
+**IMPORTANT:** Use DIFFERENT random= numbers for each image (random=1, random=2, random=3, etc.) so images are unique!
+**Alt text MUST be in the same language as the website content!**
+`.trim();
+
+// Image strategy - AI (themed search)
+const IMAGE_STRATEGY_AI = `
+**IMAGE STRATEGY - AI THEMED PHOTO SEARCH:**
+Use loremflickr.com for ALL images - it supports keyword search for themed images:
 
 **FORMAT:** https://loremflickr.com/WIDTH/HEIGHT/KEYWORD1,KEYWORD2
 
@@ -271,7 +296,10 @@ style={{backgroundImage: 'url(https://loremflickr.com/1920/1080/[THEME-KEYWORDS]
 
 **IMPORTANT:** Use comma-separated keywords that match the SPECIFIC section content!
 **Alt text MUST be in the same language as the website content!**
+`.trim();
 
+// CSS for images - common to both strategies
+const IMAGE_CSS = `
 **REQUIRED CSS FOR IMAGES:**
 .hero {
   position: relative;
