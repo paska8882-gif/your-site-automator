@@ -688,6 +688,12 @@ async function runBackgroundGeneration(
         .maybeSingle();
 
       salePrice = pricing?.react_price || 0;
+      
+      // Add $2 for AI photo search
+      if (imageSource === "ai") {
+        salePrice += 2;
+        console.log(`[BG] Added $2 for AI photo search. New salePrice: $${salePrice}`);
+      }
 
       if (salePrice > 0) {
         const { data: team } = await supabase
