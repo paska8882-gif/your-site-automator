@@ -21,7 +21,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, Languages, Hash, Wand2, Palette, ChevronDown, AlertTriangle, Shield, Users, Wallet, RefreshCcw, Info, Image } from "lucide-react";
+import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, Languages, Hash, Wand2, Palette, ChevronDown, AlertTriangle, Shield, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { startGeneration, AiModel, WebsiteType, SeniorMode, ImageSource, LAYOUT_STYLES } from "@/lib/websiteGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { GenerationHistory } from "./GenerationHistory";
@@ -36,6 +38,33 @@ interface TeamPricing {
   balance: number;
   htmlPrice: number;
   reactPrice: number;
+}
+
+interface GenerationPreset {
+  id: string;
+  name: string;
+  selectedLanguages: string[];
+  customLanguage: string;
+  isOtherSelected: boolean;
+  selectedStyles: string[];
+  customStyle: string;
+  isOtherStyleSelected: boolean;
+  sitesPerLanguage: number;
+  selectedAiModels: AiModel[];
+  selectedWebsiteTypes: WebsiteType[];
+  selectedImageSources: ImageSource[];
+  seniorMode: SeniorMode;
+}
+
+interface CostBreakdownItem {
+  websiteType: WebsiteType;
+  imageSource: ImageSource;
+  aiModel: AiModel;
+  basePrice: number;
+  aiPhotoExtra: number;
+  pricePerSite: number;
+  count: number;
+  subtotal: number;
 }
 
 const languages = [
@@ -121,6 +150,89 @@ export function WebsiteGenerator() {
   const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 });
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [teamPricing, setTeamPricing] = useState<TeamPricing | null>(null);
+  
+  // Presets
+  const [presets, setPresets] = useState<GenerationPreset[]>([]);
+  const [presetName, setPresetName] = useState("");
+  const [showCostBreakdown, setShowCostBreakdown] = useState(false);
+
+  // Load presets from localStorage
+  useEffect(() => {
+    const savedPresets = localStorage.getItem("generationPresets");
+    if (savedPresets) {
+      try {
+        setPresets(JSON.parse(savedPresets));
+      } catch (e) {
+        console.error("Failed to load presets:", e);
+      }
+    }
+  }, []);
+
+  // Save presets to localStorage
+  const savePresetsToStorage = (newPresets: GenerationPreset[]) => {
+    localStorage.setItem("generationPresets", JSON.stringify(newPresets));
+    setPresets(newPresets);
+  };
+
+  const saveCurrentPreset = () => {
+    if (!presetName.trim()) {
+      toast({
+        title: "Помилка",
+        description: "Введіть назву пресету",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newPreset: GenerationPreset = {
+      id: Date.now().toString(),
+      name: presetName.trim(),
+      selectedLanguages,
+      customLanguage,
+      isOtherSelected,
+      selectedStyles,
+      customStyle,
+      isOtherStyleSelected,
+      sitesPerLanguage,
+      selectedAiModels,
+      selectedWebsiteTypes,
+      selectedImageSources,
+      seniorMode,
+    };
+
+    savePresetsToStorage([...presets, newPreset]);
+    setPresetName("");
+    toast({
+      title: "Пресет збережено",
+      description: `"${newPreset.name}" збережено для швидкого використання`,
+    });
+  };
+
+  const loadPreset = (preset: GenerationPreset) => {
+    setSelectedLanguages(preset.selectedLanguages);
+    setCustomLanguage(preset.customLanguage);
+    setIsOtherSelected(preset.isOtherSelected);
+    setSelectedStyles(preset.selectedStyles);
+    setCustomStyle(preset.customStyle);
+    setIsOtherStyleSelected(preset.isOtherStyleSelected);
+    setSitesPerLanguage(preset.sitesPerLanguage);
+    setSelectedAiModels(preset.selectedAiModels);
+    setSelectedWebsiteTypes(preset.selectedWebsiteTypes);
+    setSelectedImageSources(preset.selectedImageSources);
+    setSeniorMode(preset.seniorMode);
+    toast({
+      title: "Пресет завантажено",
+      description: `Налаштування "${preset.name}" застосовано`,
+    });
+  };
+
+  const deletePreset = (presetId: string) => {
+    const newPresets = presets.filter(p => p.id !== presetId);
+    savePresetsToStorage(newPresets);
+    toast({
+      title: "Пресет видалено",
+    });
+  };
 
   // Fetch team pricing on mount
   useEffect(() => {
@@ -353,6 +465,40 @@ export function WebsiteGenerator() {
       }
     }
     return total;
+  };
+
+  // Get detailed cost breakdown for each combination
+  const getCostBreakdown = (): CostBreakdownItem[] => {
+    const breakdown: CostBreakdownItem[] = [];
+    const htmlPrice = teamPricing?.htmlPrice || 7;
+    const reactPrice = teamPricing?.reactPrice || 9;
+    
+    const websiteTypesToUse = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes : ["html" as WebsiteType];
+    const imageSourcesToUse = selectedImageSources.length > 0 ? selectedImageSources : ["basic" as ImageSource];
+    const aiModelsToUse = selectedAiModels.length > 0 ? selectedAiModels : ["senior" as AiModel];
+    
+    for (const wt of websiteTypesToUse) {
+      for (const is of imageSourcesToUse) {
+        for (const ai of aiModelsToUse) {
+          const basePrice = wt === "react" ? reactPrice : htmlPrice;
+          const aiPhotoExtra = is === "ai" ? 2 : 0;
+          const pricePerSite = basePrice + aiPhotoExtra;
+          const count = allLanguages.length * sitesPerLanguage * styleCount;
+          
+          breakdown.push({
+            websiteType: wt,
+            imageSource: is,
+            aiModel: ai,
+            basePrice,
+            aiPhotoExtra,
+            pricePerSite,
+            count,
+            subtotal: count * pricePerSite,
+          });
+        }
+      }
+    }
+    return breakdown;
   };
 
   const insufficientBalance = teamPricing ? calculateTotalCost() > teamPricing.balance : false;
@@ -863,6 +1009,60 @@ export function WebsiteGenerator() {
               )}
             </div>
 
+            {/* Preset Management */}
+            <div className="flex flex-wrap items-center gap-2 p-3 bg-muted/30 rounded-lg">
+              <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                <Input
+                  placeholder="Назва пресету..."
+                  value={presetName}
+                  onChange={(e) => setPresetName(e.target.value)}
+                  className="h-8 text-sm"
+                  disabled={isSubmitting}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={saveCurrentPreset}
+                  disabled={isSubmitting || !presetName.trim()}
+                >
+                  <Save className="h-4 w-4 mr-1" />
+                  Зберегти
+                </Button>
+              </div>
+              {presets.length > 0 && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={isSubmitting}>
+                      <FolderOpen className="h-4 w-4 mr-1" />
+                      Пресети ({presets.length})
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-2" align="end">
+                    <div className="space-y-1 max-h-48 overflow-y-auto">
+                      {presets.map((preset) => (
+                        <div key={preset.id} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-muted">
+                          <button
+                            onClick={() => loadPreset(preset)}
+                            className="text-sm text-left flex-1 truncate"
+                          >
+                            {preset.name}
+                          </button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-destructive hover:text-destructive"
+                            onClick={() => deletePreset(preset.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
+
             <div className="flex flex-col gap-2">
               <Button
                 onClick={handleGenerateClick}
@@ -895,22 +1095,85 @@ export function WebsiteGenerator() {
               )}
             </div>
 
-            {/* Cost info alert */}
+            {/* Cost breakdown with collapsible table */}
             {teamPricing && totalGenerations > 0 && (
-              <Alert className="bg-muted/50">
-                <Info className="h-4 w-4" />
-                <AlertDescription className="text-xs">
-                  <span className="font-medium">Комбінацій:</span> {allLanguages.length} мов × {sitesPerLanguage} шт × {styleCount} стилів × {aiModelCount} AI × {websiteTypeCount} типів × {imageSourceCount} фото = <strong>{totalGenerations} сайтів</strong>
-                  <br />
-                  <span className="font-medium">Загальна вартість:</span> <strong>${calculateTotalCost().toFixed(2)}</strong>
-                  <br />
-                  <span className="text-muted-foreground">
-                    💳 Кошти списуються при старті генерації • 
-                    <RefreshCcw className="h-3 w-3 inline mx-1" />
-                    Автоматичний рефанд при помилці
-                  </span>
-                </AlertDescription>
-              </Alert>
+              <Collapsible open={showCostBreakdown} onOpenChange={setShowCostBreakdown}>
+                <Alert className="bg-muted/50">
+                  <div className="flex items-start justify-between w-full">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-4 w-4 mt-0.5" />
+                      <AlertDescription className="text-xs">
+                        <span className="font-medium">Комбінацій:</span> {allLanguages.length} мов × {sitesPerLanguage} шт × {styleCount} стилів × {aiModelCount} AI × {websiteTypeCount} типів × {imageSourceCount} фото = <strong>{totalGenerations} сайтів</strong>
+                        <br />
+                        <span className="font-medium">Загальна вартість:</span> <strong>${calculateTotalCost().toFixed(2)}</strong>
+                        <br />
+                        <span className="text-muted-foreground">
+                          💳 Кошти списуються при старті генерації • 
+                          <RefreshCcw className="h-3 w-3 inline mx-1" />
+                          Автоматичний рефанд при помилці
+                        </span>
+                      </AlertDescription>
+                    </div>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-6 px-2">
+                        {showCostBreakdown ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        <span className="ml-1 text-xs">Деталі</span>
+                      </Button>
+                    </CollapsibleTrigger>
+                  </div>
+                </Alert>
+                <CollapsibleContent className="mt-2">
+                  <div className="rounded-md border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="text-xs py-2 h-auto">Тип</TableHead>
+                          <TableHead className="text-xs py-2 h-auto">AI</TableHead>
+                          <TableHead className="text-xs py-2 h-auto">Фото</TableHead>
+                          <TableHead className="text-xs py-2 h-auto text-right">Базова</TableHead>
+                          <TableHead className="text-xs py-2 h-auto text-right">+AI фото</TableHead>
+                          <TableHead className="text-xs py-2 h-auto text-right">За сайт</TableHead>
+                          <TableHead className="text-xs py-2 h-auto text-right">Кількість</TableHead>
+                          <TableHead className="text-xs py-2 h-auto text-right">Сума</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {getCostBreakdown().map((item, idx) => (
+                          <TableRow key={idx} className="text-xs">
+                            <TableCell className="py-1.5">
+                              <span className={item.websiteType === "react" ? "text-cyan-500" : "text-green-500"}>
+                                {item.websiteType === "react" ? "React" : "HTML"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-1.5">
+                              <span className={item.aiModel === "senior" ? "text-amber-500" : "text-blue-500"}>
+                                {item.aiModel === "senior" ? "Senior" : "Junior"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-1.5">
+                              <span className={item.imageSource === "ai" ? "text-violet-500" : "text-muted-foreground"}>
+                                {item.imageSource === "ai" ? "AI" : "Базові"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-1.5 text-right">${item.basePrice}</TableCell>
+                            <TableCell className="py-1.5 text-right">
+                              {item.aiPhotoExtra > 0 ? <span className="text-violet-500">+${item.aiPhotoExtra}</span> : "-"}
+                            </TableCell>
+                            <TableCell className="py-1.5 text-right font-medium">${item.pricePerSite}</TableCell>
+                            <TableCell className="py-1.5 text-right">{item.count}</TableCell>
+                            <TableCell className="py-1.5 text-right font-medium">${item.subtotal.toFixed(2)}</TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow className="bg-muted/30 font-medium">
+                          <TableCell colSpan={6} className="py-2 text-right text-xs">Разом:</TableCell>
+                          <TableCell className="py-2 text-right text-xs">{totalGenerations}</TableCell>
+                          <TableCell className="py-2 text-right text-xs">${calculateTotalCost().toFixed(2)}</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             )}
 
             {/* Progress bar for bulk generation */}
