@@ -11,10 +11,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Pricing for gpt-5-2025-08-07 (per 1M tokens)
-const PRICE_PER_MILLION = {
-  input: 5.00,
-  output: 15.00
+// Model pricing (per 1M tokens)
+const MODEL_PRICE_PER_MILLION: Record<string, { input: number; output: number }> = {
+  "gpt-5-2025-08-07": { input: 5.0, output: 15.0 },
+  "gpt-4o": { input: 2.5, output: 10.0 },
 };
 
 const GENERATION_PROMPT = `Create a COMPLETE, PROFESSIONAL website with ALL necessary files.
@@ -95,13 +95,13 @@ function parseFilesFromResponse(responseText: string): GeneratedFile[] {
   return files;
 }
 
-function calculateCost(usage: any) {
+function calculateCost(usage: any, model: string): number {
   if (!usage) return 0;
   const inputTokens = usage.input_tokens ?? usage.prompt_tokens ?? 0;
   const outputTokens = usage.output_tokens ?? usage.completion_tokens ?? 0;
+  const price = MODEL_PRICE_PER_MILLION[model] ?? MODEL_PRICE_PER_MILLION["gpt-5-2025-08-07"];
   const costUSD =
-    (inputTokens / 1000000) * PRICE_PER_MILLION.input +
-    (outputTokens / 1000000) * PRICE_PER_MILLION.output;
+    (inputTokens / 1000000) * price.input + (outputTokens / 1000000) * price.output;
   return Math.round(costUSD * 10000) / 10000;
 }
 
@@ -133,10 +133,11 @@ async function runCodexGeneration(
   supabaseKey: string
 ) {
   const supabase = createClient(supabaseUrl, supabaseKey);
-  const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
-  
-  if (!openaiApiKey) {
-    throw new Error("OPENAI_API_KEY not configured");
+  const openaiApiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
+  const lovableApiKey = Deno.env.get("LOVABLE_API_KEY") ?? "";
+
+  if (!openaiApiKey && !lovableApiKey) {
+    throw new Error("No AI API key configured");
   }
   
   console.log(`🚀 Starting Codex generation for: ${siteName}`);
@@ -148,32 +149,35 @@ async function runCodexGeneration(
     .eq("id", historyId);
   
   try {
-    // Try GPT-4o first (more reliable, faster), fallback to GPT-5 if needed
-    const models = ["gpt-4o", "gpt-5-2025-08-07"];
-    let responseText = '';
-    let cost = 0;
-    let usedModel = '';
-    
-    for (const model of models) {
+    // Prefer OpenAI if available; if OpenAI quota is exhausted, fallback to Lovable AI gateway
+    const openAiModels = openaiApiKey ? ["gpt-4o", "gpt-5-2025-08-07"] : [];
+
+    let responseText = "";
+    let cost = 1; // keep existing baseline cost unless we can calculate precisely
+    let usedModel = "";
+    let lastError = "";
+    let openAiQuotaExceeded = false;
+
+    for (const model of openAiModels) {
       console.log(`📤 Calling OpenAI API with ${model}...`);
-      
+
       // Create AbortController for timeout (5 minutes per attempt)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
         console.log(`⏰ Fetch timeout triggered after 5 minutes for ${model}`);
         controller.abort();
       }, 5 * 60 * 1000);
-      
-      let response;
+
+      let response: Response;
       try {
         const requestBody: any = {
           model,
           messages: [
             { role: "system", content: GENERATION_PROMPT },
-            { role: "user", content: prompt }
-          ]
+            { role: "user", content: prompt },
+          ],
         };
-        
+
         // Different token params for different models
         if (model.includes("gpt-5")) {
           requestBody.max_completion_tokens = 50000;
@@ -181,65 +185,127 @@ async function runCodexGeneration(
           requestBody.max_tokens = 16000;
           requestBody.temperature = 0.7;
         }
-        
+
         response = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${openaiApiKey}`
+            Authorization: `Bearer ${openaiApiKey}`,
           },
           body: JSON.stringify(requestBody),
-          signal: controller.signal
+          signal: controller.signal,
         });
       } catch (fetchErr) {
-        clearTimeout(timeoutId);
-        console.error(`❌ Fetch failed for ${model}:`, fetchErr instanceof Error ? fetchErr.message : fetchErr);
-        continue; // Try next model
+        lastError = `OpenAI fetch failed for ${model}: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`;
+        console.error(`❌ ${lastError}`);
+        continue;
       } finally {
         clearTimeout(timeoutId);
       }
-      
+
       console.log(`📥 ${model} responded with status:`, response.status);
-      
+
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`OpenAI API error for ${model}:`, response.status, errorText);
-        continue; // Try next model
+        lastError = `OpenAI API error for ${model}: ${response.status} ${errorText}`;
+        console.error(lastError);
+
+        if (response.status === 429 && errorText.includes("insufficient_quota")) {
+          openAiQuotaExceeded = true;
+          break;
+        }
+
+        continue;
       }
-      
+
       const data = await response.json();
       console.log(`📥 ${model} response received, usage:`, JSON.stringify(data.usage));
       console.log(`📥 finish_reason:`, data.choices?.[0]?.finish_reason);
-      
+
       // Check finish_reason - if "length", model ran out of tokens
       const finishReason = data.choices?.[0]?.finish_reason;
       if (finishReason === "length") {
-        console.warn(`⚠️ ${model} hit token limit (finish_reason: length), trying next model`);
+        lastError = `OpenAI ${model} hit token limit (finish_reason: length)`;
+        console.warn(`⚠️ ${lastError}`);
         continue;
       }
-      
-      // Calculate cost
-      cost = calculateCost(data.usage);
-      console.log(`💰 Generation cost: $${cost}`);
-      
+
       // Extract response text
-      responseText = data.choices?.[0]?.message?.content || '';
-      
+      responseText = data.choices?.[0]?.message?.content || "";
+
       if (!responseText || responseText.length < 100) {
-        console.error(`Empty/short response from ${model}:`, responseText.substring(0, 200));
-        continue; // Try next model
+        lastError = `OpenAI ${model} returned empty/short content`;
+        console.error(`❌ ${lastError}`);
+        continue;
       }
-      
+
+      // Calculate cost for OpenAI models (token-based)
+      cost = calculateCost(data.usage, model);
+
       usedModel = model;
-      console.log(`✅ Got valid response from ${model}, length: ${responseText.length} chars`);
-      break; // Success, exit loop
+      console.log(`✅ Got valid response from ${model}, length: ${responseText.length} chars, cost: $${cost}`);
+      break;
     }
-    
+
+    // Fallback: Lovable AI gateway (works even when OpenAI quota is exceeded)
+    if (!responseText && lovableApiKey && (openAiQuotaExceeded || !openaiApiKey)) {
+      const gatewayModel = "google/gemini-2.5-flash";
+      console.log(`📤 Calling Lovable AI gateway with ${gatewayModel}...`);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.log(`⏰ Fetch timeout triggered after 5 minutes for Lovable gateway ${gatewayModel}`);
+        controller.abort();
+      }, 5 * 60 * 1000);
+
+      try {
+        const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${lovableApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: gatewayModel,
+            messages: [
+              { role: "system", content: GENERATION_PROMPT },
+              { role: "user", content: prompt },
+            ],
+            stream: false,
+          }),
+          signal: controller.signal,
+        });
+
+        console.log(`📥 Lovable gateway responded with status:`, resp.status);
+
+        if (!resp.ok) {
+          const t = await resp.text();
+          lastError = `Lovable gateway error: ${resp.status} ${t}`;
+          console.error(lastError);
+        } else {
+          const data = await resp.json();
+          responseText = data.choices?.[0]?.message?.content || "";
+
+          if (!responseText || responseText.length < 100) {
+            lastError = "Lovable gateway returned empty/short content";
+            console.error(`❌ ${lastError}`);
+            responseText = "";
+          } else {
+            usedModel = gatewayModel;
+            console.log(`✅ Got valid response from Lovable gateway, length: ${responseText.length} chars`);
+          }
+        }
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
     if (!responseText) {
-      throw new Error("All models failed to generate content");
+      throw new Error(lastError || "All models failed to generate content");
     }
-    
+
     console.log(`📝 Response length: ${responseText.length} chars from ${usedModel}`);
+
     
     // Parse files from response
     const files = parseFilesFromResponse(responseText);
