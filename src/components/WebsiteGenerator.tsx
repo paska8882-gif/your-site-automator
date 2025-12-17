@@ -42,6 +42,14 @@ interface TeamPricing {
   reactPrice: number;
 }
 
+interface AdminTeam {
+  id: string;
+  name: string;
+  balance: number;
+}
+
+const SUPER_ADMIN_EMAIL = "paska8882@gmail.com";
+
 interface GenerationPreset {
   id: string;
   name: string;
@@ -155,6 +163,11 @@ export function WebsiteGenerator() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [teamPricing, setTeamPricing] = useState<TeamPricing | null>(null);
   
+  // Admin team selection
+  const [adminTeams, setAdminTeams] = useState<AdminTeam[]>([]);
+  const [selectedAdminTeamId, setSelectedAdminTeamId] = useState<string>("");
+  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
+  
   // Presets
   const [presets, setPresets] = useState<GenerationPreset[]>([]);
   const [presetName, setPresetName] = useState("");
@@ -171,6 +184,62 @@ export function WebsiteGenerator() {
       }
     }
   }, []);
+
+  // Fetch teams for admin selection
+  useEffect(() => {
+    const fetchAdminTeams = async () => {
+      if (!isAdmin || !user) return;
+
+      try {
+        let query = supabase.from("teams").select("id, name, balance");
+        
+        // Super admin sees all teams, regular admins only see assigned teams
+        if (!isSuperAdmin) {
+          query = query.eq("assigned_admin_id", user.id);
+        }
+        
+        const { data: teams } = await query.order("name");
+        
+        if (teams && teams.length > 0) {
+          setAdminTeams(teams);
+          // Auto-select first team if not selected
+          if (!selectedAdminTeamId) {
+            setSelectedAdminTeamId(teams[0].id);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch admin teams:", error);
+      }
+    };
+
+    fetchAdminTeams();
+  }, [isAdmin, user, isSuperAdmin]);
+
+  // Update team pricing when admin selects a different team
+  useEffect(() => {
+    const fetchSelectedTeamPricing = async () => {
+      if (!isAdmin || !selectedAdminTeamId) return;
+
+      const selectedTeam = adminTeams.find(t => t.id === selectedAdminTeamId);
+      if (!selectedTeam) return;
+
+      const { data: pricing } = await supabase
+        .from("team_pricing")
+        .select("html_price, react_price")
+        .eq("team_id", selectedAdminTeamId)
+        .maybeSingle();
+
+      setTeamPricing({
+        teamId: selectedTeam.id,
+        teamName: selectedTeam.name,
+        balance: selectedTeam.balance || 0,
+        htmlPrice: pricing?.html_price || 7,
+        reactPrice: pricing?.react_price || 9
+      });
+    };
+
+    fetchSelectedTeamPricing();
+  }, [isAdmin, selectedAdminTeamId, adminTeams]);
 
   // Save presets to localStorage
   const savePresetsToStorage = (newPresets: GenerationPreset[]) => {
@@ -238,9 +307,12 @@ export function WebsiteGenerator() {
     });
   };
 
-  // Fetch team pricing on mount
+  // Fetch team pricing on mount (only for non-admins, admins use team selection)
   useEffect(() => {
     const fetchTeamPricing = async () => {
+      // Skip for admins - they use team selection instead
+      if (isAdmin) return;
+      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
@@ -299,7 +371,7 @@ export function WebsiteGenerator() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [isAdmin]);
 
 
   const handleImprovePrompt = async () => {
@@ -526,6 +598,16 @@ export function WebsiteGenerator() {
       return;
     }
 
+    // Admin must select a team
+    if (isAdmin && !selectedAdminTeamId) {
+      toast({
+        title: "Помилка",
+        description: "Оберіть команду для генерації",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (allLanguages.length === 0) {
       toast({
         title: "Помилка",
@@ -574,7 +656,9 @@ export function WebsiteGenerator() {
       // Create wrapped promises that update progress on completion
       const createTrackedPromise = async (lang: string, style: string | undefined, model: AiModel, wType: WebsiteType, iSource: ImageSource) => {
         const currentSeniorMode = model === "senior" ? seniorMode : undefined;
-        const result = await startGeneration(prompt, lang, model, wType, style, siteName, currentSeniorMode, iSource);
+        // For admins, pass selected team ID; for regular users, teamId is undefined (uses their membership)
+        const teamIdToUse = isAdmin ? selectedAdminTeamId : undefined;
+        const result = await startGeneration(prompt, lang, model, wType, style, siteName, currentSeniorMode, iSource, teamIdToUse);
         setGenerationProgress(prev => ({ ...prev, completed: prev.completed + 1 }));
         return result;
       };
@@ -690,7 +774,28 @@ export function WebsiteGenerator() {
           <CardContent className="space-y-4">
             {/* Mode Selection - Compact toggle for admin */}
             {isAdmin && (
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Team Selection */}
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <Select 
+                    value={selectedAdminTeamId} 
+                    onValueChange={setSelectedAdminTeamId}
+                    disabled={isSubmitting || adminTeams.length === 0}
+                  >
+                    <SelectTrigger className="w-[180px] h-8 text-xs">
+                      <SelectValue placeholder="Оберіть команду..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {adminTeams.map(team => (
+                        <SelectItem key={team.id} value={team.id}>
+                          {team.name} (${team.balance.toFixed(0)})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="inline-flex rounded-md border border-border p-0.5 bg-muted/30">
                   <button
                     type="button"

@@ -830,34 +830,41 @@ async function runBackgroundGeneration(
   language: string | undefined,
   aiModel: "junior" | "senior",
   layoutStyle?: string,
-  imageSource: "basic" | "ai" = "basic"
+  imageSource: "basic" | "ai" = "basic",
+  overrideTeamId?: string
 ) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  console.log(`[BG] Starting background React generation for history ID: ${historyId}`);
+  console.log(`[BG] Starting background React generation for history ID: ${historyId}${overrideTeamId ? `, override team: ${overrideTeamId}` : ''}`);
 
   // Track team and sale price for potential refund
-  let teamId: string | null = null;
+  let teamId: string | null = overrideTeamId || null;
   let salePrice = 0;
 
   try {
-    // Get user's team membership and DEDUCT balance at START
-    const { data: membership } = await supabase
-      .from("team_members")
-      .select("team_id")
-      .eq("user_id", userId)
-      .eq("status", "approved")
-      .limit(1)
-      .maybeSingle();
+    // If no override teamId, get user's team membership
+    if (!teamId) {
+      const { data: membership } = await supabase
+        .from("team_members")
+        .select("team_id")
+        .eq("user_id", userId)
+        .eq("status", "approved")
+        .limit(1)
+        .maybeSingle();
 
-    if (membership) {
-      teamId = membership.team_id;
+      if (membership) {
+        teamId = membership.team_id;
+      }
+    }
+
+    // Get pricing and deduct balance
+    if (teamId) {
       const { data: pricing } = await supabase
         .from("team_pricing")
         .select("react_price")
-        .eq("team_id", membership.team_id)
+        .eq("team_id", teamId)
         .maybeSingle();
 
       salePrice = pricing?.react_price || 0;
@@ -872,15 +879,15 @@ async function runBackgroundGeneration(
         const { data: team } = await supabase
           .from("teams")
           .select("balance")
-          .eq("id", membership.team_id)
+          .eq("id", teamId)
           .single();
 
         if (team) {
           await supabase
             .from("teams")
             .update({ balance: (team.balance || 0) - salePrice })
-            .eq("id", membership.team_id);
-          console.log(`[BG] Deducted $${salePrice} from team ${membership.team_id} at START`);
+            .eq("id", teamId);
+          console.log(`[BG] Deducted $${salePrice} from team ${teamId} at START`);
         }
       }
     }
@@ -1029,7 +1036,7 @@ serve(async (req) => {
 
     console.log("Authenticated request from user:", user.id);
 
-    const { prompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic" } = await req.json();
+    const { prompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId } = await req.json();
 
     if (!prompt) {
       return new Response(JSON.stringify({ success: false, error: "Prompt is required" }), {
@@ -1066,7 +1073,7 @@ serve(async (req) => {
 
     // Start background generation using EdgeRuntime.waitUntil
     EdgeRuntime.waitUntil(
-      runBackgroundGeneration(historyEntry.id, user.id, prompt, language, aiModel, layoutStyle, imageSource)
+      runBackgroundGeneration(historyEntry.id, user.id, prompt, language, aiModel, layoutStyle, imageSource, teamId)
     );
 
     // Return immediately with the history entry ID
