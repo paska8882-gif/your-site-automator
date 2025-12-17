@@ -327,36 +327,60 @@ serve(async (req) => {
   }
 
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const { historyId, prompt, language, siteName } = body;
-    
+
+    if (!historyId || typeof historyId !== "string") {
+      return new Response(JSON.stringify({ error: "Missing historyId" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!prompt || typeof prompt !== "string") {
+      return new Response(JSON.stringify({ error: "Missing prompt" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    
+
     if (!supabaseUrl || !supabaseKey) {
-      throw new Error("Missing Supabase credentials");
+      throw new Error("Missing backend credentials");
     }
-    
-    console.log("🎯 Starting Codex generation for:", siteName, "historyId:", historyId);
 
-    // Run generation SYNCHRONOUSLY (wait for completion)
-    await runCodexGeneration(prompt, language, siteName, historyId, supabaseUrl, supabaseKey);
+    console.log("🎯 Queuing Codex generation for:", siteName, "historyId:", historyId);
 
-    // Return after completion
-    return new Response(JSON.stringify({ 
-      success: true, 
-      message: "Generation completed",
-      historyId 
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Run in background (do NOT block the HTTP request)
+    EdgeRuntime.waitUntil(
+      (async () => {
+        try {
+          await runCodexGeneration(prompt, language, siteName, historyId, supabaseUrl, supabaseKey);
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : "Unknown error";
+          console.error("❌ Background generation crashed:", msg);
+
+          const supabase = createClient(supabaseUrl, supabaseKey);
+          await (supabase as any)
+            .from("generation_history")
+            .update({ status: "failed", error_message: msg, sale_price: 0 })
+            .eq("id", historyId);
+        }
+      })()
+    );
+
+    return new Response(JSON.stringify({ success: true, historyId, message: "Generation started" }), {
+      status: 202,
+      headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
     });
-
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     console.error("Codex proxy error:", msg);
     return new Response(JSON.stringify({ error: msg }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
     });
   }
 });
