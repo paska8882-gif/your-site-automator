@@ -152,23 +152,39 @@ async function runCodexGeneration(
   
   try {
     // Call OpenAI API with gpt-5-codex
-    console.log("📤 Calling OpenAI API...");
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${openaiApiKey}`
-      },
-      body: JSON.stringify({
-        model: "gpt-5-codex",
-        input: [
-          {
-            role: "user",
-            content: fullPrompt
-          }
-        ]
-      })
-    });
+    console.log("📤 Calling OpenAI API (timeout: 8 min)...");
+    
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.log("⏰ Fetch timeout triggered after 8 minutes");
+      controller.abort();
+    }, 8 * 60 * 1000); // 8 minutes timeout
+    
+    let response;
+    try {
+      response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${openaiApiKey}`
+        },
+        body: JSON.stringify({
+          model: "gpt-5-codex",
+          input: [
+            {
+              role: "user",
+              content: fullPrompt
+            }
+          ]
+        }),
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    
+    console.log("📥 OpenAI responded with status:", response.status);
     
     if (!response.ok) {
       const errorText = await response.text();
