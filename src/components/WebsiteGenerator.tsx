@@ -684,56 +684,54 @@ export function WebsiteGenerator() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Mode Selection - FIRST CHOICE: Internal vs External */}
+            {/* Mode Selection - Compact toggle for admin */}
             {isAdmin && (
-              <div className="space-y-3">
-                <Label className="text-sm font-medium flex items-center gap-2">
-                  <Zap className="h-4 w-4" />
-                  Режим генерації
-                </Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant={adminGenerationMode === "standard" ? "default" : "outline"}
+              <div className="flex items-center gap-3">
+                <div className="inline-flex rounded-md border border-border p-0.5 bg-muted/30">
+                  <button
+                    type="button"
                     onClick={() => setAdminGenerationMode("standard")}
-                    className="h-auto py-3 flex flex-col items-center gap-1"
                     disabled={isSubmitting}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-colors flex items-center gap-1.5 ${
+                      adminGenerationMode === "standard"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
                   >
-                    <Layers className="h-5 w-5" />
-                    <span className="text-sm font-medium">Внутрішня</span>
-                    <span className="text-xs text-muted-foreground">Всі опції</span>
-                  </Button>
-                  <Button
-                    variant={adminGenerationMode === "senior_direct" ? "default" : "outline"}
+                    <Layers className="h-3.5 w-3.5" />
+                    Внутрішня
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setAdminGenerationMode("senior_direct")}
-                    className="h-auto py-3 flex flex-col items-center gap-1"
                     disabled={isSubmitting}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-colors flex items-center gap-1.5 ${
+                      adminGenerationMode === "senior_direct"
+                        ? "bg-amber-500 text-white shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
                   >
-                    <Crown className="h-5 w-5" />
-                    <span className="text-sm font-medium">Зовнішня</span>
-                    <span className="text-xs text-muted-foreground">Senior сервіси</span>
-                  </Button>
+                    <Crown className="h-3.5 w-3.5" />
+                    Зовнішня
+                  </button>
                 </div>
                 
-                {/* If External mode - show service selector immediately */}
                 {adminGenerationMode === "senior_direct" && (
-                  <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/30 space-y-2">
-                    <Label className="text-xs text-amber-600">Оберіть сервіс:</Label>
-                    <Select 
-                      value={seniorMode || "none"} 
-                      onValueChange={(v) => setSeniorMode(v === "none" ? undefined : v as SeniorMode)} 
-                      disabled={isSubmitting}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Оберіть сервіс" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none" disabled>Оберіть сервіс</SelectItem>
-                        <SelectItem value="codex">🤖 Кодекс</SelectItem>
-                        <SelectItem value="onepage">📄 Одностраничник</SelectItem>
-                        <SelectItem value="v0">⚡ v0</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Select 
+                    value={seniorMode || "none"} 
+                    onValueChange={(v) => setSeniorMode(v === "none" ? undefined : v as SeniorMode)} 
+                    disabled={isSubmitting}
+                  >
+                    <SelectTrigger className="w-[140px] h-8 text-xs">
+                      <SelectValue placeholder="Сервіс..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none" disabled>Оберіть сервіс</SelectItem>
+                      <SelectItem value="codex">🤖 Кодекс</SelectItem>
+                      <SelectItem value="onepage">📄 Одностраничник</SelectItem>
+                      <SelectItem value="v0">⚡ v0</SelectItem>
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
             )}
