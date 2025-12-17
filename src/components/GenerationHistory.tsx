@@ -8,7 +8,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File, AlertTriangle, Upload, X, Layers } from "lucide-react";
+import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File, AlertTriangle, Upload, X, Layers, Filter, CalendarDays } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -370,6 +371,11 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
   const [selectedFile, setSelectedFile] = useState<GeneratedFile | null>(null);
   const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Filters
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("all");
   
   // Appeal dialog
   const [appealDialogOpen, setAppealDialogOpen] = useState(false);
@@ -806,12 +812,46 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
   };
 
   const filteredHistory = history.filter((item) => {
-    if (!searchQuery.trim()) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      (item.site_name?.toLowerCase().includes(query)) ||
-      (item.prompt?.toLowerCase().includes(query))
-    );
+    // Search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = (item.site_name?.toLowerCase().includes(query)) ||
+        (item.prompt?.toLowerCase().includes(query));
+      if (!matchesSearch) return false;
+    }
+    
+    // Status filter
+    if (statusFilter !== "all") {
+      if (statusFilter === "in_progress") {
+        if (item.status !== "pending" && item.status !== "generating") return false;
+      } else if (item.status !== statusFilter) {
+        return false;
+      }
+    }
+    
+    // Type filter
+    if (typeFilter !== "all" && item.website_type !== typeFilter) {
+      return false;
+    }
+    
+    // Date filter
+    if (dateFilter !== "all") {
+      const itemDate = new Date(item.created_at);
+      const now = new Date();
+      
+      if (dateFilter === "today") {
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        if (itemDate < today) return false;
+      } else if (dateFilter === "week") {
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        if (itemDate < weekAgo) return false;
+      } else if (dateFilter === "month") {
+        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        if (itemDate < monthAgo) return false;
+      }
+    }
+    
+    return true;
   });
 
   // Group items by batch (same site_name, created within 60 seconds)
@@ -920,14 +960,54 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
             <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
           </Button>
         </div>
-        <div className="relative mt-2">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Пошук за назвою або промптом..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex flex-col gap-2 mt-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Пошук за назвою або промптом..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[130px] h-8 text-xs">
+                <Filter className="h-3 w-3 mr-1" />
+                <SelectValue placeholder="Статус" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Всі статуси</SelectItem>
+                <SelectItem value="completed">Готово</SelectItem>
+                <SelectItem value="in_progress">В процесі</SelectItem>
+                <SelectItem value="failed">Помилка</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-[110px] h-8 text-xs">
+                <SelectValue placeholder="Тип" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Всі типи</SelectItem>
+                <SelectItem value="html">HTML</SelectItem>
+                <SelectItem value="react">React</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger className="w-[120px] h-8 text-xs">
+                <CalendarDays className="h-3 w-3 mr-1" />
+                <SelectValue placeholder="Дата" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Весь час</SelectItem>
+                <SelectItem value="today">Сьогодні</SelectItem>
+                <SelectItem value="week">Тиждень</SelectItem>
+                <SelectItem value="month">Місяць</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
