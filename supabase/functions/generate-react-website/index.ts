@@ -267,49 +267,96 @@ style={{backgroundImage: 'url(https://picsum.photos/1920/1080?random=1)'}}
 **Alt text MUST be in the same language as the website content!**
 `.trim();
 
-// Image strategy - AI (Pollinations.ai - AI-generated themed images)
-const IMAGE_STRATEGY_AI = `
-**IMAGE STRATEGY - AI GENERATED THEMED PHOTOS:**
-Use Pollinations.ai for ALL images - it generates AI photos based on text description:
+// Pexels API helper function
+async function fetchPexelsPhotos(query: string, count: number = 15): Promise<string[]> {
+  const PEXELS_API_KEY = Deno.env.get("PEXELS_API_KEY");
+  if (!PEXELS_API_KEY) {
+    console.log("PEXELS_API_KEY not configured, falling back to picsum");
+    return [];
+  }
 
-**FORMAT:** https://image.pollinations.ai/prompt/{DESCRIPTION}?width={WIDTH}&height={HEIGHT}&seed={UNIQUE_NUMBER}&nologo=true
+  try {
+    const response = await fetch(
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${count}&orientation=landscape`,
+      {
+        headers: { Authorization: PEXELS_API_KEY },
+      }
+    );
 
-**CRITICAL RULES:**
-1. Each image MUST have a DIFFERENT seed= number (seed=1, seed=2, seed=3, etc.) for unique images
-2. Replace spaces in description with %20
-3. Description should be SHORT (3-6 words) and specific to the section
-4. Description MUST be in ENGLISH regardless of website language
-5. Add nologo=true to remove watermarks
+    if (!response.ok) {
+      console.error("Pexels API error:", response.status);
+      return [];
+    }
 
-**Hero background:** 
-style={{backgroundImage: 'url(https://image.pollinations.ai/prompt/[THEME]%20professional%20business%20photo?width=1920&height=1080&seed=1&nologo=true)'}}
+    const data = await response.json();
+    const photos = data.photos || [];
+    
+    console.log(`📸 Pexels: Found ${photos.length} photos for "${query}"`);
+    
+    return photos.map((photo: { src: { large2x: string; large: string; medium: string } }) => 
+      photo.src.large2x || photo.src.large || photo.src.medium
+    );
+  } catch (error) {
+    console.error("Pexels API error:", error);
+    return [];
+  }
+}
 
-**Content images:**
-<img src="https://image.pollinations.ai/prompt/[SECTION-TOPIC]%20high%20quality%20photo?width=800&height=600&seed=2&nologo=true" alt="[Alt in site language]" loading="lazy" />
-<img src="https://image.pollinations.ai/prompt/[SECTION-TOPIC]%20professional%20image?width=800&height=600&seed=3&nologo=true" alt="[Description]" loading="lazy" />
+// Extract keywords from prompt for Pexels search
+function extractKeywords(prompt: string): string {
+  const cleanPrompt = prompt
+    .replace(/сайт|website|web|page|create|generate|for|the|a|an|і|та|для|про/gi, "")
+    .trim();
+  
+  const words = cleanPrompt.split(/\s+/).filter(w => w.length > 3).slice(0, 3);
+  return words.join(" ") || "business professional";
+}
 
-**Card images:**
-<img src="https://image.pollinations.ai/prompt/[SPECIFIC-TOPIC]%20photo?width=600&height=400&seed=4&nologo=true" alt="[Description]" loading="lazy" />
-<img src="https://image.pollinations.ai/prompt/[SPECIFIC-TOPIC]%20image?width=600&height=400&seed=5&nologo=true" alt="[Description]" loading="lazy" />
+// Build image strategy with Pexels URLs
+function buildPexelsImageStrategy(pexelsUrls: string[]): string {
+  if (pexelsUrls.length === 0) {
+    return `
+**IMAGE STRATEGY - RELIABLE RANDOM PHOTOS:**
+Use picsum.photos for ALL images:
 
-**Portrait/Team images:**
-<img src="https://image.pollinations.ai/prompt/professional%20business%20person%20portrait?width=400&height=400&seed=6&nologo=true" alt="[Name]" loading="lazy" />
-<img src="https://image.pollinations.ai/prompt/smiling%20office%20worker%20headshot?width=400&height=400&seed=7&nologo=true" alt="[Name]" loading="lazy" />
+**Hero background:** style={{backgroundImage: 'url(https://picsum.photos/1920/1080?random=1)'}}
+**Content images:** <img src="https://picsum.photos/800/600?random=2" alt="[Description]" loading="lazy" />
+**Card images:** <img src="https://picsum.photos/600/400?random=3" alt="[Description]" loading="lazy" />
+**Portrait images:** <img src="https://picsum.photos/400/400?random=4" alt="[Description]" loading="lazy" />
 
-**DESCRIPTION EXAMPLES BY THEME:**
-- Dog products: cute%20dog%20playing | dog%20with%20toy | happy%20puppy%20portrait | dog%20food%20bowl
-- Restaurant: gourmet%20food%20dish | chef%20cooking%20kitchen | restaurant%20interior%20modern | fresh%20ingredients%20table
-- Technology: modern%20office%20workspace | software%20developers%20team | laptop%20on%20desk | tech%20startup%20meeting
-- Travel: tropical%20beach%20sunset | luxury%20hotel%20room | famous%20landmark%20city | airplane%20flying%20clouds
-- Fitness: gym%20workout%20equipment | yoga%20pose%20studio | running%20outdoors%20park | healthy%20lifestyle%20fitness
-- Fashion: fashion%20model%20studio | stylish%20outfit%20clothes | luxury%20accessories | runway%20fashion%20show
-
-**FALLBACK REQUIRED FOR ALL IMAGES:**
-Add onError handler to EVERY <img> element to fallback to picsum.photos if Pollinations fails:
-<img src="https://image.pollinations.ai/prompt/description?width=800&height=600&seed=1&nologo=true" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://picsum.photos/800/600?random=1'; }} alt="..." loading="lazy" />
-
-For CSS background images in style prop, no fallback needed.
+Use DIFFERENT random= numbers for each image!
 `.trim();
+  }
+
+  const heroUrl = pexelsUrls[0] || "https://picsum.photos/1920/1080?random=1";
+  const contentUrls = pexelsUrls.slice(1, 6);
+  const cardUrls = pexelsUrls.slice(6, 12);
+  const portraitUrls = pexelsUrls.slice(12, 15);
+
+  return `
+**IMAGE STRATEGY - HIGH QUALITY STOCK PHOTOS FROM PEXELS:**
+Use these PRE-SELECTED high-quality Pexels photos. Each URL is unique and themed.
+
+**HERO BACKGROUND (use this exact URL):**
+style={{backgroundImage: 'url(${heroUrl})'}}
+
+**CONTENT IMAGES:**
+${contentUrls.map((url, i) => `Image ${i + 1}: ${url}`).join("\n")}
+
+**CARD/FEATURE IMAGES:**
+${cardUrls.map((url, i) => `Card ${i + 1}: ${url}`).join("\n")}
+
+**PORTRAIT/TEAM IMAGES:**
+${portraitUrls.length > 0 ? portraitUrls.map((url, i) => `Portrait ${i + 1}: ${url}`).join("\n") : "Use https://picsum.photos/400/400?random=X with different numbers"}
+
+**FALLBACK:** For additional images use: https://picsum.photos/{width}/{height}?random={unique_number}
+
+**IMPORTANT:**
+- Use EACH Pexels URL only ONCE
+- Alt text MUST be in the same language as the website content
+- Add loading="lazy" to all images
+`.trim();
+}
 
 // CSS for images - common to both strategies
 const IMAGE_CSS = `
@@ -586,6 +633,15 @@ async function runGeneration({
     : LAYOUT_VARIATIONS[Math.floor(Math.random() * LAYOUT_VARIATIONS.length)];
   console.log(`Selected layout variation: ${selectedLayout.name} (${layoutStyle ? 'manual' : 'random'})`);
 
+  // Fetch Pexels photos if AI image source selected
+  let imageStrategy = IMAGE_STRATEGY_BASIC;
+  if (imageSource === "ai") {
+    const keywords = extractKeywords(prompt);
+    console.log(`📸 Fetching Pexels photos for keywords: "${keywords}"`);
+    const pexelsUrls = await fetchPexelsPhotos(keywords, 15);
+    imageStrategy = buildPexelsImageStrategy(pexelsUrls);
+  }
+
   // Step 2: React website generation
   const websiteRequestBody: Record<string, unknown> = {
     model: generateModel,
@@ -597,7 +653,7 @@ async function runGeneration({
       },
       {
         role: "user",
-        content: `${REACT_GENERATION_PROMPT}\n\n${imageSource === "ai" ? IMAGE_STRATEGY_AI : IMAGE_STRATEGY_BASIC}\n\n${IMAGE_CSS}\n\n=== MANDATORY LAYOUT STRUCTURE (FOLLOW EXACTLY) ===\n${selectedLayout.description}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
+        content: `${REACT_GENERATION_PROMPT}\n\n${imageStrategy}\n\n${IMAGE_CSS}\n\n=== MANDATORY LAYOUT STRUCTURE (FOLLOW EXACTLY) ===\n${selectedLayout.description}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
       },
     ],
   };
