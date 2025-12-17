@@ -149,7 +149,10 @@ async function runCodexGeneration(
     .eq("id", historyId);
   
   try {
-    // Prefer OpenAI if available; if OpenAI quota is exhausted, fallback to Lovable AI gateway
+    // Prefer OpenAI if available; fallback to Lovable AI gateway when OpenAI fails (quota, errors, timeouts)
+    const OPENAI_ATTEMPT_TIMEOUT_MS = 8 * 60 * 1000;
+    const GATEWAY_TIMEOUT_MS = 8 * 60 * 1000;
+
     const openAiModels = openaiApiKey ? ["gpt-4o", "gpt-5-2025-08-07"] : [];
 
     let responseText = "";
@@ -161,12 +164,14 @@ async function runCodexGeneration(
     for (const model of openAiModels) {
       console.log(`📤 Calling OpenAI API with ${model}...`);
 
-      // Create AbortController for timeout (5 minutes per attempt)
+      // Create AbortController for timeout (8 minutes per attempt)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.log(`⏰ Fetch timeout triggered after 5 minutes for ${model}`);
+        console.log(
+          `⏰ Fetch timeout triggered after ${Math.round(OPENAI_ATTEMPT_TIMEOUT_MS / 60000)} minutes for ${model}`
+        );
         controller.abort();
-      }, 5 * 60 * 1000);
+      }, OPENAI_ATTEMPT_TIMEOUT_MS);
 
       let response: Response;
       try {
@@ -196,7 +201,15 @@ async function runCodexGeneration(
           signal: controller.signal,
         });
       } catch (fetchErr) {
-        lastError = `OpenAI fetch failed for ${model}: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`;
+        const errMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+        const isAbort =
+          fetchErr instanceof Error &&
+          (fetchErr.name === "AbortError" || errMsg.toLowerCase().includes("aborted"));
+
+        lastError = isAbort
+          ? `Timeout after ${Math.round(OPENAI_ATTEMPT_TIMEOUT_MS / 60000)} minutes for ${model}`
+          : `OpenAI fetch failed for ${model}: ${errMsg}`;
+
         console.error(`❌ ${lastError}`);
         continue;
       } finally {
@@ -210,8 +223,9 @@ async function runCodexGeneration(
         lastError = `OpenAI API error for ${model}: ${response.status} ${errorText}`;
         console.error(lastError);
 
-        if (response.status === 429 && errorText.includes("insufficient_quota")) {
+        if (response.status === 429) {
           openAiQuotaExceeded = true;
+          // Stop trying OpenAI models; fallback to Lovable gateway if available
           break;
         }
 
@@ -247,16 +261,18 @@ async function runCodexGeneration(
       break;
     }
 
-    // Fallback: Lovable AI gateway (works even when OpenAI quota is exceeded)
-    if (!responseText && lovableApiKey && (openAiQuotaExceeded || !openaiApiKey)) {
+    // Fallback: Lovable AI gateway (used whenever OpenAI fails for any reason)
+    if (!responseText && lovableApiKey) {
       const gatewayModel = "google/gemini-2.5-flash";
       console.log(`📤 Calling Lovable AI gateway with ${gatewayModel}...`);
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.log(`⏰ Fetch timeout triggered after 5 minutes for Lovable gateway ${gatewayModel}`);
+        console.log(
+          `⏰ Fetch timeout triggered after ${Math.round(GATEWAY_TIMEOUT_MS / 60000)} minutes for Lovable gateway ${gatewayModel}`
+        );
         controller.abort();
-      }, 5 * 60 * 1000);
+      }, GATEWAY_TIMEOUT_MS);
 
       try {
         const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -292,9 +308,22 @@ async function runCodexGeneration(
             responseText = "";
           } else {
             usedModel = gatewayModel;
-            console.log(`✅ Got valid response from Lovable gateway, length: ${responseText.length} chars`);
+            console.log(
+              `✅ Got valid response from Lovable gateway, length: ${responseText.length} chars`
+            );
           }
         }
+      } catch (fetchErr) {
+        const errMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+        const isAbort =
+          fetchErr instanceof Error &&
+          (fetchErr.name === "AbortError" || errMsg.toLowerCase().includes("aborted"));
+
+        lastError = isAbort
+          ? `Timeout after ${Math.round(GATEWAY_TIMEOUT_MS / 60000)} minutes for Lovable gateway ${gatewayModel}`
+          : `Lovable gateway fetch failed: ${errMsg}`;
+
+        console.error(`❌ ${lastError}`);
       } finally {
         clearTimeout(timeoutId);
       }
