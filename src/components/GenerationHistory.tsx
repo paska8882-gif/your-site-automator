@@ -376,6 +376,11 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
+  const [languageFilter, setLanguageFilter] = useState<string>("all");
+  const [aiModelFilter, setAiModelFilter] = useState<string>("all");
+  
+  // Get unique languages from history
+  const uniqueLanguages = [...new Set(history.map(item => item.language).filter(Boolean))].sort();
   
   // Appeal dialog
   const [appealDialogOpen, setAppealDialogOpen] = useState(false);
@@ -851,6 +856,16 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
       }
     }
     
+    // Language filter
+    if (languageFilter !== "all" && item.language !== languageFilter) {
+      return false;
+    }
+    
+    // AI Model filter
+    if (aiModelFilter !== "all" && item.ai_model !== aiModelFilter) {
+      return false;
+    }
+    
     return true;
   });
 
@@ -1005,6 +1020,31 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
                 <SelectItem value="today">Сьогодні</SelectItem>
                 <SelectItem value="week">Тиждень</SelectItem>
                 <SelectItem value="month">Місяць</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {uniqueLanguages.length > 1 && (
+              <Select value={languageFilter} onValueChange={setLanguageFilter}>
+                <SelectTrigger className="w-[100px] h-8 text-xs">
+                  <SelectValue placeholder="Мова" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Всі мови</SelectItem>
+                  {uniqueLanguages.map(lang => (
+                    <SelectItem key={lang} value={lang}>{lang.toUpperCase()}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            
+            <Select value={aiModelFilter} onValueChange={setAiModelFilter}>
+              <SelectTrigger className="w-[100px] h-8 text-xs">
+                <SelectValue placeholder="AI" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Всі AI</SelectItem>
+                <SelectItem value="junior">Junior</SelectItem>
+                <SelectItem value="senior">Senior</SelectItem>
               </SelectContent>
             </Select>
           </div>
