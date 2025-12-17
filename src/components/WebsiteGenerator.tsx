@@ -28,6 +28,7 @@ import { startGeneration, AiModel, WebsiteType, SeniorMode, ImageSource, LAYOUT_
 import { supabase } from "@/integrations/supabase/client";
 import { GenerationHistory } from "./GenerationHistory";
 import { UserTeamInfo } from "./UserTeamInfo";
+import { NotificationBell } from "./NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
@@ -658,6 +659,7 @@ export function WebsiteGenerator() {
                 Адмін
               </Button>
             )}
+            <NotificationBell />
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <User className="h-4 w-4" />
               <span>{user?.email}</span>

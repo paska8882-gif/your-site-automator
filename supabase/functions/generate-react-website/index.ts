@@ -913,6 +913,15 @@ async function runBackgroundGeneration(
         })
         .eq("id", historyId);
 
+      // Create notification for user
+      await supabase.from("notifications").insert({
+        user_id: userId,
+        type: "generation_complete",
+        title: "React сайт згенеровано",
+        message: `React сайт успішно створено (${result.files.length} файлів)`,
+        data: { historyId, filesCount: result.files.length }
+      });
+
       console.log(`[BG] React generation completed for ${historyId}: ${result.files.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}`);
     } else {
       // REFUND balance on failure
@@ -941,6 +950,15 @@ async function runBackgroundGeneration(
           sale_price: 0, // Reset sale_price since refunded
         })
         .eq("id", historyId);
+
+      // Create notification for user about failure
+      await supabase.from("notifications").insert({
+        user_id: userId,
+        type: "generation_failed",
+        title: "Помилка генерації",
+        message: result.error || "Не вдалося згенерувати React сайт",
+        data: { historyId, error: result.error }
+      });
 
       console.error(`[BG] React generation failed for ${historyId}: ${result.error}`);
     }
