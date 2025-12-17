@@ -30,6 +30,7 @@ import { GenerationHistory } from "./GenerationHistory";
 import { UserTeamInfo } from "./UserTeamInfo";
 import { NotificationBell } from "./NotificationBell";
 import { SupportChat } from "./SupportChat";
+import { DebtNotificationPopup } from "./DebtNotificationPopup";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
@@ -173,6 +174,9 @@ export function WebsiteGenerator() {
   const [presets, setPresets] = useState<GenerationPreset[]>([]);
   const [presetName, setPresetName] = useState("");
   const [showCostBreakdown, setShowCostBreakdown] = useState(false);
+  
+  // Debt notification popup
+  const [showDebtPopup, setShowDebtPopup] = useState(false);
 
   // Load presets from localStorage
   useEffect(() => {
@@ -373,6 +377,13 @@ export function WebsiteGenerator() {
       supabase.removeChannel(channel);
     };
   }, [isAdmin]);
+
+  // Show debt popup when team balance is negative (only for non-admins)
+  useEffect(() => {
+    if (!isAdmin && teamPricing && teamPricing.balance < 0) {
+      setShowDebtPopup(true);
+    }
+  }, [teamPricing, isAdmin]);
 
 
   const handleImprovePrompt = async () => {
@@ -1460,6 +1471,16 @@ export function WebsiteGenerator() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Debt Notification Popup */}
+      {teamPricing && (
+        <DebtNotificationPopup
+          open={showDebtPopup}
+          onClose={() => setShowDebtPopup(false)}
+          teamName={teamPricing.teamName}
+          balance={teamPricing.balance}
+        />
+      )}
     </div>
   );
 }
