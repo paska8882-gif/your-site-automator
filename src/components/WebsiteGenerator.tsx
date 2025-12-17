@@ -46,6 +46,7 @@ interface AdminTeam {
   id: string;
   name: string;
   balance: number;
+  credit_limit: number;
 }
 
 const SUPER_ADMIN_EMAIL = "paska8882@gmail.com";
@@ -191,7 +192,7 @@ export function WebsiteGenerator() {
       if (!isAdmin || !user) return;
 
       try {
-        let query = supabase.from("teams").select("id, name, balance");
+        let query = supabase.from("teams").select("id, name, balance, credit_limit");
         
         // Super admin sees all teams, regular admins only see assigned teams
         if (!isSuperAdmin) {
@@ -577,9 +578,18 @@ export function WebsiteGenerator() {
     return breakdown;
   };
 
-  // Admins can generate on credit (bypass balance check)
+  // Get credit limit for selected team (for admins)
+  const selectedTeamCreditLimit = isAdmin && selectedAdminTeamId 
+    ? (adminTeams.find(t => t.id === selectedAdminTeamId)?.credit_limit || 0)
+    : 0;
+
+  // Admins can generate on credit up to the credit limit
   const insufficientBalance = !isAdmin && teamPricing ? calculateTotalCost() > teamPricing.balance : false;
   const isGeneratingOnCredit = isAdmin && teamPricing ? calculateTotalCost() > teamPricing.balance : false;
+  // Check if admin exceeds credit limit (balance can go negative up to -credit_limit)
+  const exceedsCreditLimit = isAdmin && teamPricing 
+    ? (teamPricing.balance - calculateTotalCost()) < -selectedTeamCreditLimit
+    : false;
 
   const handleGenerateClick = () => {
     if (!siteName.trim()) {
@@ -1266,7 +1276,7 @@ export function WebsiteGenerator() {
             <div className="flex flex-col gap-2">
               <Button
                 onClick={handleGenerateClick}
-                disabled={isSubmitting || !siteName.trim() || !prompt.trim() || getAllSelectedLanguages().length === 0 || selectedAiModels.length === 0 || selectedWebsiteTypes.length === 0 || selectedImageSources.length === 0 || (isAdmin ? false : insufficientBalance) || (isAdmin && !selectedAdminTeamId)}
+                disabled={isSubmitting || !siteName.trim() || !prompt.trim() || getAllSelectedLanguages().length === 0 || selectedAiModels.length === 0 || selectedWebsiteTypes.length === 0 || selectedImageSources.length === 0 || (isAdmin ? exceedsCreditLimit : insufficientBalance) || (isAdmin && !selectedAdminTeamId)}
                 className="w-full"
                 size="lg"
               >
@@ -1293,10 +1303,16 @@ export function WebsiteGenerator() {
                   Недостатньо коштів: потрібно ${calculateTotalCost().toFixed(2)}, на балансі ${teamPricing.balance.toFixed(2)}
                 </p>
               )}
-              {isGeneratingOnCredit && teamPricing && (
+              {isGeneratingOnCredit && teamPricing && !exceedsCreditLimit && (
                 <p className="text-xs text-amber-500 flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" />
-                  Генерація в кредит: потрібно ${calculateTotalCost().toFixed(2)}, на балансі ${teamPricing.balance.toFixed(2)}
+                  Генерація в кредит: потрібно ${calculateTotalCost().toFixed(2)}, на балансі ${teamPricing.balance.toFixed(2)} (ліміт: ${selectedTeamCreditLimit.toFixed(2)})
+                </p>
+              )}
+              {exceedsCreditLimit && teamPricing && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Перевищено ліміт кредиту: баланс ${teamPricing.balance.toFixed(2)}, потрібно ${calculateTotalCost().toFixed(2)}, ліміт ${selectedTeamCreditLimit.toFixed(2)}
                 </p>
               )}
             </div>
