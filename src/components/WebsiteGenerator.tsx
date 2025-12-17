@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, Languages, Hash, Wand2, Palette, ChevronDown, AlertTriangle, Shield, Users } from "lucide-react";
+import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, Languages, Hash, Wand2, Palette, ChevronDown, AlertTriangle, Shield, Users, Wallet, RefreshCcw, Info } from "lucide-react";
 import { startGeneration, AiModel, WebsiteType, SeniorMode, LAYOUT_STYLES } from "@/lib/websiteGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { GenerationHistory } from "./GenerationHistory";
@@ -28,6 +29,14 @@ import { UserTeamInfo } from "./UserTeamInfo";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
+
+interface TeamPricing {
+  teamId: string;
+  teamName: string;
+  balance: number;
+  htmlPrice: number;
+  reactPrice: number;
+}
 
 const languages = [
   { value: "uk", label: "Українська" },
@@ -109,6 +118,83 @@ export function WebsiteGenerator() {
   const [isImproving, setIsImproving] = useState(false);
   const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 });
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [teamPricing, setTeamPricing] = useState<TeamPricing | null>(null);
+
+  // Fetch team pricing on mount
+  useEffect(() => {
+    const fetchTeamPricing = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get user's team membership
+      const { data: membership } = await supabase
+        .from("team_members")
+        .select("team_id")
+        .eq("user_id", user.id)
+        .eq("status", "approved")
+        .limit(1)
+        .maybeSingle();
+
+      if (!membership) return;
+
+      // Get team details
+      const { data: team } = await supabase
+        .from("teams")
+        .select("id, name, balance")
+        .eq("id", membership.team_id)
+        .maybeSingle();
+
+      // Get team pricing
+      const { data: pricing } = await supabase
+        .from("team_pricing")
+        .select("html_price, react_price")
+        .eq("team_id", membership.team_id)
+        .maybeSingle();
+
+      if (team) {
+        setTeamPricing({
+          teamId: team.id,
+          teamName: team.name,
+          balance: team.balance || 0,
+          htmlPrice: pricing?.html_price || 7,
+          reactPrice: pricing?.react_price || 9
+        });
+      }
+    };
+
+    fetchTeamPricing();
+
+    // Subscribe to team balance changes
+    const channel = supabase
+      .channel("team_balance_changes")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "teams" },
+        (payload) => {
+          if (teamPricing && payload.new.id === teamPricing.teamId) {
+            setTeamPricing(prev => prev ? { ...prev, balance: payload.new.balance } : null);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Calculate total cost for current generation
+  const pricePerSite = websiteType === "react" 
+    ? (teamPricing?.reactPrice || 9) 
+    : (teamPricing?.htmlPrice || 7);
+  
+  const calculateTotalCost = () => {
+    const allLangs = getAllSelectedLanguages();
+    const allStylesCount = getAllSelectedStyles().length || 1;
+    return allLangs.length * sitesPerLanguage * allStylesCount * pricePerSite;
+  };
+
+  const insufficientBalance = teamPricing ? calculateTotalCost() > teamPricing.balance : false;
 
   const handleImprovePrompt = async () => {
     if (!prompt.trim()) {
@@ -260,6 +346,17 @@ export function WebsiteGenerator() {
       toast({
         title: "Помилка",
         description: "Оберіть хоча б одну мову",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check balance before generating
+    if (teamPricing && insufficientBalance) {
+      const totalCost = calculateTotalCost();
+      toast({
+        title: "Недостатньо коштів",
+        description: `Потрібно $${totalCost.toFixed(2)}, а на балансі $${teamPricing.balance.toFixed(2)}. Зверніться до власника команди для поповнення.`,
         variant: "destructive",
       });
       return;
@@ -662,25 +759,54 @@ export function WebsiteGenerator() {
                 </SelectContent>
               </Select>
 
-              <Button
-                onClick={handleGenerateClick}
-                disabled={isSubmitting || !siteName.trim() || !prompt.trim() || getAllSelectedLanguages().length === 0}
-                className="flex-1"
-                size="lg"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Відправка...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Згенерувати {totalGenerations > 1 ? `(${totalGenerations})` : ""}
-                  </>
+              <div className="flex flex-col gap-2">
+                <Button
+                  onClick={handleGenerateClick}
+                  disabled={isSubmitting || !siteName.trim() || !prompt.trim() || getAllSelectedLanguages().length === 0 || insufficientBalance}
+                  className="flex-1"
+                  size="lg"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Відправка...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Згенерувати {totalGenerations > 1 ? `(${totalGenerations})` : ""}
+                      {teamPricing && (
+                        <span className="ml-2 text-xs opacity-80">
+                          = ${calculateTotalCost().toFixed(2)}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </Button>
+                {insufficientBalance && teamPricing && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Недостатньо коштів: потрібно ${calculateTotalCost().toFixed(2)}, на балансі ${teamPricing.balance.toFixed(2)}
+                  </p>
                 )}
-              </Button>
+              </div>
             </div>
+
+            {/* Cost info alert */}
+            {teamPricing && totalGenerations > 0 && (
+              <Alert className="bg-muted/50">
+                <Info className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  <span className="font-medium">Вартість:</span> ${pricePerSite} за {websiteType === "react" ? "React" : "HTML"} сайт × {totalGenerations} = <strong>${calculateTotalCost().toFixed(2)}</strong>
+                  <br />
+                  <span className="text-muted-foreground">
+                    💳 Кошти списуються при старті генерації • 
+                    <RefreshCcw className="h-3 w-3 inline mx-1" />
+                    Автоматичний рефанд при помилці
+                  </span>
+                </AlertDescription>
+              </Alert>
+            )}
 
             {/* Progress bar for bulk generation */}
             {isSubmitting && generationProgress.total > 1 && (
@@ -714,19 +840,30 @@ export function WebsiteGenerator() {
               <AlertTriangle className="h-5 w-5 text-amber-500" />
               Підтвердження замовлення
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
+            <AlertDialogDescription className="space-y-3">
               <p>
                 Ви збираєтесь запустити <strong className="text-foreground">{totalGenerations} генерацій</strong> одночасно.
               </p>
+              {teamPricing && (
+                <p className="flex items-center gap-2 text-foreground bg-muted p-2 rounded">
+                  <Wallet className="h-4 w-4" />
+                  <span>Вартість: <strong>${calculateTotalCost().toFixed(2)}</strong></span>
+                  <span className="text-muted-foreground">|</span>
+                  <span>Баланс: <strong>${teamPricing.balance.toFixed(2)}</strong></span>
+                </p>
+              )}
               <p className="text-amber-600 dark:text-amber-400">
-                Ця дія запустить всі процеси одразу і є невідворотньою. Всі генерації будуть виконуватись паралельно.
+                Ця дія запустить всі процеси одразу і є невідворотньою.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                💳 Кошти списуються одразу при старті • Автоматичний рефанд при помилці
               </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Скасувати</AlertDialogCancel>
             <AlertDialogAction onClick={executeGeneration}>
-              Так, запустити {totalGenerations} генерацій
+              Так, запустити за ${calculateTotalCost().toFixed(2)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
