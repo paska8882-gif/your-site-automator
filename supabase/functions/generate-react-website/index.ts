@@ -244,22 +244,32 @@ Every website MUST include a REAL, FUNCTIONAL cookie consent system:
 - Hover/focus states
 - Form styling
 
-**IMAGE STRATEGY - USE RELIABLE PICSUM PHOTOS:**
-Use picsum.photos for ALL images - it's reliable and always loads:
+**IMAGE STRATEGY - USE LOREMFLICKR FOR THEMED IMAGES:**
+Use loremflickr.com for ALL images - it supports keyword search and is reliable:
+
+**FORMAT:** https://loremflickr.com/WIDTH/HEIGHT/KEYWORD1,KEYWORD2
 
 **Hero background:** 
-style={{backgroundImage: 'url(https://picsum.photos/1920/1080?random=1)'}}
+style={{backgroundImage: 'url(https://loremflickr.com/1920/1080/[THEME-KEYWORDS])'}}
 
 **Content images:**
-<img src="https://picsum.photos/800/600?random=2" alt="[Descriptive alt text in site language]" loading="lazy" />
+<img src="https://loremflickr.com/800/600/[SECTION-KEYWORDS]" alt="[Descriptive alt in site language]" loading="lazy" />
 
 **Card images:**
-<img src="https://picsum.photos/600/400?random=3" alt="[Description]" loading="lazy" />
+<img src="https://loremflickr.com/600/400/[SPECIFIC-KEYWORDS]" alt="[Description]" loading="lazy" />
 
 **Portrait images:**
-<img src="https://picsum.photos/400/400?random=4" alt="[Name or role]" loading="lazy" />
+<img src="https://loremflickr.com/400/400/person,portrait" alt="[Name or role]" loading="lazy" />
 
-**IMPORTANT:** Use DIFFERENT random= numbers for each image (random=1, random=2, random=3, etc.) so images are unique!
+**KEYWORD EXAMPLES BY THEME:**
+- Dog products: dog,pet,puppy | dog,toy | dog,food | dog,collar
+- Restaurant: restaurant,food | chef,cooking | dish,gourmet | dining,interior
+- Technology: computer,office | software,code | team,meeting | tech,laptop
+- Travel: travel,vacation | beach,ocean | hotel,room | landmark,city
+- Fitness: gym,fitness | workout,exercise | yoga,stretching | running,sport
+- Fashion: fashion,clothes | style,outfit | model,runway | accessories,jewelry
+
+**IMPORTANT:** Use comma-separated keywords that match the SPECIFIC section content!
 **Alt text MUST be in the same language as the website content!**
 
 **REQUIRED CSS FOR IMAGES:**
