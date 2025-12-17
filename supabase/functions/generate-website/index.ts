@@ -1069,16 +1069,33 @@ serve(async (req) => {
       if (salePrice > 0) {
         const { data: team } = await supabase
           .from("teams")
-          .select("balance")
+          .select("balance, credit_limit")
           .eq("id", teamId)
           .single();
 
         if (team) {
+          const currentBalance = team.balance || 0;
+          const creditLimit = team.credit_limit || 0;
+          const newBalance = currentBalance - salePrice;
+          
+          // Check if new balance would exceed credit limit
+          // credit_limit is the maximum allowed debt (stored as positive number)
+          if (newBalance < -creditLimit) {
+            console.log(`🚫 BLOCKED: Team ${teamId} would exceed credit limit. Balance: $${currentBalance}, Cost: $${salePrice}, Credit limit: $${creditLimit}`);
+            return new Response(JSON.stringify({ 
+              success: false, 
+              error: `Перевищено кредитний ліміт. Поточний баланс: $${currentBalance.toFixed(2)}, вартість: $${salePrice}, ліміт: $${creditLimit}. Поповніть баланс для продовження.` 
+            }), {
+              status: 402,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+
           await supabase
             .from("teams")
-            .update({ balance: (team.balance || 0) - salePrice })
+            .update({ balance: newBalance })
             .eq("id", teamId);
-          console.log(`💰 IMMEDIATELY deducted $${salePrice} from team ${teamId} BEFORE starting generation`);
+          console.log(`💰 IMMEDIATELY deducted $${salePrice} from team ${teamId} BEFORE starting generation. New balance: $${newBalance}`);
         }
       }
     }

@@ -131,15 +131,26 @@ async function startCodexGeneration(
 
       salePrice = pricing?.external_price ?? 7; // Default $7 for external
 
-      // Get team balance and deduct
+      // Get team balance and check credit limit
       const { data: team } = await supabase
         .from("teams")
-        .select("balance")
+        .select("balance, credit_limit")
         .eq("id", teamId)
         .single();
 
       if (team) {
-        const newBalance = (team.balance || 0) - salePrice;
+        const currentBalance = team.balance || 0;
+        const creditLimit = team.credit_limit || 0;
+        const newBalance = currentBalance - salePrice;
+
+        // Check if new balance would exceed credit limit
+        if (newBalance < -creditLimit) {
+          return { 
+            success: false, 
+            error: `Перевищено кредитний ліміт. Поточний баланс: $${currentBalance.toFixed(2)}, вартість: $${salePrice}, ліміт: $${creditLimit}. Поповніть баланс для продовження.` 
+          };
+        }
+
         await supabase.from("teams").update({ balance: newBalance }).eq("id", teamId);
       }
     }
