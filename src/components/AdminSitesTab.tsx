@@ -20,7 +20,8 @@ import {
   User,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  RefreshCw
 } from "lucide-react";
 
 type SortColumn = "site_name" | "team" | "user" | "language" | "website_type" | "ai_model" | "created_at" | "status";
@@ -40,6 +41,7 @@ interface GenerationItem {
   error_message: string | null;
   ai_model: string | null;
   user_id: string | null;
+  sale_price: number | null;
 }
 
 interface UserProfile {
@@ -163,7 +165,12 @@ export const AdminSitesTab = () => {
     URL.revokeObjectURL(url);
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: string, salePrice?: number | null) => {
+    // Check if this is a refunded failed generation
+    if (status === "failed" && (salePrice === 0 || salePrice === null)) {
+      return <RefreshCw className="h-4 w-4 text-amber-500" />;
+    }
+    
     switch (status) {
       case "completed":
         return <CheckCircle2 className="h-4 w-4 text-green-500" />;
@@ -177,7 +184,12 @@ export const AdminSitesTab = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, salePrice?: number | null) => {
+    // Check if this is a refunded failed generation
+    if (status === "failed" && (salePrice === 0 || salePrice === null)) {
+      return <Badge variant="secondary" className="bg-amber-500 text-white">Рефанд</Badge>;
+    }
+    
     switch (status) {
       case "completed":
         return <Badge variant="default" className="bg-green-500">Готово</Badge>;
@@ -540,7 +552,7 @@ export const AdminSitesTab = () => {
                         <TableRow className="cursor-pointer hover:bg-accent/50">
                           <TableCell>
                             <div className="flex items-center gap-1">
-                              {getStatusIcon(item.status)}
+                              {getStatusIcon(item.status, item.sale_price)}
                             </div>
                           </TableCell>
                           <TableCell className="font-medium">
