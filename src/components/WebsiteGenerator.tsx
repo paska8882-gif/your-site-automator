@@ -21,8 +21,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, Languages, Hash, Wand2, Palette, ChevronDown, AlertTriangle, Shield, Users, Wallet, RefreshCcw, Info } from "lucide-react";
-import { startGeneration, AiModel, WebsiteType, SeniorMode, LAYOUT_STYLES } from "@/lib/websiteGenerator";
+import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, Languages, Hash, Wand2, Palette, ChevronDown, AlertTriangle, Shield, Users, Wallet, RefreshCcw, Info, Image } from "lucide-react";
+import { startGeneration, AiModel, WebsiteType, SeniorMode, ImageSource, LAYOUT_STYLES } from "@/lib/websiteGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { GenerationHistory } from "./GenerationHistory";
 import { UserTeamInfo } from "./UserTeamInfo";
@@ -114,6 +114,7 @@ export function WebsiteGenerator() {
   const [aiModel, setAiModel] = useState<AiModel>("senior");
   const [seniorMode, setSeniorMode] = useState<SeniorMode>(undefined);
   const [websiteType, setWebsiteType] = useState<WebsiteType>("html");
+  const [imageSource, setImageSource] = useState<ImageSource>("basic");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImproving, setIsImproving] = useState(false);
   const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 });
@@ -386,7 +387,7 @@ export function WebsiteGenerator() {
       // Create wrapped promises that update progress on completion
       const createTrackedPromise = async (lang: string, style: string | undefined) => {
         const currentSeniorMode = aiModel === "senior" ? seniorMode : undefined;
-        const result = await startGeneration(prompt, lang, aiModel, websiteType, style, siteName, currentSeniorMode);
+        const result = await startGeneration(prompt, lang, aiModel, websiteType, style, siteName, currentSeniorMode, imageSource);
         setGenerationProgress(prev => ({ ...prev, completed: prev.completed + 1 }));
         return result;
       };
@@ -753,6 +754,26 @@ export function WebsiteGenerator() {
                     <div className="flex items-center gap-2">
                       <Layers className="h-4 w-4 text-cyan-500" />
                       React
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={imageSource} onValueChange={(v) => setImageSource(v as ImageSource)} disabled={isSubmitting}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Підбір фото" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="basic">
+                    <div className="flex items-center gap-2">
+                      <Image className="h-4 w-4 text-gray-500" />
+                      Базовий
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="ai">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-violet-500" />
+                      AI пошук фото
                     </div>
                   </SelectItem>
                 </SelectContent>

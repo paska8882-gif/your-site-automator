@@ -295,8 +295,33 @@ Each main page MUST include AT LEAST these sections (in order):
 - Form styling
 - Active navigation link styling
 
-**IMAGE STRATEGY - USE LOREMFLICKR FOR THEMED IMAGES:**
-Use loremflickr.com for ALL images - it supports keyword search and is reliable:
+`.trim();
+
+// Image strategy - Basic (reliable random photos)
+const IMAGE_STRATEGY_BASIC = `
+**IMAGE STRATEGY - RELIABLE RANDOM PHOTOS:**
+Use picsum.photos for ALL images - it's reliable and always loads:
+
+**Hero background:** 
+url('https://picsum.photos/1920/1080?random=1')
+
+**Content images:**
+<img src="https://picsum.photos/800/600?random=2" alt="[Descriptive alt text in site language]" loading="lazy">
+
+**Card images:**
+<img src="https://picsum.photos/600/400?random=3" alt="[Description]" loading="lazy">
+
+**Portrait images:**
+<img src="https://picsum.photos/400/400?random=4" alt="[Name or role]" loading="lazy">
+
+**IMPORTANT:** Use DIFFERENT random= numbers for each image (random=1, random=2, random=3, etc.) so images are unique!
+**Alt text MUST be in the same language as the website content!**
+`.trim();
+
+// Image strategy - AI (themed search)
+const IMAGE_STRATEGY_AI = `
+**IMAGE STRATEGY - AI THEMED PHOTO SEARCH:**
+Use loremflickr.com for ALL images - it supports keyword search for themed images:
 
 **FORMAT:** https://loremflickr.com/WIDTH/HEIGHT/KEYWORD1,KEYWORD2
 
@@ -322,7 +347,10 @@ url('https://loremflickr.com/1920/1080/[THEME-KEYWORDS]')
 
 **IMPORTANT:** Use comma-separated keywords that match the SPECIFIC section content!
 **Alt text MUST be in the same language as the website content!**
+`.trim();
 
+// CSS for images - common to both strategies
+const IMAGE_CSS = `
 **REQUIRED CSS FOR IMAGES:**
 .hero {
   position: relative;
@@ -494,11 +522,13 @@ async function runGeneration({
   language,
   aiModel,
   layoutStyle,
+  imageSource = "basic",
 }: {
   prompt: string;
   language?: string;
   aiModel: "junior" | "senior";
   layoutStyle?: string;
+  imageSource?: "basic" | "ai";
 }): Promise<GenerationResult> {
   const isJunior = aiModel === "junior";
   console.log(`Using ${isJunior ? "Junior AI (OpenAI GPT-4o)" : "Senior AI (Lovable AI)"} for HTML generation`);
@@ -583,7 +613,7 @@ async function runGeneration({
       },
       {
         role: "user",
-        content: `${HTML_GENERATION_PROMPT}\n\n=== MANDATORY LAYOUT STRUCTURE (FOLLOW EXACTLY) ===\n${selectedLayout.description}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
+        content: `${HTML_GENERATION_PROMPT}\n\n${imageSource === "ai" ? IMAGE_STRATEGY_AI : IMAGE_STRATEGY_BASIC}\n\n${IMAGE_CSS}\n\n=== MANDATORY LAYOUT STRUCTURE (FOLLOW EXACTLY) ===\n${selectedLayout.description}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
       },
     ],
   };
