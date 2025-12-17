@@ -244,38 +244,23 @@ Every website MUST include a REAL, FUNCTIONAL cookie consent system:
 - Hover/focus states
 - Form styling
 
-**IMAGE STRATEGY - CRITICAL FOR QUALITY:**
-IMAGES MUST BE 100% CONTEXTUALLY RELEVANT to the website theme AND the specific section where they appear!
+**IMAGE STRATEGY - USE RELIABLE PICSUM PHOTOS:**
+Use picsum.photos for ALL images - it's reliable and always loads:
 
-**RULE 1: Website Theme Matching**
-- If the site is about dogs/pets → ALL images must show dogs, pets, pet products, pet stores
-- If the site is about restaurants → ALL images must show food, restaurants, chefs, dining
-- If the site is about technology → ALL images must show tech, computers, software, teams
-- If the site is about travel → ALL images must show destinations, hotels, beaches, landmarks
-- ANALYZE the user's prompt and extract the MAIN THEME, then ensure EVERY image relates to it
+**Hero background:** 
+style={{backgroundImage: 'url(https://picsum.photos/1920/1080?random=1)'}}
 
-**RULE 2: Section-Specific Relevance**
-- Hero section: Image that captures the CORE essence of the business/theme
-- Services section: Each service card image must show THAT SPECIFIC service in action
-- About section: Team photos, office, or behind-the-scenes relevant to the theme
-- Testimonials: Portrait photos of people who would realistically be customers of THIS business
-- Products/Features: Each card shows the SPECIFIC product/feature being described
-- Contact: Office exterior, reception, or location-relevant image
+**Content images:**
+<img src="https://picsum.photos/800/600?random=2" alt="[Descriptive alt text in site language]" loading="lazy" />
 
-**RULE 3: Use Unsplash with THEME-SPECIFIC search terms**
-Use source.unsplash.com with DESCRIPTIVE search queries matching your content:
-- Hero background: style={{backgroundImage: 'url(https://source.unsplash.com/1920x1080/?[THEME-KEYWORD])'}}
-- Content image: <img src="https://source.unsplash.com/800x600/?[SECTION-KEYWORD]" alt="[Descriptive alt for theme]" loading="lazy" />
-- Card image: <img src="https://source.unsplash.com/600x400/?[SPECIFIC-TOPIC]" alt="[Specific description]" loading="lazy" />
-- Portrait: <img src="https://source.unsplash.com/400x400/?portrait,professional" alt="[Name or role]" loading="lazy" />
+**Card images:**
+<img src="https://picsum.photos/600/400?random=3" alt="[Description]" loading="lazy" />
 
-**EXAMPLES:**
-- Dog products site hero: style={{backgroundImage: 'url(https://source.unsplash.com/1920x1080/?happy,dog,pet)'}}
-- Dog toy card: <img src="https://source.unsplash.com/600x400/?dog,toy,playing" alt="Dog playing with toy" />
-- Restaurant hero: style={{backgroundImage: 'url(https://source.unsplash.com/1920x1080/?restaurant,dining,elegant)'}}
-- Food card: <img src="https://source.unsplash.com/600x400/?gourmet,food,dish" alt="Gourmet dish" />
+**Portrait images:**
+<img src="https://picsum.photos/400/400?random=4" alt="[Name or role]" loading="lazy" />
 
-**NEVER use random/generic images that don't match the site's purpose!**
+**IMPORTANT:** Use DIFFERENT random= numbers for each image (random=1, random=2, random=3, etc.) so images are unique!
+**Alt text MUST be in the same language as the website content!**
 
 **REQUIRED CSS FOR IMAGES:**
 .hero {
