@@ -685,7 +685,8 @@ async function runBackgroundGeneration(
   prompt: string,
   language: string | undefined,
   aiModel: "junior" | "senior",
-  layoutStyle?: string
+  layoutStyle?: string,
+  imageSource: "basic" | "ai" = "basic"
 ) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -740,7 +741,7 @@ async function runBackgroundGeneration(
       .update({ status: "generating", sale_price: salePrice })
       .eq("id", historyId);
 
-    const result = await runGeneration({ prompt, language, aiModel, layoutStyle });
+    const result = await runGeneration({ prompt, language, aiModel, layoutStyle, imageSource });
 
     if (result.success && result.files) {
       // Create zip base64
@@ -860,7 +861,7 @@ serve(async (req) => {
 
     console.log("Authenticated request from user:", user.id);
 
-    const { prompt, language, aiModel = "senior", layoutStyle, siteName } = await req.json();
+    const { prompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic" } = await req.json();
 
     if (!prompt) {
       return new Response(JSON.stringify({ success: false, error: "Prompt is required" }), {
@@ -896,7 +897,7 @@ serve(async (req) => {
 
     // Start background generation using EdgeRuntime.waitUntil
     EdgeRuntime.waitUntil(
-      runBackgroundGeneration(historyEntry.id, user.id, prompt, language, aiModel, layoutStyle)
+      runBackgroundGeneration(historyEntry.id, user.id, prompt, language, aiModel, layoutStyle, imageSource)
     );
 
     // Return immediately with the history entry ID
