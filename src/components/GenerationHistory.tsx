@@ -747,7 +747,7 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Get user's team
+      // Get user's team (optional - users without teams can still submit appeals)
       const { data: membership } = await supabase
         .from("team_members")
         .select("team_id")
@@ -755,10 +755,6 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
         .eq("status", "approved")
         .limit(1)
         .maybeSingle();
-
-      if (!membership) {
-        throw new Error("Ви не належите до жодної команди");
-      }
 
       // Upload screenshot if provided
       let screenshotUrl: string | null = null;
@@ -785,7 +781,7 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
         .insert({
           generation_id: appealItem.id,
           user_id: user.id,
-          team_id: membership.team_id,
+          team_id: membership?.team_id || null,
           reason: appealReason.trim(),
           amount_to_refund: appealItem.sale_price || 0,
           screenshot_url: screenshotUrl
@@ -795,7 +791,9 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
 
       toast({
         title: "Апеляцію надіслано",
-        description: "Адміністратор розгляне вашу апеляцію найближчим часом"
+        description: membership 
+          ? "Адміністратор розгляне вашу апеляцію найближчим часом" 
+          : "Апеляцію прийнято. Адміністратор зв'яжеться з вами для уточнення деталей"
       });
 
       setAppealDialogOpen(false);
