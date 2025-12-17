@@ -262,7 +262,12 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
     return text.slice(0, maxLength) + "...";
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: string, salePrice?: number | null) => {
+    // Check if this is a refunded failed generation
+    if (status === "failed" && (salePrice === 0 || salePrice === null)) {
+      return <RefreshCw className="h-4 w-4 text-amber-500" />;
+    }
+    
     switch (status) {
       case "pending":
         return <Clock className="h-4 w-4 text-muted-foreground" />;
@@ -277,7 +282,12 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
     }
   };
 
-  const getStatusText = (status: string) => {
+  const getStatusText = (status: string, salePrice?: number | null) => {
+    // Check if this is a refunded failed generation
+    if (status === "failed" && (salePrice === 0 || salePrice === null)) {
+      return "Рефанд";
+    }
+    
     switch (status) {
       case "pending":
         return "Очікує";
@@ -421,8 +431,8 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
                     onClick={() => item.status === "completed" && handleExpand(item)}
                   >
                     <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className="flex items-center" title={getStatusText(item.status)}>
-                        {getStatusIcon(item.status)}
+                      <div className="flex items-center" title={getStatusText(item.status, item.sale_price)}>
+                        {getStatusIcon(item.status, item.sale_price)}
                       </div>
                       <span className="font-medium truncate flex-1" title={item.site_name || `Site ${item.number}`}>
                         {item.site_name || `Site ${item.number}`}
