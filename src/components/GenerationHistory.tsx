@@ -38,6 +38,7 @@ interface HistoryItem {
   website_type: string | null;
   site_name: string | null;
   sale_price: number | null;
+  image_source: string | null;
 }
 
 interface Appeal {
@@ -501,6 +502,11 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
                       <span className="text-sm text-muted-foreground hidden md:block">
                         {new Date(item.created_at).toLocaleString("uk-UA")}
                       </span>
+                      {item.image_source && (
+                        <Badge variant={item.image_source === "ai" ? "default" : "outline"} className="text-xs">
+                          {item.image_source === "ai" ? "AI фото" : "Базові"}
+                        </Badge>
+                      )}
                       {item.status === "completed" && item.sale_price != null && item.sale_price > 0 && (
                         <Badge variant="secondary" className="text-xs font-semibold">
                           ${item.sale_price}

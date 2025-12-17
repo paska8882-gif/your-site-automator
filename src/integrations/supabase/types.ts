@@ -82,6 +82,7 @@ export type Database = {
           files_data: Json | null
           generation_cost: number | null
           id: string
+          image_source: string | null
           language: string
           number: number
           prompt: string
@@ -100,6 +101,7 @@ export type Database = {
           files_data?: Json | null
           generation_cost?: number | null
           id?: string
+          image_source?: string | null
           language?: string
           number?: number
           prompt: string
@@ -118,6 +120,7 @@ export type Database = {
           files_data?: Json | null
           generation_cost?: number | null
           id?: string
+          image_source?: string | null
           language?: string
           number?: number
           prompt?: string

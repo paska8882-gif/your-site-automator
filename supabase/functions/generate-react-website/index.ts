@@ -858,6 +858,7 @@ serve(async (req) => {
         ai_model: aiModel,
         website_type: "react",
         site_name: siteName || null,
+        image_source: imageSource || "basic",
       })
       .select()
       .single();

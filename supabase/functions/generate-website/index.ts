@@ -887,6 +887,7 @@ serve(async (req) => {
         ai_model: aiModel,
         website_type: "html",
         site_name: siteName || null,
+        image_source: imageSource || "basic",
       })
       .select()
       .single();
