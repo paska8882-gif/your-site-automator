@@ -387,6 +387,7 @@ export type Database = {
       }
       teams: {
         Row: {
+          assigned_admin_id: string | null
           balance: number
           created_at: string
           created_by: string
@@ -394,6 +395,7 @@ export type Database = {
           name: string
         }
         Insert: {
+          assigned_admin_id?: string | null
           balance?: number
           created_at?: string
           created_by: string
@@ -401,6 +403,7 @@ export type Database = {
           name: string
         }
         Update: {
+          assigned_admin_id?: string | null
           balance?: number
           created_at?: string
           created_by?: string
