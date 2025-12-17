@@ -148,73 +148,104 @@ async function runCodexGeneration(
     .eq("id", historyId);
   
   try {
-    // Call OpenAI API with gpt-5-2025-08-07 (flagship model)
-    console.log("📤 Calling OpenAI API with gpt-5-2025-08-07...");
+    // Try GPT-4o first (more reliable, faster), fallback to GPT-5 if needed
+    const models = ["gpt-4o", "gpt-5-2025-08-07"];
+    let responseText = '';
+    let cost = 0;
+    let usedModel = '';
     
-    // Create AbortController for timeout (9 minutes)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      console.log("⏰ Fetch timeout triggered after 9 minutes");
-      controller.abort();
-    }, 9 * 60 * 1000);
-    
-    let response;
-    try {
-      response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${openaiApiKey}`
-        },
-        body: JSON.stringify({
-          model: "gpt-5-2025-08-07",
+    for (const model of models) {
+      console.log(`📤 Calling OpenAI API with ${model}...`);
+      
+      // Create AbortController for timeout (5 minutes per attempt)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.log(`⏰ Fetch timeout triggered after 5 minutes for ${model}`);
+        controller.abort();
+      }, 5 * 60 * 1000);
+      
+      let response;
+      try {
+        const requestBody: any = {
+          model,
           messages: [
-            {
-              role: "system",
-              content: GENERATION_PROMPT
-            },
-            {
-              role: "user",
-              content: prompt
-            }
-          ],
-          max_completion_tokens: 100000
-        }),
-        signal: controller.signal
-      });
-    } finally {
-      clearTimeout(timeoutId);
+            { role: "system", content: GENERATION_PROMPT },
+            { role: "user", content: prompt }
+          ]
+        };
+        
+        // Different token params for different models
+        if (model.includes("gpt-5")) {
+          requestBody.max_completion_tokens = 50000;
+        } else {
+          requestBody.max_tokens = 16000;
+          requestBody.temperature = 0.7;
+        }
+        
+        response = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${openaiApiKey}`
+          },
+          body: JSON.stringify(requestBody),
+          signal: controller.signal
+        });
+      } catch (fetchErr) {
+        clearTimeout(timeoutId);
+        console.error(`❌ Fetch failed for ${model}:`, fetchErr instanceof Error ? fetchErr.message : fetchErr);
+        continue; // Try next model
+      } finally {
+        clearTimeout(timeoutId);
+      }
+      
+      console.log(`📥 ${model} responded with status:`, response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`OpenAI API error for ${model}:`, response.status, errorText);
+        continue; // Try next model
+      }
+      
+      const data = await response.json();
+      console.log(`📥 ${model} response received, usage:`, JSON.stringify(data.usage));
+      console.log(`📥 finish_reason:`, data.choices?.[0]?.finish_reason);
+      
+      // Check finish_reason - if "length", model ran out of tokens
+      const finishReason = data.choices?.[0]?.finish_reason;
+      if (finishReason === "length") {
+        console.warn(`⚠️ ${model} hit token limit (finish_reason: length), trying next model`);
+        continue;
+      }
+      
+      // Calculate cost
+      cost = calculateCost(data.usage);
+      console.log(`💰 Generation cost: $${cost}`);
+      
+      // Extract response text
+      responseText = data.choices?.[0]?.message?.content || '';
+      
+      if (!responseText || responseText.length < 100) {
+        console.error(`Empty/short response from ${model}:`, responseText.substring(0, 200));
+        continue; // Try next model
+      }
+      
+      usedModel = model;
+      console.log(`✅ Got valid response from ${model}, length: ${responseText.length} chars`);
+      break; // Success, exit loop
     }
-    
-    console.log("📥 OpenAI responded with status:", response.status);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenAI API error:", response.status, errorText);
-      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
-    }
-    
-    const data = await response.json();
-    console.log("📥 OpenAI response received, usage:", JSON.stringify(data.usage));
-    
-    // Calculate cost
-    const cost = calculateCost(data.usage);
-    console.log(`💰 Generation cost: $${cost}`);
-    
-    // Extract response text from chat completions format
-    const responseText = data.choices?.[0]?.message?.content || '';
     
     if (!responseText) {
-      console.error("Empty response from OpenAI:", JSON.stringify(data));
-      throw new Error("No text in OpenAI response");
+      throw new Error("All models failed to generate content");
     }
     
-    console.log(`📝 Response length: ${responseText.length} chars`);
+    console.log(`📝 Response length: ${responseText.length} chars from ${usedModel}`);
     
     // Parse files from response
     const files = parseFilesFromResponse(responseText);
     
     if (files.length === 0) {
+      console.error("No files parsed. Response preview:", responseText.substring(0, 500));
       throw new Error("No files parsed from response");
     }
     
@@ -230,7 +261,8 @@ async function runCodexGeneration(
         files_data: files,
         zip_data: zipBase64,
         generation_cost: cost,
-        error_message: null
+        error_message: null,
+        specific_ai_model: usedModel
       })
       .eq("id", historyId);
     
@@ -239,7 +271,7 @@ async function runCodexGeneration(
       throw updateError;
     }
     
-    console.log(`✅ Generation completed: ${files.length} files, cost: $${cost}`);
+    console.log(`✅ Generation completed: ${files.length} files, cost: $${cost}, model: ${usedModel}`);
     
     // Get user info for notification
     const { data: historyData } = await (supabase as any)
