@@ -577,7 +577,9 @@ export function WebsiteGenerator() {
     return breakdown;
   };
 
-  const insufficientBalance = teamPricing ? calculateTotalCost() > teamPricing.balance : false;
+  // Admins can generate on credit (bypass balance check)
+  const insufficientBalance = !isAdmin && teamPricing ? calculateTotalCost() > teamPricing.balance : false;
+  const isGeneratingOnCredit = isAdmin && teamPricing ? calculateTotalCost() > teamPricing.balance : false;
 
   const handleGenerateClick = () => {
     if (!siteName.trim()) {
@@ -617,8 +619,8 @@ export function WebsiteGenerator() {
       return;
     }
 
-    // Check balance before generating
-    if (teamPricing && insufficientBalance) {
+    // Check balance before generating (admins can generate on credit)
+    if (teamPricing && insufficientBalance && !isAdmin) {
       const totalCost = calculateTotalCost();
       toast({
         title: "Недостатньо коштів",
@@ -1289,6 +1291,12 @@ export function WebsiteGenerator() {
                 <p className="text-xs text-destructive flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" />
                   Недостатньо коштів: потрібно ${calculateTotalCost().toFixed(2)}, на балансі ${teamPricing.balance.toFixed(2)}
+                </p>
+              )}
+              {isGeneratingOnCredit && teamPricing && (
+                <p className="text-xs text-amber-500 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Генерація в кредит: потрібно ${calculateTotalCost().toFixed(2)}, на балансі ${teamPricing.balance.toFixed(2)}
                 </p>
               )}
             </div>
