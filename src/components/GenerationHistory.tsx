@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File, AlertTriangle } from "lucide-react";
+import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File, AlertTriangle, Upload, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -66,6 +66,8 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
   const [appealDialogOpen, setAppealDialogOpen] = useState(false);
   const [appealItem, setAppealItem] = useState<HistoryItem | null>(null);
   const [appealReason, setAppealReason] = useState("");
+  const [appealScreenshot, setAppealScreenshot] = useState<File | null>(null);
+  const [appealScreenshotPreview, setAppealScreenshotPreview] = useState<string | null>(null);
   const [submittingAppeal, setSubmittingAppeal] = useState(false);
 
   const fetchHistory = async () => {
@@ -327,7 +329,34 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
   const openAppealDialog = (item: HistoryItem) => {
     setAppealItem(item);
     setAppealReason("");
+    setAppealScreenshot(null);
+    setAppealScreenshotPreview(null);
     setAppealDialogOpen(true);
+  };
+
+  const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Файл занадто великий",
+          description: "Максимальний розмір файлу 5 МБ",
+          variant: "destructive"
+        });
+        return;
+      }
+      setAppealScreenshot(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setAppealScreenshotPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeScreenshot = () => {
+    setAppealScreenshot(null);
+    setAppealScreenshotPreview(null);
   };
 
   const submitAppeal = async () => {
@@ -352,6 +381,26 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
         throw new Error("Ви не належите до жодної команди");
       }
 
+      // Upload screenshot if provided
+      let screenshotUrl: string | null = null;
+      if (appealScreenshot) {
+        const fileExt = appealScreenshot.name.split('.').pop();
+        const fileName = `${user.id}/${appealItem.id}-${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('appeal-screenshots')
+          .upload(fileName, appealScreenshot);
+
+        if (uploadError) {
+          console.error("Screenshot upload error:", uploadError);
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('appeal-screenshots')
+            .getPublicUrl(fileName);
+          screenshotUrl = publicUrl;
+        }
+      }
+
       const { error } = await supabase
         .from("appeals")
         .insert({
@@ -359,7 +408,8 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
           user_id: user.id,
           team_id: membership.team_id,
           reason: appealReason.trim(),
-          amount_to_refund: appealItem.sale_price || 0
+          amount_to_refund: appealItem.sale_price || 0,
+          screenshot_url: screenshotUrl
         });
 
       if (error) throw error;
@@ -372,6 +422,8 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
       setAppealDialogOpen(false);
       setAppealItem(null);
       setAppealReason("");
+      setAppealScreenshot(null);
+      setAppealScreenshotPreview(null);
       fetchHistory();
     } catch (error) {
       console.error("Error submitting appeal:", error);
@@ -678,6 +730,39 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
                   className="mt-1"
                   rows={4}
                 />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Скріншот помилки (необов'язково)</label>
+                {appealScreenshotPreview ? (
+                  <div className="mt-2 relative">
+                    <img 
+                      src={appealScreenshotPreview} 
+                      alt="Скріншот" 
+                      className="max-h-40 rounded border object-contain"
+                    />
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-1 right-1 h-6 w-6"
+                      onClick={removeScreenshot}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="mt-2">
+                    <label className="flex items-center justify-center gap-2 p-4 border-2 border-dashed rounded cursor-pointer hover:bg-muted/50 transition-colors">
+                      <Upload className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Завантажити зображення (до 5 МБ)</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleScreenshotChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                )}
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setAppealDialogOpen(false)}>
