@@ -94,6 +94,7 @@ export const AdminSitesTab = () => {
   const [languageFilter, setLanguageFilter] = useState<string>("all");
   const [teamFilter, setTeamFilter] = useState<string>("all");
   const [userFilter, setUserFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("all");
 
   useEffect(() => {
     fetchAllGenerations();
@@ -283,6 +284,25 @@ export const AdminSitesTab = () => {
       if (teamName !== teamFilter) return false;
     }
     if (userFilter !== "all" && item.user_id !== userFilter) return false;
+    
+    // Date filter
+    if (dateFilter !== "all") {
+      const itemDate = new Date(item.created_at);
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      if (dateFilter === "today") {
+        if (itemDate < today) return false;
+      } else if (dateFilter === "week") {
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        if (itemDate < weekAgo) return false;
+      } else if (dateFilter === "month") {
+        const monthAgo = new Date(today);
+        monthAgo.setMonth(monthAgo.getMonth() - 1);
+        if (itemDate < monthAgo) return false;
+      }
+    }
     
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
@@ -476,6 +496,17 @@ export const AdminSitesTab = () => {
             {uniqueLanguages.map(lang => (
               <SelectItem key={lang} value={lang} className="text-xs">{lang}</SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+        <Select value={dateFilter} onValueChange={setDateFilter}>
+          <SelectTrigger className="h-7 text-xs w-24">
+            <SelectValue placeholder="Дата" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">Весь час</SelectItem>
+            <SelectItem value="today" className="text-xs">Сьогодні</SelectItem>
+            <SelectItem value="week" className="text-xs">Тиждень</SelectItem>
+            <SelectItem value="month" className="text-xs">Місяць</SelectItem>
           </SelectContent>
         </Select>
       </div>
