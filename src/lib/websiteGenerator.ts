@@ -44,11 +44,12 @@ export async function startGeneration(
   layoutStyle?: string,
   siteName?: string,
   seniorMode?: SeniorMode,
-  imageSource: ImageSource = "basic"
+  imageSource: ImageSource = "basic",
+  teamId?: string // Optional team ID for admin generation
 ): Promise<GenerationResult> {
   // Если выбран режим Codex для Senior AI - обращаемся к внешнему вебхуку
   if (aiModel === "senior" && seniorMode === "codex") {
-    return startCodexGeneration(prompt, language, websiteType, layoutStyle, siteName);
+    return startCodexGeneration(prompt, language, websiteType, layoutStyle, siteName, teamId);
   }
 
   const functionName = websiteType === "react" ? "generate-react-website" : "generate-website";
@@ -69,7 +70,7 @@ export async function startGeneration(
         apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ prompt, language, aiModel, layoutStyle, siteName, seniorMode, imageSource }),
+      body: JSON.stringify({ prompt, language, aiModel, layoutStyle, siteName, seniorMode, imageSource, teamId }),
     });
 
     if (!resp.ok) {
@@ -90,11 +91,12 @@ async function startCodexGeneration(
   language?: string,
   websiteType?: WebsiteType,
   layoutStyle?: string,
-  siteName?: string
+  siteName?: string,
+  overrideTeamId?: string
 ): Promise<GenerationResult> {
   let historyId: string | null = null;
   let salePrice = 0;
-  let teamId: string | null = null;
+  let teamId: string | null = overrideTeamId || null;
 
   try {
     const {
@@ -105,17 +107,21 @@ async function startCodexGeneration(
       return { success: false, error: "Authentication required" };
     }
 
-    // Get user's team and pricing
-    const { data: membership } = await supabase
-      .from("team_members")
-      .select("team_id")
-      .eq("user_id", session.user.id)
-      .eq("status", "approved")
-      .single();
+    // If no override teamId, get user's team from membership
+    if (!teamId) {
+      const { data: membership } = await supabase
+        .from("team_members")
+        .select("team_id")
+        .eq("user_id", session.user.id)
+        .eq("status", "approved")
+        .single();
 
-    if (membership?.team_id) {
-      teamId = membership.team_id;
+      if (membership?.team_id) {
+        teamId = membership.team_id;
+      }
+    }
 
+    if (teamId) {
       // Get team pricing
       const { data: pricing } = await supabase
         .from("team_pricing")
