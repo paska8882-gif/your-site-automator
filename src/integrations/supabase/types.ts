@@ -391,6 +391,7 @@ export type Database = {
           balance: number
           created_at: string
           created_by: string
+          credit_limit: number
           id: string
           name: string
         }
@@ -399,6 +400,7 @@ export type Database = {
           balance?: number
           created_at?: string
           created_by: string
+          credit_limit?: number
           id?: string
           name: string
         }
@@ -407,6 +409,7 @@ export type Database = {
           balance?: number
           created_at?: string
           created_by?: string
+          credit_limit?: number
           id?: string
           name?: string
         }

@@ -29,6 +29,7 @@ interface Team {
   id: string;
   name: string;
   balance: number;
+  credit_limit: number;
   created_at: string;
   owner_code?: string;
   members_count?: number;
@@ -162,6 +163,21 @@ export const AdminTeamsManager = () => {
     } else {
       toast({ title: "Збережено", description: "Адміністратора призначено" });
       fetchTeams();
+    }
+  };
+
+  const handleUpdateCreditLimit = async (teamId: string, creditLimit: number) => {
+    const { error } = await supabase
+      .from("teams")
+      .update({ credit_limit: creditLimit })
+      .eq("id", teamId);
+
+    if (error) {
+      toast({ title: "Помилка", description: "Не вдалося оновити ліміт кредиту", variant: "destructive" });
+    } else {
+      // Update local state
+      setTeams(teams.map(t => t.id === teamId ? { ...t, credit_limit: creditLimit } : t));
+      toast({ title: "Збережено", description: `Ліміт кредиту: $${creditLimit}` });
     }
   };
 
@@ -398,6 +414,20 @@ export const AdminTeamsManager = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <Wallet className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-muted-foreground">Ліміт кредиту:</span>
+                    <Input
+                      type="number"
+                      value={team.credit_limit || 0}
+                      onChange={(e) => handleUpdateCreditLimit(team.id, parseFloat(e.target.value) || 0)}
+                      className="h-6 w-20 text-[10px]"
+                      min={0}
+                      step={10}
+                    />
+                    <span className="text-[10px] text-muted-foreground">$</span>
                   </div>
                 </div>
               ))}
