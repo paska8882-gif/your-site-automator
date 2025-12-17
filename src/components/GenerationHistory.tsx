@@ -567,6 +567,65 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
     }
   };
 
+  const handleDownloadAll = async (items: HistoryItem[]) => {
+    const completedItems = items.filter(item => item.status === "completed" && item.zip_data);
+    
+    if (completedItems.length === 0) {
+      toast({
+        title: "Немає файлів",
+        description: "Немає завершених генерацій для завантаження",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Завантаження",
+      description: `Завантажуємо ${completedItems.length} файлів...`,
+    });
+
+    // Download each file with a small delay to prevent browser blocking
+    for (let i = 0; i < completedItems.length; i++) {
+      const item = completedItems[i];
+      try {
+        const byteCharacters = atob(item.zip_data!);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let j = 0; j < byteCharacters.length; j++) {
+          byteNumbers[j] = byteCharacters.charCodeAt(j);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: "application/zip" });
+
+        const siteName = item.site_name || `website_${item.number}`;
+        const lang = item.language?.toUpperCase() || "AUTO";
+        const type = item.website_type?.toUpperCase() || "HTML";
+        const aiLabel = item.ai_model === "senior" ? "Senior_AI" : "Junior_AI";
+        const filename = `${siteName}-${lang}-${type}-${aiLabel}.zip`;
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        // Small delay between downloads
+        if (i < completedItems.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      } catch (error) {
+        console.error("Download error for item:", item.id, error);
+      }
+    }
+
+    toast({
+      title: "Готово",
+      description: `Завантажено ${completedItems.length} ZIP-архівів`,
+    });
+  };
+
 
   const truncatePrompt = (text: string, maxLength: number = 100) => {
     if (text.length <= maxLength) return text;
@@ -922,7 +981,24 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
                         </Badge>
                       )}
                     </div>
-                    <ChevronDown className={`h-4 w-4 transition-transform ${isGroupExpanded ? "rotate-180" : ""}`} />
+                    <div className="flex items-center gap-2">
+                      {completedCount > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadAll(group.items);
+                          }}
+                          title="Завантажити всі ZIP"
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          <span className="text-xs">Всі</span>
+                        </Button>
+                      )}
+                      <ChevronDown className={`h-4 w-4 transition-transform ${isGroupExpanded ? "rotate-180" : ""}`} />
+                    </div>
                   </div>
                   
                   {isGroupExpanded && (
