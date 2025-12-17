@@ -26,7 +26,7 @@ export type Database = {
           resolved_by: string | null
           screenshot_url: string | null
           status: string
-          team_id: string
+          team_id: string | null
           user_id: string
         }
         Insert: {
@@ -40,7 +40,7 @@ export type Database = {
           resolved_by?: string | null
           screenshot_url?: string | null
           status?: string
-          team_id: string
+          team_id?: string | null
           user_id: string
         }
         Update: {
@@ -54,7 +54,7 @@ export type Database = {
           resolved_by?: string | null
           screenshot_url?: string | null
           status?: string
-          team_id?: string
+          team_id?: string | null
           user_id?: string
         }
         Relationships: [
