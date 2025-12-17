@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Users, 
   Plus, 
@@ -15,8 +16,14 @@ import {
   Loader2,
   RefreshCw,
   Eye,
-  Wallet
+  Wallet,
+  UserCog
 } from "lucide-react";
+
+interface Admin {
+  user_id: string;
+  display_name: string | null;
+}
 
 interface Team {
   id: string;
@@ -25,6 +32,8 @@ interface Team {
   created_at: string;
   owner_code?: string;
   members_count?: number;
+  assigned_admin_id?: string | null;
+  assigned_admin_name?: string | null;
 }
 
 interface Transaction {
@@ -52,6 +61,7 @@ export const AdminTeamsManager = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [teams, setTeams] = useState<Team[]>([]);
+  const [admins, setAdmins] = useState<Admin[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newTeamName, setNewTeamName] = useState("");
@@ -62,7 +72,29 @@ export const AdminTeamsManager = () => {
 
   useEffect(() => {
     fetchTeams();
+    fetchAdmins();
   }, []);
+
+  const fetchAdmins = async () => {
+    const { data: adminRoles } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "admin");
+
+    if (!adminRoles || adminRoles.length === 0) {
+      setAdmins([]);
+      return;
+    }
+
+    const adminUserIds = adminRoles.map(r => r.user_id);
+    
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("user_id, display_name")
+      .in("user_id", adminUserIds);
+
+    setAdmins(profiles?.map(p => ({ user_id: p.user_id, display_name: p.display_name })) || []);
+  };
 
   const fetchTeams = async () => {
     setLoading(true);
@@ -76,6 +108,19 @@ export const AdminTeamsManager = () => {
       console.error("Error fetching teams:", error);
       setLoading(false);
       return;
+    }
+
+    // Get admin profiles for assigned admins
+    const adminIds = (teamsData || []).map(t => t.assigned_admin_id).filter(Boolean);
+    let adminProfilesMap = new Map<string, string>();
+    
+    if (adminIds.length > 0) {
+      const { data: adminProfiles } = await supabase
+        .from("profiles")
+        .select("user_id, display_name")
+        .in("user_id", adminIds);
+      
+      adminProfiles?.forEach(p => adminProfilesMap.set(p.user_id, p.display_name || "Без імені"));
     }
 
     const teamsWithDetails = await Promise.all((teamsData || []).map(async (team) => {
@@ -97,12 +142,27 @@ export const AdminTeamsManager = () => {
       return {
         ...team,
         owner_code: codeData?.code,
-        members_count: count || 0
+        members_count: count || 0,
+        assigned_admin_name: team.assigned_admin_id ? adminProfilesMap.get(team.assigned_admin_id) : null
       };
     }));
 
     setTeams(teamsWithDetails);
     setLoading(false);
+  };
+
+  const handleAssignAdmin = async (teamId: string, adminId: string | null) => {
+    const { error } = await supabase
+      .from("teams")
+      .update({ assigned_admin_id: adminId === "none" ? null : adminId })
+      .eq("id", teamId);
+
+    if (error) {
+      toast({ title: "Помилка", description: "Не вдалося призначити адміністратора", variant: "destructive" });
+    } else {
+      toast({ title: "Збережено", description: "Адміністратора призначено" });
+      fetchTeams();
+    }
   };
 
   const fetchTeamTransactions = async (teamId: string) => {
@@ -317,6 +377,27 @@ export const AdminTeamsManager = () => {
                         </Button>
                       </>
                     )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <UserCog className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-muted-foreground">Адмін:</span>
+                    <Select
+                      value={team.assigned_admin_id || "none"}
+                      onValueChange={(value) => handleAssignAdmin(team.id, value)}
+                    >
+                      <SelectTrigger className="h-6 w-[140px] text-[10px]">
+                        <SelectValue placeholder="Не призначено" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none" className="text-xs">Не призначено</SelectItem>
+                        {admins.map((admin) => (
+                          <SelectItem key={admin.user_id} value={admin.user_id} className="text-xs">
+                            {admin.display_name || admin.user_id.slice(0, 8)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               ))}
