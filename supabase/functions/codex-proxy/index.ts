@@ -11,10 +11,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Pricing for gpt-5-codex (per 1M tokens)
+// Pricing for gpt-5-2025-08-07 (per 1M tokens)
 const PRICE_PER_MILLION = {
-  input: 2.50,
-  output: 10.00
+  input: 5.00,
+  output: 15.00
 };
 
 const GENERATION_PROMPT = `Create a COMPLETE, PROFESSIONAL website with ALL necessary files.
@@ -141,9 +141,6 @@ async function runCodexGeneration(
   
   console.log(`🚀 Starting Codex generation for: ${siteName}`);
   
-  // Build the full prompt
-  const fullPrompt = `${prompt}\n\n${GENERATION_PROMPT}`;
-  
   // Update status to generating
   await (supabase as any)
     .from("generation_history")
@@ -151,32 +148,37 @@ async function runCodexGeneration(
     .eq("id", historyId);
   
   try {
-    // Call OpenAI API with gpt-5-codex
-    console.log("📤 Calling OpenAI API (timeout: 8 min)...");
+    // Call OpenAI API with gpt-5-2025-08-07 (flagship model)
+    console.log("📤 Calling OpenAI API with gpt-5-2025-08-07...");
     
-    // Create AbortController for timeout
+    // Create AbortController for timeout (8 minutes)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       console.log("⏰ Fetch timeout triggered after 8 minutes");
       controller.abort();
-    }, 8 * 60 * 1000); // 8 minutes timeout
+    }, 8 * 60 * 1000);
     
     let response;
     try {
-      response = await fetch("https://api.openai.com/v1/responses", {
+      response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${openaiApiKey}`
         },
         body: JSON.stringify({
-          model: "gpt-5-codex",
-          input: [
+          model: "gpt-5-2025-08-07",
+          messages: [
+            {
+              role: "system",
+              content: GENERATION_PROMPT
+            },
             {
               role: "user",
-              content: fullPrompt
+              content: prompt
             }
-          ]
+          ],
+          max_completion_tokens: 100000
         }),
         signal: controller.signal
       });
@@ -193,35 +195,21 @@ async function runCodexGeneration(
     }
     
     const data = await response.json();
-    console.log("📥 OpenAI response received");
+    console.log("📥 OpenAI response received, usage:", JSON.stringify(data.usage));
     
     // Calculate cost
     const cost = calculateCost(data.usage);
     console.log(`💰 Generation cost: $${cost}`);
     
-    // Extract response text
-    let responseText = '';
-    if (data.output && Array.isArray(data.output)) {
-      for (const outputItem of data.output) {
-        if (outputItem.type === 'message' && outputItem.content) {
-          for (const contentItem of outputItem.content) {
-            if (contentItem.type === 'output_text' && contentItem.text) {
-              responseText = contentItem.text;
-              break;
-            }
-          }
-        }
-        if (responseText) break;
-      }
-    }
-    
-    if (!responseText && data.text) {
-      responseText = data.text;
-    }
+    // Extract response text from chat completions format
+    const responseText = data.choices?.[0]?.message?.content || '';
     
     if (!responseText) {
+      console.error("Empty response from OpenAI:", JSON.stringify(data));
       throw new Error("No text in OpenAI response");
     }
+    
+    console.log(`📝 Response length: ${responseText.length} chars`);
     
     // Parse files from response
     const files = parseFilesFromResponse(responseText);
