@@ -15,7 +15,9 @@ import {
   Settings,
   UserCog,
   DollarSign,
-  MessageSquare
+  MessageSquare,
+  Bell,
+  Headphones
 } from "lucide-react";
 import { AdminTeamsTab } from "@/components/AdminTeamsTab";
 import { AdminSitesTab } from "@/components/AdminSitesTab";
@@ -23,6 +25,8 @@ import { AdminAdministratorsTab } from "@/components/AdminAdministratorsTab";
 import { AdminUsersManager } from "@/components/AdminUsersManager";
 import { AdminFinanceTab } from "@/components/AdminFinanceTab";
 import { AdminAppealsTab } from "@/components/AdminAppealsTab";
+import { AdminSupportTab } from "@/components/AdminSupportTab";
+import { AdminNotificationsManager } from "@/components/AdminNotificationsManager";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -83,7 +87,7 @@ const Admin = () => {
 
       <main className="container mx-auto px-3 py-3">
         <Tabs defaultValue="teams" className="space-y-3">
-          <TabsList className="grid w-full max-w-3xl grid-cols-6 h-8">
+          <TabsList className="grid w-full max-w-4xl grid-cols-8 h-8">
             <TabsTrigger value="teams" className="flex items-center gap-1 text-xs h-7">
               <Users className="h-3 w-3" />
               Команди
@@ -99,6 +103,14 @@ const Admin = () => {
             <TabsTrigger value="appeals" className="flex items-center gap-1 text-xs h-7">
               <MessageSquare className="h-3 w-3" />
               Апеляції
+            </TabsTrigger>
+            <TabsTrigger value="support" className="flex items-center gap-1 text-xs h-7">
+              <Headphones className="h-3 w-3" />
+              Підтримка
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center gap-1 text-xs h-7">
+              <Bell className="h-3 w-3" />
+              Сповіщення
             </TabsTrigger>
             <TabsTrigger value="finance" className="flex items-center gap-1 text-xs h-7">
               <DollarSign className="h-3 w-3" />
@@ -124,6 +136,16 @@ const Admin = () => {
 
           <TabsContent value="appeals">
             <AdminAppealsTab />
+          </TabsContent>
+
+          <TabsContent value="support">
+            <AdminSupportTab />
+          </TabsContent>
+
+          <TabsContent value="notifications">
+            <div className="max-w-md">
+              <AdminNotificationsManager />
+            </div>
           </TabsContent>
 
           <TabsContent value="finance">
