@@ -252,6 +252,7 @@ export type Database = {
       team_pricing: {
         Row: {
           created_at: string
+          external_price: number | null
           generation_cost_junior: number
           generation_cost_senior: number
           html_price: number
@@ -262,6 +263,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          external_price?: number | null
           generation_cost_junior?: number
           generation_cost_senior?: number
           html_price?: number
@@ -272,6 +274,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          external_price?: number | null
           generation_cost_junior?: number
           generation_cost_senior?: number
           html_price?: number
