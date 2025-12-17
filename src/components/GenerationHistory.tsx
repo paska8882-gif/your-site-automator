@@ -501,6 +501,11 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
                       <span className="text-sm text-muted-foreground hidden md:block">
                         {new Date(item.created_at).toLocaleString("uk-UA")}
                       </span>
+                      {item.status === "completed" && item.sale_price != null && item.sale_price > 0 && (
+                        <Badge variant="secondary" className="text-xs font-semibold">
+                          ${item.sale_price}
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 ml-4">
                       {onUsePrompt && (
