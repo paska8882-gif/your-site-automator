@@ -37,6 +37,7 @@ interface TeamPricing {
   team_id: string;
   html_price: number;
   react_price: number;
+  external_price: number;
   generation_cost_junior: number;
   generation_cost_senior: number;
 }
@@ -210,6 +211,7 @@ export function AdminFinanceTab() {
         team_id: teamId,
         html_price: editedValues.html_price ?? existingPricing?.html_price ?? 7,
         react_price: editedValues.react_price ?? existingPricing?.react_price ?? 9,
+        external_price: editedValues.external_price ?? existingPricing?.external_price ?? 7,
         generation_cost_junior: editedValues.generation_cost_junior ?? existingPricing?.generation_cost_junior ?? 0.10,
         generation_cost_senior: editedValues.generation_cost_senior ?? existingPricing?.generation_cost_senior ?? 0.25,
       };
@@ -260,7 +262,7 @@ export function AdminFinanceTab() {
     if (editingPrices[teamId]?.[field] !== undefined) {
       return editingPrices[teamId][field] as number;
     }
-    const defaults: Record<string, number> = { html_price: 7, react_price: 9, generation_cost_junior: 0.10, generation_cost_senior: 0.25 };
+    const defaults: Record<string, number> = { html_price: 7, react_price: 9, external_price: 7, generation_cost_junior: 0.10, generation_cost_senior: 0.25 };
     return (teamPricing[teamId]?.[field] as number) ?? defaults[field] ?? 0;
   };
 
@@ -271,6 +273,8 @@ export function AdminFinanceTab() {
   const totalSales = filteredGenerations.reduce((sum, g) => sum + (g.sale_price || 0), 0);
   const totalCosts = filteredGenerations.reduce((sum, g) => sum + (g.generation_cost || 0), 0);
   const totalProfit = totalSales - totalCosts;
+  const externalCount = filteredGenerations.filter(g => g.specific_ai_model === 'codex-external').length;
+  const internalCount = filteredGenerations.filter(g => g.specific_ai_model !== 'codex-external').length;
 
   const teamTotalSales = teamTransactions.reduce((sum, t) => sum + (t.sale_price || 0), 0);
   const teamTotalCosts = teamTransactions.reduce((sum, t) => sum + (t.generation_cost || 0), 0);
@@ -325,7 +329,7 @@ export function AdminFinanceTab() {
   const aiCostsByDayData = useMemo(() => {
     const days = parseInt(chartPeriod);
     const now = new Date();
-    const data: { date: string; junior: number; senior: number; total: number }[] = [];
+    const data: { date: string; junior: number; senior: number; external: number; total: number }[] = [];
     
     for (let i = days - 1; i >= 0; i--) {
       const day = subDays(now, i);
@@ -338,13 +342,15 @@ export function AdminFinanceTab() {
       });
       
       const junior = dayGens.filter(g => g.ai_model === 'junior').reduce((sum, g) => sum + (g.generation_cost || 0), 0);
-      const senior = dayGens.filter(g => g.ai_model === 'senior').reduce((sum, g) => sum + (g.generation_cost || 0), 0);
+      const senior = dayGens.filter(g => g.ai_model === 'senior' && g.specific_ai_model !== 'codex-external').reduce((sum, g) => sum + (g.generation_cost || 0), 0);
+      const external = dayGens.filter(g => g.specific_ai_model === 'codex-external').reduce((sum, g) => sum + (g.generation_cost || 0), 0);
       
       data.push({
         date: format(day, "dd.MM", { locale: uk }),
         junior,
         senior,
-        total: junior + senior
+        external,
+        total: junior + senior + external
       });
     }
     
@@ -354,13 +360,16 @@ export function AdminFinanceTab() {
   // AI costs by model summary (simple view)
   const aiCostsByModelData = useMemo(() => {
     const juniorCost = filteredGenerations.filter(g => g.ai_model === 'junior').reduce((sum, g) => sum + (g.generation_cost || 0), 0);
-    const seniorCost = filteredGenerations.filter(g => g.ai_model === 'senior').reduce((sum, g) => sum + (g.generation_cost || 0), 0);
+    const seniorCost = filteredGenerations.filter(g => g.ai_model === 'senior' && g.specific_ai_model !== 'codex-external').reduce((sum, g) => sum + (g.generation_cost || 0), 0);
+    const externalCost = filteredGenerations.filter(g => g.specific_ai_model === 'codex-external').reduce((sum, g) => sum + (g.generation_cost || 0), 0);
     const juniorCount = filteredGenerations.filter(g => g.ai_model === 'junior').length;
-    const seniorCount = filteredGenerations.filter(g => g.ai_model === 'senior').length;
+    const seniorCount = filteredGenerations.filter(g => g.ai_model === 'senior' && g.specific_ai_model !== 'codex-external').length;
+    const externalCount = filteredGenerations.filter(g => g.specific_ai_model === 'codex-external').length;
     
     return [
       { name: 'Junior AI', cost: juniorCost, count: juniorCount, avgCost: juniorCount > 0 ? juniorCost / juniorCount : 0 },
-      { name: 'Senior AI', cost: seniorCost, count: seniorCount, avgCost: seniorCount > 0 ? seniorCost / seniorCount : 0 }
+      { name: 'Senior AI', cost: seniorCost, count: seniorCount, avgCost: seniorCount > 0 ? seniorCost / seniorCount : 0 },
+      { name: 'Зовнішня', cost: externalCost, count: externalCount, avgCost: externalCount > 0 ? externalCost / externalCount : 0 }
     ];
   }, [filteredGenerations]);
 
@@ -419,6 +428,14 @@ export function AdminFinanceTab() {
           <span className={`text-sm font-bold ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
             ${totalProfit.toFixed(2)}
           </span>
+        </div>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-amber-500/10 border-amber-500/30">
+          <span className="text-xs text-amber-600">Зовн:</span>
+          <span className="text-sm font-bold text-amber-600">{externalCount}</span>
+        </div>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
+          <span className="text-xs text-muted-foreground">Внутр:</span>
+          <span className="text-sm font-bold">{internalCount}</span>
         </div>
       </div>
 
@@ -506,6 +523,7 @@ export function AdminFinanceTab() {
                   />
                   <Bar dataKey="junior" name="Junior AI" fill="#3b82f6" radius={[2, 2, 0, 0]} />
                   <Bar dataKey="senior" name="Senior AI" fill="#8b5cf6" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="external" name="Зовнішня" fill="#f59e0b" radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -576,7 +594,7 @@ export function AdminFinanceTab() {
             <div className="space-y-1">
               {teams.map((team) => (
                 <div key={team.id} className="flex items-center gap-1.5 p-1.5 rounded border bg-card">
-                  <span className="font-medium text-[10px] min-w-16 truncate">{team.name}</span>
+                  <span className="font-medium text-[10px] min-w-14 truncate">{team.name}</span>
                   <span className="text-[10px] text-muted-foreground">H:</span>
                   <Input type="number" step="0.01" className="w-10 h-5 text-[10px] px-1"
                     value={getPricingValue(team.id, "html_price")}
@@ -585,6 +603,10 @@ export function AdminFinanceTab() {
                   <Input type="number" step="0.01" className="w-10 h-5 text-[10px] px-1"
                     value={getPricingValue(team.id, "react_price")}
                     onChange={(e) => handlePricingChange(team.id, "react_price", e.target.value)} />
+                  <span className="text-[10px] text-amber-600">E:</span>
+                  <Input type="number" step="0.01" className="w-10 h-5 text-[10px] px-1"
+                    value={getPricingValue(team.id, "external_price")}
+                    onChange={(e) => handlePricingChange(team.id, "external_price", e.target.value)} />
                   <Button size="sm" variant="ghost" className="h-5 w-5 p-0 ml-auto"
                     onClick={() => savePricing(team.id)} disabled={savingPricing === team.id}>
                     {savingPricing === team.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Save className="h-2.5 w-2.5" />}

@@ -93,6 +93,8 @@ async function startCodexGeneration(
   siteName?: string
 ): Promise<GenerationResult> {
   let historyId: string | null = null;
+  let salePrice = 0;
+  let teamId: string | null = null;
 
   try {
     const {
@@ -103,7 +105,40 @@ async function startCodexGeneration(
       return { success: false, error: "Authentication required" };
     }
 
-    // 1. Создаём запись в generation_history со статусом pending
+    // Get user's team and pricing
+    const { data: membership } = await supabase
+      .from("team_members")
+      .select("team_id")
+      .eq("user_id", session.user.id)
+      .eq("status", "approved")
+      .single();
+
+    if (membership?.team_id) {
+      teamId = membership.team_id;
+
+      // Get team pricing
+      const { data: pricing } = await supabase
+        .from("team_pricing")
+        .select("external_price")
+        .eq("team_id", teamId)
+        .single();
+
+      salePrice = pricing?.external_price ?? 7; // Default $7 for external
+
+      // Get team balance and deduct
+      const { data: team } = await supabase
+        .from("teams")
+        .select("balance")
+        .eq("id", teamId)
+        .single();
+
+      if (team) {
+        const newBalance = (team.balance || 0) - salePrice;
+        await supabase.from("teams").update({ balance: newBalance }).eq("id", teamId);
+      }
+    }
+
+    // 1. Create generation_history record with pending status
     const { data: historyRecord, error: insertError } = await supabase
       .from("generation_history")
       .insert({
@@ -115,18 +150,27 @@ async function startCodexGeneration(
         website_type: websiteType || "html",
         ai_model: "senior",
         specific_ai_model: "codex-external",
+        generation_cost: 1, // Fixed cost $1 for external generations
+        sale_price: salePrice,
       })
       .select("id")
       .single();
 
     if (insertError || !historyRecord) {
       console.error("Failed to create history record:", insertError);
+      // Refund if we already deducted
+      if (teamId && salePrice > 0) {
+        const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+        if (team) {
+          await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+        }
+      }
       return { success: false, error: "Failed to create generation record" };
     }
 
     historyId = historyRecord.id;
 
-    // 2. Обновляем статус на generating
+    // 2. Update status to generating
     await supabase.from("generation_history").update({ status: "generating" }).eq("id", historyId);
 
     // 3. Вызываем Edge Function прокси (fire-and-forget)
@@ -160,16 +204,24 @@ async function startCodexGeneration(
       }
       finalMsg = (finalMsg || `HTTP ${resp.status}`).trim().slice(0, 500);
 
+      // Refund balance
+      if (teamId && salePrice > 0) {
+        const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+        if (team) {
+          await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+        }
+      }
+
       await supabase
         .from("generation_history")
-        .update({ status: "failed", error_message: finalMsg })
+        .update({ status: "failed", error_message: finalMsg, sale_price: 0 })
         .eq("id", historyId);
 
       return { success: false, error: finalMsg, historyId };
     }
 
-    // Успех — генерація запущена у фоні
-    // n8n сам оновить запис в БД коли закінчить
+    // Success — generation started in background
+    // n8n will update the record when finished
     return {
       success: true,
       historyId,
@@ -177,11 +229,23 @@ async function startCodexGeneration(
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
 
+    // Refund balance on error
+    if (teamId && salePrice > 0) {
+      try {
+        const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+        if (team) {
+          await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+        }
+      } catch {
+        // ignore refund error
+      }
+    }
+
     if (historyId) {
       try {
         await supabase
           .from("generation_history")
-          .update({ status: "failed", error_message: msg })
+          .update({ status: "failed", error_message: msg, sale_price: 0 })
           .eq("id", historyId);
       } catch {
         // ignore
