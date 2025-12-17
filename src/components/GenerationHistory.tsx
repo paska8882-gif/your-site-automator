@@ -267,7 +267,7 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
   const getStatusIcon = (status: string, salePrice?: number | null) => {
     // Check if this is a refunded failed generation
     if (status === "failed" && (salePrice === 0 || salePrice === null)) {
-      return <RefreshCw className="h-4 w-4 text-amber-500" />;
+      return <XCircle className="h-4 w-4 text-destructive" />;
     }
     
     switch (status) {
@@ -287,7 +287,7 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
   const getStatusText = (status: string, salePrice?: number | null) => {
     // Check if this is a refunded failed generation
     if (status === "failed" && (salePrice === 0 || salePrice === null)) {
-      return "Рефанд";
+      return "Помилка, кошти повернено";
     }
     
     switch (status) {

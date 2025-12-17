@@ -187,7 +187,7 @@ export const AdminSitesTab = () => {
   const getStatusBadge = (status: string, salePrice?: number | null) => {
     // Check if this is a refunded failed generation
     if (status === "failed" && (salePrice === 0 || salePrice === null)) {
-      return <Badge variant="secondary" className="bg-amber-500 text-white">Рефанд</Badge>;
+      return <Badge variant="destructive">Помилка, кошти повернено</Badge>;
     }
     
     switch (status) {
