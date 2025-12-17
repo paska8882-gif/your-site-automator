@@ -14,7 +14,8 @@ import {
   XCircle, 
   Clock,
   MessageSquare,
-  Eye
+  Eye,
+  Image
 } from "lucide-react";
 
 interface Appeal {
@@ -26,6 +27,7 @@ interface Appeal {
   status: string;
   amount_to_refund: number;
   admin_comment: string | null;
+  screenshot_url: string | null;
   created_at: string;
   resolved_at: string | null;
   resolved_by: string | null;
@@ -258,7 +260,10 @@ export function AdminAppealsTab() {
                       <TableCell className="py-1.5 text-xs">{appeal.user_name}</TableCell>
                       <TableCell className="py-1.5 text-xs">{appeal.team_name}</TableCell>
                       <TableCell className="py-1.5 text-xs max-w-[120px] truncate" title={appeal.site_name}>
-                        {appeal.site_name}
+                        <div className="flex items-center gap-1">
+                          {appeal.site_name}
+                          {appeal.screenshot_url && <span title="Є скріншот"><Image className="h-3 w-3 text-muted-foreground" /></span>}
+                        </div>
                       </TableCell>
                       <TableCell className="py-1.5 text-xs font-medium">
                         ${appeal.amount_to_refund.toFixed(2)}
@@ -321,6 +326,27 @@ export function AdminAppealsTab() {
                 <span className="text-muted-foreground text-sm">Причина апеляції:</span>
                 <p className="p-3 bg-muted rounded-md mt-1">{selectedAppeal.reason}</p>
               </div>
+
+              {selectedAppeal.screenshot_url && (
+                <div>
+                  <span className="text-muted-foreground text-sm flex items-center gap-1">
+                    <Image className="h-3 w-3" />
+                    Скріншот:
+                  </span>
+                  <a 
+                    href={selectedAppeal.screenshot_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="block mt-1"
+                  >
+                    <img 
+                      src={selectedAppeal.screenshot_url} 
+                      alt="Скріншот помилки" 
+                      className="max-h-48 rounded border object-contain hover:opacity-80 transition-opacity cursor-pointer"
+                    />
+                  </a>
+                </div>
+              )}
 
               {selectedAppeal.prompt && (
                 <div>
