@@ -1,7 +1,16 @@
-import { Ban, MessageCircle } from "lucide-react";
+import { Ban, MessageCircle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 export function BlockedUserOverlay() {
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-md">
       <div className="text-center space-y-6 p-8 max-w-md">
@@ -16,12 +25,18 @@ export function BlockedUserOverlay() {
             Зверніться в підтримку для вирішення питання
           </p>
         </div>
-        <Button asChild className="gap-2">
-          <a href="https://t.me/assanatraf" target="_blank" rel="noopener noreferrer">
-            <MessageCircle className="h-4 w-4" />
-            Написати в підтримку
-          </a>
-        </Button>
+        <div className="flex flex-col gap-3">
+          <Button asChild className="gap-2">
+            <a href="https://t.me/assanatraf" target="_blank" rel="noopener noreferrer">
+              <MessageCircle className="h-4 w-4" />
+              Написати в підтримку
+            </a>
+          </Button>
+          <Button variant="outline" onClick={handleLogout} className="gap-2">
+            <LogOut className="h-4 w-4" />
+            Вийти з акаунту
+          </Button>
+        </div>
       </div>
     </div>
   );
