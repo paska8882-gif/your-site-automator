@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File, AlertTriangle, Upload, X } from "lucide-react";
+import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File, AlertTriangle, Upload, X, Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -49,6 +49,314 @@ interface Appeal {
 
 interface GenerationHistoryProps {
   onUsePrompt?: (siteName: string, prompt: string) => void;
+}
+
+interface SingleHistoryItemProps {
+  item: HistoryItem;
+  expandedId: string | null;
+  expandedPromptId: string | null;
+  selectedFile: GeneratedFile | null;
+  viewMode: "preview" | "code";
+  onExpand: (item: HistoryItem) => void;
+  onExpandPrompt: (id: string) => void;
+  onDownload: (item: HistoryItem) => void;
+  onEdit: (id: string) => void;
+  onUsePrompt?: (siteName: string, prompt: string) => void;
+  onAppeal: (item: HistoryItem) => void;
+  onSelectFile: (file: GeneratedFile) => void;
+  onViewModeChange: (mode: "preview" | "code") => void;
+  getAppeal: (itemId: string) => Appeal | undefined;
+  getCssFile: (files: GeneratedFile[] | null) => GeneratedFile | undefined;
+  toast: ReturnType<typeof useToast>["toast"];
+  compact?: boolean;
+}
+
+function SingleHistoryItem({
+  item,
+  expandedId,
+  expandedPromptId,
+  selectedFile,
+  viewMode,
+  onExpand,
+  onExpandPrompt,
+  onDownload,
+  onEdit,
+  onUsePrompt,
+  onAppeal,
+  onSelectFile,
+  onViewModeChange,
+  getAppeal,
+  getCssFile,
+  toast,
+  compact = false,
+}: SingleHistoryItemProps) {
+  const getStatusIcon = (status: string, salePrice?: number | null) => {
+    if (status === "failed" && (salePrice === 0 || salePrice === null)) {
+      return <XCircle className="h-4 w-4 text-destructive" />;
+    }
+    switch (status) {
+      case "pending": return <Clock className="h-4 w-4 text-muted-foreground" />;
+      case "generating": return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
+      case "completed": return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+      case "failed": return <XCircle className="h-4 w-4 text-destructive" />;
+      default: return <Clock className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
+  const getStatusText = (status: string, salePrice?: number | null) => {
+    if (status === "failed" && (salePrice === 0 || salePrice === null)) {
+      return "Помилка, кошти повернено";
+    }
+    switch (status) {
+      case "pending": return "Очікує";
+      case "generating": return "Генерація...";
+      case "completed": return "Готово";
+      case "failed": return "Помилка";
+      default: return status;
+    }
+  };
+
+  return (
+    <Collapsible open={expandedId === item.id}>
+      <div className={`rounded-md border ${compact ? "bg-background" : ""}`}>
+        <CollapsibleTrigger asChild>
+          <div
+            className={`flex items-center justify-between cursor-pointer hover:bg-muted/50 transition-colors ${compact ? "p-2 gap-2" : "p-4 gap-4"}`}
+            onClick={() => item.status === "completed" && onExpand(item)}
+          >
+            <div className={`flex items-center flex-1 min-w-0 ${compact ? "gap-2" : "gap-4"}`}>
+              <div className="flex items-center" title={getStatusText(item.status, item.sale_price)}>
+                {getStatusIcon(item.status, item.sale_price)}
+              </div>
+              {!compact && (
+                <span className="font-medium truncate flex-1" title={item.site_name || `Site ${item.number}`}>
+                  {item.site_name || `Site ${item.number}`}
+                </span>
+              )}
+              <Badge variant={item.ai_model === "senior" ? "default" : "secondary"} className="text-xs">
+                {item.ai_model === "senior" ? "Senior" : "Junior"}
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                {item.website_type === "react" ? "React" : "HTML"}
+              </Badge>
+              <span className={`text-muted-foreground ${compact ? "text-xs" : "text-sm hidden sm:block"}`}>
+                {item.language}
+              </span>
+              {!compact && (
+                <span className="text-sm text-muted-foreground hidden md:block">
+                  {new Date(item.created_at).toLocaleString("uk-UA")}
+                </span>
+              )}
+              {item.image_source && (
+                <Badge variant={item.image_source === "ai" ? "default" : "outline"} className="text-xs">
+                  {item.image_source === "ai" ? "AI" : "Баз"}
+                </Badge>
+              )}
+              {item.status === "completed" && item.sale_price != null && item.sale_price > 0 && (
+                <Badge variant="secondary" className="text-xs font-semibold">
+                  ${item.sale_price}
+                </Badge>
+              )}
+            </div>
+            <div className={`flex items-center ${compact ? "gap-1" : "gap-2 ml-4"}`}>
+              {onUsePrompt && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={compact ? "h-6 w-6 p-0" : ""}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUsePrompt(item.site_name || "", item.prompt);
+                    toast({
+                      title: "Промпт завантажено",
+                      description: "Назва та опис підтягнуті з історії",
+                    });
+                  }}
+                  title="Використати промпт"
+                >
+                  <RotateCcw className={compact ? "h-3 w-3" : "h-4 w-4"} />
+                </Button>
+              )}
+              {item.status === "completed" && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={compact ? "h-6 w-6 p-0" : ""}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(item.id);
+                    }}
+                    title="Редагувати"
+                  >
+                    <Pencil className={compact ? "h-3 w-3" : "h-4 w-4"} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={compact ? "h-6 w-6 p-0" : ""}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDownload(item);
+                    }}
+                    disabled={!item.zip_data}
+                    title="Завантажити ZIP"
+                  >
+                    <Download className={compact ? "h-3 w-3" : "h-4 w-4"} />
+                  </Button>
+                  {!getAppeal(item.id) && !compact && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAppeal(item);
+                      }}
+                      title="Подати апеляцію"
+                    >
+                      <AlertTriangle className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <ChevronDown
+                    className={`transition-transform ${compact ? "h-3 w-3" : "h-4 w-4"} ${expandedId === item.id ? "rotate-180" : ""}`}
+                  />
+                </>
+              )}
+            </div>
+          </div>
+        </CollapsibleTrigger>
+
+        {!compact && (
+          <div 
+            className="flex items-start gap-2 px-4 py-2 border-t bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              onExpandPrompt(item.id);
+            }}
+          >
+            <ChevronRight 
+              className={`h-4 w-4 mt-0.5 text-muted-foreground transition-transform flex-shrink-0 ${expandedPromptId === item.id ? "rotate-90" : ""}`} 
+            />
+            <div className={`text-sm ${expandedPromptId === item.id ? "" : "line-clamp-1"}`}>
+              <span className="font-medium">{item.site_name || `Site ${item.number}`}</span>
+              <span className="text-muted-foreground"> — {item.prompt}</span>
+            </div>
+          </div>
+        )}
+
+        <CollapsibleContent>
+          {item.files_data && item.files_data.length > 0 && (
+            <div className="border-t p-4 space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-2">
+                        <Files className="h-4 w-4" />
+                        Файли ({item.files_data.length})
+                        <ChevronDown className="h-3 w-3" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-0" align="start">
+                      <ScrollArea className="h-64">
+                        <div className="p-2 space-y-1">
+                          {item.files_data.map((file) => (
+                            <div
+                              key={file.path}
+                              onClick={() => onSelectFile(file)}
+                              className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-sm cursor-pointer transition-colors ${
+                                selectedFile?.path === file.path ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                              }`}
+                            >
+                              {getFileIcon(file.path)}
+                              <span className="truncate">{file.path}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
+                  {selectedFile && (
+                    <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                      {selectedFile.path}
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    variant={viewMode === "preview" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => onViewModeChange("preview")}
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    Превью
+                  </Button>
+                  <Button
+                    variant={viewMode === "code" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => onViewModeChange("code")}
+                  >
+                    <Code className="h-4 w-4 mr-1" />
+                    Код
+                  </Button>
+                </div>
+              </div>
+
+              {selectedFile && (
+                <div className="h-[500px]">
+                  <FilePreview
+                    file={selectedFile}
+                    cssFile={getCssFile(item.files_data)}
+                    allFiles={item.files_data || undefined}
+                    websiteType={item.website_type || undefined}
+                    viewMode={viewMode}
+                  />
+                </div>
+              )}
+
+              <div className="border-t pt-4 mt-4">
+                {(() => {
+                  const appeal = getAppeal(item.id);
+                  if (appeal) {
+                    return (
+                      <div className="flex items-center gap-2 text-sm">
+                        <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                        <span>Апеляція:</span>
+                        <Badge 
+                          variant={appeal.status === "approved" ? "default" : appeal.status === "rejected" ? "destructive" : "outline"}
+                        >
+                          {appeal.status === "pending" ? "На розгляді" : appeal.status === "approved" ? "Схвалено" : "Відхилено"}
+                        </Badge>
+                      </div>
+                    );
+                  }
+                  return (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onAppeal(item)}
+                      className="text-yellow-600 border-yellow-500/50 hover:bg-yellow-500/10"
+                    >
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      Подати апеляцію
+                    </Button>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
+          {item.error_message && (
+            <div className="border-t p-4">
+              <p className="text-sm text-destructive">
+                Помилка: {item.error_message}
+              </p>
+            </div>
+          )}
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
 }
 
 export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
@@ -447,6 +755,96 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
     );
   });
 
+  // Group items by batch (same site_name, created within 60 seconds)
+  interface BatchGroup {
+    key: string;
+    siteName: string;
+    items: HistoryItem[];
+    createdAt: Date;
+  }
+
+  const groupedHistory = (): (HistoryItem | BatchGroup)[] => {
+    const groups: Map<string, BatchGroup> = new Map();
+    const standalone: HistoryItem[] = [];
+    
+    // Sort by created_at descending first
+    const sorted = [...filteredHistory].sort((a, b) => 
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    
+    for (const item of sorted) {
+      if (!item.site_name) {
+        standalone.push(item);
+        continue;
+      }
+      
+      // Find existing group with same site_name within 60 seconds
+      let foundGroup = false;
+      for (const [, group] of groups) {
+        if (group.siteName === item.site_name) {
+          const timeDiff = Math.abs(group.createdAt.getTime() - new Date(item.created_at).getTime());
+          if (timeDiff < 60000) { // Within 60 seconds
+            group.items.push(item);
+            foundGroup = true;
+            break;
+          }
+        }
+      }
+      
+      if (!foundGroup) {
+        // Create new group or add as standalone
+        const key = `${item.site_name}-${item.created_at}`;
+        groups.set(key, {
+          key,
+          siteName: item.site_name,
+          items: [item],
+          createdAt: new Date(item.created_at)
+        });
+      }
+    }
+    
+    // Convert groups to array and combine with standalone
+    const result: (HistoryItem | BatchGroup)[] = [];
+    
+    // Collect all items with their original timestamps for sorting
+    const allItems: { item: HistoryItem | BatchGroup; timestamp: number }[] = [];
+    
+    for (const [, group] of groups) {
+      if (group.items.length === 1) {
+        allItems.push({ item: group.items[0], timestamp: new Date(group.items[0].created_at).getTime() });
+      } else {
+        allItems.push({ item: group, timestamp: group.createdAt.getTime() });
+      }
+    }
+    
+    for (const item of standalone) {
+      allItems.push({ item, timestamp: new Date(item.created_at).getTime() });
+    }
+    
+    // Sort by timestamp descending
+    allItems.sort((a, b) => b.timestamp - a.timestamp);
+    
+    return allItems.map(i => i.item);
+  };
+
+  const isBatchGroup = (item: HistoryItem | BatchGroup): item is BatchGroup => {
+    return 'items' in item && Array.isArray(item.items);
+  };
+
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (groupKey: string) => {
+    setExpandedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupKey)) {
+        newSet.delete(groupKey);
+      } else {
+        newSet.add(groupKey);
+      }
+      return newSet;
+    });
+  };
+
   if (history.length === 0 && !isLoading) {
     return null;
   }
@@ -475,248 +873,112 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {filteredHistory.map((item) => (
-            <Collapsible key={item.id} open={expandedId === item.id}>
-              <div className="rounded-md border">
-                <CollapsibleTrigger asChild>
+          {groupedHistory().map((entry) => {
+            if (isBatchGroup(entry)) {
+              // Render batch group
+              const group = entry;
+              const isGroupExpanded = expandedGroups.has(group.key);
+              const completedCount = group.items.filter(i => i.status === "completed").length;
+              const pendingCount = group.items.filter(i => i.status === "pending" || i.status === "generating").length;
+              const failedCount = group.items.filter(i => i.status === "failed").length;
+              const totalCost = group.items.reduce((sum, i) => sum + (i.sale_price || 0), 0);
+              
+              return (
+                <div key={group.key} className="rounded-md border bg-muted/20">
                   <div
-                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => item.status === "completed" && handleExpand(item)}
+                    className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => toggleGroup(group.key)}
                   >
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className="flex items-center" title={getStatusText(item.status, item.sale_price)}>
-                        {getStatusIcon(item.status, item.sale_price)}
-                      </div>
-                      <span className="font-medium truncate flex-1" title={item.site_name || `Site ${item.number}`}>
-                        {item.site_name || `Site ${item.number}`}
-                      </span>
-                      <Badge variant={item.ai_model === "senior" ? "default" : "secondary"} className="text-xs">
-                        {item.ai_model === "senior" ? "Senior AI" : "Junior AI"}
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <Layers className="h-4 w-4 text-primary" />
+                      <span className="font-medium truncate">{group.siteName}</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {group.items.length} сайтів
                       </Badge>
-                      <Badge variant="outline" className="text-xs">
-                        {item.website_type === "react" ? "React" : "HTML"}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground hidden sm:block">
-                        {item.language}
-                      </span>
-                      <span className="text-sm text-muted-foreground hidden md:block">
-                        {new Date(item.created_at).toLocaleString("uk-UA")}
-                      </span>
-                      {item.image_source && (
-                        <Badge variant={item.image_source === "ai" ? "default" : "outline"} className="text-xs">
-                          {item.image_source === "ai" ? "AI фото" : "Базові"}
+                      {completedCount > 0 && (
+                        <Badge variant="outline" className="text-xs text-green-600">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          {completedCount}
                         </Badge>
                       )}
-                      {item.status === "completed" && item.sale_price != null && item.sale_price > 0 && (
+                      {pendingCount > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          {pendingCount}
+                        </Badge>
+                      )}
+                      {failedCount > 0 && (
+                        <Badge variant="outline" className="text-xs text-destructive">
+                          <XCircle className="h-3 w-3 mr-1" />
+                          {failedCount}
+                        </Badge>
+                      )}
+                      <span className="text-xs text-muted-foreground hidden md:block">
+                        {new Date(group.createdAt).toLocaleString("uk-UA")}
+                      </span>
+                      {totalCost > 0 && (
                         <Badge variant="secondary" className="text-xs font-semibold">
-                          ${item.sale_price}
+                          ${totalCost.toFixed(0)}
                         </Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 ml-4">
-                      {onUsePrompt && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onUsePrompt(item.site_name || "", item.prompt);
-                            toast({
-                              title: "Промпт завантажено",
-                              description: "Назва та опис підтягнуті з історії",
-                            });
-                          }}
-                          title="Використати промпт"
-                        >
-                          <RotateCcw className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {item.status === "completed" && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/edit/${item.id}`);
-                            }}
-                            title="Редагувати"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDownload(item);
-                            }}
-                            disabled={!item.zip_data}
-                            title="Завантажити ZIP"
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          {!getAppealForItem(item.id) && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openAppealDialog(item);
-                              }}
-                              title="Подати апеляцію"
-                            >
-                              <AlertTriangle className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <ChevronDown
-                            className={`h-4 w-4 transition-transform ${
-                              expandedId === item.id ? "rotate-180" : ""
-                            }`}
-                          />
-                        </>
-                      )}
+                    <ChevronDown className={`h-4 w-4 transition-transform ${isGroupExpanded ? "rotate-180" : ""}`} />
+                  </div>
+                  
+                  {isGroupExpanded && (
+                    <div className="border-t space-y-1 p-2">
+                      {group.items.map((item) => (
+                        <SingleHistoryItem
+                          key={item.id}
+                          item={item}
+                          expandedId={expandedId}
+                          expandedPromptId={expandedPromptId}
+                          selectedFile={selectedFile}
+                          viewMode={viewMode}
+                          onExpand={handleExpand}
+                          onExpandPrompt={(id) => setExpandedPromptId(expandedPromptId === id ? null : id)}
+                          onDownload={handleDownload}
+                          onEdit={(id) => navigate(`/edit/${id}`)}
+                          onUsePrompt={onUsePrompt}
+                          onAppeal={openAppealDialog}
+                          onSelectFile={setSelectedFile}
+                          onViewModeChange={setViewMode}
+                          getAppeal={getAppealForItem}
+                          getCssFile={getCssFile}
+                          toast={toast}
+                          compact
+                        />
+                      ))}
                     </div>
-                  </div>
-                </CollapsibleTrigger>
-
-                {/* Expandable details: domain + prompt */}
-                <div 
-                  className="flex items-start gap-2 px-4 py-2 border-t bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setExpandedPromptId(expandedPromptId === item.id ? null : item.id);
-                  }}
-                >
-                  <ChevronRight 
-                    className={`h-4 w-4 mt-0.5 text-muted-foreground transition-transform flex-shrink-0 ${
-                      expandedPromptId === item.id ? "rotate-90" : ""
-                    }`} 
-                  />
-                  <div className={`text-sm ${expandedPromptId === item.id ? "" : "line-clamp-1"}`}>
-                    <span className="font-medium">{item.site_name || `Site ${item.number}`}</span>
-                    <span className="text-muted-foreground"> — {item.prompt}</span>
-                  </div>
+                  )}
                 </div>
-
-                <CollapsibleContent>
-                  {item.files_data && item.files_data.length > 0 && (
-                    <div className="border-t p-4 space-y-4">
-                      {/* Controls row */}
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button variant="outline" size="sm" className="gap-2">
-                                <Files className="h-4 w-4" />
-                                Файли ({item.files_data.length})
-                                <ChevronDown className="h-3 w-3" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-64 p-0" align="start">
-                              <ScrollArea className="h-64">
-                                <div className="p-2 space-y-1">
-                                  {item.files_data.map((file) => (
-                                    <div
-                                      key={file.path}
-                                      onClick={() => setSelectedFile(file)}
-                                      className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-sm cursor-pointer transition-colors ${
-                                        selectedFile?.path === file.path
-                                          ? "bg-primary/10 text-primary"
-                                          : "hover:bg-muted"
-                                      }`}
-                                    >
-                                      {getFileIcon(file.path)}
-                                      <span className="truncate">{file.path}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </ScrollArea>
-                            </PopoverContent>
-                          </Popover>
-                          {selectedFile && (
-                            <span className="text-sm text-muted-foreground truncate max-w-[200px]">
-                              {selectedFile.path}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex gap-1">
-                          <Button
-                            variant={viewMode === "preview" ? "default" : "ghost"}
-                            size="sm"
-                            onClick={() => setViewMode("preview")}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            Превью
-                          </Button>
-                          <Button
-                            variant={viewMode === "code" ? "default" : "ghost"}
-                            size="sm"
-                            onClick={() => setViewMode("code")}
-                          >
-                            <Code className="h-4 w-4 mr-1" />
-                            Код
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Preview */}
-                      {selectedFile && (
-                        <div className="h-[500px]">
-                          <FilePreview
-                            file={selectedFile}
-                            cssFile={getCssFile(item.files_data)}
-                            allFiles={item.files_data || undefined}
-                            websiteType={item.website_type || undefined}
-                            viewMode={viewMode}
-                          />
-                        </div>
-                      )}
-
-                      {/* Appeal section */}
-                      <div className="border-t pt-4 mt-4">
-                        {(() => {
-                          const appeal = getAppealForItem(item.id);
-                          if (appeal) {
-                            return (
-                              <div className="flex items-center gap-2 text-sm">
-                                <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                                <span>Апеляція:</span>
-                                <Badge 
-                                  variant={appeal.status === "approved" ? "default" : appeal.status === "rejected" ? "destructive" : "outline"}
-                                >
-                                  {appeal.status === "pending" ? "На розгляді" : appeal.status === "approved" ? "Схвалено" : "Відхилено"}
-                                </Badge>
-                              </div>
-                            );
-                          }
-                          return (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openAppealDialog(item)}
-                              className="text-yellow-600 border-yellow-500/50 hover:bg-yellow-500/10"
-                            >
-                              <AlertTriangle className="h-4 w-4 mr-2" />
-                              Подати апеляцію
-                            </Button>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  )}
-
-                  {item.error_message && (
-                    <div className="border-t p-4">
-                      <p className="text-sm text-destructive">
-                        Помилка: {item.error_message}
-                      </p>
-                    </div>
-                  )}
-                </CollapsibleContent>
-              </div>
-            </Collapsible>
-          ))}
+              );
+            } else {
+              // Render single item
+              const item = entry;
+              return (
+                <SingleHistoryItem
+                  key={item.id}
+                  item={item}
+                  expandedId={expandedId}
+                  expandedPromptId={expandedPromptId}
+                  selectedFile={selectedFile}
+                  viewMode={viewMode}
+                  onExpand={handleExpand}
+                  onExpandPrompt={(id) => setExpandedPromptId(expandedPromptId === id ? null : id)}
+                  onDownload={handleDownload}
+                  onEdit={(id) => navigate(`/edit/${id}`)}
+                  onUsePrompt={onUsePrompt}
+                  onAppeal={openAppealDialog}
+                  onSelectFile={setSelectedFile}
+                  onViewModeChange={setViewMode}
+                  getAppeal={getAppealForItem}
+                  getCssFile={getCssFile}
+                  toast={toast}
+                />
+              );
+            }
+          })}
         </div>
       </CardContent>
 

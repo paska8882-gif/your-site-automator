@@ -1010,47 +1010,46 @@ export function WebsiteGenerator() {
             </div>
 
             {/* Preset Management */}
-            <div className="flex flex-wrap items-center gap-2 p-3 bg-muted/30 rounded-lg">
-              <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-                <Input
-                  placeholder="Назва пресету..."
-                  value={presetName}
-                  onChange={(e) => setPresetName(e.target.value)}
-                  className="h-8 text-sm"
-                  disabled={isSubmitting}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={saveCurrentPreset}
-                  disabled={isSubmitting || !presetName.trim()}
-                >
-                  <Save className="h-4 w-4 mr-1" />
-                  Зберегти
-                </Button>
-              </div>
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Пресет..."
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                className="h-7 text-xs w-28"
+                disabled={isSubmitting}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={saveCurrentPreset}
+                disabled={isSubmitting || !presetName.trim()}
+              >
+                <Save className="h-3 w-3 mr-1" />
+                Зберегти
+              </Button>
               {presets.length > 0 && (
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={isSubmitting}>
-                      <FolderOpen className="h-4 w-4 mr-1" />
-                      Пресети ({presets.length})
+                    <Button variant="outline" size="sm" className="h-7 px-2 text-xs" disabled={isSubmitting}>
+                      <FolderOpen className="h-3 w-3 mr-1" />
+                      ({presets.length})
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-64 p-2" align="end">
+                  <PopoverContent className="w-48 p-2" align="end">
                     <div className="space-y-1 max-h-48 overflow-y-auto">
                       {presets.map((preset) => (
-                        <div key={preset.id} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-muted">
+                        <div key={preset.id} className="flex items-center justify-between gap-1 px-2 py-1 rounded hover:bg-muted">
                           <button
                             onClick={() => loadPreset(preset)}
-                            className="text-sm text-left flex-1 truncate"
+                            className="text-xs text-left flex-1 truncate"
                           >
                             {preset.name}
                           </button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 text-destructive hover:text-destructive"
+                            className="h-5 w-5 text-destructive hover:text-destructive"
                             onClick={() => deletePreset(preset.id)}
                           >
                             <Trash2 className="h-3 w-3" />
