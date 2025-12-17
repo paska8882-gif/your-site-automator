@@ -614,11 +614,51 @@ async function runBackgroundGeneration(
 
   console.log(`[BG] Starting background React generation for history ID: ${historyId}`);
 
+  // Track team and sale price for potential refund
+  let teamId: string | null = null;
+  let salePrice = 0;
+
   try {
-    // Update status to generating
+    // Get user's team membership and DEDUCT balance at START
+    const { data: membership } = await supabase
+      .from("team_members")
+      .select("team_id")
+      .eq("user_id", userId)
+      .eq("status", "approved")
+      .limit(1)
+      .maybeSingle();
+
+    if (membership) {
+      teamId = membership.team_id;
+      const { data: pricing } = await supabase
+        .from("team_pricing")
+        .select("react_price")
+        .eq("team_id", membership.team_id)
+        .maybeSingle();
+
+      salePrice = pricing?.react_price || 0;
+
+      if (salePrice > 0) {
+        const { data: team } = await supabase
+          .from("teams")
+          .select("balance")
+          .eq("id", membership.team_id)
+          .single();
+
+        if (team) {
+          await supabase
+            .from("teams")
+            .update({ balance: (team.balance || 0) - salePrice })
+            .eq("id", membership.team_id);
+          console.log(`[BG] Deducted $${salePrice} from team ${membership.team_id} at START`);
+        }
+      }
+    }
+
+    // Update status to generating with sale_price
     await supabase
       .from("generation_history")
-      .update({ status: "generating" })
+      .update({ status: "generating", sale_price: salePrice })
       .eq("id", historyId);
 
     const result = await runGeneration({ prompt, language, aiModel, layoutStyle });
@@ -630,43 +670,6 @@ async function runBackgroundGeneration(
       result.files.forEach((file) => zip.file(file.path, file.content));
       const zipBase64 = await zip.generateAsync({ type: "base64" });
 
-      // Get user's team membership and deduct balance
-      const { data: membership } = await supabase
-        .from("team_members")
-        .select("team_id")
-        .eq("user_id", userId)
-        .eq("status", "approved")
-        .limit(1)
-        .maybeSingle();
-
-      let salePrice = 0;
-
-      if (membership) {
-        const { data: pricing } = await supabase
-          .from("team_pricing")
-          .select("react_price")
-          .eq("team_id", membership.team_id)
-          .maybeSingle();
-
-        salePrice = pricing?.react_price || 0;
-
-        if (salePrice > 0) {
-          const { data: team } = await supabase
-            .from("teams")
-            .select("balance")
-            .eq("id", membership.team_id)
-            .single();
-
-          if (team) {
-            await supabase
-              .from("teams")
-              .update({ balance: (team.balance || 0) - salePrice })
-              .eq("id", membership.team_id);
-            console.log(`[BG] Deducted $${salePrice} from team ${membership.team_id}`);
-          }
-        }
-      }
-
       // Update with success including generation cost
       const generationCost = result.totalCost || 0;
       await supabase
@@ -675,7 +678,6 @@ async function runBackgroundGeneration(
           status: "completed",
           files_data: result.files,
           zip_data: zipBase64,
-          sale_price: salePrice,
           generation_cost: generationCost,
           specific_ai_model: result.specificModel || null,
         })
@@ -683,12 +685,30 @@ async function runBackgroundGeneration(
 
       console.log(`[BG] React generation completed for ${historyId}: ${result.files.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}`);
     } else {
+      // REFUND balance on failure
+      if (teamId && salePrice > 0) {
+        const { data: team } = await supabase
+          .from("teams")
+          .select("balance")
+          .eq("id", teamId)
+          .single();
+
+        if (team) {
+          await supabase
+            .from("teams")
+            .update({ balance: (team.balance || 0) + salePrice })
+            .eq("id", teamId);
+          console.log(`[BG] REFUNDED $${salePrice} to team ${teamId} due to failure`);
+        }
+      }
+
       // Update with error
       await supabase
         .from("generation_history")
         .update({
           status: "failed",
           error_message: result.error || "Generation failed",
+          sale_price: 0, // Reset sale_price since refunded
         })
         .eq("id", historyId);
 
@@ -696,11 +716,34 @@ async function runBackgroundGeneration(
     }
   } catch (error) {
     console.error(`[BG] Background React generation error for ${historyId}:`, error);
+
+    // REFUND balance on error
+    if (teamId && salePrice > 0) {
+      try {
+        const { data: team } = await supabase
+          .from("teams")
+          .select("balance")
+          .eq("id", teamId)
+          .single();
+
+        if (team) {
+          await supabase
+            .from("teams")
+            .update({ balance: (team.balance || 0) + salePrice })
+            .eq("id", teamId);
+          console.log(`[BG] REFUNDED $${salePrice} to team ${teamId} due to error`);
+        }
+      } catch (refundError) {
+        console.error(`[BG] Failed to refund:`, refundError);
+      }
+    }
+
     await supabase
       .from("generation_history")
       .update({
         status: "failed",
         error_message: error instanceof Error ? error.message : "Unknown error",
+        sale_price: 0, // Reset sale_price since refunded
       })
       .eq("id", historyId);
   }

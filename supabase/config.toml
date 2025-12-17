@@ -17,3 +17,6 @@ verify_jwt = false
 [functions.codex-proxy]
 verify_jwt = true
 max_duration_seconds = 600
+
+[functions.cleanup-stale-generations]
+verify_jwt = false
