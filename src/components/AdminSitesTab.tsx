@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { EditPreview } from "@/components/EditPreview";
 import { 
   Search, 
   Download, 
@@ -21,8 +24,15 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  RefreshCw
+  RefreshCw,
+  Eye,
+  Pencil
 } from "lucide-react";
+
+interface GeneratedFile {
+  path: string;
+  content: string;
+}
 
 type SortColumn = "site_name" | "team" | "user" | "language" | "website_type" | "ai_model" | "created_at" | "status";
 type SortDirection = "asc" | "desc";
@@ -60,11 +70,18 @@ interface UserTeamMap {
 }
 
 export const AdminSitesTab = () => {
+  const navigate = useNavigate();
   const [history, setHistory] = useState<GenerationItem[]>([]);
   const [profiles, setProfiles] = useState<Record<string, UserProfile>>({});
   const [userTeams, setUserTeams] = useState<UserTeamMap>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Preview dialog state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewItem, setPreviewItem] = useState<GenerationItem | null>(null);
+  const [previewFiles, setPreviewFiles] = useState<GeneratedFile[]>([]);
+  const [selectedPreviewFile, setSelectedPreviewFile] = useState<GeneratedFile | null>(null);
   
   // Sorting
   const [sortColumn, setSortColumn] = useState<SortColumn>("created_at");
@@ -163,6 +180,22 @@ export const AdminSitesTab = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const handlePreview = (item: GenerationItem) => {
+    if (!item.files_data) return;
+    
+    const filesData = item.files_data as GeneratedFile[];
+    if (filesData && filesData.length > 0) {
+      setPreviewFiles(filesData);
+      setSelectedPreviewFile(filesData[0]);
+      setPreviewItem(item);
+      setPreviewOpen(true);
+    }
+  };
+
+  const handleEdit = (item: GenerationItem) => {
+    navigate(`/edit/${item.id}`);
   };
 
   const getStatusIcon = (status: string, salePrice?: number | null) => {
@@ -594,16 +627,41 @@ export const AdminSitesTab = () => {
                             })}
                           </TableCell>
                           <TableCell>
-                            {item.status === "completed" && item.zip_data && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDownload(item)}
-                                title="Завантажити ZIP"
-                              >
-                                <Download className="h-4 w-4" />
-                              </Button>
-                            )}
+                            <div className="flex items-center gap-1">
+                              {item.status === "completed" && item.files_data && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    onClick={() => handlePreview(item)}
+                                    title="Превью"
+                                  >
+                                    <Eye className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    onClick={() => handleEdit(item)}
+                                    title="Редагувати"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              )}
+                              {item.status === "completed" && item.zip_data && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0"
+                                  onClick={() => handleDownload(item)}
+                                  title="Завантажити ZIP"
+                                >
+                                  <Download className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       </>
@@ -615,6 +673,40 @@ export const AdminSitesTab = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Preview Dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-[95vw] w-[1400px] h-[90vh] flex flex-col p-0">
+          <DialogHeader className="px-4 py-2 border-b">
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <Eye className="h-4 w-4" />
+              Превью: {previewItem?.site_name || `Site ${previewItem?.number}`}
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-auto h-7 text-xs"
+                onClick={() => {
+                  setPreviewOpen(false);
+                  if (previewItem) handleEdit(previewItem);
+                }}
+              >
+                <Pencil className="h-3 w-3 mr-1" />
+                Редагувати
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden">
+            {previewFiles.length > 0 && selectedPreviewFile && (
+              <EditPreview
+                files={previewFiles}
+                selectedFile={selectedPreviewFile}
+                onSelectFile={setSelectedPreviewFile}
+                websiteType={previewItem?.website_type || "html"}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
