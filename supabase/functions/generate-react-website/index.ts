@@ -302,14 +302,118 @@ async function fetchPexelsPhotos(query: string, count: number = 15): Promise<str
   }
 }
 
-// Extract keywords from prompt for Pexels search
-function extractKeywords(prompt: string): string {
+// AI-powered keyword extraction for better Pexels search
+async function extractKeywordsAI(prompt: string, apiKey: string, isJunior: boolean): Promise<string> {
+  try {
+    const apiUrl = isJunior
+      ? "https://api.openai.com/v1/chat/completions"
+      : "https://ai.gateway.lovable.dev/v1/chat/completions";
+    const model = isJunior ? "gpt-4o-mini" : "google/gemini-2.5-flash";
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: "system",
+            content: `You extract the main visual topic for stock photo search. 
+Return ONLY 2-4 English words that describe what photos would fit this website.
+Examples:
+- "Сайт для ветеринарної клініки" → "veterinary clinic pets"
+- "Restaurant landing page Italian food" → "italian restaurant food"
+- "Fitness gym website" → "gym fitness workout"
+NO explanations, NO quotes, ONLY the search keywords in English.`
+          },
+          { role: "user", content: prompt }
+        ],
+        max_tokens: 20,
+      }),
+    });
+
+    if (!response.ok) {
+      console.log("AI keyword extraction failed, using fallback");
+      return extractKeywordsFallback(prompt);
+    }
+
+    const data = await response.json();
+    const keywords = data.choices?.[0]?.message?.content?.trim() || "";
+    
+    if (keywords && keywords.length > 2 && keywords.length < 50) {
+      console.log(`🔍 AI extracted keywords: "${keywords}"`);
+      return keywords;
+    }
+    
+    return extractKeywordsFallback(prompt);
+  } catch (error) {
+    console.error("Keyword extraction error:", error);
+    return extractKeywordsFallback(prompt);
+  }
+}
+
+// Fallback keyword extraction (no AI)
+function extractKeywordsFallback(prompt: string): string {
+  const translations: Record<string, string> = {
+    "ресторан": "restaurant food",
+    "кафе": "cafe coffee",
+    "піца": "pizza restaurant",
+    "суші": "sushi japanese food",
+    "ветеринар": "veterinary pets animals",
+    "собак": "dogs pets",
+    "кішок": "cats pets",
+    "тварин": "animals pets",
+    "авто": "cars automotive",
+    "машин": "cars automotive",
+    "запчастин": "car parts automotive",
+    "будівництв": "construction building",
+    "ремонт": "repair renovation",
+    "фітнес": "fitness gym workout",
+    "спорт": "sports fitness",
+    "краса": "beauty salon spa",
+    "салон": "beauty salon",
+    "перукар": "hairdresser salon",
+    "юрист": "lawyer legal office",
+    "адвокат": "lawyer legal",
+    "медицин": "medical healthcare",
+    "стоматолог": "dentist dental",
+    "подорож": "travel vacation",
+    "туризм": "tourism travel",
+    "готель": "hotel hospitality",
+    "нерухом": "real estate property",
+    "освіта": "education school",
+    "школ": "school education",
+    "технолог": "technology business",
+    "програм": "software technology",
+    "магазин": "shop retail store",
+    "одяг": "fashion clothing",
+    "взуття": "shoes footwear",
+    "меблі": "furniture interior",
+    "квіти": "flowers florist",
+    "весілля": "wedding celebration",
+    "фото": "photography camera",
+  };
+
+  const lowerPrompt = prompt.toLowerCase();
+  
+  for (const [ukr, eng] of Object.entries(translations)) {
+    if (lowerPrompt.includes(ukr)) {
+      console.log(`🔍 Fallback keywords (matched "${ukr}"): "${eng}"`);
+      return eng;
+    }
+  }
+
   const cleanPrompt = prompt
-    .replace(/сайт|website|web|page|create|generate|for|the|a|an|і|та|для|про/gi, "")
+    .replace(/сайт|website|web|page|create|generate|for|the|a|an|і|та|для|про|створ|генер/gi, "")
     .trim();
   
   const words = cleanPrompt.split(/\s+/).filter(w => w.length > 3).slice(0, 3);
-  return words.join(" ") || "business professional";
+  const result = words.join(" ") || "business professional";
+  console.log(`🔍 Fallback keywords (generic): "${result}"`);
+  return result;
 }
 
 // Build image strategy with Pexels URLs
@@ -636,7 +740,7 @@ async function runGeneration({
   // Fetch Pexels photos if AI image source selected
   let imageStrategy = IMAGE_STRATEGY_BASIC;
   if (imageSource === "ai") {
-    const keywords = extractKeywords(prompt);
+    const keywords = await extractKeywordsAI(prompt, apiKey!, isJunior);
     console.log(`📸 Fetching Pexels photos for keywords: "${keywords}"`);
     const pexelsUrls = await fetchPexelsPhotos(keywords, 15);
     imageStrategy = buildPexelsImageStrategy(pexelsUrls);
