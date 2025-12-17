@@ -1266,7 +1266,7 @@ export function WebsiteGenerator() {
             <div className="flex flex-col gap-2">
               <Button
                 onClick={handleGenerateClick}
-                disabled={isSubmitting || !siteName.trim() || !prompt.trim() || getAllSelectedLanguages().length === 0 || selectedAiModels.length === 0 || selectedWebsiteTypes.length === 0 || selectedImageSources.length === 0 || insufficientBalance}
+                disabled={isSubmitting || !siteName.trim() || !prompt.trim() || getAllSelectedLanguages().length === 0 || selectedAiModels.length === 0 || selectedWebsiteTypes.length === 0 || selectedImageSources.length === 0 || (isAdmin ? false : insufficientBalance) || (isAdmin && !selectedAdminTeamId)}
                 className="w-full"
                 size="lg"
               >
