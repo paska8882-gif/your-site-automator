@@ -270,21 +270,29 @@ style={{backgroundImage: 'url(https://picsum.photos/1920/1080?random=1)'}}
 // Image strategy - AI (themed search)
 const IMAGE_STRATEGY_AI = `
 **IMAGE STRATEGY - AI THEMED PHOTO SEARCH:**
-Use loremflickr.com for ALL images - it supports keyword search for themed images:
+Use loremflickr.com for ALL images with UNIQUE random parameter for each image:
 
-**FORMAT:** https://loremflickr.com/WIDTH/HEIGHT/KEYWORD1,KEYWORD2
+**FORMAT:** https://loremflickr.com/WIDTH/HEIGHT/KEYWORD1,KEYWORD2?random=UNIQUE_NUMBER
+
+**CRITICAL: Each image MUST have a DIFFERENT random= number to get UNIQUE photos!**
+Use sequential numbers: random=1, random=2, random=3, etc.
 
 **Hero background:** 
-style={{backgroundImage: 'url(https://loremflickr.com/1920/1080/[THEME-KEYWORDS])'}}
+style={{backgroundImage: 'url(https://loremflickr.com/1920/1080/[THEME-KEYWORDS]?random=1)'}}
 
 **Content images:**
-<img src="https://loremflickr.com/800/600/[SECTION-KEYWORDS]" alt="[Descriptive alt in site language]" loading="lazy" />
+<img src="https://loremflickr.com/800/600/[SECTION-KEYWORDS]?random=2" alt="[Descriptive alt in site language]" loading="lazy" />
+<img src="https://loremflickr.com/800/600/[SECTION-KEYWORDS]?random=3" alt="[Description]" loading="lazy" />
 
 **Card images:**
-<img src="https://loremflickr.com/600/400/[SPECIFIC-KEYWORDS]" alt="[Description]" loading="lazy" />
+<img src="https://loremflickr.com/600/400/[SPECIFIC-KEYWORDS]?random=4" alt="[Description]" loading="lazy" />
+<img src="https://loremflickr.com/600/400/[SPECIFIC-KEYWORDS]?random=5" alt="[Description]" loading="lazy" />
+<img src="https://loremflickr.com/600/400/[SPECIFIC-KEYWORDS]?random=6" alt="[Description]" loading="lazy" />
 
-**Portrait images:**
-<img src="https://loremflickr.com/400/400/person,portrait" alt="[Name or role]" loading="lazy" />
+**Portrait/Team images:**
+<img src="https://loremflickr.com/400/400/person,portrait?random=7" alt="[Name or role]" loading="lazy" />
+<img src="https://loremflickr.com/400/400/person,business?random=8" alt="[Name or role]" loading="lazy" />
+<img src="https://loremflickr.com/400/400/person,professional?random=9" alt="[Name or role]" loading="lazy" />
 
 **KEYWORD EXAMPLES BY THEME:**
 - Dog products: dog,pet,puppy | dog,toy | dog,food | dog,collar
@@ -294,8 +302,11 @@ style={{backgroundImage: 'url(https://loremflickr.com/1920/1080/[THEME-KEYWORDS]
 - Fitness: gym,fitness | workout,exercise | yoga,stretching | running,sport
 - Fashion: fashion,clothes | style,outfit | model,runway | accessories,jewelry
 
-**IMPORTANT:** Use comma-separated keywords that match the SPECIFIC section content!
-**Alt text MUST be in the same language as the website content!**
+**IMPORTANT RULES:**
+1. EVERY image URL MUST have ?random=N with a UNIQUE number N
+2. Numbers must be DIFFERENT for each image (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, etc.)
+3. Use comma-separated keywords that match the SPECIFIC section content
+4. Alt text MUST be in the same language as the website content
 `.trim();
 
 // CSS for images - common to both strategies
