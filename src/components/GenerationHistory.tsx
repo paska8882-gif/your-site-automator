@@ -1047,6 +1047,25 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
                 <SelectItem value="senior">Senior</SelectItem>
               </SelectContent>
             </Select>
+            
+            {(statusFilter !== "all" || typeFilter !== "all" || dateFilter !== "all" || languageFilter !== "all" || aiModelFilter !== "all" || searchQuery) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs"
+                onClick={() => {
+                  setStatusFilter("all");
+                  setTypeFilter("all");
+                  setDateFilter("all");
+                  setLanguageFilter("all");
+                  setAiModelFilter("all");
+                  setSearchQuery("");
+                }}
+              >
+                <X className="h-3 w-3 mr-1" />
+                Скинути
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
