@@ -339,15 +339,13 @@ serve(async (req) => {
     
     console.log("🎯 Starting Codex generation for:", siteName, "historyId:", historyId);
 
-    // Run generation in background
-    EdgeRuntime.waitUntil(
-      runCodexGeneration(prompt, language, siteName, historyId, supabaseUrl, supabaseKey)
-    );
+    // Run generation SYNCHRONOUSLY (wait for completion)
+    await runCodexGeneration(prompt, language, siteName, historyId, supabaseUrl, supabaseKey);
 
-    // Return immediately
+    // Return after completion
     return new Response(JSON.stringify({ 
       success: true, 
-      message: "Generation started in background",
+      message: "Generation completed",
       historyId 
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
