@@ -849,21 +849,41 @@ export function WebsiteGenerator() {
                 </div>
                 
                 {adminGenerationMode === "senior_direct" && (
-                  <Select 
-                    value={seniorMode || "none"} 
-                    onValueChange={(v) => setSeniorMode(v === "none" ? undefined : v as SeniorMode)} 
-                    disabled={isSubmitting}
-                  >
-                    <SelectTrigger className="w-[140px] h-8 text-xs">
-                      <SelectValue placeholder="Сервіс..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none" disabled>Оберіть сервіс</SelectItem>
-                      <SelectItem value="codex">🤖 Кодувальник Кирил</SelectItem>
-                      <SelectItem value="onepage">📄 Одноазка</SelectItem>
-                      <SelectItem value="v0">⚡ Вова нуляра</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <>
+                    <Select 
+                      value={seniorMode || "none"} 
+                      onValueChange={(v) => setSeniorMode(v === "none" ? undefined : v as SeniorMode)} 
+                      disabled={isSubmitting}
+                    >
+                      <SelectTrigger className="w-[140px] h-8 text-xs">
+                        <SelectValue placeholder="Сервіс..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none" disabled>Оберіть сервіс</SelectItem>
+                        <SelectItem value="codex">🤖 Кодувальник Кирил</SelectItem>
+                        <SelectItem value="onepage">📄 Одноазка</SelectItem>
+                        <SelectItem value="v0">⚡ Вова нуляра</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    <Select 
+                      value={selectedLanguages[0] || "uk"} 
+                      onValueChange={(v) => setSelectedLanguages([v])} 
+                      disabled={isSubmitting}
+                    >
+                      <SelectTrigger className="w-[130px] h-8 text-xs">
+                        <Languages className="h-3.5 w-3.5 mr-1" />
+                        <SelectValue placeholder="Мова..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {languages.map((lang) => (
+                          <SelectItem key={lang.value} value={lang.value}>
+                            {lang.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </>
                 )}
               </div>
             )}
@@ -1248,11 +1268,12 @@ export function WebsiteGenerator() {
                     return;
                   }
                   setIsSubmitting(true);
+                  const externalLanguage = selectedLanguages[0] || "uk";
                   try {
-                    await startGeneration(prompt, "uk", "senior", "html", undefined, siteName, seniorMode, "basic");
+                    await startGeneration(prompt, externalLanguage, "senior", "html", undefined, siteName, seniorMode, "basic");
                     toast({
                       title: "Генерацію запущено",
-                      description: `Запит відправлено на ${seniorMode}`,
+                      description: `Запит відправлено на ${seniorMode} (${languages.find(l => l.value === externalLanguage)?.label || externalLanguage})`,
                     });
                   } catch (error) {
                     toast({
