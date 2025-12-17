@@ -493,6 +493,19 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
                           >
                             <Download className="h-4 w-4" />
                           </Button>
+                          {!getAppealForItem(item.id) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openAppealDialog(item);
+                              }}
+                              title="Подати апеляцію"
+                            >
+                              <AlertTriangle className="h-4 w-4" />
+                            </Button>
+                          )}
                           <ChevronDown
                             className={`h-4 w-4 transition-transform ${
                               expandedId === item.id ? "rotate-180" : ""
