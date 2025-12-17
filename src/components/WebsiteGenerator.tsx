@@ -684,29 +684,57 @@ export function WebsiteGenerator() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Admin Mode Toggle */}
+            {/* Mode Selection - FIRST CHOICE: Internal vs External */}
             {isAdmin && (
-              <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border">
-                <Button
-                  variant={adminGenerationMode === "standard" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setAdminGenerationMode("standard")}
-                  className="flex-1"
-                  disabled={isSubmitting}
-                >
-                  <Layers className="h-4 w-4 mr-2" />
-                  Стандартна
-                </Button>
-                <Button
-                  variant={adminGenerationMode === "senior_direct" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setAdminGenerationMode("senior_direct")}
-                  className="flex-1"
-                  disabled={isSubmitting}
-                >
-                  <Crown className="h-4 w-4 mr-2" />
-                  Режим Senior
-                </Button>
+              <div className="space-y-3">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <Zap className="h-4 w-4" />
+                  Режим генерації
+                </Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant={adminGenerationMode === "standard" ? "default" : "outline"}
+                    onClick={() => setAdminGenerationMode("standard")}
+                    className="h-auto py-3 flex flex-col items-center gap-1"
+                    disabled={isSubmitting}
+                  >
+                    <Layers className="h-5 w-5" />
+                    <span className="text-sm font-medium">Внутрішня</span>
+                    <span className="text-xs text-muted-foreground">Всі опції</span>
+                  </Button>
+                  <Button
+                    variant={adminGenerationMode === "senior_direct" ? "default" : "outline"}
+                    onClick={() => setAdminGenerationMode("senior_direct")}
+                    className="h-auto py-3 flex flex-col items-center gap-1"
+                    disabled={isSubmitting}
+                  >
+                    <Crown className="h-5 w-5" />
+                    <span className="text-sm font-medium">Зовнішня</span>
+                    <span className="text-xs text-muted-foreground">Senior сервіси</span>
+                  </Button>
+                </div>
+                
+                {/* If External mode - show service selector immediately */}
+                {adminGenerationMode === "senior_direct" && (
+                  <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/30 space-y-2">
+                    <Label className="text-xs text-amber-600">Оберіть сервіс:</Label>
+                    <Select 
+                      value={seniorMode || "none"} 
+                      onValueChange={(v) => setSeniorMode(v === "none" ? undefined : v as SeniorMode)} 
+                      disabled={isSubmitting}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Оберіть сервіс" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none" disabled>Оберіть сервіс</SelectItem>
+                        <SelectItem value="codex">🤖 Кодекс</SelectItem>
+                        <SelectItem value="onepage">📄 Одностраничник</SelectItem>
+                        <SelectItem value="v0">⚡ v0</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1020,24 +1048,6 @@ export function WebsiteGenerator() {
                   </PopoverContent>
                 </Popover>
               </div>
-
-              {/* Senior Mode - тільки для адміністраторів */}
-              {selectedAiModels.includes("senior") && isAdmin && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Режим Senior</Label>
-                  <Select value={seniorMode || "none"} onValueChange={(v) => setSeniorMode(v === "none" ? undefined : v as SeniorMode)} disabled={isSubmitting}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Режим" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Без режиму</SelectItem>
-                      <SelectItem value="codex">Кодекс</SelectItem>
-                      <SelectItem value="onepage">Одностраничник</SelectItem>
-                      <SelectItem value="v0">v0</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
             </div>
 
             {/* Preset Management */}
@@ -1095,75 +1105,50 @@ export function WebsiteGenerator() {
               </>
             )}
 
-            {/* Senior Direct Mode - only for admins */}
+            {/* Senior Direct Mode Generate Button */}
             {isAdmin && adminGenerationMode === "senior_direct" && (
-              <div className="space-y-4 p-4 rounded-md bg-amber-500/10 border border-amber-500/30">
-                <div className="flex items-center gap-2 text-amber-600">
-                  <Crown className="h-5 w-5" />
-                  <span className="font-semibold">Режим Senior AI</span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Пряма генерація через Senior AI без мульти-налаштувань. Оберіть режим генерації:
-                </p>
-                <Select 
-                  value={seniorMode || "none"} 
-                  onValueChange={(v) => setSeniorMode(v === "none" ? undefined : v as SeniorMode)} 
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Оберіть режим" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none" disabled>Оберіть режим</SelectItem>
-                    <SelectItem value="codex">🤖 Кодекс (зовнішній сервіс)</SelectItem>
-                    <SelectItem value="onepage">📄 Одностраничник</SelectItem>
-                    <SelectItem value="v0">⚡ v0 генерація</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                <Button
-                  onClick={async () => {
-                    if (!siteName.trim() || !prompt.trim() || !seniorMode) {
-                      toast({
-                        title: "Заповніть поля",
-                        description: "Введіть назву, опис та оберіть режим",
-                        variant: "destructive",
-                      });
-                      return;
-                    }
-                    setIsSubmitting(true);
-                    try {
-                      await startGeneration(prompt, "uk", "senior", "html", undefined, siteName, seniorMode, "basic");
-                      toast({
-                        title: "Генерацію запущено",
-                        description: "Сайт генерується у фоновому режимі",
-                      });
-                    } catch (error) {
-                      toast({
-                        title: "Помилка",
-                        description: error instanceof Error ? error.message : "Не вдалося запустити генерацію",
-                        variant: "destructive",
-                      });
-                    }
-                    setIsSubmitting(false);
-                  }}
-                  disabled={isSubmitting || !siteName.trim() || !prompt.trim() || !seniorMode}
-                  className="w-full"
-                  size="lg"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Відправка...
-                    </>
-                  ) : (
-                    <>
-                      <Crown className="mr-2 h-4 w-4" />
-                      Запустити Senior {seniorMode ? `(${seniorMode})` : ""}
-                    </>
-                  )}
-                </Button>
-              </div>
+              <Button
+                onClick={async () => {
+                  if (!siteName.trim() || !prompt.trim() || !seniorMode) {
+                    toast({
+                      title: "Заповніть поля",
+                      description: "Введіть назву, опис та оберіть сервіс",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  setIsSubmitting(true);
+                  try {
+                    await startGeneration(prompt, "uk", "senior", "html", undefined, siteName, seniorMode, "basic");
+                    toast({
+                      title: "Генерацію запущено",
+                      description: `Запит відправлено на ${seniorMode}`,
+                    });
+                  } catch (error) {
+                    toast({
+                      title: "Помилка",
+                      description: error instanceof Error ? error.message : "Не вдалося запустити генерацію",
+                      variant: "destructive",
+                    });
+                  }
+                  setIsSubmitting(false);
+                }}
+                disabled={isSubmitting || !siteName.trim() || !prompt.trim() || !seniorMode}
+                className="w-full"
+                size="lg"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Відправка...
+                  </>
+                ) : (
+                  <>
+                    <Crown className="mr-2 h-4 w-4" />
+                    Запустити {seniorMode || "Senior"}
+                  </>
+                )}
+              </Button>
             )}
 
             {/* Standard mode generate button */}
