@@ -145,6 +145,8 @@ export function WebsiteGenerator() {
   const [selectedWebsiteTypes, setSelectedWebsiteTypes] = useState<WebsiteType[]>(["html"]);
   const [selectedImageSources, setSelectedImageSources] = useState<ImageSource[]>(["basic"]);
   const [seniorMode, setSeniorMode] = useState<SeniorMode>(undefined);
+  // Admin generation mode: "standard" (all options) vs "senior_direct" (simple Senior mode flow)
+  const [adminGenerationMode, setAdminGenerationMode] = useState<"standard" | "senior_direct">("standard");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImproving, setIsImproving] = useState(false);
   const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 });
@@ -682,6 +684,32 @@ export function WebsiteGenerator() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Admin Mode Toggle */}
+            {isAdmin && (
+              <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border">
+                <Button
+                  variant={adminGenerationMode === "standard" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setAdminGenerationMode("standard")}
+                  className="flex-1"
+                  disabled={isSubmitting}
+                >
+                  <Layers className="h-4 w-4 mr-2" />
+                  Стандартна
+                </Button>
+                <Button
+                  variant={adminGenerationMode === "senior_direct" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setAdminGenerationMode("senior_direct")}
+                  className="flex-1"
+                  disabled={isSubmitting}
+                >
+                  <Crown className="h-4 w-4 mr-2" />
+                  Режим Senior
+                </Button>
+              </div>
+            )}
+
             {/* Site Name Field */}
             <div className="space-y-2">
               <Label htmlFor="siteName" className="flex items-center gap-2">
@@ -730,6 +758,9 @@ export function WebsiteGenerator() {
               </Button>
             </div>
 
+            {/* Standard Mode Options - show for non-admins OR when admin selects standard mode */}
+            {(!isAdmin || adminGenerationMode === "standard") && (
+              <>
             {/* Compact row: Language, Style, Quantity */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {/* Language Multi-Select Dropdown */}
@@ -1061,7 +1092,83 @@ export function WebsiteGenerator() {
                 </Popover>
               )}
             </div>
+              </>
+            )}
 
+            {/* Senior Direct Mode - only for admins */}
+            {isAdmin && adminGenerationMode === "senior_direct" && (
+              <div className="space-y-4 p-4 rounded-md bg-amber-500/10 border border-amber-500/30">
+                <div className="flex items-center gap-2 text-amber-600">
+                  <Crown className="h-5 w-5" />
+                  <span className="font-semibold">Режим Senior AI</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Пряма генерація через Senior AI без мульти-налаштувань. Оберіть режим генерації:
+                </p>
+                <Select 
+                  value={seniorMode || "none"} 
+                  onValueChange={(v) => setSeniorMode(v === "none" ? undefined : v as SeniorMode)} 
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Оберіть режим" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none" disabled>Оберіть режим</SelectItem>
+                    <SelectItem value="codex">🤖 Кодекс (зовнішній сервіс)</SelectItem>
+                    <SelectItem value="onepage">📄 Одностраничник</SelectItem>
+                    <SelectItem value="v0">⚡ v0 генерація</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Button
+                  onClick={async () => {
+                    if (!siteName.trim() || !prompt.trim() || !seniorMode) {
+                      toast({
+                        title: "Заповніть поля",
+                        description: "Введіть назву, опис та оберіть режим",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    setIsSubmitting(true);
+                    try {
+                      await startGeneration(prompt, "uk", "senior", "html", undefined, siteName, seniorMode, "basic");
+                      toast({
+                        title: "Генерацію запущено",
+                        description: "Сайт генерується у фоновому режимі",
+                      });
+                    } catch (error) {
+                      toast({
+                        title: "Помилка",
+                        description: error instanceof Error ? error.message : "Не вдалося запустити генерацію",
+                        variant: "destructive",
+                      });
+                    }
+                    setIsSubmitting(false);
+                  }}
+                  disabled={isSubmitting || !siteName.trim() || !prompt.trim() || !seniorMode}
+                  className="w-full"
+                  size="lg"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Відправка...
+                    </>
+                  ) : (
+                    <>
+                      <Crown className="mr-2 h-4 w-4" />
+                      Запустити Senior {seniorMode ? `(${seniorMode})` : ""}
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {/* Standard mode generate button */}
+            {(!isAdmin || adminGenerationMode === "standard") && (
+              <>
             <div className="flex flex-col gap-2">
               <Button
                 onClick={handleGenerateClick}
@@ -1187,6 +1294,8 @@ export function WebsiteGenerator() {
                   className="h-2"
                 />
               </div>
+            )}
+              </>
             )}
           </CardContent>
         </Card>
