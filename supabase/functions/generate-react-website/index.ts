@@ -267,50 +267,46 @@ style={{backgroundImage: 'url(https://picsum.photos/1920/1080?random=1)'}}
 **Alt text MUST be in the same language as the website content!**
 `.trim();
 
-// Image strategy - AI (themed search)
+// Image strategy - AI (Pollinations.ai - AI-generated themed images)
 const IMAGE_STRATEGY_AI = `
-**IMAGE STRATEGY - AI THEMED PHOTO SEARCH:**
-Use loremflickr.com for ALL images with UNIQUE random parameter for each image:
+**IMAGE STRATEGY - AI GENERATED THEMED PHOTOS:**
+Use Pollinations.ai for ALL images - it generates AI photos based on text description:
 
-**FORMAT:** https://loremflickr.com/WIDTH/HEIGHT/KEYWORD1,KEYWORD2?random=UNIQUE_NUMBER
+**FORMAT:** https://image.pollinations.ai/prompt/{DESCRIPTION}?width={WIDTH}&height={HEIGHT}&seed={UNIQUE_NUMBER}&nologo=true
 
-**CRITICAL: Each image MUST have a DIFFERENT random= number to get UNIQUE photos!**
-Use sequential numbers: random=1, random=2, random=3, etc.
+**CRITICAL RULES:**
+1. Each image MUST have a DIFFERENT seed= number (seed=1, seed=2, seed=3, etc.) for unique images
+2. Replace spaces in description with %20
+3. Description should be SHORT (3-6 words) and specific to the section
+4. Description MUST be in ENGLISH regardless of website language
+5. Add nologo=true to remove watermarks
 
 **Hero background:** 
-style={{backgroundImage: 'url(https://loremflickr.com/1920/1080/[THEME-KEYWORDS]?random=1)'}}
+style={{backgroundImage: 'url(https://image.pollinations.ai/prompt/[THEME]%20professional%20business%20photo?width=1920&height=1080&seed=1&nologo=true)'}}
 
 **Content images:**
-<img src="https://loremflickr.com/800/600/[SECTION-KEYWORDS]?random=2" alt="[Descriptive alt in site language]" loading="lazy" />
-<img src="https://loremflickr.com/800/600/[SECTION-KEYWORDS]?random=3" alt="[Description]" loading="lazy" />
+<img src="https://image.pollinations.ai/prompt/[SECTION-TOPIC]%20high%20quality%20photo?width=800&height=600&seed=2&nologo=true" alt="[Alt in site language]" loading="lazy" />
+<img src="https://image.pollinations.ai/prompt/[SECTION-TOPIC]%20professional%20image?width=800&height=600&seed=3&nologo=true" alt="[Description]" loading="lazy" />
 
 **Card images:**
-<img src="https://loremflickr.com/600/400/[SPECIFIC-KEYWORDS]?random=4" alt="[Description]" loading="lazy" />
-<img src="https://loremflickr.com/600/400/[SPECIFIC-KEYWORDS]?random=5" alt="[Description]" loading="lazy" />
-<img src="https://loremflickr.com/600/400/[SPECIFIC-KEYWORDS]?random=6" alt="[Description]" loading="lazy" />
+<img src="https://image.pollinations.ai/prompt/[SPECIFIC-TOPIC]%20photo?width=600&height=400&seed=4&nologo=true" alt="[Description]" loading="lazy" />
+<img src="https://image.pollinations.ai/prompt/[SPECIFIC-TOPIC]%20image?width=600&height=400&seed=5&nologo=true" alt="[Description]" loading="lazy" />
 
 **Portrait/Team images:**
-<img src="https://loremflickr.com/400/400/person,portrait?random=7" alt="[Name or role]" loading="lazy" />
-<img src="https://loremflickr.com/400/400/person,business?random=8" alt="[Name or role]" loading="lazy" />
-<img src="https://loremflickr.com/400/400/person,professional?random=9" alt="[Name or role]" loading="lazy" />
+<img src="https://image.pollinations.ai/prompt/professional%20business%20person%20portrait?width=400&height=400&seed=6&nologo=true" alt="[Name]" loading="lazy" />
+<img src="https://image.pollinations.ai/prompt/smiling%20office%20worker%20headshot?width=400&height=400&seed=7&nologo=true" alt="[Name]" loading="lazy" />
 
-**KEYWORD EXAMPLES BY THEME:**
-- Dog products: dog,pet,puppy | dog,toy | dog,food | dog,collar
-- Restaurant: restaurant,food | chef,cooking | dish,gourmet | dining,interior
-- Technology: computer,office | software,code | team,meeting | tech,laptop
-- Travel: travel,vacation | beach,ocean | hotel,room | landmark,city
-- Fitness: gym,fitness | workout,exercise | yoga,stretching | running,sport
-- Fashion: fashion,clothes | style,outfit | model,runway | accessories,jewelry
-
-**IMPORTANT RULES:**
-1. EVERY image URL MUST have ?random=N with a UNIQUE number N
-2. Numbers must be DIFFERENT for each image (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, etc.)
-3. Use comma-separated keywords that match the SPECIFIC section content
-4. Alt text MUST be in the same language as the website content
+**DESCRIPTION EXAMPLES BY THEME:**
+- Dog products: cute%20dog%20playing | dog%20with%20toy | happy%20puppy%20portrait | dog%20food%20bowl
+- Restaurant: gourmet%20food%20dish | chef%20cooking%20kitchen | restaurant%20interior%20modern | fresh%20ingredients%20table
+- Technology: modern%20office%20workspace | software%20developers%20team | laptop%20on%20desk | tech%20startup%20meeting
+- Travel: tropical%20beach%20sunset | luxury%20hotel%20room | famous%20landmark%20city | airplane%20flying%20clouds
+- Fitness: gym%20workout%20equipment | yoga%20pose%20studio | running%20outdoors%20park | healthy%20lifestyle%20fitness
+- Fashion: fashion%20model%20studio | stylish%20outfit%20clothes | luxury%20accessories | runway%20fashion%20show
 
 **FALLBACK REQUIRED FOR ALL IMAGES:**
-Add onError handler to EVERY <img> element to fallback to picsum.photos if loremflickr fails:
-<img src="https://loremflickr.com/800/600/keywords?random=1" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://picsum.photos/800/600?random=1'; }} alt="..." loading="lazy" />
+Add onError handler to EVERY <img> element to fallback to picsum.photos if Pollinations fails:
+<img src="https://image.pollinations.ai/prompt/description?width=800&height=600&seed=1&nologo=true" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://picsum.photos/800/600?random=1'; }} alt="..." loading="lazy" />
 
 For CSS background images in style prop, no fallback needed.
 `.trim();
