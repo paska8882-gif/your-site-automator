@@ -178,7 +178,7 @@ async function runCodexGeneration(
               content: prompt
             }
           ],
-          max_completion_tokens: 20000
+          max_completion_tokens: 100000
         }),
         signal: controller.signal
       });
