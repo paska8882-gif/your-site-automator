@@ -111,10 +111,11 @@ export function WebsiteGenerator() {
   const [customStyle, setCustomStyle] = useState("");
   const [isOtherStyleSelected, setIsOtherStyleSelected] = useState(false);
   const [sitesPerLanguage, setSitesPerLanguage] = useState(1);
-  const [aiModel, setAiModel] = useState<AiModel>("senior");
+  // Multi-select for AI models, website types, image sources
+  const [selectedAiModels, setSelectedAiModels] = useState<AiModel[]>(["senior"]);
+  const [selectedWebsiteTypes, setSelectedWebsiteTypes] = useState<WebsiteType[]>(["html"]);
+  const [selectedImageSources, setSelectedImageSources] = useState<ImageSource[]>(["basic"]);
   const [seniorMode, setSeniorMode] = useState<SeniorMode>(undefined);
-  const [websiteType, setWebsiteType] = useState<WebsiteType>("html");
-  const [imageSource, setImageSource] = useState<ImageSource>("basic");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImproving, setIsImproving] = useState(false);
   const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 });
@@ -306,22 +307,52 @@ export function WebsiteGenerator() {
     return styles;
   };
 
-  // Calculate total generations: languages × sites × (styles or 1 if random)
+  // Toggle functions for multi-selects
+  const toggleAiModel = (model: AiModel) => {
+    setSelectedAiModels(prev => 
+      prev.includes(model) ? prev.filter(m => m !== model) : [...prev, model]
+    );
+  };
+
+  const toggleWebsiteType = (type: WebsiteType) => {
+    setSelectedWebsiteTypes(prev => 
+      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
+    );
+  };
+
+  const toggleImageSource = (source: ImageSource) => {
+    setSelectedImageSources(prev => 
+      prev.includes(source) ? prev.filter(s => s !== source) : [...prev, source]
+    );
+  };
+
+  // Calculate total generations: languages × sites × styles × aiModels × websiteTypes × imageSources
   const allLanguages = getAllSelectedLanguages();
   const allStyles = getAllSelectedStyles();
-  const styleCount = allStyles.length || 1; // If no styles selected, it's random (counts as 1)
-  const totalGenerations = allLanguages.length * sitesPerLanguage * styleCount;
+  const styleCount = allStyles.length || 1;
+  const aiModelCount = selectedAiModels.length || 1;
+  const websiteTypeCount = selectedWebsiteTypes.length || 1;
+  const imageSourceCount = selectedImageSources.length || 1;
+  const totalGenerations = allLanguages.length * sitesPerLanguage * styleCount * aiModelCount * websiteTypeCount * imageSourceCount;
 
-  // Calculate total cost for current generation
-  const basePrice = websiteType === "react" 
-    ? (teamPricing?.reactPrice || 9) 
-    : (teamPricing?.htmlPrice || 7);
-  
-  // Add $2 for AI photo search
-  const pricePerSite = basePrice + (imageSource === "ai" ? 2 : 0);
-  
+  // Calculate total cost for current generation (consider all combinations)
   const calculateTotalCost = () => {
-    return allLanguages.length * sitesPerLanguage * styleCount * pricePerSite;
+    let total = 0;
+    const htmlPrice = teamPricing?.htmlPrice || 7;
+    const reactPrice = teamPricing?.reactPrice || 9;
+    
+    const websiteTypesToUse = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes : ["html"];
+    const imageSourcesToUse = selectedImageSources.length > 0 ? selectedImageSources : ["basic"];
+    
+    for (const wt of websiteTypesToUse) {
+      for (const is of imageSourcesToUse) {
+        const basePrice = wt === "react" ? reactPrice : htmlPrice;
+        const pricePerSite = basePrice + (is === "ai" ? 2 : 0);
+        const count = allLanguages.length * sitesPerLanguage * styleCount * aiModelCount;
+        total += count * pricePerSite;
+      }
+    }
+    return total;
   };
 
   const insufficientBalance = teamPricing ? calculateTotalCost() > teamPricing.balance : false;
@@ -380,17 +411,20 @@ export function WebsiteGenerator() {
 
     try {
       // Create all generation requests in parallel
-      // Combinations: languages × sitesPerLanguage × styles (or random if no styles)
-      const stylesToUse = allStyles.length > 0 ? allStyles : [undefined]; // undefined = random
+      // Combinations: languages × sitesPerLanguage × styles × aiModels × websiteTypes × imageSources
+      const stylesToUse = allStyles.length > 0 ? allStyles : [undefined];
+      const aiModelsToUse = selectedAiModels.length > 0 ? selectedAiModels : ["senior" as AiModel];
+      const websiteTypesToUse = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes : ["html" as WebsiteType];
+      const imageSourcesToUse = selectedImageSources.length > 0 ? selectedImageSources : ["basic" as ImageSource];
       const langs = getAllSelectedLanguages();
-      const totalCount = langs.length * sitesPerLanguage * stylesToUse.length;
+      const totalCount = langs.length * sitesPerLanguage * stylesToUse.length * aiModelsToUse.length * websiteTypesToUse.length * imageSourcesToUse.length;
       
       setGenerationProgress({ completed: 0, total: totalCount });
 
       // Create wrapped promises that update progress on completion
-      const createTrackedPromise = async (lang: string, style: string | undefined) => {
-        const currentSeniorMode = aiModel === "senior" ? seniorMode : undefined;
-        const result = await startGeneration(prompt, lang, aiModel, websiteType, style, siteName, currentSeniorMode, imageSource);
+      const createTrackedPromise = async (lang: string, style: string | undefined, model: AiModel, wType: WebsiteType, iSource: ImageSource) => {
+        const currentSeniorMode = model === "senior" ? seniorMode : undefined;
+        const result = await startGeneration(prompt, lang, model, wType, style, siteName, currentSeniorMode, iSource);
         setGenerationProgress(prev => ({ ...prev, completed: prev.completed + 1 }));
         return result;
       };
@@ -399,7 +433,13 @@ export function WebsiteGenerator() {
       for (const lang of langs) {
         for (let i = 0; i < sitesPerLanguage; i++) {
           for (const style of stylesToUse) {
-            generationPromises.push(createTrackedPromise(lang, style));
+            for (const model of aiModelsToUse) {
+              for (const wType of websiteTypesToUse) {
+                for (const iSource of imageSourcesToUse) {
+                  generationPromises.push(createTrackedPromise(lang, style, model, wType, iSource));
+                }
+              }
+            }
           }
         }
       }
@@ -686,133 +726,173 @@ export function WebsiteGenerator() {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
-              <Select value={aiModel} onValueChange={(v) => setAiModel(v as AiModel)} disabled={isSubmitting}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="AI модель" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="senior">
-                    <div className="flex items-center gap-2">
-                      <Crown className="h-4 w-4 text-amber-500" />
-                      Senior AI
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {/* AI Model Multi-Select */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">AI модель</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between" disabled={isSubmitting}>
+                      <span className="truncate">
+                        {selectedAiModels.length === 0 
+                          ? "Оберіть" 
+                          : selectedAiModels.length === 1 
+                            ? (selectedAiModels[0] === "senior" ? "Senior" : "Junior")
+                            : `${selectedAiModels.length} моделі`}
+                      </span>
+                      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-2" align="start">
+                    <div className="space-y-1">
+                      <label className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
+                        <Checkbox
+                          checked={selectedAiModels.includes("senior")}
+                          onCheckedChange={() => toggleAiModel("senior")}
+                        />
+                        <Crown className="h-4 w-4 text-amber-500" />
+                        <span className="text-sm">Senior AI</span>
+                      </label>
+                      <label className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
+                        <Checkbox
+                          checked={selectedAiModels.includes("junior")}
+                          onCheckedChange={() => toggleAiModel("junior")}
+                        />
+                        <Zap className="h-4 w-4 text-blue-500" />
+                        <span className="text-sm">Junior AI</span>
+                      </label>
                     </div>
-                  </SelectItem>
-                  <SelectItem value="junior">
-                    <div className="flex items-center gap-2">
-                      <Zap className="h-4 w-4 text-blue-500" />
-                      Junior AI
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Website Type Multi-Select */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Тип сайту</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between" disabled={isSubmitting}>
+                      <span className="truncate">
+                        {selectedWebsiteTypes.length === 0 
+                          ? "Оберіть" 
+                          : selectedWebsiteTypes.length === 1 
+                            ? (selectedWebsiteTypes[0] === "html" ? "HTML/CSS" : "React")
+                            : `${selectedWebsiteTypes.length} типи`}
+                      </span>
+                      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-2" align="start">
+                    <div className="space-y-1">
+                      <label className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
+                        <Checkbox
+                          checked={selectedWebsiteTypes.includes("html")}
+                          onCheckedChange={() => toggleWebsiteType("html")}
+                        />
+                        <Globe className="h-4 w-4 text-green-500" />
+                        <span className="text-sm">HTML/CSS</span>
+                      </label>
+                      <label className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
+                        <Checkbox
+                          checked={selectedWebsiteTypes.includes("react")}
+                          onCheckedChange={() => toggleWebsiteType("react")}
+                        />
+                        <Layers className="h-4 w-4 text-cyan-500" />
+                        <span className="text-sm">React</span>
+                      </label>
                     </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Image Source Multi-Select */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Підбір фото</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between" disabled={isSubmitting}>
+                      <span className="truncate">
+                        {selectedImageSources.length === 0 
+                          ? "Оберіть" 
+                          : selectedImageSources.length === 1 
+                            ? (selectedImageSources[0] === "basic" ? "Базовий" : "AI фото")
+                            : `${selectedImageSources.length} варіанти`}
+                      </span>
+                      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-2" align="start">
+                    <div className="space-y-1">
+                      <label className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
+                        <Checkbox
+                          checked={selectedImageSources.includes("basic")}
+                          onCheckedChange={() => toggleImageSource("basic")}
+                        />
+                        <Image className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">Базовий</span>
+                      </label>
+                      <label className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
+                        <Checkbox
+                          checked={selectedImageSources.includes("ai")}
+                          onCheckedChange={() => toggleImageSource("ai")}
+                        />
+                        <Sparkles className="h-4 w-4 text-violet-500" />
+                        <span className="text-sm">AI пошук (+$2)</span>
+                      </label>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
 
               {/* Senior Mode - тільки для адміністраторів */}
-              {aiModel === "senior" && isAdmin && (
-                <Select value={seniorMode || "none"} onValueChange={(v) => setSeniorMode(v === "none" ? undefined : v as SeniorMode)} disabled={isSubmitting}>
-                  <SelectTrigger className="w-full sm:w-[220px]">
-                    <SelectValue placeholder="Режим Senior AI" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">
-                      <div className="flex items-center gap-2">
-                        <Zap className="h-4 w-4 text-gray-400" />
-                        Без режиму
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="codex">
-                      <div className="flex items-center gap-2">
-                        <FileCode2 className="h-4 w-4 text-purple-500" />
-                        Генерация на кодексе
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="onepage">
-                      <div className="flex items-center gap-2">
-                        <Globe className="h-4 w-4 text-orange-500" />
-                        Одностраничник
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="v0">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="h-4 w-4 text-pink-500" />
-                        Генерация на v0
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+              {selectedAiModels.includes("senior") && isAdmin && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Режим Senior</Label>
+                  <Select value={seniorMode || "none"} onValueChange={(v) => setSeniorMode(v === "none" ? undefined : v as SeniorMode)} disabled={isSubmitting}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Режим" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Без режиму</SelectItem>
+                      <SelectItem value="codex">Кодекс</SelectItem>
+                      <SelectItem value="onepage">Одностраничник</SelectItem>
+                      <SelectItem value="v0">v0</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
+            </div>
 
-              <Select value={websiteType} onValueChange={(v) => setWebsiteType(v as WebsiteType)} disabled={isSubmitting}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Тип сайту" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="html">
-                    <div className="flex items-center gap-2">
-                      <Globe className="h-4 w-4 text-green-500" />
-                      HTML/CSS
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="react">
-                    <div className="flex items-center gap-2">
-                      <Layers className="h-4 w-4 text-cyan-500" />
-                      React
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={imageSource} onValueChange={(v) => setImageSource(v as ImageSource)} disabled={isSubmitting}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Підбір фото" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="basic">
-                    <div className="flex items-center gap-2">
-                      <Image className="h-4 w-4 text-gray-500" />
-                      Базовий
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="ai">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-violet-500" />
-                      AI пошук фото
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-
-              <div className="flex flex-col gap-2">
-                <Button
-                  onClick={handleGenerateClick}
-                  disabled={isSubmitting || !siteName.trim() || !prompt.trim() || getAllSelectedLanguages().length === 0 || insufficientBalance}
-                  className="flex-1"
-                  size="lg"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Відправка...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Згенерувати {totalGenerations > 1 ? `(${totalGenerations})` : ""}
-                      {teamPricing && (
-                        <span className="ml-2 text-xs opacity-80">
-                          = ${calculateTotalCost().toFixed(2)}
-                        </span>
-                      )}
-                    </>
-                  )}
-                </Button>
-                {insufficientBalance && teamPricing && (
-                  <p className="text-xs text-destructive flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    Недостатньо коштів: потрібно ${calculateTotalCost().toFixed(2)}, на балансі ${teamPricing.balance.toFixed(2)}
-                  </p>
+            <div className="flex flex-col gap-2">
+              <Button
+                onClick={handleGenerateClick}
+                disabled={isSubmitting || !siteName.trim() || !prompt.trim() || getAllSelectedLanguages().length === 0 || selectedAiModels.length === 0 || selectedWebsiteTypes.length === 0 || selectedImageSources.length === 0 || insufficientBalance}
+                className="w-full"
+                size="lg"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Відправка...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Згенерувати {totalGenerations > 1 ? `(${totalGenerations})` : ""}
+                    {teamPricing && (
+                      <span className="ml-2 text-xs opacity-80">
+                        = ${calculateTotalCost().toFixed(2)}
+                      </span>
+                    )}
+                  </>
                 )}
-              </div>
+              </Button>
+              {insufficientBalance && teamPricing && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Недостатньо коштів: потрібно ${calculateTotalCost().toFixed(2)}, на балансі ${teamPricing.balance.toFixed(2)}
+                </p>
+              )}
             </div>
 
             {/* Cost info alert */}
@@ -820,7 +900,9 @@ export function WebsiteGenerator() {
               <Alert className="bg-muted/50">
                 <Info className="h-4 w-4" />
                 <AlertDescription className="text-xs">
-                  <span className="font-medium">Вартість:</span> ${pricePerSite} за {websiteType === "react" ? "React" : "HTML"} сайт × {totalGenerations} = <strong>${calculateTotalCost().toFixed(2)}</strong>
+                  <span className="font-medium">Комбінацій:</span> {allLanguages.length} мов × {sitesPerLanguage} шт × {styleCount} стилів × {aiModelCount} AI × {websiteTypeCount} типів × {imageSourceCount} фото = <strong>{totalGenerations} сайтів</strong>
+                  <br />
+                  <span className="font-medium">Загальна вартість:</span> <strong>${calculateTotalCost().toFixed(2)}</strong>
                   <br />
                   <span className="text-muted-foreground">
                     💳 Кошти списуються при старті генерації • 
