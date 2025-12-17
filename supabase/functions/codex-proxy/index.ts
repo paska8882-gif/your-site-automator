@@ -95,13 +95,13 @@ function parseFilesFromResponse(responseText: string): GeneratedFile[] {
   return files;
 }
 
-function calculateCost(usage: { input_tokens?: number; output_tokens?: number; total_tokens?: number }) {
+function calculateCost(usage: any) {
   if (!usage) return 0;
-  
-  const costUSD = 
-    ((usage.input_tokens || 0) / 1000000) * PRICE_PER_MILLION.input +
-    ((usage.output_tokens || 0) / 1000000) * PRICE_PER_MILLION.output;
-  
+  const inputTokens = usage.input_tokens ?? usage.prompt_tokens ?? 0;
+  const outputTokens = usage.output_tokens ?? usage.completion_tokens ?? 0;
+  const costUSD =
+    (inputTokens / 1000000) * PRICE_PER_MILLION.input +
+    (outputTokens / 1000000) * PRICE_PER_MILLION.output;
   return Math.round(costUSD * 10000) / 10000;
 }
 
@@ -151,12 +151,12 @@ async function runCodexGeneration(
     // Call OpenAI API with gpt-5-2025-08-07 (flagship model)
     console.log("📤 Calling OpenAI API with gpt-5-2025-08-07...");
     
-    // Create AbortController for timeout (8 minutes)
+    // Create AbortController for timeout (9 minutes)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
-      console.log("⏰ Fetch timeout triggered after 8 minutes");
+      console.log("⏰ Fetch timeout triggered after 9 minutes");
       controller.abort();
-    }, 8 * 60 * 1000);
+    }, 9 * 60 * 1000);
     
     let response;
     try {
@@ -178,7 +178,7 @@ async function runCodexGeneration(
               content: prompt
             }
           ],
-          max_completion_tokens: 100000
+          max_completion_tokens: 20000
         }),
         signal: controller.signal
       });
