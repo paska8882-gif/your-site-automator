@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
+
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -162,7 +162,7 @@ export function WebsiteGenerator() {
   const [adminGenerationMode, setAdminGenerationMode] = useState<"standard" | "senior_direct">("standard");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImproving, setIsImproving] = useState(false);
-  const [cleanFormatting, setCleanFormatting] = useState(true);
+  
   const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 });
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [teamPricing, setTeamPricing] = useState<TeamPricing | null>(null);
@@ -504,13 +504,10 @@ export function WebsiteGenerator() {
       }
 
       if (data.improvedPrompt) {
-        const result = cleanFormatting 
-          ? sanitizeImprovedPrompt(data.improvedPrompt) 
-          : data.improvedPrompt;
-        setPrompt(result);
+        setPrompt(data.improvedPrompt);
         toast({
           title: "Промпт покращено",
-          description: cleanFormatting ? "AI покращив та очистив ваш опис" : "AI покращив ваш опис сайту",
+          description: "AI покращив ваш опис сайту",
         });
       }
     } catch (error: any) {
@@ -1010,7 +1007,7 @@ export function WebsiteGenerator() {
                 style={{ resize: 'none' }}
                 disabled={isSubmitting || isImproving}
               />
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1030,17 +1027,16 @@ export function WebsiteGenerator() {
                     </>
                   )}
                 </Button>
-                <div className="flex items-center gap-1.5">
-                  <Switch
-                    id="clean-formatting"
-                    checked={cleanFormatting}
-                    onCheckedChange={setCleanFormatting}
-                    className="scale-75"
-                  />
-                  <Label htmlFor="clean-formatting" className="text-[10px] text-muted-foreground cursor-pointer">
-                    Очистити
-                  </Label>
-                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPrompt(sanitizeImprovedPrompt(prompt))}
+                  disabled={isSubmitting || !prompt.trim()}
+                  className="h-7 text-xs px-2"
+                >
+                  <Sparkles className="mr-1 h-3 w-3" />
+                  Очистити
+                </Button>
               </div>
             </div>
 
