@@ -236,8 +236,11 @@ export default function Auth() {
         {/* Content */}
         <div className="relative z-10 animate-fade-in" style={{ animationDelay: '0.1s', animationFillMode: 'backwards' }}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-lg shadow-white/20">
-              <span className="text-black font-bold text-lg">D</span>
+            <div className="relative">
+              <div className="absolute inset-0 bg-white rounded-lg blur-md animate-pulse opacity-50" />
+              <div className="relative w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-lg shadow-white/20">
+                <span className="text-black font-bold text-lg">D</span>
+              </div>
             </div>
             <span className="text-white font-semibold text-xl tracking-tight">
               DRAGON<span className="text-neutral-500">WHITE</span>
