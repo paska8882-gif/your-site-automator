@@ -38,6 +38,17 @@ export default function Auth() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedRole, setSelectedRole] = useState<TeamRole | null>(null);
   const [isDarkTheme, setIsDarkTheme] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  const handleThemeToggle = () => {
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setIsDarkTheme(!isDarkTheme);
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 300);
+    }, 300);
+  };
 
   useEffect(() => {
     if (user && !loading) {
@@ -201,16 +212,31 @@ export default function Auth() {
 
   return (
     <div className={`min-h-screen flex relative transition-colors duration-500 ${isDarkTheme ? 'bg-black' : 'bg-white'}`}>
+      {/* Transition Overlay */}
+      <div 
+        className={`fixed inset-0 z-[100] pointer-events-none transition-opacity duration-300 ${
+          isTransitioning ? 'opacity-100' : 'opacity-0'
+        }`}
+        style={{
+          background: isDarkTheme 
+            ? 'radial-gradient(circle at center, rgba(255,255,255,0.15) 0%, rgba(0,0,0,0.9) 100%)'
+            : 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.8) 100%)'
+        }}
+      />
+
       {/* Theme Toggle */}
       <button
-        onClick={() => setIsDarkTheme(!isDarkTheme)}
+        onClick={handleThemeToggle}
+        disabled={isTransitioning}
         className={`absolute top-6 right-6 z-50 p-2.5 rounded-full transition-all duration-300 ${
           isDarkTheme 
             ? 'bg-white/10 hover:bg-white/20 text-white' 
             : 'bg-black/5 hover:bg-black/10 text-black'
-        }`}
+        } ${isTransitioning ? 'scale-90' : 'scale-100'}`}
       >
-        {isDarkTheme ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        <div className={`transition-transform duration-300 ${isTransitioning ? 'rotate-180' : 'rotate-0'}`}>
+          {isDarkTheme ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </div>
       </button>
 
       {/* Center transition effect */}
