@@ -765,12 +765,74 @@ export function WebsiteGenerator() {
     }
   };
 
+  // Admin must select team first
+  if (isAdmin && !selectedAdminTeamId) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto p-6 max-w-md">
+          <div className="border border-border">
+            <div className="p-4 border-b border-border">
+              <h1 className="text-lg font-medium text-center">Оберіть команду</h1>
+              <p className="text-xs text-muted-foreground text-center mt-1">
+                Для генерації сайту потрібно обрати команду
+              </p>
+            </div>
+            <div className="p-4 space-y-3">
+              {adminTeams.length === 0 ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                adminTeams.map(team => (
+                  <button
+                    key={team.id}
+                    onClick={() => setSelectedAdminTeamId(team.id)}
+                    className="w-full flex items-center justify-between p-3 border border-border rounded hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Users className="h-5 w-5 text-muted-foreground" />
+                      <span className="font-medium">{team.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Wallet className="h-4 w-4 text-muted-foreground" />
+                      <span className={`text-sm font-semibold ${team.balance < 0 ? "text-destructive" : ""}`}>
+                        ${team.balance.toFixed(0)}
+                      </span>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const selectedTeamForHeader = adminTeams.find(t => t.id === selectedAdminTeamId);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6 max-w-4xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-lg font-medium">Генератор сайтів</h1>
+          {/* Admin: Show selected team with change button */}
+          {isAdmin && selectedTeamForHeader && (
+            <div className={`flex items-center gap-2 px-3 py-1.5 border border-border rounded ${animatingTeamId === selectedAdminTeamId ? "balance-changed" : ""}`}>
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">{selectedTeamForHeader.name}</span>
+              <span className={`text-sm ${selectedTeamForHeader.balance < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                (${selectedTeamForHeader.balance.toFixed(0)})
+              </span>
+              <button
+                onClick={() => setSelectedAdminTeamId("")}
+                className="ml-2 text-xs text-muted-foreground hover:text-foreground underline"
+              >
+                Змінити
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Input Section */}
@@ -782,32 +844,6 @@ export function WebsiteGenerator() {
             {/* Mode Selection - Compact toggle for admin */}
             {isAdmin && (
               <div className="flex flex-wrap items-center gap-3">
-                {/* Team Selection */}
-                <div className={`flex items-center gap-2 px-1 rounded ${animatingTeamId === selectedAdminTeamId ? "balance-changed" : ""}`}>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <Select 
-                    value={selectedAdminTeamId} 
-                    onValueChange={setSelectedAdminTeamId}
-                    disabled={isSubmitting || adminTeams.length === 0}
-                  >
-                    <SelectTrigger className="w-[180px] h-8 text-xs">
-                      <SelectValue placeholder="Оберіть команду..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {adminTeams.map(team => (
-                        <SelectItem 
-                          key={team.id} 
-                          value={team.id}
-                          className={animatingTeamId === team.id ? "balance-changed" : ""}
-                        >
-                          <span className={`inline-flex items-center gap-1 ${animatingTeamId === team.id ? "balance-changed" : ""}`}>
-                            {team.name} (${team.balance.toFixed(0)})
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
 
                 <div className="inline-flex rounded-md border border-border p-0.5 bg-muted/30">
                   <button
