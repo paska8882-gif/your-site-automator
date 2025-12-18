@@ -203,14 +203,66 @@ Each main page component MUST include AT LEAST these sections (in order):
 - Active nav link highlight using React Router
 - All pages share same header/footer structure
 
-**MANDATORY COOKIE SYSTEM (NOT OPTIONAL):**
-Every website MUST include a REAL, FUNCTIONAL cookie consent system:
-- CookieBanner component checks localStorage on mount: localStorage.getItem('cookieConsent')
-- "Accept" button: localStorage.setItem('cookieConsent', 'accepted'), hide banner
-- "Decline" button: localStorage.setItem('cookieConsent', 'declined'), hide banner
-- Banner shows ONLY if no consent value exists in localStorage
-- Use React useState for visibility, useEffect for initial check
-- Cookie banner must be styled professionally and positioned fixed at bottom
+**🍪 MANDATORY COOKIE SYSTEM - ABSOLUTELY CRITICAL, NON-NEGOTIABLE:**
+Every React website MUST include a REAL, FUNCTIONAL cookie consent system that ACTUALLY COLLECTS AND STORES user choices:
+
+**COOKIE BANNER COMPONENT REQUIREMENTS:**
+1. Create dedicated CookieBanner.js component in src/components/
+2. Use useState for banner visibility, useEffect for initial localStorage check
+3. On mount: check localStorage.getItem('cookieConsent'), if exists - don't show
+4. "Accept All" button: localStorage.setItem('cookieConsent', 'accepted') + setShowBanner(false)
+5. "Decline" button: localStorage.setItem('cookieConsent', 'declined') + setShowBanner(false)
+6. Banner NEVER shows again after user makes ANY choice
+
+**COOKIE BANNER COMPONENT TEMPLATE (MUST CREATE):**
+// src/components/CookieBanner.js
+import React, { useState, useEffect } from 'react';
+import './CookieBanner.css';
+
+function CookieBanner() {
+  const [showBanner, setShowBanner] = useState(false);
+  
+  useEffect(() => {
+    const consent = localStorage.getItem('cookieConsent');
+    if (!consent) setShowBanner(true);
+  }, []);
+  
+  const acceptCookies = () => {
+    localStorage.setItem('cookieConsent', 'accepted');
+    setShowBanner(false);
+  };
+  
+  const declineCookies = () => {
+    localStorage.setItem('cookieConsent', 'declined');
+    setShowBanner(false);
+  };
+  
+  if (!showBanner) return null;
+  
+  return (
+    <div className="cookie-banner">
+      <p>We use cookies to enhance your experience. By continuing, you agree to our cookie policy.</p>
+      <div className="cookie-buttons">
+        <button onClick={declineCookies} className="btn-decline">Decline</button>
+        <button onClick={acceptCookies} className="btn-accept">Accept All</button>
+      </div>
+    </div>
+  );
+}
+
+export default CookieBanner;
+
+**COOKIE BANNER STYLING (MUST INCLUDE IN CSS):**
+- Position: fixed at bottom (position: fixed; bottom: 0; left: 0; right: 0)
+- Background: semi-transparent dark or white with box-shadow
+- Z-index: 9999 (always visible on top)
+- Flex layout with space-between for text and buttons
+- Clear visual distinction between Accept (primary) and Decline (secondary) buttons
+
+**INTEGRATION IN App.js:**
+Import and render CookieBanner component at the end of App.js, before closing </div>
+
+**THIS IS NOT OPTIONAL - EVERY GENERATED REACT WEBSITE MUST HAVE WORKING COOKIE CONSENT!**
 
 **PRICING PROHIBITION (CRITICAL):**
 - NEVER include any prices, costs, or monetary figures anywhere on the site

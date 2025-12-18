@@ -197,14 +197,45 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE WEBSITE 
 - Add visual hierarchy incrementally - Build up from solid foundation
 - Think like a product designer - Focus on user experience first
 
-**MANDATORY COOKIE SYSTEM (NOT OPTIONAL):**
-Every website MUST include a REAL, FUNCTIONAL cookie consent system:
-- Cookie banner appears on first visit
-- "Accept" button saves consent to localStorage: localStorage.setItem('cookieConsent', 'accepted')
-- "Decline" button saves decline to localStorage: localStorage.setItem('cookieConsent', 'declined')
-- Banner NEVER shows again after user makes a choice (check localStorage on page load)
-- Include JavaScript to check consent status and conditionally load analytics/tracking
-- Cookie banner must be styled professionally and positioned fixed at bottom
+**🍪 MANDATORY COOKIE SYSTEM - ABSOLUTELY CRITICAL, NON-NEGOTIABLE:**
+Every website MUST include a REAL, FUNCTIONAL cookie consent system that ACTUALLY COLLECTS AND STORES user choices:
+
+**COOKIE BANNER REQUIREMENTS:**
+1. Cookie banner MUST appear on FIRST visit (check localStorage on page load)
+2. Banner MUST have TWO buttons: "Accept All" and "Decline/Reject"
+3. "Accept" button: localStorage.setItem('cookieConsent', 'accepted') + hide banner
+4. "Decline" button: localStorage.setItem('cookieConsent', 'declined') + hide banner
+5. Banner NEVER shows again after user makes a choice
+6. On every page load: check if localStorage.getItem('cookieConsent') exists, if yes - don't show banner
+
+**COOKIE BANNER STYLING:**
+- Position: fixed at bottom of viewport (position: fixed; bottom: 0; left: 0; right: 0)
+- Background: semi-transparent dark or white with shadow
+- Z-index: 9999 (always on top)
+- Padding: comfortable spacing for text and buttons
+- Buttons: clear visual distinction between Accept and Decline
+- Text: Brief explanation of cookie usage in the site's language
+
+**COOKIE JAVASCRIPT TEMPLATE (MUST INCLUDE ON EVERY PAGE):**
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const cookieConsent = localStorage.getItem('cookieConsent');
+  const banner = document.getElementById('cookie-banner');
+  if (!cookieConsent && banner) {
+    banner.style.display = 'flex';
+  }
+});
+function acceptCookies() {
+  localStorage.setItem('cookieConsent', 'accepted');
+  document.getElementById('cookie-banner').style.display = 'none';
+}
+function declineCookies() {
+  localStorage.setItem('cookieConsent', 'declined');
+  document.getElementById('cookie-banner').style.display = 'none';
+}
+</script>
+
+**THIS IS NOT OPTIONAL - EVERY GENERATED WEBSITE MUST HAVE WORKING COOKIE CONSENT!**
 
 **PRICING PROHIBITION (CRITICAL):**
 - NEVER include any prices, costs, or monetary figures anywhere on the site
