@@ -43,6 +43,7 @@ interface GenerationItem {
   prompt: string;
   language: string;
   created_at: string;
+  completed_at: string | null;
   zip_data: string | null;
   files_data: unknown;
   website_type: string | null;
@@ -53,6 +54,43 @@ interface GenerationItem {
   user_id: string | null;
   team_id: string | null;
   sale_price: number | null;
+}
+
+// Helper function to calculate and format generation duration
+function getGenerationDuration(createdAt: string, completedAt: string | null): { text: string; colorClass: string } | null {
+  if (!completedAt) return null;
+  
+  const start = new Date(createdAt).getTime();
+  const end = new Date(completedAt).getTime();
+  const durationMs = end - start;
+  
+  if (durationMs < 0) return null;
+  
+  const minutes = Math.floor(durationMs / 60000);
+  const seconds = Math.floor((durationMs % 60000) / 1000);
+  
+  let text: string;
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    text = `${hours}г ${mins}хв`;
+  } else if (minutes > 0) {
+    text = `${minutes}хв ${seconds}с`;
+  } else {
+    text = `${seconds}с`;
+  }
+  
+  // Color coding: <5min green, 5-10min yellow, 10+ red
+  let colorClass: string;
+  if (minutes < 5) {
+    colorClass = "text-green-500";
+  } else if (minutes < 10) {
+    colorClass = "text-yellow-500";
+  } else {
+    colorClass = "text-red-500";
+  }
+  
+  return { text, colorClass };
 }
 
 interface UserProfile {
@@ -383,13 +421,45 @@ export const AdminSitesTab = () => {
       : (bVal as number) - (aVal as number);
   });
 
+  // Calculate average generation times for HTML and React
+  const calculateAvgTime = (items: GenerationItem[]): string => {
+    const completedItems = items.filter(h => h.status === "completed" && h.completed_at);
+    if (completedItems.length === 0) return "—";
+    
+    const totalMs = completedItems.reduce((sum, item) => {
+      const start = new Date(item.created_at).getTime();
+      const end = new Date(item.completed_at!).getTime();
+      return sum + (end - start);
+    }, 0);
+    
+    const avgMs = totalMs / completedItems.length;
+    const minutes = Math.floor(avgMs / 60000);
+    const seconds = Math.floor((avgMs % 60000) / 1000);
+    
+    if (minutes >= 60) {
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return `${hours}г ${mins}хв`;
+    } else if (minutes > 0) {
+      return `${minutes}хв ${seconds}с`;
+    }
+    return `${seconds}с`;
+  };
+
+  const htmlGenerations = history.filter(h => (h.website_type || "html") === "html");
+  const reactGenerations = history.filter(h => h.website_type === "react");
+
   const stats = {
     total: history.length,
     completed: history.filter(h => h.status === "completed").length,
     failed: history.filter(h => h.status === "failed").length,
     pending: history.filter(h => h.status === "pending" || h.status === "generating").length,
     uniqueUsers: new Set(history.map(h => h.user_id).filter(Boolean)).size,
-    uniqueTeams: uniqueTeams.length
+    uniqueTeams: uniqueTeams.length,
+    avgTimeHtml: calculateAvgTime(htmlGenerations),
+    avgTimeReact: calculateAvgTime(reactGenerations),
+    htmlCount: htmlGenerations.filter(h => h.status === "completed").length,
+    reactCount: reactGenerations.filter(h => h.status === "completed").length
   };
 
   return (
@@ -419,6 +489,14 @@ export const AdminSitesTab = () => {
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
           <span className="text-xs text-muted-foreground">Команд:</span>
           <span className="text-sm font-bold">{stats.uniqueTeams}</span>
+        </div>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
+          <span className="text-xs text-muted-foreground">⏱ HTML ({stats.htmlCount}):</span>
+          <span className="text-sm font-bold">{stats.avgTimeHtml}</span>
+        </div>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
+          <span className="text-xs text-muted-foreground">⏱ React ({stats.reactCount}):</span>
+          <span className="text-sm font-bold">{stats.avgTimeReact}</span>
         </div>
       </div>
 
@@ -606,6 +684,7 @@ export const AdminSitesTab = () => {
                         {getSortIcon("created_at")}
                       </div>
                     </TableHead>
+                    <TableHead>Час</TableHead>
                     <TableHead className="w-[80px]">Дії</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -656,6 +735,19 @@ export const AdminSitesTab = () => {
                               hour: "2-digit",
                               minute: "2-digit"
                             })}
+                          </TableCell>
+                          <TableCell>
+                            {item.status === "completed" && (() => {
+                              const duration = getGenerationDuration(item.created_at, item.completed_at);
+                              if (duration) {
+                                return (
+                                  <Badge variant="outline" className={`text-xs ${duration.colorClass}`}>
+                                    ⏱ {duration.text}
+                                  </Badge>
+                                );
+                              }
+                              return <span className="text-xs text-muted-foreground">—</span>;
+                            })()}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
