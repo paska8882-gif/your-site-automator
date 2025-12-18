@@ -32,7 +32,13 @@ import {
   Shield,
   LayoutDashboard,
   Sparkles,
-  Wallet
+  Wallet,
+  FileCode,
+  UserCog,
+  DollarSign,
+  MessageSquare,
+  Bell,
+  Headphones
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -44,6 +50,17 @@ const mainNavItems = [
   { title: "Генератор", url: "/", icon: Sparkles },
   { title: "Історія", url: "/history", icon: History },
   { title: "Баланс", url: "/balance", icon: Wallet },
+];
+
+const adminNavItems = [
+  { title: "Команди", tab: "teams", icon: Users },
+  { title: "Сайти", tab: "sites", icon: FileCode },
+  { title: "Користувачі", tab: "users", icon: UserCog },
+  { title: "Апеляції", tab: "appeals", icon: MessageSquare },
+  { title: "Підтримка", tab: "support", icon: Headphones },
+  { title: "Сповіщення", tab: "notifications", icon: Bell },
+  { title: "Фінанси", tab: "finance", icon: DollarSign },
+  { title: "Адміни", tab: "admin", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -61,6 +78,12 @@ export function AppSidebar() {
   };
 
   const isActive = (path: string) => location.pathname === path;
+  const isAdminPage = location.pathname === "/admin";
+  
+  const getAdminTab = () => {
+    const params = new URLSearchParams(location.search);
+    return params.get("tab") || "teams";
+  };
 
   const userEmail = user?.email || "";
   const userInitial = userEmail.charAt(0).toUpperCase();
@@ -109,40 +132,54 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Team & Admin Section */}
-        {(isTeamOwner || isAdmin) && (
+        {/* Team Section */}
+        {isTeamOwner && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-xs text-muted-foreground px-2">
-              Управління
+              Команда
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {isTeamOwner && (
-                  <SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate("/team")}
+                    isActive={isActive("/team")}
+                    tooltip="Команда"
+                    className="transition-colors"
+                  >
+                    <Users className="h-4 w-4" />
+                    <span>Управління</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Admin Section */}
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-xs text-muted-foreground px-2">
+              <div className="flex items-center gap-1">
+                <Shield className="h-3 w-3" />
+                Адмін панель
+              </div>
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {adminNavItems.map((item) => (
+                  <SidebarMenuItem key={item.tab}>
                     <SidebarMenuButton
-                      onClick={() => navigate("/team")}
-                      isActive={isActive("/team")}
-                      tooltip="Команда"
+                      onClick={() => navigate(`/admin?tab=${item.tab}`)}
+                      isActive={isAdminPage && getAdminTab() === item.tab}
+                      tooltip={item.title}
                       className="transition-colors"
                     >
-                      <Users className="h-4 w-4" />
-                      <span>Команда</span>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                )}
-                {isAdmin && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      onClick={() => navigate("/admin")}
-                      isActive={isActive("/admin")}
-                      tooltip="Адмін панель"
-                      className="transition-colors"
-                    >
-                      <Shield className="h-4 w-4" />
-                      <span>Адмін панель</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
+                ))}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

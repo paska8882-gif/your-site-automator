@@ -1,19 +1,8 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Loader2, 
-  Users,
-  FileCode,
-  Settings,
-  UserCog,
-  DollarSign,
-  MessageSquare,
-  Bell,
-  Headphones
-} from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { AdminTeamsTab } from "@/components/AdminTeamsTab";
 import { AdminSitesTab } from "@/components/AdminSitesTab";
 import { AdminAdministratorsTab } from "@/components/AdminAdministratorsTab";
@@ -26,8 +15,11 @@ import { AppLayout } from "@/components/AppLayout";
 
 const Admin = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const { isAdmin, loading: adminLoading } = useAdmin();
+
+  const currentTab = searchParams.get("tab") || "teams";
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -53,79 +45,37 @@ const Admin = () => {
     return null;
   }
 
+  const renderContent = () => {
+    switch (currentTab) {
+      case "teams":
+        return <AdminTeamsTab />;
+      case "sites":
+        return <AdminSitesTab />;
+      case "users":
+        return <AdminUsersManager />;
+      case "appeals":
+        return <AdminAppealsTab />;
+      case "support":
+        return <AdminSupportTab />;
+      case "notifications":
+        return (
+          <div className="max-w-md">
+            <AdminNotificationsManager />
+          </div>
+        );
+      case "finance":
+        return <AdminFinanceTab />;
+      case "admin":
+        return <AdminAdministratorsTab />;
+      default:
+        return <AdminTeamsTab />;
+    }
+  };
+
   return (
     <AppLayout>
       <div className="p-4">
-        <Tabs defaultValue="teams" className="space-y-3">
-          <TabsList className="grid w-full max-w-4xl grid-cols-8 h-8">
-            <TabsTrigger value="teams" className="flex items-center gap-1 text-xs h-7">
-              <Users className="h-3 w-3" />
-              Команди
-            </TabsTrigger>
-            <TabsTrigger value="sites" className="flex items-center gap-1 text-xs h-7">
-              <FileCode className="h-3 w-3" />
-              Сайти
-            </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center gap-1 text-xs h-7">
-              <UserCog className="h-3 w-3" />
-              Користувачі
-            </TabsTrigger>
-            <TabsTrigger value="appeals" className="flex items-center gap-1 text-xs h-7">
-              <MessageSquare className="h-3 w-3" />
-              Апеляції
-            </TabsTrigger>
-            <TabsTrigger value="support" className="flex items-center gap-1 text-xs h-7">
-              <Headphones className="h-3 w-3" />
-              Підтримка
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-1 text-xs h-7">
-              <Bell className="h-3 w-3" />
-              Сповіщення
-            </TabsTrigger>
-            <TabsTrigger value="finance" className="flex items-center gap-1 text-xs h-7">
-              <DollarSign className="h-3 w-3" />
-              Фінанси
-            </TabsTrigger>
-            <TabsTrigger value="admin" className="flex items-center gap-1 text-xs h-7">
-              <Settings className="h-3 w-3" />
-              Адміни
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="teams">
-            <AdminTeamsTab />
-          </TabsContent>
-
-          <TabsContent value="sites">
-            <AdminSitesTab />
-          </TabsContent>
-
-          <TabsContent value="users">
-            <AdminUsersManager />
-          </TabsContent>
-
-          <TabsContent value="appeals">
-            <AdminAppealsTab />
-          </TabsContent>
-
-          <TabsContent value="support">
-            <AdminSupportTab />
-          </TabsContent>
-
-          <TabsContent value="notifications">
-            <div className="max-w-md">
-              <AdminNotificationsManager />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="finance">
-            <AdminFinanceTab />
-          </TabsContent>
-
-          <TabsContent value="admin">
-            <AdminAdministratorsTab />
-          </TabsContent>
-        </Tabs>
+        {renderContent()}
       </div>
     </AppLayout>
   );
