@@ -879,7 +879,11 @@ export function WebsiteGenerator() {
   if (isAdmin && !selectedAdminTeamId) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="w-full max-w-3xl">
+        <div className="w-full max-w-3xl space-y-3">
+          {/* Dashboard */}
+          {adminTeams.length > 0 && <AdminTeamsDashboard teams={adminTeams} />}
+          
+          {/* Team selection */}
           <div className="border border-border">
             <div className="p-2 border-b border-border">
               <h1 className="text-sm font-medium text-center">Оберіть команду</h1>
@@ -939,9 +943,6 @@ export function WebsiteGenerator() {
               )}
             </div>
           </div>
-          
-          {/* Dashboard */}
-          {adminTeams.length > 0 && <AdminTeamsDashboard teams={adminTeams} />}
         </div>
       </div>
     );
