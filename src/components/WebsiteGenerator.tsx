@@ -29,6 +29,7 @@ import { startGeneration, AiModel, WebsiteType, SeniorMode, ImageSource, LAYOUT_
 import { supabase } from "@/integrations/supabase/client";
 import { GenerationHistory } from "./GenerationHistory";
 import { DebtNotificationPopup } from "./DebtNotificationPopup";
+import { AdminTeamsDashboard } from "./AdminTeamsDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
@@ -938,6 +939,9 @@ export function WebsiteGenerator() {
               )}
             </div>
           </div>
+          
+          {/* Dashboard */}
+          {adminTeams.length > 0 && <AdminTeamsDashboard teams={adminTeams} />}
         </div>
       </div>
     );
