@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { WebsiteGenerator } from "@/components/WebsiteGenerator";
 import { BlockedUserOverlay } from "@/components/BlockedUserOverlay";
+import { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 
@@ -31,7 +32,11 @@ const Index = () => {
     return <BlockedUserOverlay />;
   }
 
-  return <WebsiteGenerator />;
+  return (
+    <AppLayout>
+      <WebsiteGenerator />
+    </AppLayout>
+  );
 };
 
 export default Index;
