@@ -49,7 +49,7 @@
   }
 
   .dark {
-    --background: 0 0% 4%;
+    --background: 0 0% 7%;
     --foreground: 0 0% 95%;
 
     --card: 0 0% 7%;
@@ -97,6 +97,11 @@
 
   body {
     @apply bg-background text-foreground transition-colors duration-300;
+  }
+  
+  .dark body,
+  .dark .main-content {
+    background: linear-gradient(135deg, hsl(0 0% 6%) 0%, hsl(0 0% 10%) 50%, hsl(0 0% 8%) 100%);
   }
 }
 
