@@ -921,7 +921,7 @@ export function WebsiteGenerator() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-56 p-2" align="start">
-                    <div className="space-y-1">
+                    <div className="space-y-1 max-h-64 overflow-y-auto">
                       {languages.map((lang) => (
                         <label 
                           key={lang.value} 
