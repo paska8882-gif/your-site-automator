@@ -256,26 +256,13 @@ export default function Auth() {
         </div>
 
         <div className="relative z-10 max-w-md animate-fade-in" style={{ animationDelay: '0.3s', animationFillMode: 'backwards' }}>
-          <div className="flex items-center gap-3 mb-6">
-            <h1 className="text-5xl xl:text-6xl font-bold leading-tight">
-              <span className={isDarkTheme ? 'text-white' : 'text-black'}>Створюй сайти</span>
-              <br />
-              <span className={isDarkTheme ? 'text-neutral-500' : 'text-neutral-400'}>
-                за допомогою AI
-              </span>
-            </h1>
-            {/* Theme Toggle */}
-            <button
-              onClick={() => setIsDarkTheme(!isDarkTheme)}
-              className={`p-2.5 rounded-full transition-all duration-300 self-start mt-2 ${
-                isDarkTheme 
-                  ? 'bg-white/10 hover:bg-white/20 text-white' 
-                  : 'bg-black/5 hover:bg-black/10 text-black'
-              }`}
-            >
-              {isDarkTheme ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
-          </div>
+          <h1 className="text-5xl xl:text-6xl font-bold leading-tight mb-6">
+            <span className={isDarkTheme ? 'text-white' : 'text-black'}>Створюй сайти</span>
+            <br />
+            <span className={isDarkTheme ? 'text-neutral-500' : 'text-neutral-400'}>
+              за допомогою AI
+            </span>
+          </h1>
           <p className={`text-lg leading-relaxed ${isDarkTheme ? 'text-neutral-400' : 'text-neutral-500'}`}>
             Професійний генератор вебсайтів на базі штучного інтелекту. 
             Опиши свою ідею — отримай готовий сайт за лічені хвилини.
@@ -297,6 +284,18 @@ export default function Auth() {
             <span className={`font-semibold text-2xl ${isDarkTheme ? 'text-white' : 'text-black'}`}>10+</span>
             <span className="ml-1">стилів</span>
           </div>
+          <div className={`w-px h-8 ${isDarkTheme ? 'bg-neutral-700' : 'bg-neutral-200'}`} />
+          {/* Theme Toggle */}
+          <button
+            onClick={() => setIsDarkTheme(!isDarkTheme)}
+            className={`p-2 rounded-full transition-all duration-300 ${
+              isDarkTheme 
+                ? 'bg-white/10 hover:bg-white/20 text-white' 
+                : 'bg-black/5 hover:bg-black/10 text-black'
+            }`}
+          >
+            {isDarkTheme ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
         </div>
       </div>
 
