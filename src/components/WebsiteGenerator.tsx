@@ -144,6 +144,7 @@ export function WebsiteGenerator() {
   const navigate = useNavigate();
   const [siteName, setSiteName] = useState("");
   const [prompt, setPrompt] = useState("");
+  const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["uk"]);
   const [customLanguage, setCustomLanguage] = useState("");
   const [isOtherSelected, setIsOtherSelected] = useState(false);
@@ -183,6 +184,14 @@ export function WebsiteGenerator() {
       localStorage.setItem("admin_selected_team_id", selectedAdminTeamId);
     }
   }, [selectedAdminTeamId]);
+
+  // Auto-resize textarea when prompt changes (e.g., after AI improvement)
+  useEffect(() => {
+    if (promptTextareaRef.current) {
+      promptTextareaRef.current.style.height = 'auto';
+      promptTextareaRef.current.style.height = `${Math.max(60, promptTextareaRef.current.scrollHeight)}px`;
+    }
+  }, [prompt]);
   
   // Presets
   const [presets, setPresets] = useState<GenerationPreset[]>([]);
@@ -969,14 +978,10 @@ export function WebsiteGenerator() {
                 Опис сайту <span className="text-destructive">*</span>
               </Label>
               <Textarea
+                ref={promptTextareaRef}
                 placeholder="Сучасний сайт для IT-компанії. Темна тема, мінімалізм. Сторінки: головна, послуги, портфоліо, контакти..."
                 value={prompt}
-                onChange={(e) => {
-                  setPrompt(e.target.value);
-                  // Auto-resize
-                  e.target.style.height = 'auto';
-                  e.target.style.height = `${Math.max(60, e.target.scrollHeight)}px`;
-                }}
+                onChange={(e) => setPrompt(e.target.value)}
                 className="min-h-[60px] text-sm overflow-hidden"
                 style={{ resize: 'none' }}
                 disabled={isSubmitting || isImproving}
