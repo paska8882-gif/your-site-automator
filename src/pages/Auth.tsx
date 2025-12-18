@@ -201,18 +201,6 @@ export default function Auth() {
 
   return (
     <div className={`min-h-screen flex relative transition-colors duration-500 ${isDarkTheme ? 'bg-black' : 'bg-white'}`}>
-      {/* Theme Toggle */}
-      <button
-        onClick={() => setIsDarkTheme(!isDarkTheme)}
-        className={`absolute top-6 right-6 z-50 p-2.5 rounded-full transition-all duration-300 ${
-          isDarkTheme 
-            ? 'bg-white/10 hover:bg-white/20 text-white' 
-            : 'bg-black/5 hover:bg-black/10 text-black'
-        }`}
-      >
-        {isDarkTheme ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-      </button>
-
       {/* Center transition effect */}
       <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 -translate-x-1/2 z-20 w-48 pointer-events-none">
         <div className={`absolute inset-0 bg-gradient-to-r from-transparent ${isDarkTheme ? 'via-white/[0.02]' : 'via-black/[0.02]'} to-transparent blur-2xl`} />
@@ -268,13 +256,26 @@ export default function Auth() {
         </div>
 
         <div className="relative z-10 max-w-md animate-fade-in" style={{ animationDelay: '0.3s', animationFillMode: 'backwards' }}>
-          <h1 className="text-5xl xl:text-6xl font-bold leading-tight mb-6">
-            <span className={isDarkTheme ? 'text-white' : 'text-black'}>Створюй сайти</span>
-            <br />
-            <span className={isDarkTheme ? 'text-neutral-500' : 'text-neutral-400'}>
-              за допомогою AI
-            </span>
-          </h1>
+          <div className="flex items-center gap-3 mb-6">
+            <h1 className="text-5xl xl:text-6xl font-bold leading-tight">
+              <span className={isDarkTheme ? 'text-white' : 'text-black'}>Створюй сайти</span>
+              <br />
+              <span className={isDarkTheme ? 'text-neutral-500' : 'text-neutral-400'}>
+                за допомогою AI
+              </span>
+            </h1>
+            {/* Theme Toggle */}
+            <button
+              onClick={() => setIsDarkTheme(!isDarkTheme)}
+              className={`p-2.5 rounded-full transition-all duration-300 self-start mt-2 ${
+                isDarkTheme 
+                  ? 'bg-white/10 hover:bg-white/20 text-white' 
+                  : 'bg-black/5 hover:bg-black/10 text-black'
+              }`}
+            >
+              {isDarkTheme ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+          </div>
           <p className={`text-lg leading-relaxed ${isDarkTheme ? 'text-neutral-400' : 'text-neutral-500'}`}>
             Професійний генератор вебсайтів на базі штучного інтелекту. 
             Опиши свою ідею — отримай готовий сайт за лічені хвилини.
@@ -314,15 +315,28 @@ export default function Auth() {
         
         <div className="w-full max-w-md relative z-10">
           {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center gap-3 mb-10 animate-fade-in">
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-lg ${
-              isDarkTheme ? 'bg-white shadow-white/10' : 'bg-black shadow-black/10'
-            }`}>
-              <span className={`font-bold text-lg ${isDarkTheme ? 'text-black' : 'text-white'}`}>D</span>
+          <div className="lg:hidden flex items-center justify-between mb-10 animate-fade-in">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-lg ${
+                isDarkTheme ? 'bg-white shadow-white/10' : 'bg-black shadow-black/10'
+              }`}>
+                <span className={`font-bold text-lg ${isDarkTheme ? 'text-black' : 'text-white'}`}>D</span>
+              </div>
+              <span className={`font-semibold text-xl tracking-tight ${isDarkTheme ? 'text-white' : 'text-black'}`}>
+                DRAGON<span className="text-neutral-400">WHITE</span>
+              </span>
             </div>
-            <span className={`font-semibold text-xl tracking-tight ${isDarkTheme ? 'text-white' : 'text-black'}`}>
-              DRAGON<span className="text-neutral-400">WHITE</span>
-            </span>
+            {/* Mobile Theme Toggle */}
+            <button
+              onClick={() => setIsDarkTheme(!isDarkTheme)}
+              className={`p-2.5 rounded-full transition-all duration-300 ${
+                isDarkTheme 
+                  ? 'bg-white/10 hover:bg-white/20 text-white' 
+                  : 'bg-black/5 hover:bg-black/10 text-black'
+              }`}
+            >
+              {isDarkTheme ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
           </div>
 
           {/* Header */}
