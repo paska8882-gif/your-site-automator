@@ -37,7 +37,14 @@ export default function Auth() {
   const [inviteCode, setInviteCode] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedRole, setSelectedRole] = useState<TeamRole | null>(null);
-  const [isDarkTheme, setIsDarkTheme] = useState(false);
+  const [isDarkTheme, setIsDarkTheme] = useState(() => {
+    const saved = localStorage.getItem('auth-theme');
+    return saved === 'dark';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('auth-theme', isDarkTheme ? 'dark' : 'light');
+  }, [isDarkTheme]);
 
   useEffect(() => {
     if (user && !loading) {
