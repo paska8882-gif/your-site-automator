@@ -200,8 +200,8 @@ export default function Auth() {
 
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 relative overflow-hidden">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-neutral-900 via-black to-neutral-950" />
+        {/* Background gradient - darker left, lighter towards center */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black via-neutral-950 to-neutral-900" />
         
         {/* Animated particles */}
         <div className="absolute inset-0 overflow-hidden">
