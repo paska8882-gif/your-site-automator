@@ -880,54 +880,94 @@ async function runGeneration({
     };
   }
 
-  // MANDATORY: Ensure cookie banner is present in all HTML files
-  const ensureCookieBanner = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
-    const COOKIE_BANNER_HTML = `
-<!-- Cookie Banner -->
-<div id="cookie-banner" style="display: none; position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.95); color: white; padding: 20px; z-index: 9999; box-shadow: 0 -4px 20px rgba(0,0,0,0.3);">
-  <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 15px;">
-    <p style="margin: 0; flex: 1; min-width: 200px; font-size: 14px; line-height: 1.5;">We use cookies to enhance your browsing experience and analyze site traffic. By clicking "Accept", you consent to our use of cookies.</p>
-    <div style="display: flex; gap: 10px;">
-      <button onclick="acceptCookies()" style="background: #22c55e; color: white; border: none; padding: 12px 24px; cursor: pointer; font-weight: 600; border-radius: 6px; transition: background 0.2s;">Accept</button>
-      <button onclick="declineCookies()" style="background: transparent; color: white; border: 1px solid rgba(255,255,255,0.3); padding: 12px 24px; cursor: pointer; font-weight: 600; border-radius: 6px; transition: all 0.2s;">Decline</button>
-    </div>
-  </div>
-</div>`;
+  // MANDATORY: Create separate cookie-banner.js file and include in all HTML files
+  const ensureCookieBannerFile = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
+    const COOKIE_BANNER_JS = `/**
+ * Cookie Banner - MANDATORY FILE
+ * This file handles cookie consent for GDPR compliance
+ */
+(function() {
+  'use strict';
+  
+  // Cookie Banner HTML
+  var bannerHTML = '<div id="cookie-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,0.95);color:#fff;padding:20px;z-index:99999;box-shadow:0 -4px 20px rgba(0,0,0,0.3);font-family:system-ui,-apple-system,sans-serif;">' +
+    '<div style="max-width:1200px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:15px;">' +
+    '<p style="margin:0;flex:1;min-width:200px;font-size:14px;line-height:1.5;">We use cookies to enhance your browsing experience and analyze site traffic. By clicking "Accept", you consent to our use of cookies.</p>' +
+    '<div style="display:flex;gap:10px;">' +
+    '<button id="cookie-accept" style="background:#22c55e;color:#fff;border:none;padding:12px 24px;cursor:pointer;font-weight:600;border-radius:6px;transition:all 0.2s;">Accept</button>' +
+    '<button id="cookie-decline" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.3);padding:12px 24px;cursor:pointer;font-weight:600;border-radius:6px;transition:all 0.2s;">Decline</button>' +
+    '</div></div></div>';
 
-    const COOKIE_SCRIPT = `
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  var cookieConsent = localStorage.getItem('cookieConsent');
-  var banner = document.getElementById('cookie-banner');
-  if (!cookieConsent && banner) {
-    banner.style.display = 'flex';
+  function initCookieBanner() {
+    // Check if consent already given
+    if (localStorage.getItem('cookieConsent')) {
+      return;
+    }
+    
+    // Inject banner into page
+    var container = document.createElement('div');
+    container.innerHTML = bannerHTML;
+    document.body.appendChild(container.firstChild);
+    
+    var banner = document.getElementById('cookie-banner');
+    if (banner) {
+      banner.style.display = 'flex';
+      
+      // Accept button
+      var acceptBtn = document.getElementById('cookie-accept');
+      if (acceptBtn) {
+        acceptBtn.addEventListener('click', function() {
+          localStorage.setItem('cookieConsent', 'accepted');
+          banner.style.display = 'none';
+        });
+      }
+      
+      // Decline button
+      var declineBtn = document.getElementById('cookie-decline');
+      if (declineBtn) {
+        declineBtn.addEventListener('click', function() {
+          localStorage.setItem('cookieConsent', 'declined');
+          banner.style.display = 'none';
+        });
+      }
+    }
   }
-});
-function acceptCookies() {
-  localStorage.setItem('cookieConsent', 'accepted');
-  document.getElementById('cookie-banner').style.display = 'none';
-}
-function declineCookies() {
-  localStorage.setItem('cookieConsent', 'declined');
-  document.getElementById('cookie-banner').style.display = 'none';
-}
-</script>`;
 
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCookieBanner);
+  } else {
+    initCookieBanner();
+  }
+})();`;
+
+    // Always add cookie-banner.js file
+    const hasCookieBannerFile = generatedFiles.some(f => f.path === 'cookie-banner.js');
+    if (!hasCookieBannerFile) {
+      console.log("📁 Adding mandatory cookie-banner.js file");
+      generatedFiles.push({
+        path: "cookie-banner.js",
+        content: COOKIE_BANNER_JS
+      });
+    }
+
+    // Ensure all HTML files include the cookie-banner.js script
     return generatedFiles.map(file => {
       if (!file.path.endsWith('.html')) return file;
       
       let content = file.content;
-      const hasCookieBanner = content.includes('cookie-banner') || content.includes('cookieConsent');
+      const hasCookieScript = content.includes('cookie-banner.js') || content.includes('cookie-banner') || content.includes('cookieConsent');
       
-      if (!hasCookieBanner) {
-        console.log(`⚠️ Adding missing cookie banner to ${file.path}`);
+      if (!hasCookieScript) {
+        console.log(`⚠️ Adding cookie-banner.js script to ${file.path}`);
         
-        // Add cookie banner before </body>
+        // Add script tag before </body>
         if (content.includes('</body>')) {
-          content = content.replace('</body>', `${COOKIE_BANNER_HTML}\n${COOKIE_SCRIPT}\n</body>`);
+          content = content.replace('</body>', '  <script src="cookie-banner.js"></script>\n</body>');
+        } else if (content.includes('</html>')) {
+          content = content.replace('</html>', '<script src="cookie-banner.js"></script>\n</html>');
         } else {
-          // If no </body> tag, append at the end
-          content = content + COOKIE_BANNER_HTML + COOKIE_SCRIPT;
+          content = content + '\n<script src="cookie-banner.js"></script>';
         }
       }
       
@@ -935,8 +975,8 @@ function declineCookies() {
     });
   };
 
-  const finalFiles = ensureCookieBanner(files);
-  console.log(`📁 Final files count (with cookie banners): ${finalFiles.length}`);
+  const finalFiles = ensureCookieBannerFile(files);
+  console.log(`📁 Final files count (with cookie banner file): ${finalFiles.length}`);
 
   return {
     success: true,
