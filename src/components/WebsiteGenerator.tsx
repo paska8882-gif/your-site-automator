@@ -164,13 +164,25 @@ export function WebsiteGenerator() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [teamPricing, setTeamPricing] = useState<TeamPricing | null>(null);
   
-  // Admin team selection
+  // Admin team selection - persist in localStorage
   const [adminTeams, setAdminTeams] = useState<AdminTeam[]>([]);
-  const [selectedAdminTeamId, setSelectedAdminTeamId] = useState<string>("");
+  const [selectedAdminTeamId, setSelectedAdminTeamId] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("admin_selected_team_id") || "";
+    }
+    return "";
+  });
   const [animatingTeamId, setAnimatingTeamId] = useState<string | null>(null);
   const prevAdminBalancesRef = useRef<Record<string, number>>({});
   const { playBalanceSound } = useBalanceSound();
   const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
+
+  // Save selected team to localStorage when changed
+  useEffect(() => {
+    if (selectedAdminTeamId) {
+      localStorage.setItem("admin_selected_team_id", selectedAdminTeamId);
+    }
+  }, [selectedAdminTeamId]);
   
   // Presets
   const [presets, setPresets] = useState<GenerationPreset[]>([]);
@@ -213,9 +225,11 @@ export function WebsiteGenerator() {
           teams.forEach(team => {
             prevAdminBalancesRef.current[team.id] = team.balance;
           });
-          // Auto-select first team if not selected
-          if (!selectedAdminTeamId) {
-            setSelectedAdminTeamId(teams[0].id);
+          // Validate cached team exists, otherwise clear cache
+          const cachedTeamId = localStorage.getItem("admin_selected_team_id");
+          if (cachedTeamId && !teams.find(t => t.id === cachedTeamId)) {
+            localStorage.removeItem("admin_selected_team_id");
+            setSelectedAdminTeamId("");
           }
         }
       } catch (error) {
