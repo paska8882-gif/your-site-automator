@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, Users, Wallet, User } from "lucide-react";
+import { Loader2, Users, Wallet } from "lucide-react";
 
 type TeamRole = "owner" | "team_lead" | "buyer" | "tech_dev";
 
@@ -20,13 +18,6 @@ const roleLabels: Record<TeamRole, string> = {
   tech_dev: "Tech Dev"
 };
 
-const roleColors: Record<TeamRole, string> = {
-  owner: "bg-yellow-500 text-black",
-  team_lead: "bg-blue-500 text-white",
-  buyer: "bg-green-500 text-white",
-  tech_dev: "bg-purple-500 text-white"
-};
-
 export function UserTeamInfo() {
   const [teams, setTeams] = useState<TeamMembership[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +33,6 @@ export function UserTeamInfo() {
       return;
     }
 
-    // Get user's team memberships
     const { data: memberships } = await supabase
       .from("team_members")
       .select("team_id, role")
@@ -54,7 +44,6 @@ export function UserTeamInfo() {
       return;
     }
 
-    // Get team details
     const teamIds = memberships.map(m => m.team_id);
     const { data: teamsData } = await supabase
       .from("teams")
@@ -77,49 +66,41 @@ export function UserTeamInfo() {
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="p-4 flex items-center justify-center">
-          <Loader2 className="h-5 w-5 animate-spin" />
-        </CardContent>
-      </Card>
+      <div className="border border-border p-4 flex items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin" />
+      </div>
     );
   }
 
   if (teams.length === 0) {
     return (
-      <Card>
-        <CardContent className="p-4 text-center text-muted-foreground">
-          <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">Ви не належите до жодної команди</p>
-        </CardContent>
-      </Card>
+      <div className="border border-border p-4 text-center text-muted-foreground">
+        <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+        <p className="text-sm">Ви не належите до жодної команди</p>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex flex-wrap gap-4">
-          {teams.map(team => (
-            <div key={team.team_id} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-              <Users className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <div className="font-medium">{team.team_name}</div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Badge className={roleColors[team.role]}>
-                    <User className="h-3 w-3 mr-1" />
-                    {roleLabels[team.role]}
-                  </Badge>
-                  <span className="flex items-center gap-1 text-muted-foreground">
-                    <Wallet className="h-3 w-3" />
-                    <span className="font-semibold">${team.team_balance.toFixed(2)}</span>
-                  </span>
-                </div>
-              </div>
+    <div className="border border-border">
+      {teams.map((team, idx) => (
+        <div 
+          key={team.team_id} 
+          className={`flex items-center justify-between p-4 ${idx > 0 ? 'border-t border-border' : ''}`}
+        >
+          <div className="flex items-center gap-3">
+            <Users className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <div className="font-medium">{team.team_name}</div>
+              <div className="text-xs text-muted-foreground">{roleLabels[team.role]}</div>
             </div>
-          ))}
+          </div>
+          <div className="flex items-center gap-1 text-sm">
+            <Wallet className="h-4 w-4 text-muted-foreground" />
+            <span className="font-semibold">${team.team_balance.toFixed(2)}</span>
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      ))}
+    </div>
   );
 }
