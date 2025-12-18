@@ -855,9 +855,28 @@ export function WebsiteGenerator() {
             <div className="text-sm font-medium">Новий сайт</div>
           </div>
           <div className="p-3 space-y-3">
-            {/* Mode Selection + Site Name - in one row for admin */}
+            {/* Site Name + Mode Selection - in one row for admin */}
             {isAdmin && (
               <div className="flex flex-wrap items-end gap-3">
+                {/* Site Name - left side */}
+                <div className="min-w-[180px]">
+                  <Label htmlFor="siteName" className="text-xs mb-1 block">
+                    Назва / Домен <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="siteName"
+                    placeholder="my-company, techsolutions"
+                    value={siteName}
+                    onChange={(e) => setSiteName(e.target.value)}
+                    disabled={isSubmitting || isImproving}
+                    className="h-8 text-sm"
+                  />
+                </div>
+
+                {/* Spacer */}
+                <div className="flex-1" />
+
+                {/* Mode toggle - right side */}
                 <div className="inline-flex rounded-md border border-border p-0.5 bg-muted/30">
                   <button
                     type="button"
@@ -924,20 +943,6 @@ export function WebsiteGenerator() {
                     </Select>
                   </>
                 )}
-
-                <div className="flex-1 min-w-[150px]">
-                  <Label htmlFor="siteName" className="text-xs mb-1 block">
-                    Назва / Домен <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="siteName"
-                    placeholder="my-company, techsolutions"
-                    value={siteName}
-                    onChange={(e) => setSiteName(e.target.value)}
-                    disabled={isSubmitting || isImproving}
-                    className="h-8 text-sm"
-                  />
-                </div>
               </div>
             )}
 
