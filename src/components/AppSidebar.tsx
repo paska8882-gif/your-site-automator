@@ -31,7 +31,8 @@ import {
   ChevronUp,
   Shield,
   LayoutDashboard,
-  Sparkles
+  Sparkles,
+  Wallet
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -42,6 +43,7 @@ import { SupportChat } from "./SupportChat";
 const mainNavItems = [
   { title: "Генератор", url: "/", icon: Sparkles },
   { title: "Історія", url: "/history", icon: History },
+  { title: "Баланс", url: "/balance", icon: Wallet },
 ];
 
 export function AppSidebar() {
