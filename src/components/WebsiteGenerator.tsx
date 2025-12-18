@@ -28,7 +28,6 @@ import { startGeneration, AiModel, WebsiteType, SeniorMode, ImageSource, LAYOUT_
 import { supabase } from "@/integrations/supabase/client";
 import { GenerationHistory } from "./GenerationHistory";
 import { DebtNotificationPopup } from "./DebtNotificationPopup";
-import { NotificationBell } from "./NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
@@ -1409,28 +1408,26 @@ export function WebsiteGenerator() {
                 {/* Spacer */}
                 <div className="flex-1" />
 
-                {/* Notifications - right side */}
-                <NotificationBell />
+                {/* Credit warnings - right side */}
+                {insufficientBalance && teamPricing && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Недостатньо коштів: потрібно ${calculateTotalCost().toFixed(2)}, на балансі ${teamPricing.balance.toFixed(2)}
+                  </p>
+                )}
+                {isGeneratingOnCredit && teamPricing && !exceedsCreditLimit && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Генерація в кредит: потрібно ${calculateTotalCost().toFixed(2)}, на балансі ${teamPricing.balance.toFixed(2)} (ліміт: ${selectedTeamCreditLimit.toFixed(2)})
+                  </p>
+                )}
+                {exceedsCreditLimit && teamPricing && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Перевищено ліміт кредиту: баланс ${teamPricing.balance.toFixed(2)}, потрібно ${calculateTotalCost().toFixed(2)}, ліміт ${selectedTeamCreditLimit.toFixed(2)}
+                  </p>
+                )}
               </div>
-              
-              {insufficientBalance && teamPricing && (
-                <p className="text-xs text-destructive flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" />
-                  Недостатньо коштів: потрібно ${calculateTotalCost().toFixed(2)}, на балансі ${teamPricing.balance.toFixed(2)}
-                </p>
-              )}
-              {isGeneratingOnCredit && teamPricing && !exceedsCreditLimit && (
-                <p className="text-xs text-amber-500 flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" />
-                  Генерація в кредит: потрібно ${calculateTotalCost().toFixed(2)}, на балансі ${teamPricing.balance.toFixed(2)} (ліміт: ${selectedTeamCreditLimit.toFixed(2)})
-                </p>
-              )}
-              {exceedsCreditLimit && teamPricing && (
-                <p className="text-xs text-destructive flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" />
-                  Перевищено ліміт кредиту: баланс ${teamPricing.balance.toFixed(2)}, потрібно ${calculateTotalCost().toFixed(2)}, ліміт ${selectedTeamCreditLimit.toFixed(2)}
-                </p>
-              )}
             </div>
 
             {/* Cost breakdown */}
