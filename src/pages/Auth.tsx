@@ -196,11 +196,11 @@ export default function Auth() {
         <div className="absolute inset-0 bg-gradient-to-br from-neutral-900 via-black to-neutral-950" />
         
         {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/[0.02] rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-white/[0.02] rounded-full blur-3xl" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-white/[0.02] rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-white/[0.02] rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
         
         {/* Content */}
-        <div className="relative z-10">
+        <div className="relative z-10 animate-fade-in" style={{ animationDelay: '0.1s', animationFillMode: 'backwards' }}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
               <span className="text-black font-bold text-lg">D</span>
@@ -211,11 +211,13 @@ export default function Auth() {
           </div>
         </div>
 
-        <div className="relative z-10 max-w-md">
-          <h1 className="text-5xl xl:text-6xl font-bold text-white leading-tight mb-6">
-            Створюй сайти
+        <div className="relative z-10 max-w-md animate-fade-in" style={{ animationDelay: '0.3s', animationFillMode: 'backwards' }}>
+          <h1 className="text-5xl xl:text-6xl font-bold leading-tight mb-6">
+            <span className="text-white">Створюй сайти</span>
             <br />
-            <span className="text-neutral-500">за допомогою AI</span>
+            <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
+              за допомогою AI
+            </span>
           </h1>
           <p className="text-neutral-400 text-lg leading-relaxed">
             Професійний генератор вебсайтів на базі штучного інтелекту. 
@@ -223,7 +225,7 @@ export default function Auth() {
           </p>
         </div>
 
-        <div className="relative z-10 flex items-center gap-8 text-neutral-500 text-sm">
+        <div className="relative z-10 flex items-center gap-8 text-neutral-500 text-sm animate-fade-in" style={{ animationDelay: '0.5s', animationFillMode: 'backwards' }}>
           <div>
             <span className="text-white font-semibold text-2xl">24</span>
             <span className="ml-1">мови</span>
@@ -245,7 +247,7 @@ export default function Auth() {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 bg-neutral-950">
         <div className="w-full max-w-sm">
           {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center gap-3 mb-10">
+          <div className="lg:hidden flex items-center gap-3 mb-10 animate-fade-in">
             <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
               <span className="text-black font-bold text-lg">D</span>
             </div>
@@ -254,7 +256,7 @@ export default function Auth() {
             </span>
           </div>
 
-          <div className="mb-8">
+          <div className="mb-8 animate-fade-in" style={{ animationDelay: '0.2s', animationFillMode: 'backwards' }}>
             <h2 className="text-2xl font-bold text-white mb-2">
               {isLogin ? "Вхід в акаунт" : "Створити акаунт"}
             </h2>
@@ -265,7 +267,7 @@ export default function Auth() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5 animate-fade-in" style={{ animationDelay: '0.4s', animationFillMode: 'backwards' }}>
             {!isLogin && (
               <>
                 <div className="space-y-2">
