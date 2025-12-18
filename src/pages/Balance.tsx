@@ -11,7 +11,7 @@ import { useTeamOwner } from "@/hooks/useTeamOwner";
 import { useAdmin } from "@/hooks/useAdmin";
 import { format, subDays, eachDayOfInterval } from "date-fns";
 import { uk } from "date-fns/locale";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 
 interface Transaction {
   id: string;
@@ -460,10 +460,10 @@ const Balance = () => {
                       <PieChart>
                         <Pie
                           data={buyerData}
-                          cx="50%"
+                          cx="30%"
                           cy="50%"
-                          innerRadius={35}
-                          outerRadius={55}
+                          innerRadius={30}
+                          outerRadius={50}
                           paddingAngle={2}
                           dataKey="amount"
                           nameKey="name"
@@ -472,6 +472,13 @@ const Balance = () => {
                             <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                           ))}
                         </Pie>
+                        <Legend 
+                          layout="vertical" 
+                          align="right" 
+                          verticalAlign="middle"
+                          wrapperStyle={{ fontSize: 10, right: 0 }}
+                          formatter={(value, entry: any) => <span className="text-foreground">{entry.payload.name}</span>}
+                        />
                         <Tooltip 
                           formatter={(value: number, name: string, props: any) => [`$${value.toFixed(2)}`, props.payload.name]}
                           contentStyle={{ fontSize: 11, backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "6px" }}
