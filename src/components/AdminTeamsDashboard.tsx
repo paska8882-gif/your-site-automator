@@ -20,33 +20,37 @@ interface GenerationData {
   status: string;
 }
 
+type Period = 7 | 30;
+
 export function AdminTeamsDashboard({ teams }: AdminTeamsDashboardProps) {
   const [generations, setGenerations] = useState<GenerationData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState<Period>(7);
 
   useEffect(() => {
     const fetchGenerations = async () => {
+      setLoading(true);
       const teamIds = teams.map(t => t.id);
       if (teamIds.length === 0) {
         setLoading(false);
         return;
       }
 
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - period);
 
       const { data } = await supabase
         .from("generation_history")
         .select("team_id, sale_price, created_at, status")
         .in("team_id", teamIds)
-        .gte("created_at", weekAgo.toISOString());
+        .gte("created_at", startDate.toISOString());
 
       setGenerations(data || []);
       setLoading(false);
     };
 
     fetchGenerations();
-  }, [teams]);
+  }, [teams, period]);
 
   const metrics = useMemo(() => {
     const totalTeams = teams.length;
@@ -80,11 +84,14 @@ export function AdminTeamsDashboard({ teams }: AdminTeamsDashboardProps) {
   const dailyData = useMemo(() => {
     const days: { [key: string]: { date: string; count: number; revenue: number } } = {};
     
-    for (let i = 6; i >= 0; i--) {
+    // For 7 days show weekday, for 30 days show date
+    for (let i = period - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const key = d.toISOString().split("T")[0];
-      const label = d.toLocaleDateString("uk", { weekday: "short" });
+      const label = period === 7 
+        ? d.toLocaleDateString("uk", { weekday: "short" })
+        : d.toLocaleDateString("uk", { day: "numeric", month: "short" });
       days[key] = { date: label, count: 0, revenue: 0 };
     }
 
@@ -97,14 +104,28 @@ export function AdminTeamsDashboard({ teams }: AdminTeamsDashboardProps) {
     });
 
     return Object.values(days);
-  }, [generations]);
+  }, [generations, period]);
 
   if (loading) return null;
 
   return (
-    <div className="mt-4 border border-border">
-      <div className="p-2 border-b border-border">
-        <span className="text-xs font-medium text-muted-foreground">Дашборд за 7 днів</span>
+    <div className="border border-border">
+      <div className="p-2 border-b border-border flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground">Дашборд за {period} днів</span>
+        <div className="flex gap-1">
+          <button
+            onClick={() => setPeriod(7)}
+            className={`px-2 py-0.5 text-[10px] rounded ${period === 7 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+          >
+            7д
+          </button>
+          <button
+            onClick={() => setPeriod(30)}
+            className={`px-2 py-0.5 text-[10px] rounded ${period === 30 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+          >
+            30д
+          </button>
+        </div>
       </div>
       <div className="p-3 space-y-3">
         {/* 5 Metrics */}
@@ -171,13 +192,17 @@ export function AdminTeamsDashboard({ teams }: AdminTeamsDashboardProps) {
             <div className="text-[10px] text-muted-foreground mb-1">Генерації по дням</div>
             <ResponsiveContainer width="100%" height={80}>
               <LineChart data={dailyData}>
-                <XAxis dataKey="date" tick={{ fontSize: 8 }} />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: period === 30 ? 6 : 8 }} 
+                  interval={period === 30 ? 4 : 0}
+                />
                 <YAxis hide />
                 <Tooltip 
                   formatter={(value: number, name: string) => [value, name === "count" ? "Сайтів" : "$"]}
                   contentStyle={{ fontSize: 10 }}
                 />
-                <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2} dot={period === 7 ? { r: 2 } : false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
