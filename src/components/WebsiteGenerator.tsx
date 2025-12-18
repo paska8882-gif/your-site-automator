@@ -442,6 +442,25 @@ export function WebsiteGenerator() {
     }
   }, [teamPricing, isAdmin]);
 
+  const sanitizeImprovedPrompt = (text: string) => {
+    let t = (text || "").replace(/\r\n/g, "\n");
+
+    // Strip common markdown syntax noise
+    t = t.replace(/^\s*---+\s*$/gm, "");
+    t = t.replace(/^\s*\*\*+\s*$/gm, "");
+    t = t.replace(/\*\*(.*?)\*\*/g, "$1");
+    t = t.replace(/^\s*#{1,6}\s+/gm, "");
+
+    // Normalize bullet lists
+    t = t.replace(/^\s*[*•]\s+/gm, "- ");
+    t = t.replace(/^\s*-\s+/gm, "- ");
+
+    // Trim trailing spaces per line and collapse excessive blank lines
+    t = t.replace(/[ \t]+$/gm, "");
+    t = t.replace(/\n{3,}/g, "\n\n");
+
+    return t.trim();
+  };
 
   const handleImprovePrompt = async () => {
     if (!prompt.trim()) {
@@ -483,7 +502,7 @@ export function WebsiteGenerator() {
       }
 
       if (data.improvedPrompt) {
-        setPrompt(data.improvedPrompt);
+        setPrompt(sanitizeImprovedPrompt(data.improvedPrompt));
         toast({
           title: "Промпт покращено",
           description: "AI покращив ваш опис сайту",
