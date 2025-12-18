@@ -410,6 +410,24 @@ export function WebsiteGenerator() {
     });
   };
 
+  const clearAllParameters = () => {
+    setSelectedLanguages([]);
+    setCustomLanguage("");
+    setIsOtherSelected(false);
+    setSelectedStyles([]);
+    setCustomStyle("");
+    setIsOtherStyleSelected(false);
+    setSitesPerLanguage(1);
+    setSelectedAiModels([]);
+    setSelectedWebsiteTypes([]);
+    setSelectedImageSources([]);
+    setSeniorMode(null);
+    toast({
+      title: "Параметри очищено",
+      description: "Всі налаштування генерації скинуто",
+    });
+  };
+
   // Fetch team pricing on mount (only for non-admins, admins use team selection)
   useEffect(() => {
     const fetchTeamPricing = async () => {
@@ -1570,6 +1588,18 @@ export function WebsiteGenerator() {
                     </PopoverContent>
                   </Popover>
                 )}
+
+                {/* Clear all parameters button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-2 text-xs text-destructive hover:text-destructive"
+                  onClick={clearAllParameters}
+                  disabled={isSubmitting}
+                  title="Очистити всі параметри"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
 
                 {/* Spacer */}
                 <div className="flex-1" />
