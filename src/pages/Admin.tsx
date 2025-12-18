@@ -1,17 +1,12 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  Shield, 
-  ArrowLeft, 
   Loader2, 
   Users,
   FileCode,
-  LogOut,
   Settings,
   UserCog,
   DollarSign,
@@ -27,6 +22,7 @@ import { AdminFinanceTab } from "@/components/AdminFinanceTab";
 import { AdminAppealsTab } from "@/components/AdminAppealsTab";
 import { AdminSupportTab } from "@/components/AdminSupportTab";
 import { AdminNotificationsManager } from "@/components/AdminNotificationsManager";
+import { AppLayout } from "@/components/AppLayout";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -58,34 +54,8 @@ const Admin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-3 py-2 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => navigate("/")}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div className="flex items-center gap-1.5">
-              <Shield className="h-4 w-4 text-primary" />
-              <h1 className="text-sm font-semibold">Адмін-панель</h1>
-            </div>
-          </div>
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="h-7 text-xs"
-            onClick={async () => {
-              await supabase.auth.signOut();
-              navigate("/admin-login");
-            }}
-          >
-            <LogOut className="h-3 w-3 mr-1" />
-            Вийти
-          </Button>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-3 py-3">
+    <AppLayout>
+      <div className="p-4">
         <Tabs defaultValue="teams" className="space-y-3">
           <TabsList className="grid w-full max-w-4xl grid-cols-8 h-8">
             <TabsTrigger value="teams" className="flex items-center gap-1 text-xs h-7">
@@ -156,8 +126,8 @@ const Admin = () => {
             <AdminAdministratorsTab />
           </TabsContent>
         </Tabs>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 };
 
