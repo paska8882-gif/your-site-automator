@@ -1030,11 +1030,11 @@ export function WebsiteGenerator() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setPrompt(sanitizeImprovedPrompt(prompt))}
+                  onClick={() => setPrompt('')}
                   disabled={isSubmitting || !prompt.trim()}
                   className="h-7 text-xs px-2"
                 >
-                  <Sparkles className="mr-1 h-3 w-3" />
+                  <Trash2 className="mr-1 h-3 w-3" />
                   Очистити
                 </Button>
               </div>
