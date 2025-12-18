@@ -198,6 +198,9 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen flex relative">
+      {/* Vertical divider line */}
+      <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-gray-400/50 to-transparent z-10" />
+
       {/* Center Logo - positioned at top */}
       <div className="hidden lg:flex absolute left-1/2 top-20 -translate-x-1/2 z-20 items-center">
         {/* DRAGON text on dark side - right aligned */}
