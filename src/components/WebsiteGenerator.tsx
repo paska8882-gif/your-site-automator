@@ -357,16 +357,23 @@ export function WebsiteGenerator() {
 
     fetchTeamPricing();
 
-    // Subscribe to team balance changes
+    // Subscribe to team balance changes (for non-admins)
     const channel = supabase
       .channel("team_balance_changes")
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "teams" },
         (payload) => {
+          // Update teamPricing for non-admin users
           if (teamPricing && payload.new.id === teamPricing.teamId) {
             setTeamPricing(prev => prev ? { ...prev, balance: payload.new.balance } : null);
           }
+          // Update adminTeams array for admin users
+          setAdminTeams(prev => prev.map(team => 
+            team.id === payload.new.id 
+              ? { ...team, balance: payload.new.balance, credit_limit: payload.new.credit_limit } 
+              : team
+          ));
         }
       )
       .subscribe();
