@@ -198,24 +198,14 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen flex relative">
-      {/* Center Logo - positioned absolutely in the middle */}
-      <div className="hidden lg:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 items-center">
-        {/* Dragon Icon */}
-        <div className="absolute -top-20 left-1/2 -translate-x-1/2">
-          <svg 
-            viewBox="0 0 24 24" 
-            className="w-14 h-14 text-white drop-shadow-lg"
-            fill="currentColor"
-          >
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-          </svg>
-        </div>
-        {/* DRAGON text on dark side */}
-        <span className="text-5xl xl:text-6xl font-black tracking-tight text-white pr-1">
+      {/* Center Logo - positioned at top */}
+      <div className="hidden lg:flex absolute left-1/2 top-20 -translate-x-1/2 z-20 items-center">
+        {/* DRAGON text on dark side - right aligned */}
+        <span className="text-4xl xl:text-5xl font-black tracking-tight text-white mr-4">
           DRAGON
         </span>
-        {/* WHITE text on light side */}
-        <span className="text-5xl xl:text-6xl font-black tracking-tight text-black pl-1">
+        {/* WHITE text on light side - left aligned */}
+        <span className="text-4xl xl:text-5xl font-black tracking-tight text-black ml-4">
           WHITE
         </span>
       </div>
