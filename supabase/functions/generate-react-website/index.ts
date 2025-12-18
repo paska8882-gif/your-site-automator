@@ -888,9 +888,154 @@ async function runGeneration({
     };
   }
 
-  // MANDATORY: Ensure deployment configuration files are always present
-  const ensureDeploymentFiles = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
+  // MANDATORY: Ensure deployment configuration files and cookie banner are always present
+  const ensureMandatoryFiles = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
     const fileMap = new Map(generatedFiles.map(f => [f.path, f]));
+    
+    // MANDATORY: Cookie Banner Component
+    const COOKIE_BANNER_COMPONENT = `import React, { useState, useEffect } from 'react';
+
+/**
+ * CookieBanner - MANDATORY COMPONENT
+ * This component handles cookie consent for GDPR compliance
+ */
+const CookieBanner = () => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const consent = localStorage.getItem('cookieConsent');
+    if (!consent) {
+      setIsVisible(true);
+    }
+  }, []);
+
+  const handleAccept = () => {
+    localStorage.setItem('cookieConsent', 'accepted');
+    setIsVisible(false);
+  };
+
+  const handleDecline = () => {
+    localStorage.setItem('cookieConsent', 'declined');
+    setIsVisible(false);
+  };
+
+  if (!isVisible) return null;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      background: 'rgba(0, 0, 0, 0.95)',
+      color: '#fff',
+      padding: '20px',
+      zIndex: 99999,
+      boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.3)',
+      fontFamily: 'system-ui, -apple-system, sans-serif'
+    }}>
+      <div style={{
+        maxWidth: '1200px',
+        margin: '0 auto',
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '15px'
+      }}>
+        <p style={{
+          margin: 0,
+          flex: 1,
+          minWidth: '200px',
+          fontSize: '14px',
+          lineHeight: 1.5
+        }}>
+          We use cookies to enhance your browsing experience and analyze site traffic. 
+          By clicking "Accept", you consent to our use of cookies.
+        </p>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            onClick={handleAccept}
+            style={{
+              background: '#22c55e',
+              color: '#fff',
+              border: 'none',
+              padding: '12px 24px',
+              cursor: 'pointer',
+              fontWeight: 600,
+              borderRadius: '6px',
+              transition: 'all 0.2s'
+            }}
+          >
+            Accept
+          </button>
+          <button
+            onClick={handleDecline}
+            style={{
+              background: 'transparent',
+              color: '#fff',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              padding: '12px 24px',
+              cursor: 'pointer',
+              fontWeight: 600,
+              borderRadius: '6px',
+              transition: 'all 0.2s'
+            }}
+          >
+            Decline
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CookieBanner;`;
+
+    // Always add CookieBanner component
+    if (!fileMap.has("src/components/CookieBanner.jsx") && !fileMap.has("src/components/CookieBanner.js")) {
+      console.log("📁 Adding mandatory src/components/CookieBanner.jsx");
+      generatedFiles.push({
+        path: "src/components/CookieBanner.jsx",
+        content: COOKIE_BANNER_COMPONENT
+      });
+    }
+    
+    // Ensure App.jsx/App.js includes CookieBanner
+    generatedFiles = generatedFiles.map(file => {
+      if (file.path === 'src/App.jsx' || file.path === 'src/App.js') {
+        let content = file.content;
+        const hasCookieBanner = content.includes('CookieBanner');
+        
+        if (!hasCookieBanner) {
+          console.log(`⚠️ Adding CookieBanner import and usage to ${file.path}`);
+          
+          // Add import at the top
+          if (content.includes("import React")) {
+            content = content.replace(
+              /import React[^;]*;/,
+              match => match + "\\nimport CookieBanner from './components/CookieBanner';"
+            );
+          } else {
+            content = "import CookieBanner from './components/CookieBanner';\\n" + content;
+          }
+          
+          // Add CookieBanner component before closing fragment/div
+          if (content.includes('</Router>')) {
+            content = content.replace('</Router>', '<CookieBanner />\\n      </Router>');
+          } else if (content.includes('</BrowserRouter>')) {
+            content = content.replace('</BrowserRouter>', '<CookieBanner />\\n      </BrowserRouter>');
+          } else if (content.includes('</div>')) {
+            // Add before the last closing div
+            const lastDivIndex = content.lastIndexOf('</div>');
+            content = content.slice(0, lastDivIndex) + '      <CookieBanner />\\n    ' + content.slice(lastDivIndex);
+          }
+        }
+        
+        return { ...file, content };
+      }
+      return file;
+    });
     
     // netlify.toml - critical for Netlify deployment
     if (!fileMap.has("netlify.toml")) {
@@ -948,8 +1093,8 @@ Allow: /`
     return generatedFiles;
   };
 
-  const finalFiles = ensureDeploymentFiles(files);
-  console.log(`📁 Final files count (with deployment configs): ${finalFiles.length}`);
+  const finalFiles = ensureMandatoryFiles(files);
+  console.log(`📁 Final files count (with mandatory files): ${finalFiles.length}`);
 
   return {
     success: true,
