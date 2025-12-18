@@ -733,29 +733,16 @@ export function WebsiteGenerator() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6 max-w-4xl">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <Sparkles className="h-10 w-10 text-primary" />
-            <div>
-              <h1 className="text-xl font-semibold">AI Website Generator</h1>
-              <p className="text-muted-foreground text-xs">Опишіть сайт — AI згенерує всі файли</p>
-            </div>
-          </div>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-lg font-medium">Генератор сайтів</h1>
         </div>
 
-
         {/* Input Section */}
-        <Card className="mb-4">
-          <CardHeader className="py-3 px-4">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <FileCode2 className="h-4 w-4" />
-              Новий сайт
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Введіть назву та опишіть сайт. Можна запускати кілька генерацій паралельно.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 px-4 pb-4 pt-0">
+        <div className="border border-border mb-4">
+          <div className="p-3 border-b border-border">
+            <div className="text-sm font-medium">Новий сайт</div>
+          </div>
+          <div className="p-3 space-y-3">
             {/* Mode Selection - Compact toggle for admin */}
             {isAdmin && (
               <div className="flex flex-wrap items-center gap-3">
@@ -850,48 +837,48 @@ export function WebsiteGenerator() {
             )}
 
             {/* Site Name Field */}
-            <div className="space-y-2">
-              <Label htmlFor="siteName" className="flex items-center gap-2">
-                <Globe className="h-4 w-4" />
+            <div className="space-y-1">
+              <Label htmlFor="siteName" className="text-xs">
                 Назва / Домен <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="siteName"
-                placeholder="Наприклад: my-company, techsolutions, coffee-shop"
+                placeholder="my-company, techsolutions, coffee-shop"
                 value={siteName}
                 onChange={(e) => setSiteName(e.target.value)}
                 disabled={isSubmitting || isImproving}
+                className="h-8 text-sm"
               />
             </div>
 
             {/* Description Field */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <FileCode2 className="h-4 w-4" />
+            <div className="space-y-1">
+              <Label className="text-xs">
                 Опис сайту <span className="text-destructive">*</span>
               </Label>
               <Textarea
-                placeholder="Наприклад: Сучасний сайт для IT-компанії з послугами веб-розробки. Темна тема, мінімалістичний дизайн. Сторінки: головна, послуги, портфоліо, контакти..."
+                placeholder="Сучасний сайт для IT-компанії. Темна тема, мінімалізм. Сторінки: головна, послуги, портфоліо, контакти..."
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                className="min-h-[150px] resize-none"
+                className="min-h-[100px] resize-none text-sm"
                 disabled={isSubmitting || isImproving}
               />
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={handleImprovePrompt}
                 disabled={isImproving || isSubmitting || !prompt.trim()}
+                className="h-7 text-xs px-2"
               >
                 {isImproving ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                     Покращення...
                   </>
                 ) : (
                   <>
-                    <Wand2 className="mr-2 h-4 w-4" />
-                    Покращити промпт
+                    <Wand2 className="mr-1 h-3 w-3" />
+                    Покращити
                   </>
                 )}
               </Button>
@@ -901,13 +888,13 @@ export function WebsiteGenerator() {
             {(!isAdmin || adminGenerationMode === "standard") && (
               <>
             {/* Compact row: Language, Style, Quantity */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {/* Language Multi-Select Dropdown */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Мова</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between" disabled={isSubmitting}>
+                    <Button variant="outline" className="w-full justify-between h-8 text-xs" disabled={isSubmitting}>
                       <span className="truncate">
                         {allLanguages.length === 0 
                           ? "Оберіть мови" 
@@ -915,7 +902,7 @@ export function WebsiteGenerator() {
                             ? languages.find(l => l.value === allLanguages[0])?.label || allLanguages[0]
                             : `${allLanguages.length} мов`}
                       </span>
-                      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                      <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-56 p-2" align="start">
@@ -960,7 +947,7 @@ export function WebsiteGenerator() {
                 <Label className="text-xs text-muted-foreground">Стиль</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between" disabled={isSubmitting}>
+                    <Button variant="outline" className="w-full justify-between h-8 text-xs" disabled={isSubmitting}>
                       <span className="truncate">
                         {allStyles.length === 0 
                           ? "Рандом" 
@@ -968,7 +955,7 @@ export function WebsiteGenerator() {
                             ? LAYOUT_STYLES.find(s => s.id === allStyles[0])?.name || allStyles[0]
                             : `${allStyles.length} стилів`}
                       </span>
-                      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                      <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-56 p-2" align="start">
@@ -1032,23 +1019,23 @@ export function WebsiteGenerator() {
                     max={10}
                     value={sitesPerLanguage}
                     onChange={(e) => setSitesPerLanguage(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
-                    className="w-20"
+                    className="w-16 h-8 text-xs"
                     disabled={isSubmitting}
                   />
-                  <span className="text-sm text-muted-foreground whitespace-nowrap">
-                    = <strong className="text-primary">{totalGenerations}</strong> сайтів
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    = <strong>{totalGenerations}</strong> сайтів
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {/* AI Model Multi-Select */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">AI модель</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between" disabled={isSubmitting}>
+                    <Button variant="outline" className="w-full justify-between h-8 text-xs" disabled={isSubmitting}>
                       <span className="truncate">
                         {selectedAiModels.length === 0 
                           ? "Оберіть" 
@@ -1056,7 +1043,7 @@ export function WebsiteGenerator() {
                             ? (selectedAiModels[0] === "senior" ? "Senior" : "Junior")
                             : `${selectedAiModels.length} моделі`}
                       </span>
-                      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                      <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-48 p-2" align="start">
@@ -1087,15 +1074,15 @@ export function WebsiteGenerator() {
                 <Label className="text-xs text-muted-foreground">Тип сайту</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between" disabled={isSubmitting}>
+                    <Button variant="outline" className="w-full justify-between h-8 text-xs" disabled={isSubmitting}>
                       <span className="truncate">
                         {selectedWebsiteTypes.length === 0 
                           ? "Оберіть" 
                           : selectedWebsiteTypes.length === 1 
-                            ? (selectedWebsiteTypes[0] === "html" ? "HTML/CSS" : "React")
+                            ? (selectedWebsiteTypes[0] === "html" ? "HTML" : "React")
                             : `${selectedWebsiteTypes.length} типи`}
                       </span>
-                      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                      <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-48 p-2" align="start">
@@ -1126,15 +1113,15 @@ export function WebsiteGenerator() {
                 <Label className="text-xs text-muted-foreground">Підбір фото</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between" disabled={isSubmitting}>
+                    <Button variant="outline" className="w-full justify-between h-8 text-xs" disabled={isSubmitting}>
                       <span className="truncate">
                         {selectedImageSources.length === 0 
                           ? "Оберіть" 
                           : selectedImageSources.length === 1 
-                            ? (selectedImageSources[0] === "basic" ? "Базовий" : "AI фото")
-                            : `${selectedImageSources.length} варіанти`}
+                            ? (selectedImageSources[0] === "basic" ? "Базовий" : "AI")
+                            : `${selectedImageSources.length} вар.`}
                       </span>
-                      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                      <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-48 p-2" align="start">
@@ -1258,17 +1245,16 @@ export function WebsiteGenerator() {
                   setIsSubmitting(false);
                 }}
                 disabled={isSubmitting || !siteName.trim() || !prompt.trim() || !seniorMode}
-                className="w-full"
-                size="lg"
+                className="w-full h-9 text-sm"
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                     Відправка...
                   </>
                 ) : (
                   <>
-                    <Crown className="mr-2 h-4 w-4" />
+                    <Crown className="mr-1 h-3 w-3" />
                     Запустити {seniorMode || "Senior"}
                   </>
                 )}
@@ -1282,21 +1268,19 @@ export function WebsiteGenerator() {
               <Button
                 onClick={handleGenerateClick}
                 disabled={isSubmitting || !siteName.trim() || !prompt.trim() || getAllSelectedLanguages().length === 0 || selectedAiModels.length === 0 || selectedWebsiteTypes.length === 0 || selectedImageSources.length === 0 || (isAdmin ? exceedsCreditLimit : insufficientBalance) || (isAdmin && !selectedAdminTeamId)}
-                className="w-full"
-                size="lg"
+                className="w-full h-9 text-sm"
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                     Відправка...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="mr-2 h-4 w-4" />
                     Згенерувати {totalGenerations > 1 ? `(${totalGenerations})` : ""}
                     {teamPricing && (
-                      <span className="ml-2 text-xs opacity-80">
-                        = ${calculateTotalCost().toFixed(2)}
+                      <span className="ml-1 text-xs opacity-80">
+                        ${calculateTotalCost().toFixed(2)}
                       </span>
                     )}
                   </>
@@ -1322,35 +1306,21 @@ export function WebsiteGenerator() {
               )}
             </div>
 
-            {/* Cost breakdown with collapsible table */}
+            {/* Cost breakdown */}
             {teamPricing && totalGenerations > 0 && (
               <Collapsible open={showCostBreakdown} onOpenChange={setShowCostBreakdown}>
-                <Alert className="bg-muted/50">
-                  <div className="flex items-start justify-between w-full">
-                    <div className="flex items-start gap-2">
-                      <Info className="h-4 w-4 mt-0.5" />
-                      <AlertDescription className="text-xs">
-                        <span className="font-medium">Комбінацій:</span> {allLanguages.length} мов × {sitesPerLanguage} шт × {styleCount} стилів × {aiModelCount} AI × {websiteTypeCount} типів × {imageSourceCount} фото = <strong>{totalGenerations} сайтів</strong>
-                        <br />
-                        <span className="font-medium">Загальна вартість:</span> <strong>${calculateTotalCost().toFixed(2)}</strong>
-                        <br />
-                        <span className="text-muted-foreground">
-                          💳 Кошти списуються при старті генерації • 
-                          <RefreshCcw className="h-3 w-3 inline mx-1" />
-                          Автоматичний рефанд при помилці
-                        </span>
-                      </AlertDescription>
-                    </div>
-                    <CollapsibleTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-6 px-2">
-                        {showCostBreakdown ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        <span className="ml-1 text-xs">Деталі</span>
-                      </Button>
-                    </CollapsibleTrigger>
-                  </div>
-                </Alert>
-                <CollapsibleContent className="mt-2">
-                  <div className="rounded-md border overflow-hidden">
+                <div className="flex items-center justify-between text-xs text-muted-foreground border border-border p-2">
+                  <span>
+                    {allLanguages.length}×{sitesPerLanguage}×{styleCount}×{aiModelCount}×{websiteTypeCount}×{imageSourceCount} = <strong className="text-foreground">{totalGenerations}</strong> сайтів • <strong className="text-foreground">${calculateTotalCost().toFixed(2)}</strong>
+                  </span>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-5 px-1 text-xs">
+                      {showCostBreakdown ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    </Button>
+                  </CollapsibleTrigger>
+                </div>
+                <CollapsibleContent className="mt-1">
+                  <div className="border border-border overflow-hidden">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/50">
@@ -1418,8 +1388,8 @@ export function WebsiteGenerator() {
             )}
               </>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* History with realtime updates and preview - today only */}
         <GenerationHistory 
