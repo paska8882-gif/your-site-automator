@@ -604,9 +604,33 @@ img { max-width: 100%; height: auto; display: block; }
 [Complete CSS 250+ lines with all styles including image handling]
 
 <!-- FILE: netlify.toml -->
+[build]
+  publish = "build"
+  command = "npm run build"
+
+[build.environment]
+  CI = "false"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
 <!-- FILE: vercel.json -->
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "build"
+}
+
 <!-- FILE: public/_redirects -->
+/* /index.html 200
+
 <!-- FILE: public/robots.txt -->
+User-agent: *
+Allow: /
 
 Generate EXCEPTIONAL React website with 10X better UI, proper image styling, and outstanding user experience. All styles MUST render correctly, NO markdown code blocks, NO backticks.`;
 
