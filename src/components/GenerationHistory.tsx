@@ -262,23 +262,6 @@ function SingleHistoryItem({
           </div>
         </CollapsibleTrigger>
 
-        {!compact && (
-          <div 
-            className="flex items-start gap-2 px-3 py-2 border-t bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              onExpandPrompt(item.id);
-            }}
-          >
-            <ChevronRight 
-              className={`h-4 w-4 mt-0.5 text-muted-foreground transition-transform flex-shrink-0 ${expandedPromptId === item.id ? "rotate-90" : ""}`} 
-            />
-            <div className={`text-sm ${expandedPromptId === item.id ? "" : "line-clamp-1"}`}>
-              <span className="font-medium">{item.site_name || `Site ${item.number}`}</span>
-              <span className="text-muted-foreground"> — {item.prompt}</span>
-            </div>
-          </div>
-        )}
 
         <CollapsibleContent>
           {item.files_data && item.files_data.length > 0 && (
