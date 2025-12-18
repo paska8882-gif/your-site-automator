@@ -192,31 +192,31 @@ export default function Auth() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-black" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black flex relative">
+    <div className="min-h-screen bg-white flex relative">
       {/* Center transition effect */}
       <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 -translate-x-1/2 z-20 w-48 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.02] to-transparent blur-2xl" />
-        <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-white/5 via-white/15 to-white/5" />
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-black/[0.02] to-transparent blur-2xl" />
+        <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-black/5 via-black/15 to-black/5" />
       </div>
 
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 relative overflow-hidden">
-        {/* Background gradient - darker left, lighter towards center */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-neutral-950 to-neutral-900" />
+        {/* Background gradient - lighter left, darker towards center */}
+        <div className="absolute inset-0 bg-gradient-to-r from-white via-neutral-50 to-neutral-100" />
         
         {/* Animated particles */}
         <div className="absolute inset-0 overflow-hidden">
           {[...Array(20)].map((_, i) => (
             <div
               key={i}
-              className="absolute rounded-full bg-white/20"
+              className="absolute rounded-full bg-black/10"
               style={{
                 width: Math.random() * 4 + 2 + 'px',
                 height: Math.random() * 4 + 2 + 'px',
@@ -230,51 +230,51 @@ export default function Auth() {
         </div>
         
         {/* Decorative glows */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/[0.02] rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-white/[0.02] rounded-full blur-3xl" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-black/[0.02] rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-black/[0.02] rounded-full blur-3xl" />
         
         {/* Content */}
         <div className="relative z-10 animate-fade-in" style={{ animationDelay: '0.1s', animationFillMode: 'backwards' }}>
           <div className="flex items-center gap-3">
             <div className="relative">
-              <div className="absolute inset-0 bg-white rounded-lg blur-md animate-pulse opacity-50" />
-              <div className="relative w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-lg shadow-white/20">
-                <span className="text-black font-bold text-lg">D</span>
+              <div className="absolute inset-0 bg-black rounded-lg blur-md animate-pulse opacity-20" />
+              <div className="relative w-10 h-10 bg-black rounded-lg flex items-center justify-center shadow-lg shadow-black/20">
+                <span className="text-white font-bold text-lg">D</span>
               </div>
             </div>
-            <span className="text-white font-semibold text-xl tracking-tight">
-              DRAGON<span className="text-neutral-500">WHITE</span>
+            <span className="text-black font-semibold text-xl tracking-tight">
+              DRAGON<span className="text-neutral-400">WHITE</span>
             </span>
           </div>
         </div>
 
         <div className="relative z-10 max-w-md animate-fade-in" style={{ animationDelay: '0.3s', animationFillMode: 'backwards' }}>
           <h1 className="text-5xl xl:text-6xl font-bold leading-tight mb-6">
-            <span className="text-white">Створюй сайти</span>
+            <span className="text-black">Створюй сайти</span>
             <br />
-            <span className="text-neutral-500">
+            <span className="text-neutral-400">
               за допомогою AI
             </span>
           </h1>
-          <p className="text-neutral-400 text-lg leading-relaxed">
+          <p className="text-neutral-500 text-lg leading-relaxed">
             Професійний генератор вебсайтів на базі штучного інтелекту. 
             Опиши свою ідею — отримай готовий сайт за лічені хвилини.
           </p>
         </div>
 
-        <div className="relative z-10 flex items-center gap-8 text-neutral-500 text-sm animate-fade-in" style={{ animationDelay: '0.5s', animationFillMode: 'backwards' }}>
+        <div className="relative z-10 flex items-center gap-8 text-neutral-400 text-sm animate-fade-in" style={{ animationDelay: '0.5s', animationFillMode: 'backwards' }}>
           <div>
-            <span className="text-white font-semibold text-2xl">24</span>
+            <span className="text-black font-semibold text-2xl">24</span>
             <span className="ml-1">мови</span>
           </div>
-          <div className="w-px h-8 bg-neutral-800" />
+          <div className="w-px h-8 bg-neutral-200" />
           <div>
-            <span className="text-white font-semibold text-2xl">2</span>
+            <span className="text-black font-semibold text-2xl">2</span>
             <span className="ml-1">AI моделі</span>
           </div>
-          <div className="w-px h-8 bg-neutral-800" />
+          <div className="w-px h-8 bg-neutral-200" />
           <div>
-            <span className="text-white font-semibold text-2xl">10+</span>
+            <span className="text-black font-semibold text-2xl">10+</span>
             <span className="ml-1">стилів</span>
           </div>
         </div>
@@ -283,26 +283,26 @@ export default function Auth() {
       {/* Right Side - Auth Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-8 lg:p-12 relative overflow-hidden">
         {/* Gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-r from-neutral-900 via-neutral-800 to-neutral-700" />
+        <div className="absolute inset-0 bg-gradient-to-r from-neutral-100 via-neutral-200 to-neutral-300" />
         
-        {/* White glow accents */}
-        <div className="absolute top-1/4 right-1/4 w-64 h-64 bg-white/[0.03] rounded-full blur-3xl" />
-        <div className="absolute bottom-1/3 left-1/3 w-48 h-48 bg-white/[0.02] rounded-full blur-2xl" />
+        {/* Dark glow accents */}
+        <div className="absolute top-1/4 right-1/4 w-64 h-64 bg-black/[0.02] rounded-full blur-3xl" />
+        <div className="absolute bottom-1/3 left-1/3 w-48 h-48 bg-black/[0.02] rounded-full blur-2xl" />
         
         <div className="w-full max-w-md relative z-10">
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center gap-3 mb-10 animate-fade-in">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-lg shadow-white/10">
-              <span className="text-black font-bold text-lg">D</span>
+            <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center shadow-lg shadow-black/10">
+              <span className="text-white font-bold text-lg">D</span>
             </div>
-            <span className="text-white font-semibold text-xl tracking-tight">
-              DRAGON<span className="text-neutral-500">WHITE</span>
+            <span className="text-black font-semibold text-xl tracking-tight">
+              DRAGON<span className="text-neutral-400">WHITE</span>
             </span>
           </div>
 
           {/* Header */}
           <div className="mb-8 animate-fade-in">
-            <h2 className="text-2xl font-bold text-white mb-2">
+            <h2 className="text-2xl font-bold text-black mb-2">
               {isLogin ? "Вхід в акаунт" : "Створити акаунт"}
             </h2>
             <p className="text-neutral-500 text-sm">
@@ -323,8 +323,8 @@ export default function Auth() {
                     onClick={() => setSelectedRole(role.id)}
                     className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
                       selectedRole === role.id
-                        ? 'bg-white text-black shadow-lg shadow-white/20'
-                        : 'bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white'
+                        ? 'bg-black text-white shadow-lg shadow-black/20'
+                        : 'bg-black/5 text-neutral-500 hover:bg-black/10 hover:text-black'
                     }`}
                   >
                     {role.name}
@@ -339,7 +339,7 @@ export default function Auth() {
             {!isLogin && (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="inviteCode" className="text-neutral-400 text-xs font-medium">
+                  <Label htmlFor="inviteCode" className="text-neutral-600 text-xs font-medium">
                     Інвайт-код
                   </Label>
                   <Input
@@ -349,15 +349,15 @@ export default function Auth() {
                     value={inviteCode}
                     onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                     disabled={isSubmitting}
-                    className={`h-10 bg-white/5 border-white/10 text-white placeholder:text-neutral-600 focus:border-white/30 focus:ring-0 transition-all ${errors.inviteCode ? "border-red-500" : ""}`}
+                    className={`h-10 bg-white/80 border-black/10 text-black placeholder:text-neutral-400 focus:border-black/30 focus:ring-0 transition-all ${errors.inviteCode ? "border-red-500" : ""}`}
                     maxLength={8}
                   />
                   {errors.inviteCode && (
-                    <p className="text-xs text-red-400">{errors.inviteCode}</p>
+                    <p className="text-xs text-red-500">{errors.inviteCode}</p>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="displayName" className="text-neutral-400 text-xs font-medium">
+                  <Label htmlFor="displayName" className="text-neutral-600 text-xs font-medium">
                     Ім&apos;я
                   </Label>
                   <Input
@@ -367,14 +367,14 @@ export default function Auth() {
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     disabled={isSubmitting}
-                    className="h-10 bg-white/5 border-white/10 text-white placeholder:text-neutral-600 focus:border-white/30 focus:ring-0 transition-all"
+                    className="h-10 bg-white/80 border-black/10 text-black placeholder:text-neutral-400 focus:border-black/30 focus:ring-0 transition-all"
                   />
                 </div>
               </div>
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-neutral-400 text-xs font-medium">
+              <Label htmlFor="email" className="text-neutral-600 text-xs font-medium">
                 Email
               </Label>
               <Input
@@ -384,15 +384,15 @@ export default function Auth() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isSubmitting}
-                className={`h-10 bg-white/5 border-white/10 text-white placeholder:text-neutral-600 focus:border-white/30 focus:ring-0 transition-all ${errors.email ? "border-red-500" : ""}`}
+                className={`h-10 bg-white/80 border-black/10 text-black placeholder:text-neutral-400 focus:border-black/30 focus:ring-0 transition-all ${errors.email ? "border-red-500" : ""}`}
               />
               {errors.email && (
-                <p className="text-xs text-red-400">{errors.email}</p>
+                <p className="text-xs text-red-500">{errors.email}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-neutral-400 text-xs font-medium">
+              <Label htmlFor="password" className="text-neutral-600 text-xs font-medium">
                 Пароль
               </Label>
               <Input
@@ -402,16 +402,16 @@ export default function Auth() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isSubmitting}
-                className={`h-10 bg-white/5 border-white/10 text-white placeholder:text-neutral-600 focus:border-white/30 focus:ring-0 transition-all ${errors.password ? "border-red-500" : ""}`}
+                className={`h-10 bg-white/80 border-black/10 text-black placeholder:text-neutral-400 focus:border-black/30 focus:ring-0 transition-all ${errors.password ? "border-red-500" : ""}`}
               />
               {errors.password && (
-                <p className="text-xs text-red-400">{errors.password}</p>
+                <p className="text-xs text-red-500">{errors.password}</p>
               )}
             </div>
 
             <Button 
               type="submit" 
-              className="w-full h-10 bg-white hover:bg-neutral-100 text-black font-medium transition-all duration-200 border-0 shadow-lg shadow-white/10 hover:shadow-white/20 hover:shadow-xl" 
+              className="w-full h-10 bg-black hover:bg-neutral-800 text-white font-medium transition-all duration-200 border-0 shadow-lg shadow-black/10 hover:shadow-black/20 hover:shadow-xl" 
               disabled={isSubmitting || (isLogin && !selectedRole)}
             >
               {isSubmitting ? (
@@ -433,7 +433,7 @@ export default function Auth() {
                 <button
                   type="button"
                   onClick={() => setIsLogin(false)}
-                  className="text-white hover:underline font-medium"
+                  className="text-black hover:underline font-medium"
                 >
                   Зареєструватись
                 </button>
@@ -444,7 +444,7 @@ export default function Auth() {
                 <button
                   type="button"
                   onClick={() => setIsLogin(true)}
-                  className="text-white hover:underline font-medium"
+                  className="text-black hover:underline font-medium"
                 >
                   Увійти
                 </button>
