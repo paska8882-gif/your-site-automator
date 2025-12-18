@@ -38,7 +38,6 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
-import { useTeamOwner } from "@/hooks/useTeamOwner";
 import { useTheme } from "@/hooks/useTheme";
 import { NotificationBell } from "./NotificationBell";
 import { SupportChat } from "./SupportChat";
@@ -47,6 +46,7 @@ const mainNavItems = [
   { title: "Генератор", url: "/", icon: Sparkles },
   { title: "Історія", url: "/history", icon: History },
   { title: "Баланс", url: "/balance", icon: Wallet },
+  { title: "Команда", url: "/team", icon: Users },
 ];
 
 const adminNavItems = [
@@ -65,7 +65,6 @@ export function AppSidebar() {
   const location = useLocation();
   const { user, signOut } = useAuth();
   const { isAdmin } = useAdmin();
-  const { isTeamOwner } = useTeamOwner();
   const { state } = useSidebar();
   const { theme, toggleTheme } = useTheme();
   const collapsed = state === "collapsed";
@@ -136,29 +135,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Team Section */}
-        {isTeamOwner && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-xs text-muted-foreground px-2">
-              Команда
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => navigate("/team")}
-                    isActive={isActive("/team")}
-                    tooltip="Команда"
-                    className="transition-colors"
-                  >
-                    <Users className="h-4 w-4" />
-                    <span>Управління</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
 
         {/* Admin Section */}
         {isAdmin && (

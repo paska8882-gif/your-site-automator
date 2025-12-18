@@ -77,7 +77,7 @@ export function UserTeamInfo() {
 
   if (loading) {
     return (
-      <Card className="mb-6">
+      <Card>
         <CardContent className="p-4 flex items-center justify-center">
           <Loader2 className="h-5 w-5 animate-spin" />
         </CardContent>
@@ -86,11 +86,18 @@ export function UserTeamInfo() {
   }
 
   if (teams.length === 0) {
-    return null;
+    return (
+      <Card>
+        <CardContent className="p-4 text-center text-muted-foreground">
+          <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">Ви не належите до жодної команди</p>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
-    <Card className="mb-6">
+    <Card>
       <CardContent className="p-4">
         <div className="flex flex-wrap gap-4">
           {teams.map(team => (
