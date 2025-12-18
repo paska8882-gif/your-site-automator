@@ -217,6 +217,7 @@ export function WebsiteGenerator() {
     return "";
   });
   const [animatingTeamId, setAnimatingTeamId] = useState<string | null>(null);
+  const [showTeamFilters, setShowTeamFilters] = useState(false);
   const prevAdminBalancesRef = useRef<Record<string, number>>({});
   const { playBalanceSound } = useBalanceSound();
   const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
@@ -877,7 +878,6 @@ export function WebsiteGenerator() {
 
   // Admin must select team first
   if (isAdmin && !selectedAdminTeamId) {
-    const [showFilters, setShowFilters] = useState(false);
     const positiveTeams = adminTeams.filter(team => team.balance >= 0).sort((a, b) => b.balance - a.balance);
     const negativeTeams = adminTeams.filter(team => team.balance < 0).sort((a, b) => a.balance - b.balance);
     
@@ -897,17 +897,17 @@ export function WebsiteGenerator() {
               <div className="p-2 border-b border-border flex items-center justify-between">
                 <h1 className="text-sm font-medium">Оберіть команду</h1>
                 <button
-                  onClick={() => setShowFilters(!showFilters)}
+                  onClick={() => setShowTeamFilters(!showTeamFilters)}
                   className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                 >
                   <Filter className="h-3 w-3" />
                   <span>Фільтри</span>
-                  {showFilters ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  {showTeamFilters ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                 </button>
               </div>
               
               {/* Collapsible filters */}
-              {showFilters && (
+              {showTeamFilters && (
                 <div className="p-2 border-b border-border bg-muted/30">
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="flex items-center gap-1">
