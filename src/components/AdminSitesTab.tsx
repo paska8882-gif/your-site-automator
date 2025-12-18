@@ -51,6 +51,7 @@ interface GenerationItem {
   error_message: string | null;
   ai_model: string | null;
   user_id: string | null;
+  team_id: string | null;
   sale_price: number | null;
 }
 
@@ -59,21 +60,20 @@ interface UserProfile {
   display_name: string | null;
 }
 
-interface TeamInfo {
-  team_id: string;
-  team_name: string;
+interface UserRoleInfo {
   role: string;
 }
 
-interface UserTeamMap {
-  [userId: string]: TeamInfo | null;
+interface UserRoleMap {
+  [userId: string]: UserRoleInfo | null;
 }
 
 export const AdminSitesTab = () => {
   const navigate = useNavigate();
   const [history, setHistory] = useState<GenerationItem[]>([]);
   const [profiles, setProfiles] = useState<Record<string, UserProfile>>({});
-  const [userTeams, setUserTeams] = useState<UserTeamMap>({});
+  const [teamsMap, setTeamsMap] = useState<Record<string, string>>({});
+  const [userRoles, setUserRoles] = useState<UserRoleMap>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   
@@ -113,9 +113,10 @@ export const AdminSitesTab = () => {
       setHistory(data || []);
       
       const userIds = [...new Set((data || []).map(item => item.user_id).filter(Boolean))] as string[];
+      const teamIds = [...new Set((data || []).map(item => item.team_id).filter(Boolean))] as string[];
       
+      // Fetch user profiles
       if (userIds.length > 0) {
-        // Fetch user profiles
         const { data: profilesData } = await supabase
           .from("profiles")
           .select("user_id, display_name")
@@ -127,32 +128,32 @@ export const AdminSitesTab = () => {
         });
         setProfiles(profilesMap);
 
-        // Fetch team memberships with team names
+        // Fetch user roles from team_members for role badges
         const { data: membershipsData } = await supabase
           .from("team_members")
-          .select("user_id, team_id, role")
+          .select("user_id, role")
           .in("user_id", userIds)
           .eq("status", "approved");
 
-        if (membershipsData && membershipsData.length > 0) {
-          const teamIds = [...new Set(membershipsData.map(m => m.team_id))];
-          const { data: teamsData } = await supabase
-            .from("teams")
-            .select("id, name")
-            .in("id", teamIds);
+        const rolesMap: UserRoleMap = {};
+        (membershipsData || []).forEach(m => {
+          rolesMap[m.user_id] = { role: m.role };
+        });
+        setUserRoles(rolesMap);
+      }
 
-          const teamsMap = new Map(teamsData?.map(t => [t.id, t.name]) || []);
-          
-          const userTeamsMap: UserTeamMap = {};
-          membershipsData.forEach(m => {
-            userTeamsMap[m.user_id] = {
-              team_id: m.team_id,
-              team_name: teamsMap.get(m.team_id) || "Невідома команда",
-              role: m.role
-            };
-          });
-          setUserTeams(userTeamsMap);
-        }
+      // Fetch team names by team_id from generation_history
+      if (teamIds.length > 0) {
+        const { data: teamsData } = await supabase
+          .from("teams")
+          .select("id, name")
+          .in("id", teamIds);
+
+        const teamsNameMap: Record<string, string> = {};
+        (teamsData || []).forEach(t => {
+          teamsNameMap[t.id] = t.name;
+        });
+        setTeamsMap(teamsNameMap);
       }
     }
     setLoading(false);
@@ -244,16 +245,15 @@ export const AdminSitesTab = () => {
     return profile?.display_name || userId.slice(0, 8) + "...";
   };
 
-  const getTeamName = (userId: string | null) => {
-    if (!userId) return "—";
-    const teamInfo = userTeams[userId];
-    return teamInfo?.team_name || "—";
+  const getTeamName = (teamId: string | null) => {
+    if (!teamId) return "—";
+    return teamsMap[teamId] || "—";
   };
 
   const getRoleBadge = (userId: string | null) => {
     if (!userId) return null;
-    const teamInfo = userTeams[userId];
-    if (!teamInfo) return null;
+    const roleInfo = userRoles[userId];
+    if (!roleInfo) return null;
     
     const roleLabels: Record<string, string> = {
       owner: "Owner",
@@ -264,7 +264,7 @@ export const AdminSitesTab = () => {
     
     return (
       <Badge variant="outline" className="text-xs">
-        {roleLabels[teamInfo.role] || teamInfo.role}
+        {roleLabels[roleInfo.role] || roleInfo.role}
       </Badge>
     );
   };
@@ -272,7 +272,7 @@ export const AdminSitesTab = () => {
   // Get unique values for filters
   const uniqueLanguages = [...new Set(history.map(h => h.language))].filter(Boolean);
   const uniqueUsers = [...new Set(history.map(h => h.user_id).filter(Boolean))] as string[];
-  const uniqueTeams = [...new Set(Object.values(userTeams).filter(Boolean).map(t => t!.team_name))];
+  const uniqueTeams = Object.values(teamsMap);
 
   const filteredHistory = history.filter(item => {
     if (statusFilter !== "all" && item.status !== statusFilter) return false;
@@ -280,7 +280,7 @@ export const AdminSitesTab = () => {
     if (websiteTypeFilter !== "all" && (item.website_type || "html") !== websiteTypeFilter) return false;
     if (languageFilter !== "all" && item.language !== languageFilter) return false;
     if (teamFilter !== "all") {
-      const teamName = getTeamName(item.user_id);
+      const teamName = getTeamName(item.team_id);
       if (teamName !== teamFilter) return false;
     }
     if (userFilter !== "all" && item.user_id !== userFilter) return false;
@@ -310,7 +310,7 @@ export const AdminSitesTab = () => {
       item.prompt.toLowerCase().includes(query) ||
       (item.site_name && item.site_name.toLowerCase().includes(query)) ||
       getUserName(item.user_id).toLowerCase().includes(query) ||
-      getTeamName(item.user_id).toLowerCase().includes(query)
+      getTeamName(item.team_id).toLowerCase().includes(query)
     );
   });
 
@@ -343,8 +343,8 @@ export const AdminSitesTab = () => {
         bVal = b.site_name || `site-${b.number}`;
         break;
       case "team":
-        aVal = getTeamName(a.user_id);
-        bVal = getTeamName(b.user_id);
+        aVal = getTeamName(a.team_id);
+        bVal = getTeamName(b.team_id);
         break;
       case "user":
         aVal = getUserName(a.user_id);
@@ -625,7 +625,7 @@ export const AdminSitesTab = () => {
                           <TableCell>
                             <Badge variant="secondary" className="text-xs">
                               <Users className="h-3 w-3 mr-1" />
-                              {getTeamName(item.user_id)}
+                              {getTeamName(item.team_id)}
                             </Badge>
                           </TableCell>
                           <TableCell>
