@@ -737,12 +737,8 @@ export function WebsiteGenerator() {
           <div className="flex items-center gap-3">
             <Sparkles className="h-10 w-10 text-primary" />
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                AI Website Generator
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                Опишіть сайт — AI згенерує HTML, CSS та всі файли
-              </p>
+              <h1 className="text-xl font-semibold">AI Website Generator</h1>
+              <p className="text-muted-foreground text-xs">Опишіть сайт — AI згенерує всі файли</p>
             </div>
           </div>
         </div>
