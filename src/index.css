@@ -36,16 +36,16 @@
 
     --radius: 0.375rem;
 
-    /* Dark sidebar for light theme */
-    --sidebar-background: 0 0% 8%;
-    --sidebar-foreground: 0 0% 85%;
+    /* Dark sidebar for light theme - gradient style from auth */
+    --sidebar-background: 0 0% 6%;
+    --sidebar-foreground: 0 0% 95%;
     --sidebar-primary: 0 0% 100%;
     --sidebar-primary-foreground: 0 0% 9%;
-    --sidebar-accent: 0 0% 22%;
+    --sidebar-accent: 0 0% 15%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 0 0% 18%;
+    --sidebar-border: 0 0% 15%;
     --sidebar-ring: 0 0% 60%;
-    --sidebar-muted: 0 0% 55%;
+    --sidebar-muted: 0 0% 50%;
   }
 
   .dark {
@@ -77,15 +77,15 @@
     --input: 0 0% 18%;
     --ring: 0 0% 60%;
 
-    /* Darker sidebar for dark theme (but not black - visible contrast) */
-    --sidebar-background: 0 0% 12%;
-    --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 0 0% 98%;
+    /* Lighter dark sidebar for dark theme - visible contrast with content */
+    --sidebar-background: 0 0% 14%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 0 0% 100%;
     --sidebar-primary-foreground: 0 0% 9%;
-    --sidebar-accent: 0 0% 20%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 0 0% 18%;
-    --sidebar-ring: 0 0% 40%;
+    --sidebar-accent: 0 0% 22%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 20%;
+    --sidebar-ring: 0 0% 60%;
     --sidebar-muted: 0 0% 55%;
   }
 }
@@ -102,10 +102,17 @@
 
 @layer utilities {
   .sidebar-gradient {
-    background: linear-gradient(180deg, hsl(0 0% 14%) 0%, hsl(0 0% 6%) 100%);
+    background: linear-gradient(180deg, hsl(0 0% 8%) 0%, hsl(0 0% 4%) 100%);
   }
   
   .dark .sidebar-gradient {
-    background: linear-gradient(180deg, hsl(0 0% 16%) 0%, hsl(0 0% 10%) 100%);
+    background: linear-gradient(180deg, hsl(0 0% 14%) 0%, hsl(0 0% 8%) 100%);
   }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  25% { transform: translateY(-10px) translateX(5px); }
+  50% { transform: translateY(-5px) translateX(-5px); }
+  75% { transform: translateY(-15px) translateX(3px); }
 }
