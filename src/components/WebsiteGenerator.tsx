@@ -102,6 +102,7 @@ const languages = [
   { value: "lt", label: "Lietuvių" },
   { value: "lv", label: "Latviešu" },
   { value: "et", label: "Eesti" },
+  { value: "kk", label: "Қазақша" },
 ];
 
 // Play notification sound using Web Audio API
