@@ -19,8 +19,41 @@ const MODEL_PRICE_PER_MILLION: Record<string, { input: number; output: number }>
 
 const GENERATION_PROMPT = `Create a COMPLETE, PROFESSIONAL website with ALL necessary files.
 
-CRITICAL REQUIREMENTS:
-- Cookie banner on EVERY page (functional, shows until accepted)
+🍪 ABSOLUTELY CRITICAL - COOKIE CONSENT SYSTEM (NON-NEGOTIABLE):
+Every website MUST include a REAL, FUNCTIONAL cookie consent system that ACTUALLY COLLECTS AND STORES user choices:
+
+**COOKIE BANNER REQUIREMENTS:**
+1. Cookie banner HTML on EVERY page (in footer area or separate div)
+2. Banner appears on FIRST visit (check localStorage on page load)
+3. TWO buttons required: "Accept All" and "Decline/Reject"
+4. "Accept" button: localStorage.setItem('cookieConsent', 'accepted') + hide banner
+5. "Decline" button: localStorage.setItem('cookieConsent', 'declined') + hide banner  
+6. Banner NEVER shows again after user makes ANY choice
+7. Check localStorage.getItem('cookieConsent') on every page load
+
+**COOKIE JAVASCRIPT (INCLUDE ON EVERY PAGE):**
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const consent = localStorage.getItem('cookieConsent');
+  const banner = document.getElementById('cookie-banner');
+  if (!consent && banner) banner.style.display = 'flex';
+});
+function acceptCookies() {
+  localStorage.setItem('cookieConsent', 'accepted');
+  document.getElementById('cookie-banner').style.display = 'none';
+}
+function declineCookies() {
+  localStorage.setItem('cookieConsent', 'declined');
+  document.getElementById('cookie-banner').style.display = 'none';
+}
+</script>
+
+**COOKIE BANNER STYLING:**
+- Position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999
+- Background with shadow, comfortable padding
+- Clear Accept (primary) and Decline (secondary) buttons
+
+OTHER CRITICAL REQUIREMENTS:
 - Include: terms.html, privacy.html, cookie-policy.html
 - robots.txt and sitemap.xml in root directory
 - "Scroll to top" button that resets scroll on navigation
