@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, ArrowRight, Sun, Moon } from "lucide-react";
+import { useTheme } from "@/hooks/useTheme";
+import { Loader2, ArrowRight } from "lucide-react";
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Невірний формат email" }),
@@ -29,6 +30,8 @@ export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading, signIn, signUp } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const isDarkTheme = theme === "dark";
   const [isLogin, setIsLogin] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [email, setEmail] = useState("");
@@ -37,14 +40,6 @@ export default function Auth() {
   const [inviteCode, setInviteCode] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedRole, setSelectedRole] = useState<TeamRole | null>(null);
-  const [isDarkTheme, setIsDarkTheme] = useState(() => {
-    const saved = localStorage.getItem('auth-theme');
-    return saved === 'dark';
-  });
-
-  useEffect(() => {
-    localStorage.setItem('auth-theme', isDarkTheme ? 'dark' : 'light');
-  }, [isDarkTheme]);
 
   useEffect(() => {
     if (user && !loading) {
@@ -249,7 +244,7 @@ export default function Auth() {
         <div className="relative z-10 animate-fade-in" style={{ animationDelay: '0.1s', animationFillMode: 'backwards' }}>
           <div className="flex items-center gap-3">
             <button 
-              onClick={() => setIsDarkTheme(!isDarkTheme)}
+              onClick={toggleTheme}
               className="relative group cursor-pointer"
             >
               <div className={`absolute inset-0 rounded-lg blur-md animate-pulse opacity-20 pointer-events-none ${isDarkTheme ? 'bg-white' : 'bg-black'}`} />
@@ -314,7 +309,7 @@ export default function Auth() {
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center gap-3 mb-10 animate-fade-in">
             <button 
-              onClick={() => setIsDarkTheme(!isDarkTheme)}
+              onClick={toggleTheme}
               className="relative group cursor-pointer"
             >
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-lg transition-transform duration-200 group-hover:scale-110 group-active:scale-95 pointer-events-none ${

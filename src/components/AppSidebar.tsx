@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -11,7 +10,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
@@ -23,14 +21,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
-  FileCode2, 
   History, 
   Users, 
   Settings, 
   LogOut, 
   ChevronUp,
   Shield,
-  LayoutDashboard,
   Sparkles,
   Wallet,
   FileCode,
@@ -43,6 +39,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
+import { useTheme } from "@/hooks/useTheme";
 import { NotificationBell } from "./NotificationBell";
 import { SupportChat } from "./SupportChat";
 
@@ -70,6 +67,7 @@ export function AppSidebar() {
   const { isAdmin } = useAdmin();
   const { isTeamOwner } = useTeamOwner();
   const { state } = useSidebar();
+  const { theme, toggleTheme } = useTheme();
   const collapsed = state === "collapsed";
 
   const handleSignOut = async () => {
@@ -90,12 +88,16 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border/50">
-      {/* Header with Logo */}
+      {/* Header with Logo - Click to toggle theme */}
       <SidebarHeader className="border-b border-border/50 p-4">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-md flex-shrink-0">
-            <span className="text-primary-foreground font-bold text-base">D</span>
-          </div>
+          <button
+            onClick={toggleTheme}
+            className="w-9 h-9 gradient-accent rounded-lg flex items-center justify-center shadow-md flex-shrink-0 hover:opacity-90 transition-all duration-300 glow-sm cursor-pointer"
+            title={theme === "dark" ? "Світла тема" : "Темна тема"}
+          >
+            <span className="text-white font-bold text-base">D</span>
+          </button>
           {!collapsed && (
             <div className="flex flex-col overflow-hidden">
               <span className="font-semibold text-sm tracking-tight truncate">
