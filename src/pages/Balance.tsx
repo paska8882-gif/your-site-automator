@@ -4,13 +4,14 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Wallet, TrendingDown, TrendingUp, Clock, XCircle, Loader2, Users, CalendarDays } from "lucide-react";
+import { Wallet, TrendingDown, TrendingUp, Clock, XCircle, Loader2, Users, CalendarDays, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
-import { format, subDays, startOfDay, eachDayOfInterval } from "date-fns";
+import { useAdmin } from "@/hooks/useAdmin";
+import { format, subDays, eachDayOfInterval } from "date-fns";
 import { uk } from "date-fns/locale";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 interface Transaction {
   id: string;
@@ -42,6 +43,12 @@ interface BuyerData {
   count: number;
 }
 
+interface TeamSpendingData {
+  name: string;
+  amount: number;
+  count: number;
+}
+
 const CHART_COLORS = [
   "hsl(var(--primary))",
   "hsl(var(--chart-2))",
@@ -57,10 +64,12 @@ const Balance = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const { isTeamOwner } = useTeamOwner();
+  const { isAdmin } = useAdmin();
   const [teamInfo, setTeamInfo] = useState<TeamInfo | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [dailyData, setDailyData] = useState<DailyData[]>([]);
   const [buyerData, setBuyerData] = useState<BuyerData[]>([]);
+  const [teamSpendingData, setTeamSpendingData] = useState<TeamSpendingData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -73,7 +82,7 @@ const Balance = () => {
     if (user) {
       fetchFinancialData();
     }
-  }, [user, isTeamOwner]);
+  }, [user, isTeamOwner, isAdmin]);
 
   const fetchFinancialData = async () => {
     setIsLoading(true);
@@ -255,6 +264,61 @@ const Balance = () => {
           .sort((a, b) => b.amount - a.amount)
           .slice(0, 8);
         setBuyerData(buyerChartData);
+      }
+
+      // Build team spending chart data (for admins or team owners)
+      if (isAdmin || isTeamOwner) {
+        // Get all teams with their generation totals
+        const { data: allTeams } = await supabase
+          .from("teams")
+          .select("id, name");
+
+        if (allTeams) {
+          const teamSpendingMap = new Map<string, { name: string; amount: number; count: number }>();
+          
+          allTeams.forEach(team => {
+            teamSpendingMap.set(team.id, { name: team.name, amount: 0, count: 0 });
+          });
+
+          // Get all generations with team info via team_members
+          const { data: allGenerations } = await supabase
+            .from("generation_history")
+            .select("user_id, sale_price")
+            .not("sale_price", "is", null);
+
+          if (allGenerations) {
+            // Get user to team mapping
+            const { data: allMemberships } = await supabase
+              .from("team_members")
+              .select("user_id, team_id")
+              .eq("status", "approved");
+
+            const userTeamMap = new Map<string, string>();
+            allMemberships?.forEach(m => {
+              userTeamMap.set(m.user_id, m.team_id);
+            });
+
+            allGenerations.forEach(gen => {
+              if (gen.sale_price && gen.sale_price > 0 && gen.user_id) {
+                const teamId = userTeamMap.get(gen.user_id);
+                if (teamId && teamSpendingMap.has(teamId)) {
+                  const current = teamSpendingMap.get(teamId)!;
+                  teamSpendingMap.set(teamId, {
+                    ...current,
+                    amount: current.amount + gen.sale_price,
+                    count: current.count + 1
+                  });
+                }
+              }
+            });
+          }
+
+          const teamChartData = Array.from(teamSpendingMap.values())
+            .filter(t => t.amount > 0)
+            .sort((a, b) => b.amount - a.amount)
+            .slice(0, 10);
+          setTeamSpendingData(teamChartData);
+        }
       }
 
     } catch (error) {
@@ -474,6 +538,54 @@ const Balance = () => {
                         <p>Немає даних по баєрах</p>
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Team Spending Chart (for admins or team owners) */}
+              {(isAdmin || isTeamOwner) && teamSpendingData.length > 0 && (
+                <Card className={isTeamOwner && !isAdmin ? "" : "lg:col-span-2"}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      Витрати по командах
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={teamSpendingData} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis 
+                          type="number"
+                          tick={{ fontSize: 11 }} 
+                          className="text-muted-foreground"
+                          tickFormatter={(value) => `$${value}`}
+                        />
+                        <YAxis 
+                          type="category"
+                          dataKey="name" 
+                          tick={{ fontSize: 11 }} 
+                          className="text-muted-foreground"
+                          width={100}
+                        />
+                        <Tooltip 
+                          formatter={(value: number, name: string, props: any) => [
+                            `$${value.toFixed(2)} (${props.payload.count} сайтів)`, 
+                            "Витрати"
+                          ]}
+                          contentStyle={{ 
+                            backgroundColor: "hsl(var(--popover))", 
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "8px"
+                          }}
+                        />
+                        <Bar 
+                          dataKey="amount" 
+                          fill="hsl(var(--chart-2))" 
+                          radius={[0, 4, 4, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
                   </CardContent>
                 </Card>
               )}
