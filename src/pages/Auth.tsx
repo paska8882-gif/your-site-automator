@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, Zap, Shield, Globe, Layers } from "lucide-react";
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Невірний формат email" }),
@@ -87,7 +87,6 @@ export default function Auth() {
   };
 
   const joinTeam = async (userId: string, teamId: string, role: string) => {
-    // For owner role, auto-approve. For others, set as pending
     const isOwner = role === "owner";
 
     await supabase.from("team_members").insert({
@@ -131,7 +130,6 @@ export default function Auth() {
           });
         }
       } else {
-        // Validate invite code first
         const codeResult = await validateInviteCode(inviteCode);
         if (!codeResult.valid) {
           toast({
@@ -159,11 +157,9 @@ export default function Auth() {
             });
           }
         } else {
-          // Mark invite code as used and join team if applicable
           if (data?.user) {
             await markInviteCodeAsUsed(inviteCode, data.user.id);
             
-            // If invite code has a team, join the team
             if (codeResult.teamId && codeResult.role) {
               await joinTeam(data.user.id, codeResult.teamId, codeResult.role);
             }
@@ -193,127 +189,250 @@ export default function Auth() {
     );
   }
 
+  const features = [
+    { icon: Zap, title: "Швидка генерація", desc: "AI створює сайти за лічені хвилини" },
+    { icon: Globe, title: "24 мови", desc: "Підтримка європейських мов" },
+    { icon: Layers, title: "HTML та React", desc: "Два формати на вибір" },
+    { icon: Shield, title: "Командна робота", desc: "Управління командою та балансом" },
+  ];
+
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Sparkles className="h-8 w-8 text-primary" />
+    <div className="min-h-screen flex">
+      {/* Left Panel - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 xl:w-3/5 bg-gradient-to-br from-primary/90 via-primary to-primary/80 relative overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-20 left-20 w-72 h-72 bg-white rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-20 w-96 h-96 bg-white rounded-full blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-white/20 rounded-full blur-3xl" />
+        </div>
+
+        {/* Grid Pattern */}
+        <div className="absolute inset-0 opacity-5" style={{
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                            linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+          backgroundSize: '50px 50px'
+        }} />
+
+        {/* Content */}
+        <div className="relative z-10 flex flex-col justify-center px-12 xl:px-20 text-white">
+          {/* Logo */}
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30 shadow-lg">
+              <span className="text-3xl">🐉</span>
+            </div>
+            <div>
+              <h1 className="text-3xl xl:text-4xl font-bold tracking-tight">DRAGON WHITE</h1>
+              <p className="text-white/70 text-sm font-medium">AI Website Generator</p>
+            </div>
           </div>
-          <CardTitle className="text-2xl">
-            {isLogin ? "Вхід" : "Реєстрація"}
-          </CardTitle>
-          <CardDescription>
-            {isLogin
-              ? "Увійдіть, щоб переглянути свою історію генерацій"
-              : "Створіть акаунт для збереження генерацій"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <>
+
+          {/* Main Heading */}
+          <h2 className="text-4xl xl:text-5xl font-bold leading-tight mb-6">
+            Створюйте професійні
+            <br />
+            <span className="text-white/90">вебсайти з AI</span>
+          </h2>
+
+          <p className="text-lg text-white/80 mb-10 max-w-md leading-relaxed">
+            Потужний генератор сайтів на базі штучного інтелекту. 
+            Опишіть свою ідею — отримайте готовий сайт.
+          </p>
+
+          {/* Features Grid */}
+          <div className="grid grid-cols-2 gap-4 max-w-lg">
+            {features.map((feature, index) => (
+              <div 
+                key={index}
+                className="flex items-start gap-3 p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/15 transition-colors"
+              >
+                <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <feature.icon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm">{feature.title}</h3>
+                  <p className="text-white/70 text-xs mt-0.5">{feature.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Bottom Stats */}
+          <div className="flex gap-8 mt-12 pt-8 border-t border-white/20">
+            <div>
+              <div className="text-3xl font-bold">10+</div>
+              <div className="text-white/70 text-sm">Стилів дизайну</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold">2</div>
+              <div className="text-white/70 text-sm">AI моделі</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold">∞</div>
+              <div className="text-white/70 text-sm">Можливостей</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Panel - Auth Form */}
+      <div className="w-full lg:w-1/2 xl:w-2/5 flex items-center justify-center p-6 sm:p-8 bg-background">
+        <div className="w-full max-w-md">
+          {/* Mobile Logo */}
+          <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <span className="text-2xl">🐉</span>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">DRAGON WHITE</h1>
+              <p className="text-muted-foreground text-xs">AI Website Generator</p>
+            </div>
+          </div>
+
+          <Card className="border-0 shadow-none lg:border lg:shadow-sm">
+            <CardHeader className="text-center pb-4">
+              <div className="flex items-center justify-center gap-2 mb-2 lg:hidden">
+                <Sparkles className="h-6 w-6 text-primary" />
+              </div>
+              <CardTitle className="text-2xl font-bold">
+                {isLogin ? "Вхід в систему" : "Створення акаунту"}
+              </CardTitle>
+              <CardDescription className="text-muted-foreground">
+                {isLogin
+                  ? "Введіть свої дані для входу"
+                  : "Заповніть форму для реєстрації"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {!isLogin && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="inviteCode" className="text-sm font-medium">
+                        Інвайт-код <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="inviteCode"
+                        type="text"
+                        placeholder="XXXXXXXX"
+                        value={inviteCode}
+                        onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                        disabled={isSubmitting}
+                        className={`h-11 ${errors.inviteCode ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                        maxLength={8}
+                      />
+                      {errors.inviteCode && (
+                        <p className="text-xs text-destructive">{errors.inviteCode}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="displayName" className="text-sm font-medium">
+                        Ваше ім'я <span className="text-muted-foreground text-xs">(необов'язково)</span>
+                      </Label>
+                      <Input
+                        id="displayName"
+                        type="text"
+                        placeholder="Введіть ваше ім'я"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        disabled={isSubmitting}
+                        className="h-11"
+                      />
+                    </div>
+                  </>
+                )}
+
                 <div className="space-y-2">
-                  <Label htmlFor="inviteCode">Інвайт-код *</Label>
+                  <Label htmlFor="email" className="text-sm font-medium">Email</Label>
                   <Input
-                    id="inviteCode"
-                    type="text"
-                    placeholder="XXXXXXXX"
-                    value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                    id="email"
+                    type="email"
+                    placeholder="name@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     disabled={isSubmitting}
-                    className={errors.inviteCode ? "border-destructive" : ""}
-                    maxLength={8}
+                    className={`h-11 ${errors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
                   />
-                  {errors.inviteCode && (
-                    <p className="text-sm text-destructive">{errors.inviteCode}</p>
+                  {errors.email && (
+                    <p className="text-xs text-destructive">{errors.email}</p>
                   )}
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="displayName">Ім'я (необов'язково)</Label>
+                  <Label htmlFor="password" className="text-sm font-medium">Пароль</Label>
                   <Input
-                    id="displayName"
-                    type="text"
-                    placeholder="Ваше ім'я"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     disabled={isSubmitting}
+                    className={`h-11 ${errors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
                   />
+                  {errors.password && (
+                    <p className="text-xs text-destructive">{errors.password}</p>
+                  )}
                 </div>
-              </>
-            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isSubmitting}
-                className={errors.email ? "border-destructive" : ""}
-              />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Пароль</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isSubmitting}
-                className={errors.password ? "border-destructive" : ""}
-              />
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password}</p>
-              )}
-            </div>
-
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isLogin ? "Вхід..." : "Реєстрація..."}
-                </>
-              ) : (
-                <>{isLogin ? "Увійти" : "Зареєструватись"}</>
-              )}
-            </Button>
-          </form>
-
-          <div className="mt-4 text-center text-sm">
-            {isLogin ? (
-              <p>
-                Немає акаунту?{" "}
-                <button
-                  type="button"
-                  onClick={() => setIsLogin(false)}
-                  className="text-primary hover:underline"
+                <Button 
+                  type="submit" 
+                  className="w-full h-11 font-medium text-base" 
+                  disabled={isSubmitting}
                 >
-                  Зареєструватись
-                </button>
-              </p>
-            ) : (
-              <p>
-                Вже є акаунт?{" "}
-                <button
-                  type="button"
-                  onClick={() => setIsLogin(true)}
-                  className="text-primary hover:underline"
-                >
-                  Увійти
-                </button>
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {isLogin ? "Вхід..." : "Реєстрація..."}
+                    </>
+                  ) : (
+                    <>{isLogin ? "Увійти" : "Зареєструватись"}</>
+                  )}
+                </Button>
+              </form>
+
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">або</span>
+                </div>
+              </div>
+
+              <div className="text-center text-sm">
+                {isLogin ? (
+                  <p className="text-muted-foreground">
+                    Немає акаунту?{" "}
+                    <button
+                      type="button"
+                      onClick={() => setIsLogin(false)}
+                      className="text-primary font-medium hover:underline"
+                    >
+                      Зареєструватись
+                    </button>
+                  </p>
+                ) : (
+                  <p className="text-muted-foreground">
+                    Вже маєте акаунт?{" "}
+                    <button
+                      type="button"
+                      onClick={() => setIsLogin(true)}
+                      className="text-primary font-medium hover:underline"
+                    >
+                      Увійти
+                    </button>
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Footer */}
+          <p className="text-center text-xs text-muted-foreground mt-6">
+            Продовжуючи, ви погоджуєтесь з умовами використання сервісу
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
