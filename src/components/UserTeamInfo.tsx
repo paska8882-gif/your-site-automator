@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Users, Wallet } from "lucide-react";
+import { useBalanceSound } from "@/hooks/useBalanceSound";
 
 type TeamRole = "owner" | "team_lead" | "buyer" | "tech_dev";
 
@@ -21,10 +22,58 @@ const roleLabels: Record<TeamRole, string> = {
 export function UserTeamInfo() {
   const [teams, setTeams] = useState<TeamMembership[]>([]);
   const [loading, setLoading] = useState(true);
+  const [animatingTeamId, setAnimatingTeamId] = useState<string | null>(null);
+  const [balanceDirection, setBalanceDirection] = useState<"positive" | "negative" | null>(null);
+  const prevBalancesRef = useRef<Record<string, number>>({});
+  const { playBalanceSound } = useBalanceSound();
 
   useEffect(() => {
     fetchTeamInfo();
-  }, []);
+
+    // Realtime subscription for balance updates
+    const channel = supabase
+      .channel("user-team-balance")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "teams" },
+        (payload) => {
+          const teamId = payload.new.id;
+          const newBalance = payload.new.balance;
+          const prevBalance = prevBalancesRef.current[teamId];
+
+          setTeams(prev => {
+            const teamExists = prev.some(t => t.team_id === teamId);
+            if (!teamExists) return prev;
+
+            // Determine if balance increased or decreased
+            if (prevBalance !== undefined && prevBalance !== newBalance) {
+              const isPositive = newBalance > prevBalance;
+              setBalanceDirection(isPositive ? "positive" : "negative");
+              setAnimatingTeamId(teamId);
+              playBalanceSound(isPositive);
+              
+              setTimeout(() => {
+                setAnimatingTeamId(null);
+                setBalanceDirection(null);
+              }, 600);
+            }
+
+            prevBalancesRef.current[teamId] = newBalance;
+
+            return prev.map(team =>
+              team.team_id === teamId
+                ? { ...team, team_balance: newBalance }
+                : team
+            );
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [playBalanceSound]);
 
   const fetchTeamInfo = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -52,10 +101,12 @@ export function UserTeamInfo() {
 
     const teamMemberships: TeamMembership[] = memberships.map(m => {
       const team = teamsData?.find(t => t.id === m.team_id);
+      const balance = team?.balance || 0;
+      prevBalancesRef.current[m.team_id] = balance;
       return {
         team_id: m.team_id,
         team_name: team?.name || "Невідома команда",
-        team_balance: team?.balance || 0,
+        team_balance: balance,
         role: m.role as TeamRole
       };
     });
@@ -95,7 +146,15 @@ export function UserTeamInfo() {
               <div className="text-xs text-muted-foreground">{roleLabels[team.role]}</div>
             </div>
           </div>
-          <div className="flex items-center gap-1 text-sm">
+          <div 
+            className={`flex items-center gap-1 text-sm px-2 py-1 rounded ${
+              animatingTeamId === team.team_id 
+                ? balanceDirection === "positive" 
+                  ? "balance-changed" 
+                  : "balance-changed-negative"
+                : ""
+            }`}
+          >
             <Wallet className="h-4 w-4 text-muted-foreground" />
             <span className="font-semibold">${team.team_balance.toFixed(2)}</span>
           </div>

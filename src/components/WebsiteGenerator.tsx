@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,6 +31,7 @@ import { DebtNotificationPopup } from "./DebtNotificationPopup";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
+import { useBalanceSound } from "@/hooks/useBalanceSound";
 
 interface TeamPricing {
   teamId: string;
@@ -166,6 +167,9 @@ export function WebsiteGenerator() {
   // Admin team selection
   const [adminTeams, setAdminTeams] = useState<AdminTeam[]>([]);
   const [selectedAdminTeamId, setSelectedAdminTeamId] = useState<string>("");
+  const [animatingTeamId, setAnimatingTeamId] = useState<string | null>(null);
+  const prevAdminBalancesRef = useRef<Record<string, number>>({});
+  const { playBalanceSound } = useBalanceSound();
   const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
   
   // Presets
@@ -205,6 +209,10 @@ export function WebsiteGenerator() {
         
         if (teams && teams.length > 0) {
           setAdminTeams(teams);
+          // Initialize balance tracking for animation
+          teams.forEach(team => {
+            prevAdminBalancesRef.current[team.id] = team.balance;
+          });
           // Auto-select first team if not selected
           if (!selectedAdminTeamId) {
             setSelectedAdminTeamId(teams[0].id);
@@ -357,23 +365,44 @@ export function WebsiteGenerator() {
 
     fetchTeamPricing();
 
-    // Subscribe to team balance changes (for non-admins)
+    // Subscribe to team balance changes
     const channel = supabase
       .channel("team_balance_changes")
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "teams" },
         (payload) => {
+          const teamId = payload.new.id;
+          const newBalance = payload.new.balance;
+          const prevBalance = prevAdminBalancesRef.current[teamId];
+
           // Update teamPricing for non-admin users
-          if (teamPricing && payload.new.id === teamPricing.teamId) {
-            setTeamPricing(prev => prev ? { ...prev, balance: payload.new.balance } : null);
+          if (teamPricing && teamId === teamPricing.teamId) {
+            setTeamPricing(prev => prev ? { ...prev, balance: newBalance } : null);
           }
-          // Update adminTeams array for admin users
-          setAdminTeams(prev => prev.map(team => 
-            team.id === payload.new.id 
-              ? { ...team, balance: payload.new.balance, credit_limit: payload.new.credit_limit } 
-              : team
-          ));
+
+          // Update adminTeams array for admin users with animation
+          setAdminTeams(prev => {
+            const teamExists = prev.some(t => t.id === teamId);
+            if (!teamExists) return prev;
+
+            // Trigger animation and sound if balance changed
+            if (prevBalance !== undefined && prevBalance !== newBalance) {
+              const isPositive = newBalance > prevBalance;
+              setAnimatingTeamId(teamId);
+              playBalanceSound(isPositive);
+              
+              setTimeout(() => setAnimatingTeamId(null), 600);
+            }
+
+            prevAdminBalancesRef.current[teamId] = newBalance;
+
+            return prev.map(team => 
+              team.id === teamId 
+                ? { ...team, balance: newBalance, credit_limit: payload.new.credit_limit } 
+                : team
+            );
+          });
         }
       )
       .subscribe();
@@ -381,7 +410,7 @@ export function WebsiteGenerator() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isAdmin]);
+  }, [isAdmin, playBalanceSound]);
 
   // Show debt popup when team balance is negative (only for non-admins)
   useEffect(() => {
@@ -754,7 +783,7 @@ export function WebsiteGenerator() {
             {isAdmin && (
               <div className="flex flex-wrap items-center gap-3">
                 {/* Team Selection */}
-                <div className="flex items-center gap-2">
+                <div className={`flex items-center gap-2 px-1 rounded ${animatingTeamId === selectedAdminTeamId ? "balance-changed" : ""}`}>
                   <Users className="h-4 w-4 text-muted-foreground" />
                   <Select 
                     value={selectedAdminTeamId} 
@@ -766,8 +795,14 @@ export function WebsiteGenerator() {
                     </SelectTrigger>
                     <SelectContent>
                       {adminTeams.map(team => (
-                        <SelectItem key={team.id} value={team.id}>
-                          {team.name} (${team.balance.toFixed(0)})
+                        <SelectItem 
+                          key={team.id} 
+                          value={team.id}
+                          className={animatingTeamId === team.id ? "balance-changed" : ""}
+                        >
+                          <span className={`inline-flex items-center gap-1 ${animatingTeamId === team.id ? "balance-changed" : ""}`}>
+                            {team.name} (${team.balance.toFixed(0)})
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>
