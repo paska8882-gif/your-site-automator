@@ -369,281 +369,183 @@ const Balance = () => {
 
   return (
     <AppLayout>
-      <div className="p-4 md:p-6 space-y-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold">Баланс</h1>
-          <p className="text-muted-foreground text-sm">
+      <div className="p-3 md:p-4 space-y-3">
+        <div className="space-y-0.5">
+          <h1 className="text-xl font-bold">Баланс</h1>
+          <p className="text-muted-foreground text-xs">
             {isTeamOwner ? "Фінансова діяльність команди" : "Ваша фінансова діяльність"}
           </p>
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
           <>
             {/* Balance Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <Wallet className="h-4 w-4" />
-                    Поточний баланс
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className={`text-2xl font-bold ${teamInfo && teamInfo.balance < 0 ? "text-destructive" : "text-foreground"}`}>
-                    ${teamInfo?.balance.toFixed(2) || "0.00"}
-                  </div>
-                  {teamInfo && (
-                    <p className="text-xs text-muted-foreground mt-1">{teamInfo.name}</p>
-                  )}
-                </CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <Card className="p-3">
+                <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                  <Wallet className="h-3 w-3" />
+                  Баланс
+                </div>
+                <div className={`text-lg font-bold ${teamInfo && teamInfo.balance < 0 ? "text-destructive" : "text-foreground"}`}>
+                  ${teamInfo?.balance.toFixed(2) || "0.00"}
+                </div>
               </Card>
 
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <TrendingDown className="h-4 w-4" />
-                    Витрачено
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">${totalSpent.toFixed(2)}</div>
-                  <p className="text-xs text-muted-foreground mt-1">За весь час</p>
-                </CardContent>
+              <Card className="p-3">
+                <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                  <TrendingDown className="h-3 w-3" />
+                  Витрачено
+                </div>
+                <div className="text-lg font-bold">${totalSpent.toFixed(2)}</div>
               </Card>
 
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4" />
-                    Повернено
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-500">${totalRefunded.toFixed(2)}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Схвалені апеляції</p>
-                </CardContent>
+              <Card className="p-3">
+                <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                  <TrendingUp className="h-3 w-3" />
+                  Повернено
+                </div>
+                <div className="text-lg font-bold text-green-500">${totalRefunded.toFixed(2)}</div>
               </Card>
 
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    На розгляді
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-amber-500">${pendingRefunds.toFixed(2)}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Очікують рішення</p>
-                </CardContent>
+              <Card className="p-3">
+                <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                  <Clock className="h-3 w-3" />
+                  На розгляді
+                </div>
+                <div className="text-lg font-bold text-amber-500">${pendingRefunds.toFixed(2)}</div>
               </Card>
             </div>
 
-            {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Charts - all in one row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               {/* Daily Chart */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <CalendarDays className="h-4 w-4" />
-                    Витрати по днях
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {dailyData.some(d => d.amount > 0) ? (
-                    <ResponsiveContainer width="100%" height={250}>
-                      <BarChart data={dailyData}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis 
-                          dataKey="date" 
-                          tick={{ fontSize: 11 }} 
-                          className="text-muted-foreground"
-                        />
-                        <YAxis 
-                          tick={{ fontSize: 11 }} 
-                          className="text-muted-foreground"
-                          tickFormatter={(value) => `$${value}`}
-                        />
-                        <Tooltip 
-                          formatter={(value: number) => [`$${value.toFixed(2)}`, "Сума"]}
-                          labelFormatter={(label) => `Дата: ${label}`}
-                          contentStyle={{ 
-                            backgroundColor: "hsl(var(--popover))", 
-                            border: "1px solid hsl(var(--border))",
-                            borderRadius: "8px"
-                          }}
-                        />
-                        <Bar 
-                          dataKey="amount" 
-                          fill="hsl(var(--primary))" 
-                          radius={[4, 4, 0, 0]}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                      <p>Немає даних за останні 14 днів</p>
-                    </div>
-                  )}
-                </CardContent>
+              <Card className="p-3">
+                <div className="flex items-center gap-1.5 text-xs font-medium mb-2">
+                  <CalendarDays className="h-3 w-3" />
+                  По днях
+                </div>
+                {dailyData.some(d => d.amount > 0) ? (
+                  <ResponsiveContainer width="100%" height={140}>
+                    <BarChart data={dailyData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={2} />
+                      <YAxis tick={{ fontSize: 9 }} tickFormatter={(v) => `$${v}`} width={35} />
+                      <Tooltip 
+                        formatter={(value: number) => [`$${value.toFixed(2)}`, "Сума"]}
+                        contentStyle={{ fontSize: 11, backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "6px" }}
+                      />
+                      <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[140px] flex items-center justify-center text-muted-foreground text-xs">
+                    Немає даних
+                  </div>
+                )}
               </Card>
 
-              {/* Buyer Chart (only for team owners) */}
+              {/* Buyer Chart */}
               {isTeamOwner && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      Витрати по баєрах
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {buyerData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={250}>
-                        <PieChart>
-                          <Pie
-                            data={buyerData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={90}
-                            paddingAngle={2}
-                            dataKey="amount"
-                            nameKey="name"
-                            label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                            labelLine={false}
-                          >
-                            {buyerData.map((_, index) => (
-                              <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip 
-                            formatter={(value: number, name: string, props: any) => [
-                              `$${value.toFixed(2)} (${props.payload.count} сайтів)`, 
-                              props.payload.name
-                            ]}
-                            contentStyle={{ 
-                              backgroundColor: "hsl(var(--popover))", 
-                              border: "1px solid hsl(var(--border))",
-                              borderRadius: "8px"
-                            }}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                        <p>Немає даних по баєрах</p>
-                      </div>
-                    )}
-                  </CardContent>
+                <Card className="p-3">
+                  <div className="flex items-center gap-1.5 text-xs font-medium mb-2">
+                    <Users className="h-3 w-3" />
+                    По баєрах
+                  </div>
+                  {buyerData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={140}>
+                      <PieChart>
+                        <Pie
+                          data={buyerData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={35}
+                          outerRadius={55}
+                          paddingAngle={2}
+                          dataKey="amount"
+                          nameKey="name"
+                        >
+                          {buyerData.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value: number, name: string, props: any) => [`$${value.toFixed(2)}`, props.payload.name]}
+                          contentStyle={{ fontSize: 11, backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "6px" }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-[140px] flex items-center justify-center text-muted-foreground text-xs">
+                      Немає даних
+                    </div>
+                  )}
                 </Card>
               )}
 
-              {/* Team Spending Chart (for admins or team owners) */}
+              {/* Team Spending Chart */}
               {(isAdmin || isTeamOwner) && teamSpendingData.length > 0 && (
-                <Card className={isTeamOwner && !isAdmin ? "" : "lg:col-span-2"}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Building2 className="h-4 w-4" />
-                      Витрати по командах
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={250}>
-                      <BarChart data={teamSpendingData} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis 
-                          type="number"
-                          tick={{ fontSize: 11 }} 
-                          className="text-muted-foreground"
-                          tickFormatter={(value) => `$${value}`}
-                        />
-                        <YAxis 
-                          type="category"
-                          dataKey="name" 
-                          tick={{ fontSize: 11 }} 
-                          className="text-muted-foreground"
-                          width={100}
-                        />
-                        <Tooltip 
-                          formatter={(value: number, name: string, props: any) => [
-                            `$${value.toFixed(2)} (${props.payload.count} сайтів)`, 
-                            "Витрати"
-                          ]}
-                          contentStyle={{ 
-                            backgroundColor: "hsl(var(--popover))", 
-                            border: "1px solid hsl(var(--border))",
-                            borderRadius: "8px"
-                          }}
-                        />
-                        <Bar 
-                          dataKey="amount" 
-                          fill="hsl(var(--chart-2))" 
-                          radius={[0, 4, 4, 0]}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
+                <Card className="p-3">
+                  <div className="flex items-center gap-1.5 text-xs font-medium mb-2">
+                    <Building2 className="h-3 w-3" />
+                    По командах
+                  </div>
+                  <ResponsiveContainer width="100%" height={140}>
+                    <BarChart data={teamSpendingData} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis type="number" tick={{ fontSize: 9 }} tickFormatter={(v) => `$${v}`} />
+                      <YAxis type="category" dataKey="name" tick={{ fontSize: 9 }} width={60} />
+                      <Tooltip 
+                        formatter={(value: number) => [`$${value.toFixed(2)}`, "Витрати"]}
+                        contentStyle={{ fontSize: 11, backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "6px" }}
+                      />
+                      <Bar dataKey="amount" fill="hsl(var(--chart-2))" radius={[0, 2, 2, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </Card>
               )}
             </div>
 
             {/* Transactions List */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Історія транзакцій</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                {transactions.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Wallet className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>Немає транзакцій</p>
-                  </div>
-                ) : (
-                  <ScrollArea className="h-[300px]">
-                    <div className="divide-y divide-border">
-                      {transactions.map((tx) => (
-                        <div key={tx.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors">
-                          <div className="shrink-0">
-                            {getTransactionIcon(tx.type)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{tx.description}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {format(new Date(tx.date), "d MMM yyyy, HH:mm", { locale: uk })}
-                              {tx.user_email && isTeamOwner && (
-                                <span className="ml-2 text-primary">• {tx.user_email}</span>
-                              )}
-                            </p>
-                          </div>
-                          <div className="text-right shrink-0">
-                            {tx.type === "generation" ? (
-                              <span className="text-sm font-medium text-destructive">
-                                -${Math.abs(tx.amount).toFixed(2)}
-                              </span>
-                            ) : tx.type === "appeal_approved" ? (
-                              <span className="text-sm font-medium text-green-500">
-                                +${tx.amount.toFixed(2)}
-                              </span>
-                            ) : tx.type === "appeal_pending" ? (
-                              <Badge variant="outline" className="text-amber-500 border-amber-500/50">
-                                ${tx.amount.toFixed(2)}
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-muted-foreground">
-                                Відхилено
-                              </Badge>
-                            )}
-                          </div>
+            <Card className="p-3">
+              <div className="text-sm font-medium mb-2">Історія транзакцій</div>
+              {transactions.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground text-xs">
+                  <Wallet className="h-8 w-8 mx-auto mb-1 opacity-50" />
+                  Немає транзакцій
+                </div>
+              ) : (
+                <ScrollArea className="h-[200px]">
+                  <div className="divide-y divide-border">
+                    {transactions.map((tx) => (
+                      <div key={tx.id} className="flex items-center gap-2 py-2 hover:bg-muted/50 transition-colors">
+                        <div className="shrink-0">{getTransactionIcon(tx.type)}</div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium truncate">{tx.description}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {format(new Date(tx.date), "d MMM, HH:mm", { locale: uk })}
+                            {tx.user_email && isTeamOwner && <span className="ml-1 text-primary">• {tx.user_email}</span>}
+                          </p>
                         </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                )}
-              </CardContent>
+                        <div className="text-right shrink-0 text-xs">
+                          {tx.type === "generation" ? (
+                            <span className="font-medium text-destructive">-${Math.abs(tx.amount).toFixed(2)}</span>
+                          ) : tx.type === "appeal_approved" ? (
+                            <span className="font-medium text-green-500">+${tx.amount.toFixed(2)}</span>
+                          ) : tx.type === "appeal_pending" ? (
+                            <Badge variant="outline" className="text-amber-500 border-amber-500/50 text-[10px] px-1 py-0">${tx.amount.toFixed(2)}</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-muted-foreground text-[10px] px-1 py-0">Відхилено</Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
             </Card>
           </>
         )}
