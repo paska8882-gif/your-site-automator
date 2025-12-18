@@ -191,15 +191,11 @@ export default function Auth() {
   return (
     <div className="min-h-screen bg-black flex relative">
       {/* Center transition effect */}
-      <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 -translate-x-1/2 z-20 w-32 pointer-events-none">
-        {/* Gradient blur transition */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent blur-xl" />
-        {/* Center glow line */}
-        <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-cyan-400/50 to-transparent" />
-        {/* Accent dots */}
-        <div className="absolute left-1/2 -translate-x-1/2 top-1/4 w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-lg shadow-cyan-400/50" />
-        <div className="absolute left-1/2 -translate-x-1/2 top-1/2 w-2 h-2 bg-cyan-400 rounded-full shadow-lg shadow-cyan-400/50" />
-        <div className="absolute left-1/2 -translate-x-1/2 top-3/4 w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-lg shadow-cyan-400/50" />
+      <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 -translate-x-1/2 z-20 w-40 pointer-events-none">
+        {/* Soft gradient blur transition */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent blur-2xl" />
+        {/* Subtle center line */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/20 to-transparent" />
       </div>
 
       {/* Left Side - Branding */}
