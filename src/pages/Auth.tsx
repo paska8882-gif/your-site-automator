@@ -191,11 +191,14 @@ export default function Auth() {
   return (
     <div className="min-h-screen bg-black flex relative">
       {/* Center transition effect */}
-      <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 -translate-x-1/2 z-20 w-40 pointer-events-none">
+      <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 -translate-x-1/2 z-20 w-48 pointer-events-none">
         {/* Soft gradient blur transition */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent blur-2xl" />
-        {/* Subtle center line */}
-        <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.04] to-transparent blur-2xl" />
+        {/* Center glow accent */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-1/4 bottom-1/4 w-px bg-gradient-to-b from-transparent via-cyan-500/30 to-transparent blur-sm" />
+        <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-white/5 via-white/25 to-white/5" />
+        {/* Subtle horizontal accent */}
+        <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-32 bg-gradient-to-b from-transparent via-cyan-500/[0.03] to-transparent blur-xl" />
       </div>
 
       {/* Left Side - Branding */}
@@ -273,6 +276,17 @@ export default function Auth() {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 relative overflow-hidden">
         {/* Gradient background - darker left, lighter right */}
         <div className="absolute inset-0 bg-gradient-to-r from-neutral-900 via-neutral-800 to-neutral-700" />
+        
+        {/* Top decorative elements */}
+        <div className="absolute top-8 right-8 flex items-center gap-2 text-neutral-600 text-xs">
+          <div className="w-2 h-2 rounded-full bg-cyan-500/50 animate-pulse" />
+          <span className="tracking-wider">SECURE LOGIN</span>
+        </div>
+        
+        {/* Top right decorative glow */}
+        <div className="absolute -top-20 -right-20 w-64 h-64 bg-cyan-500/[0.03] rounded-full blur-3xl" />
+        <div className="absolute top-10 right-20 w-32 h-32 bg-blue-500/[0.04] rounded-full blur-2xl" />
+        
         <div className="w-full max-w-sm relative z-10">
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center gap-3 mb-10 animate-fade-in">
