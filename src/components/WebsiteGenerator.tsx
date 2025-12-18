@@ -28,6 +28,7 @@ import { startGeneration, AiModel, WebsiteType, SeniorMode, ImageSource, LAYOUT_
 import { supabase } from "@/integrations/supabase/client";
 import { GenerationHistory } from "./GenerationHistory";
 import { DebtNotificationPopup } from "./DebtNotificationPopup";
+import { NotificationBell } from "./NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
@@ -1404,6 +1405,12 @@ export function WebsiteGenerator() {
                     </PopoverContent>
                   </Popover>
                 )}
+
+                {/* Spacer */}
+                <div className="flex-1" />
+
+                {/* Notifications - right side */}
+                <NotificationBell />
               </div>
               
               {insufficientBalance && teamPricing && (
