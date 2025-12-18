@@ -288,31 +288,20 @@ export default function Auth() {
           {/* Theme Toggle */}
           <button
             onClick={() => setIsDarkTheme(!isDarkTheme)}
-            className="flex items-center gap-1 cursor-pointer"
+            className={`relative w-12 h-6 rounded-md transition-all duration-300 ${
+              isDarkTheme ? 'bg-white/15' : 'bg-black/10'
+            }`}
           >
-            <span className={`text-sm transition-all duration-300 ${
-              !isDarkTheme 
-                ? isDarkTheme ? 'text-white font-semibold' : 'text-black font-semibold'
-                : 'opacity-50'
-            }`}>
-              світла
-            </span>
-            <div className={`relative w-10 h-5 rounded-full transition-all duration-300 mx-1 ${
-              isDarkTheme ? 'bg-white/20' : 'bg-black/10'
-            }`}>
-              <div className={`absolute top-0.5 w-4 h-4 rounded-full transition-all duration-300 ${
-                isDarkTheme 
-                  ? 'right-0.5 bg-white' 
-                  : 'left-0.5 bg-black'
-              }`} />
-            </div>
-            <span className={`text-sm transition-all duration-300 ${
+            <div className={`absolute top-1 w-4 h-4 rounded-sm transition-all duration-300 flex items-center justify-center ${
               isDarkTheme 
-                ? isDarkTheme ? 'text-white font-semibold' : 'text-black font-semibold'
-                : 'opacity-50'
+                ? 'right-1 bg-white' 
+                : 'left-1 bg-black'
             }`}>
-              темна
-            </span>
+              {isDarkTheme 
+                ? <Moon className="w-2.5 h-2.5 text-black" />
+                : <Sun className="w-2.5 h-2.5 text-white" />
+              }
+            </div>
           </button>
         </div>
       </div>
@@ -346,16 +335,19 @@ export default function Auth() {
             {/* Mobile Theme Toggle */}
             <button
               onClick={() => setIsDarkTheme(!isDarkTheme)}
-              className="flex items-center gap-1"
+              className={`relative w-12 h-6 rounded-md transition-all duration-300 ${
+                isDarkTheme ? 'bg-white/15' : 'bg-black/10'
+              }`}
             >
-              <div className={`relative w-10 h-5 rounded-full transition-all duration-300 ${
-                isDarkTheme ? 'bg-white/20' : 'bg-black/10'
+              <div className={`absolute top-1 w-4 h-4 rounded-sm transition-all duration-300 flex items-center justify-center ${
+                isDarkTheme 
+                  ? 'right-1 bg-white' 
+                  : 'left-1 bg-black'
               }`}>
-                <div className={`absolute top-0.5 w-4 h-4 rounded-full transition-all duration-300 ${
-                  isDarkTheme 
-                    ? 'right-0.5 bg-white' 
-                    : 'left-0.5 bg-black'
-                }`} />
+                {isDarkTheme 
+                  ? <Moon className="w-2.5 h-2.5 text-black" />
+                  : <Sun className="w-2.5 h-2.5 text-white" />
+                }
               </div>
             </button>
           </div>
