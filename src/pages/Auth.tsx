@@ -197,51 +197,61 @@ export default function Auth() {
   ];
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left Panel - DRAGON (Dark) */}
+    <div className="min-h-screen flex relative">
+      {/* Center Logo - positioned absolutely in the middle */}
+      <div className="hidden lg:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 items-center">
+        {/* Dragon Icon */}
+        <div className="absolute -top-20 left-1/2 -translate-x-1/2">
+          <svg 
+            viewBox="0 0 24 24" 
+            className="w-14 h-14 text-white drop-shadow-lg"
+            fill="currentColor"
+          >
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+        </div>
+        {/* DRAGON text on dark side */}
+        <span className="text-5xl xl:text-6xl font-black tracking-tight text-white pr-1">
+          DRAGON
+        </span>
+        {/* WHITE text on light side */}
+        <span className="text-5xl xl:text-6xl font-black tracking-tight text-black pl-1">
+          WHITE
+        </span>
+      </div>
+
+      {/* Left Panel - Dark Gradient */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden" style={{
-        background: 'linear-gradient(135deg, #000000 0%, #0a0a0a 25%, #111111 50%, #0a0a0a 75%, #000000 100%)'
+        background: 'linear-gradient(135deg, #000000 0%, #0d0d0d 20%, #1a1a1a 40%, #0f0f0f 60%, #080808 80%, #000000 100%)'
       }}>
-        {/* Subtle gradient overlays */}
-        <div className="absolute inset-0 opacity-30" style={{
-          background: 'radial-gradient(ellipse at 30% 20%, rgba(30, 30, 30, 0.8) 0%, transparent 50%)'
+        {/* Gradient overlays for depth */}
+        <div className="absolute inset-0" style={{
+          background: 'radial-gradient(ellipse at 20% 30%, rgba(40, 40, 40, 0.5) 0%, transparent 50%)'
         }} />
-        <div className="absolute inset-0 opacity-20" style={{
-          background: 'radial-gradient(ellipse at 70% 80%, rgba(40, 40, 40, 0.6) 0%, transparent 50%)'
+        <div className="absolute inset-0" style={{
+          background: 'radial-gradient(ellipse at 80% 70%, rgba(30, 30, 30, 0.4) 0%, transparent 50%)'
         }} />
-
-        {/* Grid Pattern */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-                            linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-          backgroundSize: '60px 60px'
+        <div className="absolute inset-0" style={{
+          background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.3) 100%)'
         }} />
 
-        {/* Content */}
-        <div className="relative z-10 flex flex-col justify-center items-center w-full px-12 text-white">
-          {/* Main Title */}
-          <div className="text-center mb-12">
-            <div className="flex items-center justify-center gap-4 mb-6">
-              <span className="text-5xl">🐉</span>
-            </div>
-            <h1 className="text-6xl xl:text-7xl font-black tracking-tight mb-4">
-              DRAGON
-            </h1>
-            <p className="text-white/50 text-lg tracking-[0.3em] uppercase">
-              AI Website Generator
-            </p>
-          </div>
+        {/* Subtle noise texture */}
+        <div className="absolute inset-0 opacity-[0.02]" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`
+        }} />
 
+        {/* Content - aligned to right */}
+        <div className="relative z-10 flex flex-col justify-end items-end w-full p-12 pb-20 text-white">
           {/* Features */}
-          <div className="grid grid-cols-2 gap-3 max-w-sm">
+          <div className="grid grid-cols-2 gap-3 max-w-xs">
             {features.map((feature, index) => (
               <div 
                 key={index}
-                className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10"
+                className="flex items-center gap-2 p-3 rounded-lg bg-white/5 border border-white/10"
               >
-                <feature.icon className="w-4 h-4 text-white/70" />
+                <feature.icon className="w-4 h-4 text-white/60" />
                 <div>
-                  <h3 className="font-medium text-xs text-white/90">{feature.title}</h3>
+                  <h3 className="font-medium text-xs text-white/80">{feature.title}</h3>
                   <p className="text-white/40 text-[10px]">{feature.desc}</p>
                 </div>
               </div>
@@ -249,42 +259,36 @@ export default function Auth() {
           </div>
 
           {/* Stats */}
-          <div className="flex gap-8 mt-10 pt-8 border-t border-white/10">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-white">10+</div>
+          <div className="flex gap-6 mt-8 pt-6 border-t border-white/10">
+            <div className="text-right">
+              <div className="text-xl font-bold text-white">10+</div>
               <div className="text-white/40 text-xs">Стилів</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-white">2</div>
-              <div className="text-white/40 text-xs">AI моделі</div>
+            <div className="text-right">
+              <div className="text-xl font-bold text-white">2</div>
+              <div className="text-white/40 text-xs">AI</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-white">∞</div>
+            <div className="text-right">
+              <div className="text-xl font-bold text-white">∞</div>
               <div className="text-white/40 text-xs">Сайтів</div>
             </div>
           </div>
+
+          <p className="text-white/30 text-xs mt-6 text-right max-w-xs">
+            AI Website Generator
+          </p>
         </div>
       </div>
 
-      {/* Right Panel - WHITE (Light) */}
+      {/* Right Panel - White */}
       <div className="w-full lg:w-1/2 flex flex-col bg-white">
-        {/* WHITE Title Header */}
-        <div className="hidden lg:flex items-center justify-center py-6 border-b border-gray-100">
-          <h2 className="text-4xl xl:text-5xl font-black tracking-tight text-black">
-            WHITE
-          </h2>
-        </div>
-
         {/* Auth Form */}
         <div className="flex-1 flex items-center justify-center p-6 sm:p-8">
           <div className="w-full max-w-md">
             {/* Mobile Logo */}
-            <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
-              <span className="text-3xl">🐉</span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-black text-black">DRAGON</span>
-                <span className="text-2xl font-black text-gray-400">WHITE</span>
-              </div>
+            <div className="lg:hidden flex items-center justify-center gap-1 mb-8">
+              <span className="text-2xl font-black text-gray-900">DRAGON</span>
+              <span className="text-2xl font-black text-gray-400">WHITE</span>
             </div>
 
             <Card className="border border-gray-200 shadow-sm bg-white">
