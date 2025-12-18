@@ -888,12 +888,75 @@ async function runGeneration({
     };
   }
 
+  // MANDATORY: Ensure deployment configuration files are always present
+  const ensureDeploymentFiles = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
+    const fileMap = new Map(generatedFiles.map(f => [f.path, f]));
+    
+    // netlify.toml - critical for Netlify deployment
+    if (!fileMap.has("netlify.toml")) {
+      console.log("⚠️ Adding missing netlify.toml");
+      generatedFiles.push({
+        path: "netlify.toml",
+        content: `[build]
+  publish = "build"
+  command = "npm run build"
+
+[build.environment]
+  CI = "false"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200`
+      });
+    }
+    
+    // vercel.json - critical for Vercel deployment
+    if (!fileMap.has("vercel.json")) {
+      console.log("⚠️ Adding missing vercel.json");
+      generatedFiles.push({
+        path: "vercel.json",
+        content: `{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "build"
+}`
+      });
+    }
+    
+    // public/_redirects - Netlify fallback
+    if (!fileMap.has("public/_redirects")) {
+      console.log("⚠️ Adding missing public/_redirects");
+      generatedFiles.push({
+        path: "public/_redirects",
+        content: "/* /index.html 200"
+      });
+    }
+    
+    // public/robots.txt
+    if (!fileMap.has("public/robots.txt")) {
+      console.log("⚠️ Adding missing public/robots.txt");
+      generatedFiles.push({
+        path: "public/robots.txt",
+        content: `User-agent: *
+Allow: /`
+      });
+    }
+    
+    return generatedFiles;
+  };
+
+  const finalFiles = ensureDeploymentFiles(files);
+  console.log(`📁 Final files count (with deployment configs): ${finalFiles.length}`);
+
   return {
     success: true,
-    files,
+    files: finalFiles,
     refinedPrompt,
-    totalFiles: files.length,
-    fileList: files.map((f) => f.path),
+    totalFiles: finalFiles.length,
+    fileList: finalFiles.map((f) => f.path),
     totalCost,
     specificModel: generateModel,
   };
