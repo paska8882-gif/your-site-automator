@@ -264,6 +264,36 @@ function SingleHistoryItem({
 
 
         <CollapsibleContent>
+          {/* Детальна інформація */}
+          <div className="border-t px-4 py-3 space-y-3 bg-muted/20">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+              <div>
+                <span className="text-muted-foreground text-xs">AI модель</span>
+                <p className="font-medium">{item.ai_model === "senior" ? "Senior" : "Junior"}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Мова</span>
+                <p className="font-medium">{item.language}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Фото</span>
+                <p className="font-medium">{item.image_source === "ai" ? "AI пошук" : "Базові"}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Ціна</span>
+                <p className="font-medium">${item.sale_price || 0}</p>
+              </div>
+            </div>
+            <div>
+              <span className="text-muted-foreground text-xs">Дата створення</span>
+              <p className="text-sm">{new Date(item.created_at).toLocaleString("uk-UA")}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground text-xs">Опис</span>
+              <p className="text-sm mt-1 whitespace-pre-wrap">{item.prompt}</p>
+            </div>
+          </div>
+
           {item.files_data && item.files_data.length > 0 && (
             <div className="border-t p-4 space-y-4">
               <div className="flex items-center justify-between gap-2">
