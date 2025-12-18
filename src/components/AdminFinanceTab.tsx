@@ -89,6 +89,26 @@ export function AdminFinanceTab() {
 
   useEffect(() => {
     fetchData();
+
+    // Realtime subscription for team balance updates
+    const channel = supabase
+      .channel("admin-finance-balance")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "teams" },
+        (payload) => {
+          setTeams(prev => prev.map(team =>
+            team.id === payload.new.id
+              ? { ...team, balance: payload.new.balance }
+              : team
+          ));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchData = async () => {

@@ -74,6 +74,26 @@ export const AdminTeamsManager = () => {
   useEffect(() => {
     fetchTeams();
     fetchAdmins();
+
+    // Realtime subscription for team balance updates
+    const channel = supabase
+      .channel("admin-teams-balance")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "teams" },
+        (payload) => {
+          setTeams(prev => prev.map(team =>
+            team.id === payload.new.id
+              ? { ...team, balance: payload.new.balance, credit_limit: payload.new.credit_limit }
+              : team
+          ));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchAdmins = async () => {
