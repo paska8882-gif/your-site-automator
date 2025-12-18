@@ -77,6 +77,7 @@ export type Database = {
       generation_history: {
         Row: {
           ai_model: string | null
+          completed_at: string | null
           created_at: string
           error_message: string | null
           files_data: Json | null
@@ -97,6 +98,7 @@ export type Database = {
         }
         Insert: {
           ai_model?: string | null
+          completed_at?: string | null
           created_at?: string
           error_message?: string | null
           files_data?: Json | null
@@ -117,6 +119,7 @@ export type Database = {
         }
         Update: {
           ai_model?: string | null
+          completed_at?: string | null
           created_at?: string
           error_message?: string | null
           files_data?: Json | null

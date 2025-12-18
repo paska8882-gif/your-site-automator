@@ -1022,7 +1022,7 @@ async function runBackgroundGeneration(
       result.files.forEach((file) => zip.file(file.path, file.content));
       const zipBase64 = await zip.generateAsync({ type: "base64" });
 
-      // Update with success including generation cost
+      // Update with success including generation cost and completion time
       const generationCost = result.totalCost || 0;
       await supabase
         .from("generation_history")
@@ -1032,6 +1032,7 @@ async function runBackgroundGeneration(
           zip_data: zipBase64,
           generation_cost: generationCost,
           specific_ai_model: result.specificModel || null,
+          completed_at: new Date().toISOString(),
         })
         .eq("id", historyId);
 

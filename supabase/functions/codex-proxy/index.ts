@@ -390,7 +390,8 @@ async function runCodexGeneration(
         zip_data: zipBase64,
         generation_cost: cost,
         error_message: null,
-        specific_ai_model: usedModel
+        specific_ai_model: usedModel,
+        completed_at: new Date().toISOString()
       })
       .eq("id", historyId);
     

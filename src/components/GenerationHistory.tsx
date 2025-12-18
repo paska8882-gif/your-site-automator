@@ -36,11 +36,49 @@ interface HistoryItem {
   status: string;
   error_message: string | null;
   created_at: string;
+  completed_at: string | null;
   ai_model: string | null;
   website_type: string | null;
   site_name: string | null;
   sale_price: number | null;
   image_source: string | null;
+}
+
+// Helper function to calculate and format generation duration
+function getGenerationDuration(createdAt: string, completedAt: string | null): { text: string; colorClass: string } | null {
+  if (!completedAt) return null;
+  
+  const start = new Date(createdAt).getTime();
+  const end = new Date(completedAt).getTime();
+  const durationMs = end - start;
+  
+  if (durationMs < 0) return null;
+  
+  const minutes = Math.floor(durationMs / 60000);
+  const seconds = Math.floor((durationMs % 60000) / 1000);
+  
+  let text: string;
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    text = `${hours}г ${mins}хв`;
+  } else if (minutes > 0) {
+    text = `${minutes}хв ${seconds}с`;
+  } else {
+    text = `${seconds}с`;
+  }
+  
+  // Color coding: <5min green, 5-10min yellow, 10+ red
+  let colorClass: string;
+  if (minutes < 5) {
+    colorClass = "text-green-500";
+  } else if (minutes < 10) {
+    colorClass = "text-yellow-500";
+  } else {
+    colorClass = "text-red-500";
+  }
+  
+  return { text, colorClass };
 }
 
 interface Appeal {
@@ -152,6 +190,17 @@ function SingleHistoryItem({
                   {new Date(item.created_at).toLocaleString("uk-UA")}
                 </span>
               )}
+              {item.status === "completed" && (() => {
+                const duration = getGenerationDuration(item.created_at, item.completed_at);
+                if (duration) {
+                  return (
+                    <Badge variant="outline" className={`text-xs ${duration.colorClass}`}>
+                      ⏱ {duration.text}
+                    </Badge>
+                  );
+                }
+                return null;
+              })()}
               {item.image_source && (
                 <Badge variant={item.image_source === "ai" ? "default" : "outline"} className="text-xs">
                   {item.image_source === "ai" ? "AI" : "Баз"}
