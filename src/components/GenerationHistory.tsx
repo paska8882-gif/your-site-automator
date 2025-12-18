@@ -50,6 +50,7 @@ interface Appeal {
 
 interface GenerationHistoryProps {
   onUsePrompt?: (siteName: string, prompt: string) => void;
+  defaultDateFilter?: "all" | "today" | "week" | "month";
 }
 
 interface SingleHistoryItemProps {
@@ -360,7 +361,7 @@ function SingleHistoryItem({
   );
 }
 
-export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
+export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: GenerationHistoryProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -375,7 +376,7 @@ export function GenerationHistory({ onUsePrompt }: GenerationHistoryProps) {
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>(defaultDateFilter);
   const [languageFilter, setLanguageFilter] = useState<string>("all");
   const [aiModelFilter, setAiModelFilter] = useState<string>("all");
   

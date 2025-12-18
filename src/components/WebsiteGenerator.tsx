@@ -1460,12 +1460,15 @@ export function WebsiteGenerator() {
           </CardContent>
         </Card>
 
-        {/* History with realtime updates and preview */}
-        <GenerationHistory onUsePrompt={(name, desc) => {
-          setSiteName(name);
-          setPrompt(desc);
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }} />
+        {/* History with realtime updates and preview - today only */}
+        <GenerationHistory 
+          defaultDateFilter="today"
+          onUsePrompt={(name, desc) => {
+            setSiteName(name);
+            setPrompt(desc);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }} 
+        />
       </div>
 
       {/* Confirmation Dialog for large orders */}
