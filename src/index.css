@@ -77,16 +77,16 @@
     --input: 0 0% 18%;
     --ring: 0 0% 60%;
 
-    /* Light sidebar for dark theme (inverted contrast) */
-    --sidebar-background: 0 0% 96%;
-    --sidebar-foreground: 0 0% 15%;
-    --sidebar-primary: 0 0% 9%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 0 0% 85%;
-    --sidebar-accent-foreground: 0 0% 5%;
-    --sidebar-border: 0 0% 85%;
+    /* Darker sidebar for dark theme (but not black - visible contrast) */
+    --sidebar-background: 0 0% 12%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 0 0% 98%;
+    --sidebar-primary-foreground: 0 0% 9%;
+    --sidebar-accent: 0 0% 20%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 0 0% 18%;
     --sidebar-ring: 0 0% 40%;
-    --sidebar-muted: 0 0% 45%;
+    --sidebar-muted: 0 0% 55%;
   }
 }
 
@@ -106,6 +106,6 @@
   }
   
   .dark .sidebar-gradient {
-    background: linear-gradient(180deg, hsl(0 0% 98%) 0%, hsl(0 0% 90%) 100%);
+    background: linear-gradient(180deg, hsl(0 0% 16%) 0%, hsl(0 0% 10%) 100%);
   }
 }

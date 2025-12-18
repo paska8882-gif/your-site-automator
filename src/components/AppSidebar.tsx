@@ -92,10 +92,10 @@ export function AppSidebar() {
         <div className="flex items-center gap-3">
           <button
             onClick={toggleTheme}
-            className="w-9 h-9 rounded-md flex items-center justify-center bg-sidebar-accent hover:bg-sidebar-accent/80 transition-all duration-300 cursor-pointer"
+            className="w-9 h-9 rounded-md flex items-center justify-center bg-sidebar-primary hover:opacity-90 transition-all duration-300 cursor-pointer"
             title={theme === "dark" ? "Світла тема" : "Темна тема"}
           >
-            <span className="font-bold text-base text-sidebar-foreground">D</span>
+            <span className="font-bold text-base text-sidebar-primary-foreground">D</span>
           </button>
           {!collapsed && (
             <div className="flex flex-col overflow-hidden">
