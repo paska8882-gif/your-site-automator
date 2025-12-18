@@ -44,10 +44,10 @@ export default function Auth() {
     setIsTransitioning(true);
     setTimeout(() => {
       setIsDarkTheme(!isDarkTheme);
-      setTimeout(() => {
-        setIsTransitioning(false);
-      }, 300);
-    }, 300);
+    }, 400);
+    setTimeout(() => {
+      setIsTransitioning(false);
+    }, 800);
   };
 
   useEffect(() => {
@@ -211,16 +211,14 @@ export default function Auth() {
   }
 
   return (
-    <div className={`min-h-screen flex relative transition-colors duration-500 ${isDarkTheme ? 'bg-black' : 'bg-white'}`}>
+    <div className={`min-h-screen flex relative transition-all duration-700 ease-in-out ${isDarkTheme ? 'bg-black' : 'bg-white'}`}>
       {/* Transition Overlay */}
       <div 
-        className={`fixed inset-0 z-[100] pointer-events-none transition-opacity duration-300 ${
-          isTransitioning ? 'opacity-100' : 'opacity-0'
+        className={`fixed inset-0 z-[100] pointer-events-none transition-all duration-500 ease-in-out ${
+          isTransitioning ? 'opacity-100 scale-100' : 'opacity-0 scale-110'
         }`}
         style={{
-          background: isDarkTheme 
-            ? 'radial-gradient(circle at center, rgba(255,255,255,0.15) 0%, rgba(0,0,0,0.9) 100%)'
-            : 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.8) 100%)'
+          background: 'radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0.95) 100%)',
         }}
       />
 
@@ -228,13 +226,13 @@ export default function Auth() {
       <button
         onClick={handleThemeToggle}
         disabled={isTransitioning}
-        className={`absolute top-6 right-6 z-50 p-2.5 rounded-full transition-all duration-300 ${
+        className={`absolute top-6 right-6 z-50 p-2.5 rounded-full transition-all duration-500 ease-out ${
           isDarkTheme 
             ? 'bg-white/10 hover:bg-white/20 text-white' 
             : 'bg-black/5 hover:bg-black/10 text-black'
-        } ${isTransitioning ? 'scale-90' : 'scale-100'}`}
+        } ${isTransitioning ? 'scale-75 opacity-50' : 'scale-100 opacity-100'}`}
       >
-        <div className={`transition-transform duration-300 ${isTransitioning ? 'rotate-180' : 'rotate-0'}`}>
+        <div className={`transition-transform duration-500 ease-out ${isTransitioning ? 'rotate-[360deg]' : 'rotate-0'}`}>
           {isDarkTheme ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </div>
       </button>
