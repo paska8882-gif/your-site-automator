@@ -747,17 +747,17 @@ export function WebsiteGenerator() {
         <UserTeamInfo />
 
         {/* Input Section */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileCode2 className="h-5 w-5" />
+        <Card className="mb-4">
+          <CardHeader className="py-3 px-4">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileCode2 className="h-4 w-4" />
               Новий сайт
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs">
               Введіть назву та опишіть сайт. Можна запускати кілька генерацій паралельно.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 px-4 pb-4 pt-0">
             {/* Mode Selection - Compact toggle for admin */}
             {isAdmin && (
               <div className="flex flex-wrap items-center gap-3">
