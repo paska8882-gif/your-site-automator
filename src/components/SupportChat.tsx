@@ -183,7 +183,7 @@ export const SupportChat = () => {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8">
+        <Button variant="outline" size="sm" className="h-8 text-foreground">
           <MessageCircle className="h-4 w-4 mr-1" />
           Підтримка
         </Button>
