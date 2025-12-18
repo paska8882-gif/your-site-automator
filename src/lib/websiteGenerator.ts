@@ -155,11 +155,12 @@ async function startCodexGeneration(
       }
     }
 
-    // 1. Create generation_history record with pending status
+    // 1. Create generation_history record with pending status AND team_id
     const { data: historyRecord, error: insertError } = await supabase
       .from("generation_history")
       .insert({
         user_id: session.user.id,
+        team_id: teamId || null,
         prompt,
         language: language || "en",
         status: "pending",

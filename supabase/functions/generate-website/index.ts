@@ -1100,13 +1100,14 @@ serve(async (req) => {
       }
     }
 
-    // Create history entry immediately with pending status AND sale_price
+    // Create history entry immediately with pending status AND sale_price AND team_id
     const { data: historyEntry, error: insertError } = await supabase
       .from("generation_history")
       .insert({
         prompt,
         language: language || "auto",
         user_id: user.id,
+        team_id: teamId || null,
         status: "pending",
         ai_model: aiModel,
         website_type: "html",
