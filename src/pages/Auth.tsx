@@ -4,11 +4,10 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, Zap, Shield, Globe, Layers } from "lucide-react";
+import { Loader2, ArrowRight } from "lucide-react";
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Невірний формат email" }),
@@ -183,245 +182,203 @@ export default function Auth() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-white" />
       </div>
     );
   }
 
-  const features = [
-    { icon: Zap, title: "Швидка генерація", desc: "AI створює сайти за хвилини" },
-    { icon: Globe, title: "24 мови", desc: "Європейські мови" },
-    { icon: Layers, title: "HTML та React", desc: "Два формати" },
-    { icon: Shield, title: "Команди", desc: "Управління балансом" },
-  ];
-
   return (
-    <div className="min-h-screen flex relative">
-      {/* Vertical divider line */}
-      <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-[2px] bg-gray-300 z-10" />
-
-      {/* Center Logo - positioned at top */}
-      <div className="hidden lg:flex absolute left-1/2 top-20 -translate-x-1/2 z-20 items-center">
-        {/* DRAGON text on dark side - right aligned */}
-        <span className="text-4xl xl:text-5xl font-black tracking-tight text-white mr-8">
-          DRAGON
-        </span>
-        {/* WHITE text on light side - left aligned */}
-        <span className="text-4xl xl:text-5xl font-black tracking-tight text-black ml-3">
-          WHITE
-        </span>
-      </div>
-
-      {/* Left Panel - Dark Gradient */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden" style={{
-        background: 'linear-gradient(135deg, #000000 0%, #0d0d0d 20%, #1a1a1a 40%, #0f0f0f 60%, #080808 80%, #000000 100%)'
-      }}>
-        {/* Gradient overlays for depth */}
-        <div className="absolute inset-0" style={{
-          background: 'radial-gradient(ellipse at 20% 30%, rgba(40, 40, 40, 0.5) 0%, transparent 50%)'
-        }} />
-        <div className="absolute inset-0" style={{
-          background: 'radial-gradient(ellipse at 80% 70%, rgba(30, 30, 30, 0.4) 0%, transparent 50%)'
-        }} />
-        <div className="absolute inset-0" style={{
-          background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.3) 100%)'
-        }} />
-
-        {/* Subtle noise texture */}
-        <div className="absolute inset-0 opacity-[0.02]" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`
-        }} />
-
-        {/* Content - aligned to right */}
-        <div className="relative z-10 flex flex-col justify-end items-end w-full p-12 pb-20 text-white">
-          {/* Features */}
-          <div className="grid grid-cols-2 gap-3 max-w-xs">
-            {features.map((feature, index) => (
-              <div 
-                key={index}
-                className="flex items-center gap-2 p-3 rounded-lg bg-white/5 border border-white/10"
-              >
-                <feature.icon className="w-4 h-4 text-white/60" />
-                <div>
-                  <h3 className="font-medium text-xs text-white/80">{feature.title}</h3>
-                  <p className="text-white/40 text-[10px]">{feature.desc}</p>
-                </div>
-              </div>
-            ))}
+    <div className="min-h-screen bg-black flex">
+      {/* Left Side - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 relative overflow-hidden">
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-neutral-900 via-black to-neutral-950" />
+        
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-white/[0.02] rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-white/[0.02] rounded-full blur-3xl" />
+        
+        {/* Content */}
+        <div className="relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
+              <span className="text-black font-bold text-lg">D</span>
+            </div>
+            <span className="text-white font-semibold text-xl tracking-tight">
+              DRAGON<span className="text-neutral-500">WHITE</span>
+            </span>
           </div>
+        </div>
 
-          {/* Stats */}
-          <div className="flex gap-6 mt-8 pt-6 border-t border-white/10">
-            <div className="text-right">
-              <div className="text-xl font-bold text-white">10+</div>
-              <div className="text-white/40 text-xs">Стилів</div>
-            </div>
-            <div className="text-right">
-              <div className="text-xl font-bold text-white">2</div>
-              <div className="text-white/40 text-xs">AI</div>
-            </div>
-            <div className="text-right">
-              <div className="text-xl font-bold text-white">∞</div>
-              <div className="text-white/40 text-xs">Сайтів</div>
-            </div>
-          </div>
-
-          <p className="text-white/30 text-xs mt-6 text-right max-w-xs">
-            AI Website Generator
+        <div className="relative z-10 max-w-md">
+          <h1 className="text-5xl xl:text-6xl font-bold text-white leading-tight mb-6">
+            Створюй сайти
+            <br />
+            <span className="text-neutral-500">за допомогою AI</span>
+          </h1>
+          <p className="text-neutral-400 text-lg leading-relaxed">
+            Професійний генератор вебсайтів на базі штучного інтелекту. 
+            Опиши свою ідею — отримай готовий сайт за лічені хвилини.
           </p>
+        </div>
+
+        <div className="relative z-10 flex items-center gap-8 text-neutral-500 text-sm">
+          <div>
+            <span className="text-white font-semibold text-2xl">24</span>
+            <span className="ml-1">мови</span>
+          </div>
+          <div className="w-px h-8 bg-neutral-800" />
+          <div>
+            <span className="text-white font-semibold text-2xl">2</span>
+            <span className="ml-1">AI моделі</span>
+          </div>
+          <div className="w-px h-8 bg-neutral-800" />
+          <div>
+            <span className="text-white font-semibold text-2xl">10+</span>
+            <span className="ml-1">стилів</span>
+          </div>
         </div>
       </div>
 
-      {/* Right Panel - White */}
-      <div className="w-full lg:w-1/2 flex flex-col bg-white">
-        {/* Auth Form */}
-        <div className="flex-1 flex items-center justify-center p-6 sm:p-8">
-          <div className="w-full max-w-md">
-            {/* Mobile Logo */}
-            <div className="lg:hidden flex items-center justify-center gap-1 mb-8">
-              <span className="text-2xl font-black text-gray-900">DRAGON</span>
-              <span className="text-2xl font-black text-gray-400">WHITE</span>
+      {/* Right Side - Auth Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 bg-neutral-950">
+        <div className="w-full max-w-sm">
+          {/* Mobile Logo */}
+          <div className="lg:hidden flex items-center gap-3 mb-10">
+            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
+              <span className="text-black font-bold text-lg">D</span>
+            </div>
+            <span className="text-white font-semibold text-xl tracking-tight">
+              DRAGON<span className="text-neutral-500">WHITE</span>
+            </span>
+          </div>
+
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-white mb-2">
+              {isLogin ? "Вхід в акаунт" : "Створити акаунт"}
+            </h2>
+            <p className="text-neutral-500">
+              {isLogin
+                ? "Введіть свої дані для входу"
+                : "Заповніть форму для реєстрації"}
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {!isLogin && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="inviteCode" className="text-neutral-300 text-sm">
+                    Інвайт-код
+                  </Label>
+                  <Input
+                    id="inviteCode"
+                    type="text"
+                    placeholder="XXXXXXXX"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                    disabled={isSubmitting}
+                    className={`h-12 bg-neutral-900 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-white focus:ring-0 ${errors.inviteCode ? "border-red-500" : ""}`}
+                    maxLength={8}
+                  />
+                  {errors.inviteCode && (
+                    <p className="text-xs text-red-400">{errors.inviteCode}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="displayName" className="text-neutral-300 text-sm">
+                    Ім&apos;я <span className="text-neutral-600">(опціонально)</span>
+                  </Label>
+                  <Input
+                    id="displayName"
+                    type="text"
+                    placeholder="Ваше ім'я"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    disabled={isSubmitting}
+                    className="h-12 bg-neutral-900 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-white focus:ring-0"
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-neutral-300 text-sm">
+                Email
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="name@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isSubmitting}
+                className={`h-12 bg-neutral-900 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-white focus:ring-0 ${errors.email ? "border-red-500" : ""}`}
+              />
+              {errors.email && (
+                <p className="text-xs text-red-400">{errors.email}</p>
+              )}
             </div>
 
-            <Card className="border border-gray-200 shadow-sm bg-white">
-              <CardHeader className="text-center pb-4">
-                <CardTitle className="text-2xl font-bold text-black">
-                  {isLogin ? "Вхід" : "Реєстрація"}
-                </CardTitle>
-                <CardDescription className="text-gray-500">
-                  {isLogin
-                    ? "Введіть дані для входу в систему"
-                    : "Заповніть форму для створення акаунту"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {!isLogin && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="inviteCode" className="text-sm font-medium text-black">
-                          Інвайт-код <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          id="inviteCode"
-                          type="text"
-                          placeholder="XXXXXXXX"
-                          value={inviteCode}
-                          onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                          disabled={isSubmitting}
-                          className={`h-11 bg-gray-50 border-gray-200 text-black placeholder:text-gray-400 ${errors.inviteCode ? "border-red-500" : ""}`}
-                          maxLength={8}
-                        />
-                        {errors.inviteCode && (
-                          <p className="text-xs text-red-500">{errors.inviteCode}</p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="displayName" className="text-sm font-medium text-black">
-                          Ім&apos;я <span className="text-gray-400 text-xs">(необов&apos;язково)</span>
-                        </Label>
-                        <Input
-                          id="displayName"
-                          type="text"
-                          placeholder="Ваше ім'я"
-                          value={displayName}
-                          onChange={(e) => setDisplayName(e.target.value)}
-                          disabled={isSubmitting}
-                          className="h-11 bg-gray-50 border-gray-200 text-black placeholder:text-gray-400"
-                        />
-                      </div>
-                    </>
-                  )}
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-neutral-300 text-sm">
+                Пароль
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isSubmitting}
+                className={`h-12 bg-neutral-900 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-white focus:ring-0 ${errors.password ? "border-red-500" : ""}`}
+              />
+              {errors.password && (
+                <p className="text-xs text-red-400">{errors.password}</p>
+              )}
+            </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-sm font-medium text-black">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="name@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      disabled={isSubmitting}
-                      className={`h-11 bg-gray-50 border-gray-200 text-black placeholder:text-gray-400 ${errors.email ? "border-red-500" : ""}`}
-                    />
-                    {errors.email && (
-                      <p className="text-xs text-red-500">{errors.email}</p>
-                    )}
-                  </div>
+            <Button 
+              type="submit" 
+              className="w-full h-12 bg-white hover:bg-neutral-200 text-black font-medium text-base transition-colors" 
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  {isLogin ? "Увійти" : "Зареєструватись"}
+                  <ArrowRight className="w-4 h-4" />
+                </span>
+              )}
+            </Button>
+          </form>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="password" className="text-sm font-medium text-black">Пароль</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={isSubmitting}
-                      className={`h-11 bg-gray-50 border-gray-200 text-black placeholder:text-gray-400 ${errors.password ? "border-red-500" : ""}`}
-                    />
-                    {errors.password && (
-                      <p className="text-xs text-red-500">{errors.password}</p>
-                    )}
-                  </div>
-
-                  <Button 
-                    type="submit" 
-                    className="w-full h-11 font-medium text-base bg-black hover:bg-gray-800 text-white" 
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {isLogin ? "Вхід..." : "Реєстрація..."}
-                      </>
-                    ) : (
-                      <>{isLogin ? "Увійти" : "Зареєструватись"}</>
-                    )}
-                  </Button>
-                </form>
-
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-200" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white px-2 text-gray-400">або</span>
-                  </div>
-                </div>
-
-                <div className="text-center text-sm">
-                  {isLogin ? (
-                    <p className="text-gray-500">
-                      Немає акаунту?{" "}
-                      <button
-                        type="button"
-                        onClick={() => setIsLogin(false)}
-                        className="text-black font-medium hover:underline"
-                      >
-                        Зареєструватись
-                      </button>
-                    </p>
-                  ) : (
-                    <p className="text-gray-500">
-                      Вже маєте акаунт?{" "}
-                      <button
-                        type="button"
-                        onClick={() => setIsLogin(true)}
-                        className="text-black font-medium hover:underline"
-                      >
-                        Увійти
-                      </button>
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <p className="text-center text-xs text-gray-400 mt-6">
-              Продовжуючи, ви погоджуєтесь з умовами використання
-            </p>
+          <div className="mt-8 text-center">
+            {isLogin ? (
+              <p className="text-neutral-500 text-sm">
+                Немає акаунту?{" "}
+                <button
+                  type="button"
+                  onClick={() => setIsLogin(false)}
+                  className="text-white hover:underline font-medium"
+                >
+                  Зареєструватись
+                </button>
+              </p>
+            ) : (
+              <p className="text-neutral-500 text-sm">
+                Вже є акаунт?{" "}
+                <button
+                  type="button"
+                  onClick={() => setIsLogin(true)}
+                  className="text-white hover:underline font-medium"
+                >
+                  Увійти
+                </button>
+              </p>
+            )}
           </div>
         </div>
       </div>
