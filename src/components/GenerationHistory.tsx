@@ -161,32 +161,32 @@ function SingleHistoryItem({
 
   return (
     <Collapsible open={expandedId === item.id}>
-      <div className={`rounded-md border ${compact ? "bg-background" : ""}`}>
+      <div className={`rounded-sm border ${compact ? "bg-background" : ""}`}>
         <CollapsibleTrigger asChild>
           <div
-            className={`flex items-center justify-between cursor-pointer hover:bg-muted/50 transition-colors ${compact ? "p-2 gap-2" : "p-4 gap-4"}`}
+            className={`flex items-center justify-between cursor-pointer hover:bg-muted/50 transition-colors ${compact ? "px-1.5 py-1 gap-1" : "px-2 py-1.5 gap-2"}`}
             onClick={() => item.status === "completed" && onExpand(item)}
           >
-            <div className={`flex items-center flex-1 min-w-0 ${compact ? "gap-2" : "gap-4"}`}>
+            <div className={`flex items-center flex-1 min-w-0 ${compact ? "gap-1" : "gap-2"}`}>
               <div className="flex items-center" title={getStatusText(item.status, item.sale_price)}>
                 {getStatusIcon(item.status, item.sale_price)}
               </div>
               {!compact && (
-                <span className="font-medium truncate flex-1" title={item.site_name || `Site ${item.number}`}>
+                <span className="text-xs font-medium truncate flex-1" title={item.site_name || `Site ${item.number}`}>
                   {item.site_name || `Site ${item.number}`}
                 </span>
               )}
-              <Badge variant={item.ai_model === "senior" ? "default" : "secondary"} className="text-xs">
-                {item.ai_model === "senior" ? "Senior" : "Junior"}
+              <Badge variant={item.ai_model === "senior" ? "default" : "secondary"} className="text-[10px] px-1 py-0 h-4 rounded-sm">
+                {item.ai_model === "senior" ? "Sr" : "Jr"}
               </Badge>
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 rounded-sm">
                 {item.website_type === "react" ? "React" : "HTML"}
               </Badge>
-              <span className={`text-muted-foreground ${compact ? "text-xs" : "text-sm hidden sm:block"}`}>
+              <span className={`text-muted-foreground ${compact ? "text-[10px]" : "text-xs hidden sm:block"}`}>
                 {item.language}
               </span>
               {!compact && (
-                <span className="text-sm text-muted-foreground hidden md:block">
+                <span className="text-[10px] text-muted-foreground hidden md:block">
                   {new Date(item.created_at).toLocaleString("uk-UA")}
                 </span>
               )}
@@ -194,30 +194,30 @@ function SingleHistoryItem({
                 const duration = getGenerationDuration(item.created_at, item.completed_at);
                 if (duration) {
                   return (
-                    <Badge variant="outline" className={`text-xs ${duration.colorClass}`}>
-                      ⏱ {duration.text}
+                    <Badge variant="outline" className={`text-[10px] px-1 py-0 h-4 rounded-sm ${duration.colorClass}`}>
+                      ⏱{duration.text}
                     </Badge>
                   );
                 }
                 return null;
               })()}
               {item.image_source && (
-                <Badge variant={item.image_source === "ai" ? "default" : "outline"} className="text-xs">
-                  {item.image_source === "ai" ? "AI" : "Баз"}
+                <Badge variant={item.image_source === "ai" ? "default" : "outline"} className="text-[10px] px-1 py-0 h-4 rounded-sm">
+                  {item.image_source === "ai" ? "AI" : "Б"}
                 </Badge>
               )}
               {item.status === "completed" && item.sale_price != null && item.sale_price > 0 && (
-                <Badge variant="secondary" className="text-xs font-semibold">
+                <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 rounded-sm font-semibold">
                   ${item.sale_price}
                 </Badge>
               )}
             </div>
-            <div className={`flex items-center ${compact ? "gap-1" : "gap-2 ml-4"}`}>
+            <div className={`flex items-center ${compact ? "gap-0.5" : "gap-0.5"}`}>
               {onUsePrompt && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={compact ? "h-6 w-6 p-0" : ""}
+                  className={compact ? "h-5 w-5 p-0" : "h-6 w-6 p-0"}
                   onClick={(e) => {
                     e.stopPropagation();
                     onUsePrompt(item.site_name || "", item.prompt);
@@ -228,7 +228,7 @@ function SingleHistoryItem({
                   }}
                   title="Використати промпт"
                 >
-                  <RotateCcw className={compact ? "h-3 w-3" : "h-4 w-4"} />
+                  <RotateCcw className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} />
                 </Button>
               )}
               {item.status === "completed" && (
@@ -237,20 +237,20 @@ function SingleHistoryItem({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={compact ? "h-6 w-6 p-0" : ""}
+                      className={compact ? "h-5 w-5 p-0" : "h-6 w-6 p-0"}
                       onClick={(e) => {
                         e.stopPropagation();
                         onEdit(item.id);
                       }}
                       title="Редагувати"
                     >
-                      <Pencil className={compact ? "h-3 w-3" : "h-4 w-4"} />
+                      <Pencil className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} />
                     </Button>
                   )}
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={compact ? "h-6 w-6 p-0" : ""}
+                    className={compact ? "h-5 w-5 p-0" : "h-6 w-6 p-0"}
                     onClick={(e) => {
                       e.stopPropagation();
                       onDownload(item);
@@ -258,23 +258,24 @@ function SingleHistoryItem({
                     disabled={!item.zip_data}
                     title="Завантажити ZIP"
                   >
-                    <Download className={compact ? "h-3 w-3" : "h-4 w-4"} />
+                    <Download className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} />
                   </Button>
                   {!getAppeal(item.id) && !compact && (
                     <Button
                       variant="ghost"
                       size="sm"
+                      className="h-6 w-6 p-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         onAppeal(item);
                       }}
                       title="Подати апеляцію"
                     >
-                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTriangle className="h-3.5 w-3.5" />
                     </Button>
                   )}
                   <ChevronDown
-                    className={`transition-transform ${compact ? "h-3 w-3" : "h-4 w-4"} ${expandedId === item.id ? "rotate-180" : ""}`}
+                    className={`transition-transform ${compact ? "h-3 w-3" : "h-3.5 w-3.5"} ${expandedId === item.id ? "rotate-180" : ""}`}
                   />
                 </>
               )}
@@ -284,16 +285,16 @@ function SingleHistoryItem({
 
         {!compact && (
           <div 
-            className="flex items-start gap-2 px-4 py-2 border-t bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
+            className="flex items-start gap-1.5 px-2 py-1 border-t bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
             onClick={(e) => {
               e.stopPropagation();
               onExpandPrompt(item.id);
             }}
           >
             <ChevronRight 
-              className={`h-4 w-4 mt-0.5 text-muted-foreground transition-transform flex-shrink-0 ${expandedPromptId === item.id ? "rotate-90" : ""}`} 
+              className={`h-3 w-3 mt-0.5 text-muted-foreground transition-transform flex-shrink-0 ${expandedPromptId === item.id ? "rotate-90" : ""}`} 
             />
-            <div className={`text-sm ${expandedPromptId === item.id ? "" : "line-clamp-1"}`}>
+            <div className={`text-xs ${expandedPromptId === item.id ? "" : "line-clamp-1"}`}>
               <span className="font-medium">{item.site_name || `Site ${item.number}`}</span>
               <span className="text-muted-foreground"> — {item.prompt}</span>
             </div>
@@ -1018,87 +1019,87 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
   }
 
   return (
-    <Card className="mt-6">
-      <CardHeader>
+    <Card className="mt-4 rounded-sm">
+      <CardHeader className="py-2 px-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <History className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-1.5 text-sm">
+            <History className="h-4 w-4" />
             Історія генерацій
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={fetchHistory} disabled={isLoading}>
-            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={fetchHistory} disabled={isLoading}>
+            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
           </Button>
         </div>
-        <div className="flex flex-col gap-2 mt-2">
+        <div className="flex flex-col gap-1.5 mt-1.5">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
             <Input
-              placeholder="Пошук за назвою або промптом..."
+              placeholder="Пошук..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              className="pl-7 h-7 text-xs rounded-sm"
             />
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[130px] h-8 text-xs">
-                <Filter className="h-3 w-3 mr-1" />
+              <SelectTrigger className="w-[90px] h-6 text-[10px] rounded-sm">
+                <Filter className="h-2.5 w-2.5 mr-0.5" />
                 <SelectValue placeholder="Статус" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Всі статуси</SelectItem>
-                <SelectItem value="completed">Готово</SelectItem>
-                <SelectItem value="in_progress">В процесі</SelectItem>
-                <SelectItem value="failed">Помилка</SelectItem>
+                <SelectItem value="all" className="text-xs">Всі</SelectItem>
+                <SelectItem value="completed" className="text-xs">Готово</SelectItem>
+                <SelectItem value="in_progress" className="text-xs">В процесі</SelectItem>
+                <SelectItem value="failed" className="text-xs">Помилка</SelectItem>
               </SelectContent>
             </Select>
             
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-[110px] h-8 text-xs">
+              <SelectTrigger className="w-[70px] h-6 text-[10px] rounded-sm">
                 <SelectValue placeholder="Тип" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Всі типи</SelectItem>
-                <SelectItem value="html">HTML</SelectItem>
-                <SelectItem value="react">React</SelectItem>
+                <SelectItem value="all" className="text-xs">Всі</SelectItem>
+                <SelectItem value="html" className="text-xs">HTML</SelectItem>
+                <SelectItem value="react" className="text-xs">React</SelectItem>
               </SelectContent>
             </Select>
             
             <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="w-[120px] h-8 text-xs">
-                <CalendarDays className="h-3 w-3 mr-1" />
+              <SelectTrigger className="w-[80px] h-6 text-[10px] rounded-sm">
+                <CalendarDays className="h-2.5 w-2.5 mr-0.5" />
                 <SelectValue placeholder="Дата" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Весь час</SelectItem>
-                <SelectItem value="today">Сьогодні</SelectItem>
-                <SelectItem value="week">Тиждень</SelectItem>
-                <SelectItem value="month">Місяць</SelectItem>
+                <SelectItem value="all" className="text-xs">Весь час</SelectItem>
+                <SelectItem value="today" className="text-xs">Сьогодні</SelectItem>
+                <SelectItem value="week" className="text-xs">Тиждень</SelectItem>
+                <SelectItem value="month" className="text-xs">Місяць</SelectItem>
               </SelectContent>
             </Select>
             
             {uniqueLanguages.length > 1 && (
               <Select value={languageFilter} onValueChange={setLanguageFilter}>
-                <SelectTrigger className="w-[100px] h-8 text-xs">
+                <SelectTrigger className="w-[70px] h-6 text-[10px] rounded-sm">
                   <SelectValue placeholder="Мова" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Всі мови</SelectItem>
+                  <SelectItem value="all" className="text-xs">Всі</SelectItem>
                   {uniqueLanguages.map(lang => (
-                    <SelectItem key={lang} value={lang}>{lang.toUpperCase()}</SelectItem>
+                    <SelectItem key={lang} value={lang} className="text-xs">{lang.toUpperCase()}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             )}
             
             <Select value={aiModelFilter} onValueChange={setAiModelFilter}>
-              <SelectTrigger className="w-[100px] h-8 text-xs">
+              <SelectTrigger className="w-[60px] h-6 text-[10px] rounded-sm">
                 <SelectValue placeholder="AI" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Всі AI</SelectItem>
-                <SelectItem value="junior">Junior</SelectItem>
-                <SelectItem value="senior">Senior</SelectItem>
+                <SelectItem value="all" className="text-xs">Всі</SelectItem>
+                <SelectItem value="junior" className="text-xs">Jr</SelectItem>
+                <SelectItem value="senior" className="text-xs">Sr</SelectItem>
               </SelectContent>
             </Select>
             
@@ -1106,7 +1107,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 px-2 text-xs"
+                className="h-6 px-1.5 text-[10px]"
                 onClick={() => {
                   setStatusFilter("all");
                   setTypeFilter("all");
@@ -1116,15 +1117,15 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
                   setSearchQuery("");
                 }}
               >
-                <X className="h-3 w-3 mr-1" />
+                <X className="h-2.5 w-2.5 mr-0.5" />
                 Скинути
               </Button>
             )}
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
+      <CardContent className="px-2 py-1.5">
+        <div className="space-y-1">
           {groupedHistory().map((entry) => {
             if (isBatchGroup(entry)) {
               // Render batch group
@@ -1136,66 +1137,66 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
               const totalCost = group.items.reduce((sum, i) => sum + (i.sale_price || 0), 0);
               
               return (
-                <div key={group.key} className="rounded-md border bg-muted/20">
+                <div key={group.key} className="rounded-sm border bg-muted/20">
                   <div
-                    className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="flex items-center justify-between px-2 py-1.5 cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => toggleGroup(group.key)}
                   >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <Layers className="h-4 w-4 text-primary" />
-                      <span className="font-medium truncate">{group.siteName}</span>
-                      <Badge variant="secondary" className="text-xs">
-                        {group.items.length} сайтів
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                      <Layers className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-xs font-medium truncate">{group.siteName}</span>
+                      <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 rounded-sm">
+                        {group.items.length}
                       </Badge>
                       {completedCount > 0 && (
-                        <Badge variant="outline" className="text-xs text-green-600">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 rounded-sm text-green-600">
+                          <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
                           {completedCount}
                         </Badge>
                       )}
                       {pendingCount > 0 && (
-                        <Badge variant="outline" className="text-xs">
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 rounded-sm">
+                          <Loader2 className="h-2.5 w-2.5 mr-0.5 animate-spin" />
                           {pendingCount}
                         </Badge>
                       )}
                       {failedCount > 0 && (
-                        <Badge variant="outline" className="text-xs text-destructive">
-                          <XCircle className="h-3 w-3 mr-1" />
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 rounded-sm text-destructive">
+                          <XCircle className="h-2.5 w-2.5 mr-0.5" />
                           {failedCount}
                         </Badge>
                       )}
-                      <span className="text-xs text-muted-foreground hidden md:block">
+                      <span className="text-[10px] text-muted-foreground hidden md:block">
                         {new Date(group.createdAt).toLocaleString("uk-UA")}
                       </span>
                       {totalCost > 0 && (
-                        <Badge variant="secondary" className="text-xs font-semibold">
+                        <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 rounded-sm font-semibold">
                           ${totalCost.toFixed(0)}
                         </Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-0.5">
                       {completedCount > 0 && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 px-2"
+                          className="h-5 px-1"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDownloadAll(group.items);
                           }}
                           title="Завантажити всі ZIP"
                         >
-                          <Download className="h-4 w-4 mr-1" />
-                          <span className="text-xs">Всі</span>
+                          <Download className="h-3 w-3 mr-0.5" />
+                          <span className="text-[10px]">Всі</span>
                         </Button>
                       )}
-                      <ChevronDown className={`h-4 w-4 transition-transform ${isGroupExpanded ? "rotate-180" : ""}`} />
+                      <ChevronDown className={`h-3 w-3 transition-transform ${isGroupExpanded ? "rotate-180" : ""}`} />
                     </div>
                   </div>
                   
                   {isGroupExpanded && (
-                    <div className="border-t space-y-1 p-2">
+                    <div className="border-t space-y-0.5 p-1">
                       {group.items.map((item) => (
                         <SingleHistoryItem
                           key={item.id}
