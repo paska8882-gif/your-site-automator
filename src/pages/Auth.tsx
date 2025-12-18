@@ -215,7 +215,7 @@ export default function Auth() {
           <h1 className="text-5xl xl:text-6xl font-bold leading-tight mb-6">
             <span className="text-white">Створюй сайти</span>
             <br />
-            <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-500 bg-clip-text text-transparent">
               за допомогою AI
             </span>
           </h1>
@@ -343,7 +343,7 @@ export default function Auth() {
 
             <Button 
               type="submit" 
-              className="w-full h-12 bg-white hover:bg-neutral-200 text-black font-medium text-base transition-colors" 
+              className="w-full h-12 bg-white hover:bg-gradient-to-r hover:from-cyan-400 hover:via-blue-500 hover:to-violet-500 text-black hover:text-white font-medium text-base transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/25" 
               disabled={isSubmitting}
             >
               {isSubmitting ? (
