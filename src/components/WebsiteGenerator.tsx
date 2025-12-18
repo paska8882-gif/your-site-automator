@@ -137,29 +137,69 @@ const playCompletionSound = (success: boolean) => {
   }
 };
 
+const DRAFT_STORAGE_KEY = "website_generator_draft";
+
+interface GeneratorDraft {
+  siteName: string;
+  prompt: string;
+  selectedLanguages: string[];
+  customLanguage: string;
+  isOtherSelected: boolean;
+  selectedStyles: string[];
+  customStyle: string;
+  isOtherStyleSelected: boolean;
+  sitesPerLanguage: number;
+  selectedAiModels: AiModel[];
+  selectedWebsiteTypes: WebsiteType[];
+  selectedImageSources: ImageSource[];
+  seniorMode: SeniorMode;
+  adminGenerationMode: "standard" | "senior_direct";
+}
+
+const loadDraft = (): Partial<GeneratorDraft> => {
+  try {
+    const saved = localStorage.getItem(DRAFT_STORAGE_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
+  }
+};
+
+const saveDraft = (draft: GeneratorDraft) => {
+  try {
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+  } catch {
+    // ignore storage errors
+  }
+};
+
 export function WebsiteGenerator() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { isAdmin } = useAdmin();
   const { isTeamOwner } = useTeamOwner();
   const navigate = useNavigate();
-  const [siteName, setSiteName] = useState("");
-  const [prompt, setPrompt] = useState("");
+  
+  // Load draft on mount
+  const draft = useRef(loadDraft()).current;
+  
+  const [siteName, setSiteName] = useState(draft.siteName || "");
+  const [prompt, setPrompt] = useState(draft.prompt || "");
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["uk"]);
-  const [customLanguage, setCustomLanguage] = useState("");
-  const [isOtherSelected, setIsOtherSelected] = useState(false);
-  const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
-  const [customStyle, setCustomStyle] = useState("");
-  const [isOtherStyleSelected, setIsOtherStyleSelected] = useState(false);
-  const [sitesPerLanguage, setSitesPerLanguage] = useState(1);
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(draft.selectedLanguages || ["uk"]);
+  const [customLanguage, setCustomLanguage] = useState(draft.customLanguage || "");
+  const [isOtherSelected, setIsOtherSelected] = useState(draft.isOtherSelected || false);
+  const [selectedStyles, setSelectedStyles] = useState<string[]>(draft.selectedStyles || []);
+  const [customStyle, setCustomStyle] = useState(draft.customStyle || "");
+  const [isOtherStyleSelected, setIsOtherStyleSelected] = useState(draft.isOtherStyleSelected || false);
+  const [sitesPerLanguage, setSitesPerLanguage] = useState(draft.sitesPerLanguage || 1);
   // Multi-select for AI models, website types, image sources
-  const [selectedAiModels, setSelectedAiModels] = useState<AiModel[]>(["senior"]);
-  const [selectedWebsiteTypes, setSelectedWebsiteTypes] = useState<WebsiteType[]>(["html"]);
-  const [selectedImageSources, setSelectedImageSources] = useState<ImageSource[]>(["basic"]);
-  const [seniorMode, setSeniorMode] = useState<SeniorMode>(undefined);
+  const [selectedAiModels, setSelectedAiModels] = useState<AiModel[]>(draft.selectedAiModels || ["senior"]);
+  const [selectedWebsiteTypes, setSelectedWebsiteTypes] = useState<WebsiteType[]>(draft.selectedWebsiteTypes || ["html"]);
+  const [selectedImageSources, setSelectedImageSources] = useState<ImageSource[]>(draft.selectedImageSources || ["basic"]);
+  const [seniorMode, setSeniorMode] = useState<SeniorMode>(draft.seniorMode || undefined);
   // Admin generation mode: "standard" (all options) vs "senior_direct" (simple Senior mode flow)
-  const [adminGenerationMode, setAdminGenerationMode] = useState<"standard" | "senior_direct">("standard");
+  const [adminGenerationMode, setAdminGenerationMode] = useState<"standard" | "senior_direct">(draft.adminGenerationMode || "standard");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImproving, setIsImproving] = useState(false);
   
@@ -194,6 +234,31 @@ export function WebsiteGenerator() {
       promptTextareaRef.current.style.height = `${Math.max(60, promptTextareaRef.current.scrollHeight)}px`;
     }
   }, [prompt]);
+
+  // Save draft to localStorage when form fields change
+  useEffect(() => {
+    saveDraft({
+      siteName,
+      prompt,
+      selectedLanguages,
+      customLanguage,
+      isOtherSelected,
+      selectedStyles,
+      customStyle,
+      isOtherStyleSelected,
+      sitesPerLanguage,
+      selectedAiModels,
+      selectedWebsiteTypes,
+      selectedImageSources,
+      seniorMode,
+      adminGenerationMode,
+    });
+  }, [
+    siteName, prompt, selectedLanguages, customLanguage, isOtherSelected,
+    selectedStyles, customStyle, isOtherStyleSelected, sitesPerLanguage,
+    selectedAiModels, selectedWebsiteTypes, selectedImageSources,
+    seniorMode, adminGenerationMode
+  ]);
   
   // Presets
   const [presets, setPresets] = useState<GenerationPreset[]>([]);
