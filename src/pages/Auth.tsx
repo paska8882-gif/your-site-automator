@@ -38,17 +38,6 @@ export default function Auth() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedRole, setSelectedRole] = useState<TeamRole | null>(null);
   const [isDarkTheme, setIsDarkTheme] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-
-  const handleThemeToggle = () => {
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setIsDarkTheme(!isDarkTheme);
-    }, 600);
-    setTimeout(() => {
-      setIsTransitioning(false);
-    }, 1200);
-  };
 
   useEffect(() => {
     if (user && !loading) {
@@ -211,41 +200,17 @@ export default function Auth() {
   }
 
   return (
-    <div className={`min-h-screen flex relative transition-all duration-1000 ease-[cubic-bezier(0.4,0,0.2,1)] ${isDarkTheme ? 'bg-black' : 'bg-white'}`}>
-      {/* Transition Overlay */}
-      <div 
-        className="fixed inset-0 z-[100] pointer-events-none"
-        style={{
-          background: 'radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0.9) 100%)',
-          opacity: isTransitioning ? 1 : 0,
-          transform: isTransitioning ? 'scale(1)' : 'scale(1.2)',
-          transition: 'opacity 700ms cubic-bezier(0.4, 0, 0.2, 1), transform 700ms cubic-bezier(0.4, 0, 0.2, 1)',
-        }}
-      />
-
+    <div className={`min-h-screen flex relative transition-colors duration-500 ${isDarkTheme ? 'bg-black' : 'bg-white'}`}>
       {/* Theme Toggle */}
       <button
-        onClick={handleThemeToggle}
-        disabled={isTransitioning}
-        className={`absolute top-6 right-6 z-50 p-2.5 rounded-full ${
+        onClick={() => setIsDarkTheme(!isDarkTheme)}
+        className={`absolute top-6 right-6 z-50 p-2.5 rounded-full transition-all duration-300 ${
           isDarkTheme 
             ? 'bg-white/10 hover:bg-white/20 text-white' 
             : 'bg-black/5 hover:bg-black/10 text-black'
         }`}
-        style={{
-          transform: isTransitioning ? 'scale(0.8)' : 'scale(1)',
-          opacity: isTransitioning ? 0.4 : 1,
-          transition: 'all 600ms cubic-bezier(0.4, 0, 0.2, 1)',
-        }}
       >
-        <div 
-          style={{
-            transform: isTransitioning ? 'rotate(360deg)' : 'rotate(0deg)',
-            transition: 'transform 1000ms cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
-        >
-          {isDarkTheme ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-        </div>
+        {isDarkTheme ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
       </button>
 
       {/* Center transition effect */}
