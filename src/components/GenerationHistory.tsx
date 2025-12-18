@@ -422,11 +422,14 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
   const [searchQuery, setSearchQuery] = useState("");
   
   // Filters
+  const [showFilters, setShowFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>(defaultDateFilter);
   const [languageFilter, setLanguageFilter] = useState<string>("all");
   const [aiModelFilter, setAiModelFilter] = useState<string>("all");
+  
+  const hasActiveFilters = statusFilter !== "all" || typeFilter !== "all" || dateFilter !== "all" || languageFilter !== "all" || aiModelFilter !== "all";
   
   // Get unique languages from history
   const uniqueLanguages = [...new Set(history.map(item => item.language).filter(Boolean))].sort();
@@ -1022,98 +1025,122 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
             <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
           </Button>
         </div>
-        <div className="flex flex-col gap-2 mt-2">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <div className="flex items-center gap-2 mt-2">
+          <div className="relative flex-1 max-w-[200px]">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
             <Input
               placeholder="Пошук..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 h-8 text-sm"
+              className="pl-7 h-7 text-xs"
             />
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[100px] h-7 text-xs">
-                <Filter className="h-3 w-3 mr-1" />
-                <SelectValue placeholder="Статус" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Всі</SelectItem>
-                <SelectItem value="completed">Готово</SelectItem>
-                <SelectItem value="in_progress">В процесі</SelectItem>
-                <SelectItem value="failed">Помилка</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-[80px] h-7 text-xs">
-                <SelectValue placeholder="Тип" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Всі</SelectItem>
-                <SelectItem value="html">HTML</SelectItem>
-                <SelectItem value="react">React</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="w-[100px] h-7 text-xs">
-                <CalendarDays className="h-3 w-3 mr-1" />
-                <SelectValue placeholder="Дата" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Весь час</SelectItem>
-                <SelectItem value="today">Сьогодні</SelectItem>
-                <SelectItem value="week">Тиждень</SelectItem>
-                <SelectItem value="month">Місяць</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            {uniqueLanguages.length > 1 && (
-              <Select value={languageFilter} onValueChange={setLanguageFilter}>
-                <SelectTrigger className="w-[80px] h-7 text-xs">
-                  <SelectValue placeholder="Мова" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Всі</SelectItem>
-                  {uniqueLanguages.map(lang => (
-                    <SelectItem key={lang} value={lang}>{lang.toUpperCase()}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            
-            <Select value={aiModelFilter} onValueChange={setAiModelFilter}>
-              <SelectTrigger className="w-[70px] h-7 text-xs">
-                <SelectValue placeholder="AI" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Всі</SelectItem>
-                <SelectItem value="junior">Junior</SelectItem>
-                <SelectItem value="senior">Senior</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            {(statusFilter !== "all" || typeFilter !== "all" || dateFilter !== "all" || languageFilter !== "all" || aiModelFilter !== "all" || searchQuery) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                onClick={() => {
-                  setStatusFilter("all");
-                  setTypeFilter("all");
-                  setDateFilter("all");
-                  setLanguageFilter("all");
-                  setAiModelFilter("all");
-                  setSearchQuery("");
-                }}
+          
+          <Popover open={showFilters} onOpenChange={setShowFilters}>
+            <PopoverTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className={`h-7 px-2 text-xs gap-1 ${hasActiveFilters ? "border-primary text-primary" : ""}`}
               >
-                <X className="h-3 w-3 mr-1" />
-                Скинути
+                <Filter className="h-3 w-3" />
+                Фільтри
+                {hasActiveFilters && <span className="ml-1 px-1 bg-primary text-primary-foreground rounded text-[10px]">!</span>}
               </Button>
-            )}
-          </div>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2" align="start">
+              <div className="flex flex-wrap gap-1.5">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[90px] h-7 text-xs">
+                    <SelectValue placeholder="Статус" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Всі</SelectItem>
+                    <SelectItem value="completed">Готово</SelectItem>
+                    <SelectItem value="in_progress">В процесі</SelectItem>
+                    <SelectItem value="failed">Помилка</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger className="w-[70px] h-7 text-xs">
+                    <SelectValue placeholder="Тип" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Всі</SelectItem>
+                    <SelectItem value="html">HTML</SelectItem>
+                    <SelectItem value="react">React</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={dateFilter} onValueChange={setDateFilter}>
+                  <SelectTrigger className="w-[90px] h-7 text-xs">
+                    <SelectValue placeholder="Дата" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Весь час</SelectItem>
+                    <SelectItem value="today">Сьогодні</SelectItem>
+                    <SelectItem value="week">Тиждень</SelectItem>
+                    <SelectItem value="month">Місяць</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {uniqueLanguages.length > 1 && (
+                  <Select value={languageFilter} onValueChange={setLanguageFilter}>
+                    <SelectTrigger className="w-[70px] h-7 text-xs">
+                      <SelectValue placeholder="Мова" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Всі</SelectItem>
+                      {uniqueLanguages.map(lang => (
+                        <SelectItem key={lang} value={lang}>{lang.toUpperCase()}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                
+                <Select value={aiModelFilter} onValueChange={setAiModelFilter}>
+                  <SelectTrigger className="w-[65px] h-7 text-xs">
+                    <SelectValue placeholder="AI" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Всі</SelectItem>
+                    <SelectItem value="junior">Junior</SelectItem>
+                    <SelectItem value="senior">Senior</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs mt-2 w-full"
+                  onClick={() => {
+                    setStatusFilter("all");
+                    setTypeFilter("all");
+                    setDateFilter("all");
+                    setLanguageFilter("all");
+                    setAiModelFilter("all");
+                  }}
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Скинути
+                </Button>
+              )}
+            </PopoverContent>
+          </Popover>
+          
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={() => setSearchQuery("")}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent className="px-3 py-2">
