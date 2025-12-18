@@ -250,13 +250,13 @@ export default function Auth() {
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setIsDarkTheme(!isDarkTheme)}
-              className="relative group"
+              className="relative group cursor-pointer"
             >
-              <div className={`absolute inset-0 rounded-lg blur-md animate-pulse opacity-20 ${isDarkTheme ? 'bg-white' : 'bg-black'}`} />
-              <div className={`relative w-10 h-10 rounded-lg flex items-center justify-center shadow-lg transition-transform duration-200 group-hover:scale-110 group-active:scale-95 ${
+              <div className={`absolute inset-0 rounded-lg blur-md animate-pulse opacity-20 pointer-events-none ${isDarkTheme ? 'bg-white' : 'bg-black'}`} />
+              <div className={`relative w-10 h-10 rounded-lg flex items-center justify-center shadow-lg transition-transform duration-200 group-hover:scale-110 group-active:scale-95 pointer-events-none ${
                 isDarkTheme ? 'bg-white shadow-white/20' : 'bg-black shadow-black/20'
               }`}>
-                <span className={`font-bold text-lg ${isDarkTheme ? 'text-black' : 'text-white'}`}>D</span>
+                <span className={`font-bold text-lg pointer-events-none ${isDarkTheme ? 'text-black' : 'text-white'}`}>D</span>
               </div>
             </button>
             <span className={`font-semibold text-xl tracking-tight ${isDarkTheme ? 'text-white' : 'text-black'}`}>
@@ -315,12 +315,12 @@ export default function Auth() {
           <div className="lg:hidden flex items-center gap-3 mb-10 animate-fade-in">
             <button 
               onClick={() => setIsDarkTheme(!isDarkTheme)}
-              className="relative group"
+              className="relative group cursor-pointer"
             >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-lg transition-transform duration-200 group-hover:scale-110 group-active:scale-95 ${
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-lg transition-transform duration-200 group-hover:scale-110 group-active:scale-95 pointer-events-none ${
                 isDarkTheme ? 'bg-white shadow-white/10' : 'bg-black shadow-black/10'
               }`}>
-                <span className={`font-bold text-lg ${isDarkTheme ? 'text-black' : 'text-white'}`}>D</span>
+                <span className={`font-bold text-lg pointer-events-none ${isDarkTheme ? 'text-black' : 'text-white'}`}>D</span>
               </div>
             </button>
             <span className={`font-semibold text-xl tracking-tight ${isDarkTheme ? 'text-white' : 'text-black'}`}>
