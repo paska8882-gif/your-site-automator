@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -161,6 +162,7 @@ export function WebsiteGenerator() {
   const [adminGenerationMode, setAdminGenerationMode] = useState<"standard" | "senior_direct">("standard");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImproving, setIsImproving] = useState(false);
+  const [cleanFormatting, setCleanFormatting] = useState(true);
   const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 });
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [teamPricing, setTeamPricing] = useState<TeamPricing | null>(null);
@@ -502,10 +504,13 @@ export function WebsiteGenerator() {
       }
 
       if (data.improvedPrompt) {
-        setPrompt(sanitizeImprovedPrompt(data.improvedPrompt));
+        const result = cleanFormatting 
+          ? sanitizeImprovedPrompt(data.improvedPrompt) 
+          : data.improvedPrompt;
+        setPrompt(result);
         toast({
           title: "Промпт покращено",
-          description: "AI покращив ваш опис сайту",
+          description: cleanFormatting ? "AI покращив та очистив ваш опис" : "AI покращив ваш опис сайту",
         });
       }
     } catch (error: any) {
@@ -1005,25 +1010,38 @@ export function WebsiteGenerator() {
                 style={{ resize: 'none' }}
                 disabled={isSubmitting || isImproving}
               />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleImprovePrompt}
-                disabled={isImproving || isSubmitting || !prompt.trim()}
-                className="h-7 text-xs px-2"
-              >
-                {isImproving ? (
-                  <>
-                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                    Покращення...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="mr-1 h-3 w-3" />
-                    Покращити
-                  </>
-                )}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleImprovePrompt}
+                  disabled={isImproving || isSubmitting || !prompt.trim()}
+                  className="h-7 text-xs px-2"
+                >
+                  {isImproving ? (
+                    <>
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      Покращення...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="mr-1 h-3 w-3" />
+                      Покращити
+                    </>
+                  )}
+                </Button>
+                <div className="flex items-center gap-1.5">
+                  <Switch
+                    id="clean-formatting"
+                    checked={cleanFormatting}
+                    onCheckedChange={setCleanFormatting}
+                    className="scale-75"
+                  />
+                  <Label htmlFor="clean-formatting" className="text-[10px] text-muted-foreground cursor-pointer">
+                    Очистити
+                  </Label>
+                </div>
+              </div>
             </div>
 
             {/* Standard Mode Options - show for non-admins OR when admin selects standard mode */}
