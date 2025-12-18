@@ -208,7 +208,7 @@ export default function Auth() {
           DRAGON
         </span>
         {/* WHITE text on light side - left aligned */}
-        <span className="text-4xl xl:text-5xl font-black tracking-tight text-black ml-8">
+        <span className="text-4xl xl:text-5xl font-black tracking-tight text-black ml-3">
           WHITE
         </span>
       </div>
