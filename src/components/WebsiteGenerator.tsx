@@ -27,7 +27,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { startGeneration, AiModel, WebsiteType, SeniorMode, ImageSource, LAYOUT_STYLES } from "@/lib/websiteGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { GenerationHistory } from "./GenerationHistory";
-import { UserTeamInfo } from "./UserTeamInfo";
 import { DebtNotificationPopup } from "./DebtNotificationPopup";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -744,8 +743,6 @@ export function WebsiteGenerator() {
           </div>
         </div>
 
-        {/* Team Info */}
-        <UserTeamInfo />
 
         {/* Input Section */}
         <Card className="mb-4">

@@ -1,14 +1,17 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Users } from "lucide-react";
+import { useTeamOwner } from "@/hooks/useTeamOwner";
+import { Loader2 } from "lucide-react";
 import { TeamManagement } from "@/components/TeamManagement";
+import { UserTeamInfo } from "@/components/UserTeamInfo";
 import { BlockedUserOverlay } from "@/components/BlockedUserOverlay";
+import { AppLayout } from "@/components/AppLayout";
 
 export default function Team() {
   const navigate = useNavigate();
   const { user, loading, isBlocked } = useAuth();
+  const { isTeamOwner, loading: teamLoading } = useTeamOwner();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -16,7 +19,7 @@ export default function Team() {
     }
   }, [user, loading, navigate]);
 
-  if (loading) {
+  if (loading || teamLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -33,22 +36,21 @@ export default function Team() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <Users className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold">Моя команда</h1>
+    <AppLayout>
+      <div className="p-4 max-w-4xl mx-auto space-y-4">
+        <h1 className="text-xl font-semibold">Моя команда</h1>
+        
+        {/* Team Info for all users */}
+        <UserTeamInfo />
+        
+        {/* Team Management only for owners */}
+        {isTeamOwner && (
+          <div className="mt-6">
+            <h2 className="text-lg font-medium mb-4">Управління командою</h2>
+            <TeamManagement />
           </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-6 max-w-4xl">
-        <TeamManagement />
-      </main>
-    </div>
+        )}
+      </div>
+    </AppLayout>
   );
 }
