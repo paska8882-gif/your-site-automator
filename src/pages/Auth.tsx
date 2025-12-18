@@ -236,7 +236,7 @@ export default function Auth() {
         {/* Content */}
         <div className="relative z-10 animate-fade-in" style={{ animationDelay: '0.1s', animationFillMode: 'backwards' }}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-lg shadow-white/20">
               <span className="text-black font-bold text-lg">D</span>
             </div>
             <span className="text-white font-semibold text-xl tracking-tight">
@@ -282,10 +282,14 @@ export default function Auth() {
         {/* Gradient background */}
         <div className="absolute inset-0 bg-gradient-to-r from-neutral-900 via-neutral-800 to-neutral-700" />
         
+        {/* White glow accents */}
+        <div className="absolute top-1/4 right-1/4 w-64 h-64 bg-white/[0.03] rounded-full blur-3xl" />
+        <div className="absolute bottom-1/3 left-1/3 w-48 h-48 bg-white/[0.02] rounded-full blur-2xl" />
+        
         <div className="w-full max-w-md relative z-10">
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center gap-3 mb-10 animate-fade-in">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-lg shadow-white/10">
               <span className="text-black font-bold text-lg">D</span>
             </div>
             <span className="text-white font-semibold text-xl tracking-tight">
@@ -316,7 +320,7 @@ export default function Auth() {
                     onClick={() => setSelectedRole(role.id)}
                     className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
                       selectedRole === role.id
-                        ? 'bg-white text-black'
+                        ? 'bg-white text-black shadow-lg shadow-white/20'
                         : 'bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white'
                     }`}
                   >
@@ -404,7 +408,7 @@ export default function Auth() {
 
             <Button 
               type="submit" 
-              className="w-full h-10 bg-white hover:bg-neutral-200 text-black font-medium transition-all duration-200 border-0" 
+              className="w-full h-10 bg-white hover:bg-neutral-100 text-black font-medium transition-all duration-200 border-0 shadow-lg shadow-white/10 hover:shadow-white/20 hover:shadow-xl" 
               disabled={isSubmitting || (isLogin && !selectedRole)}
             >
               {isSubmitting ? (
