@@ -86,25 +86,23 @@ export function AppSidebar() {
   const userInitial = userEmail.charAt(0).toUpperCase();
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-border/50">
+    <Sidebar collapsible="icon" className="border-r-0 sidebar-gradient">
       {/* Header with Logo - Click to toggle theme */}
-      <SidebarHeader className="border-b border-border/50 p-4">
+      <SidebarHeader className="border-b border-sidebar-border p-4">
         <div className="flex items-center gap-3">
           <button
             onClick={toggleTheme}
-            className={`w-9 h-9 rounded-lg flex items-center justify-center shadow-md flex-shrink-0 hover:opacity-90 transition-all duration-300 cursor-pointer ${
-              theme === "dark" ? "bg-white" : "bg-black"
-            }`}
+            className="w-9 h-9 rounded-md flex items-center justify-center bg-white/10 hover:bg-white/20 transition-all duration-300 cursor-pointer"
             title={theme === "dark" ? "Світла тема" : "Темна тема"}
           >
-            <span className={`font-bold text-base ${theme === "dark" ? "text-black" : "text-white"}`}>D</span>
+            <span className="font-bold text-base text-white">D</span>
           </button>
           {!collapsed && (
             <div className="flex flex-col overflow-hidden">
-              <span className="font-semibold text-sm tracking-tight truncate">
-                DRAGON<span className="text-muted-foreground">WHITE</span>
+              <span className="font-semibold text-sm tracking-tight truncate text-white">
+                DRAGON<span className="text-sidebar-muted">WHITE</span>
               </span>
-              <span className="text-[10px] text-muted-foreground">AI Generator</span>
+              <span className="text-[10px] text-sidebar-muted">AI Generator</span>
             </div>
           )}
         </div>
@@ -113,7 +111,7 @@ export function AppSidebar() {
       <SidebarContent className="px-2">
         {/* Main Navigation */}
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs text-muted-foreground px-2">
+          <SidebarGroupLabel className="text-xs text-sidebar-muted px-2">
             Меню
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -139,7 +137,7 @@ export function AppSidebar() {
         {/* Admin Section */}
         {isAdmin && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-xs text-muted-foreground px-2">
+          <SidebarGroupLabel className="text-xs text-sidebar-muted px-2">
               <div className="flex items-center gap-1">
                 <Shield className="h-3 w-3" />
                 Адмін панель
@@ -166,8 +164,7 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      {/* Footer with User Account */}
-      <SidebarFooter className="border-t border-border/50 p-2">
+      <SidebarFooter className="border-t border-sidebar-border p-2">
         {/* Notifications & Support */}
         {!collapsed && (
           <div className="flex items-center justify-center gap-1 mb-2 px-2">
