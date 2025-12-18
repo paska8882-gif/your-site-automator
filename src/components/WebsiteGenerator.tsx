@@ -21,15 +21,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FileCode2, Sparkles, LogOut, User, Zap, Crown, Globe, Layers, Languages, Hash, Wand2, Palette, ChevronDown, AlertTriangle, Shield, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp } from "lucide-react";
+import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Hash, Wand2, Palette, ChevronDown, AlertTriangle, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { startGeneration, AiModel, WebsiteType, SeniorMode, ImageSource, LAYOUT_STYLES } from "@/lib/websiteGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { GenerationHistory } from "./GenerationHistory";
 import { UserTeamInfo } from "./UserTeamInfo";
-import { NotificationBell } from "./NotificationBell";
-import { SupportChat } from "./SupportChat";
 import { DebtNotificationPopup } from "./DebtNotificationPopup";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -139,7 +137,7 @@ const playCompletionSound = (success: boolean) => {
 
 export function WebsiteGenerator() {
   const { toast } = useToast();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { isAdmin } = useAdmin();
   const { isTeamOwner } = useTeamOwner();
   const navigate = useNavigate();
@@ -444,13 +442,6 @@ export function WebsiteGenerator() {
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    toast({
-      title: "Вихід",
-      description: "Ви вийшли з акаунту",
-    });
-  };
 
   const toggleLanguage = (langValue: string) => {
     setSelectedLanguages((prev) => {
@@ -753,30 +744,6 @@ export function WebsiteGenerator() {
                 Опишіть сайт — AI згенерує HTML, CSS та всі файли
               </p>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {isTeamOwner && (
-              <Button variant="outline" size="sm" onClick={() => navigate("/team")}>
-                <Users className="h-4 w-4 mr-1" />
-                Команда
-              </Button>
-            )}
-            {isAdmin && (
-              <Button variant="outline" size="sm" onClick={() => navigate("/admin")}>
-                <Shield className="h-4 w-4 mr-1" />
-                Адмін
-              </Button>
-            )}
-            <NotificationBell />
-            <SupportChat />
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <User className="h-4 w-4" />
-              <span>{user?.email}</span>
-            </div>
-            <Button variant="outline" size="sm" onClick={handleSignOut}>
-              <LogOut className="h-4 w-4 mr-1" />
-              Вийти
-            </Button>
           </div>
         </div>
 
