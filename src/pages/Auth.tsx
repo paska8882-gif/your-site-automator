@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, Users, Crown, ShoppingCart, Code, ChevronLeft } from "lucide-react";
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Невірний формат email" }),
@@ -15,6 +15,15 @@ const authSchema = z.object({
   displayName: z.string().trim().optional(),
   inviteCode: z.string().trim().optional(),
 });
+
+type TeamRole = "owner" | "team_lead" | "buyer" | "tech_dev";
+
+const roles: { id: TeamRole; name: string; icon: React.ReactNode; description: string }[] = [
+  { id: "owner", name: "Owner", icon: <Crown className="w-5 h-5" />, description: "Власник команди" },
+  { id: "team_lead", name: "Team Lead", icon: <Users className="w-5 h-5" />, description: "Керівник команди" },
+  { id: "buyer", name: "Buyer", icon: <ShoppingCart className="w-5 h-5" />, description: "Закупівельник" },
+  { id: "tech_dev", name: "Tech Dev", icon: <Code className="w-5 h-5" />, description: "Розробник" },
+];
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -27,6 +36,7 @@ export default function Auth() {
   const [displayName, setDisplayName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [selectedRole, setSelectedRole] = useState<TeamRole | null>(null);
 
   useEffect(() => {
     if (user && !loading) {
@@ -287,6 +297,9 @@ export default function Auth() {
         <div className="absolute -top-20 -right-20 w-64 h-64 bg-cyan-500/[0.03] rounded-full blur-3xl" />
         <div className="absolute top-10 right-20 w-32 h-32 bg-blue-500/[0.04] rounded-full blur-2xl" />
         
+        {/* Bottom decorative elements */}
+        <div className="absolute bottom-10 left-10 w-40 h-40 bg-violet-500/[0.03] rounded-full blur-2xl" />
+        
         <div className="w-full max-w-sm relative z-10">
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center gap-3 mb-10 animate-fade-in">
@@ -298,132 +311,216 @@ export default function Auth() {
             </span>
           </div>
 
-          <div className="mb-8 animate-fade-in" style={{ animationDelay: '0.2s', animationFillMode: 'backwards' }}>
-            <h2 className="text-2xl font-bold text-white mb-2">
-              {isLogin ? "Вхід в акаунт" : "Створити акаунт"}
-            </h2>
-            <p className="text-neutral-500">
-              {isLogin
-                ? "Введіть свої дані для входу"
-                : "Заповніть форму для реєстрації"}
-            </p>
-          </div>
+          {/* Role Selection View */}
+          {!selectedRole && isLogin && (
+            <div className="animate-fade-in">
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold text-white mb-2">
+                  Оберіть вашу роль
+                </h2>
+                <p className="text-neutral-500">
+                  Виберіть позицію для входу в систему
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                {roles.map((role) => (
+                  <button
+                    key={role.id}
+                    onClick={() => setSelectedRole(role.id)}
+                    className="group relative p-4 rounded-xl bg-white/[0.03] border border-white/10 hover:border-cyan-500/50 hover:bg-white/[0.06] transition-all duration-300 text-left"
+                  >
+                    <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-cyan-500/0 to-violet-500/0 group-hover:from-cyan-500/5 group-hover:to-violet-500/5 transition-all duration-300" />
+                    <div className="relative">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-violet-500/20 flex items-center justify-center text-cyan-400 mb-3 group-hover:scale-110 transition-transform duration-300">
+                        {role.icon}
+                      </div>
+                      <h3 className="text-white font-medium text-sm mb-1">{role.name}</h3>
+                      <p className="text-neutral-500 text-xs">{role.description}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              
+              <div className="mt-8 text-center">
+                <p className="text-neutral-500 text-sm">
+                  Немає акаунту?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setIsLogin(false)}
+                    className="text-white hover:underline font-medium"
+                  >
+                    Зареєструватись
+                  </button>
+                </p>
+              </div>
+            </div>
+          )}
 
-          <form onSubmit={handleSubmit} className="space-y-5 animate-fade-in" style={{ animationDelay: '0.4s', animationFillMode: 'backwards' }}>
-            {!isLogin && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="inviteCode" className="text-neutral-300 text-sm">
-                    Інвайт-код
-                  </Label>
-                  <Input
-                    id="inviteCode"
-                    type="text"
-                    placeholder="XXXXXXXX"
-                    value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                    disabled={isSubmitting}
-                    className={`h-12 bg-neutral-900 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-white focus:ring-0 ${errors.inviteCode ? "border-red-500" : ""}`}
-                    maxLength={8}
-                  />
-                  {errors.inviteCode && (
-                    <p className="text-xs text-red-400">{errors.inviteCode}</p>
+          {/* Auth Form View */}
+          {(selectedRole || !isLogin) && (
+            <div className="animate-fade-in">
+              {selectedRole && isLogin && (
+                <button
+                  onClick={() => setSelectedRole(null)}
+                  className="flex items-center gap-2 text-neutral-400 hover:text-white mb-6 transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span className="text-sm">Назад до вибору ролі</span>
+                </button>
+              )}
+              
+              <div className="mb-8">
+                <div className="flex items-center gap-3 mb-4">
+                  {selectedRole && isLogin && (
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-violet-500/20 flex items-center justify-center text-cyan-400">
+                      {roles.find(r => r.id === selectedRole)?.icon}
+                    </div>
                   )}
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">
+                      {isLogin ? "Вхід в акаунт" : "Створити акаунт"}
+                    </h2>
+                    {selectedRole && isLogin && (
+                      <p className="text-cyan-400 text-sm">
+                        {roles.find(r => r.id === selectedRole)?.name}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="displayName" className="text-neutral-300 text-sm">
-                    Ім&apos;я <span className="text-neutral-600">(опціонально)</span>
-                  </Label>
-                  <Input
-                    id="displayName"
-                    type="text"
-                    placeholder="Ваше ім'я"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    disabled={isSubmitting}
-                    className="h-12 bg-neutral-900 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-white focus:ring-0"
-                  />
+                <p className="text-neutral-500">
+                  {isLogin
+                    ? "Введіть свої дані для входу"
+                    : "Заповніть форму для реєстрації"}
+                </p>
+              </div>
+
+              {/* Glassmorphism card */}
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] to-white/[0.02] rounded-2xl blur-xl" />
+                <div className="relative bg-white/[0.03] backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                  <form onSubmit={handleSubmit} className="space-y-5">
+                    {!isLogin && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="inviteCode" className="text-neutral-300 text-sm">
+                            Інвайт-код
+                          </Label>
+                          <Input
+                            id="inviteCode"
+                            type="text"
+                            placeholder="XXXXXXXX"
+                            value={inviteCode}
+                            onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                            disabled={isSubmitting}
+                            className={`h-12 bg-black/40 border-white/10 text-white placeholder:text-neutral-600 focus:border-cyan-500/50 focus:ring-cyan-500/20 transition-all ${errors.inviteCode ? "border-red-500" : ""}`}
+                            maxLength={8}
+                          />
+                          {errors.inviteCode && (
+                            <p className="text-xs text-red-400">{errors.inviteCode}</p>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="displayName" className="text-neutral-300 text-sm">
+                            Ім&apos;я <span className="text-neutral-600">(опціонально)</span>
+                          </Label>
+                          <Input
+                            id="displayName"
+                            type="text"
+                            placeholder="Ваше ім'я"
+                            value={displayName}
+                            onChange={(e) => setDisplayName(e.target.value)}
+                            disabled={isSubmitting}
+                            className="h-12 bg-black/40 border-white/10 text-white placeholder:text-neutral-600 focus:border-cyan-500/50 focus:ring-cyan-500/20 transition-all"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-neutral-300 text-sm">
+                        Email
+                      </Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="name@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        disabled={isSubmitting}
+                        className={`h-12 bg-black/40 border-white/10 text-white placeholder:text-neutral-600 focus:border-cyan-500/50 focus:ring-cyan-500/20 transition-all ${errors.email ? "border-red-500" : ""}`}
+                      />
+                      {errors.email && (
+                        <p className="text-xs text-red-400">{errors.email}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="password" className="text-neutral-300 text-sm">
+                        Пароль
+                      </Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        disabled={isSubmitting}
+                        className={`h-12 bg-black/40 border-white/10 text-white placeholder:text-neutral-600 focus:border-cyan-500/50 focus:ring-cyan-500/20 transition-all ${errors.password ? "border-red-500" : ""}`}
+                      />
+                      {errors.password && (
+                        <p className="text-xs text-red-400">{errors.password}</p>
+                      )}
+                    </div>
+
+                    <Button 
+                      type="submit" 
+                      className="w-full h-12 bg-gradient-to-r from-cyan-500 via-blue-500 to-violet-500 hover:from-cyan-400 hover:via-blue-400 hover:to-violet-400 text-white font-medium text-base transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/25 border-0" 
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <span className="flex items-center justify-center gap-2">
+                          {isLogin ? "Увійти" : "Зареєструватись"}
+                          <ArrowRight className="w-4 h-4" />
+                        </span>
+                      )}
+                    </Button>
+                  </form>
                 </div>
-              </>
-            )}
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-neutral-300 text-sm">
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="name@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isSubmitting}
-                className={`h-12 bg-neutral-900 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-white focus:ring-0 ${errors.email ? "border-red-500" : ""}`}
-              />
-              {errors.email && (
-                <p className="text-xs text-red-400">{errors.email}</p>
-              )}
+              <div className="mt-6 text-center">
+                {isLogin ? (
+                  <p className="text-neutral-500 text-sm">
+                    Немає акаунту?{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsLogin(false);
+                        setSelectedRole(null);
+                      }}
+                      className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
+                    >
+                      Зареєструватись
+                    </button>
+                  </p>
+                ) : (
+                  <p className="text-neutral-500 text-sm">
+                    Вже є акаунт?{" "}
+                    <button
+                      type="button"
+                      onClick={() => setIsLogin(true)}
+                      className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
+                    >
+                      Увійти
+                    </button>
+                  </p>
+                )}
+              </div>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-neutral-300 text-sm">
-                Пароль
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isSubmitting}
-                className={`h-12 bg-neutral-900 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-white focus:ring-0 ${errors.password ? "border-red-500" : ""}`}
-              />
-              {errors.password && (
-                <p className="text-xs text-red-400">{errors.password}</p>
-              )}
-            </div>
-
-            <Button 
-              type="submit" 
-              className="w-full h-12 bg-white hover:bg-gradient-to-r hover:from-cyan-400 hover:via-blue-500 hover:to-violet-500 text-black hover:text-white font-medium text-base transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/25" 
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <span className="flex items-center justify-center gap-2">
-                  {isLogin ? "Увійти" : "Зареєструватись"}
-                  <ArrowRight className="w-4 h-4" />
-                </span>
-              )}
-            </Button>
-          </form>
-
-          <div className="mt-8 text-center">
-            {isLogin ? (
-              <p className="text-neutral-500 text-sm">
-                Немає акаунту?{" "}
-                <button
-                  type="button"
-                  onClick={() => setIsLogin(false)}
-                  className="text-white hover:underline font-medium"
-                >
-                  Зареєструватись
-                </button>
-              </p>
-            ) : (
-              <p className="text-neutral-500 text-sm">
-                Вже є акаунт?{" "}
-                <button
-                  type="button"
-                  onClick={() => setIsLogin(true)}
-                  className="text-white hover:underline font-medium"
-                >
-                  Увійти
-                </button>
-              </p>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>
