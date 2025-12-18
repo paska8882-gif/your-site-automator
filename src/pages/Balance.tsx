@@ -4,12 +4,13 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Wallet, TrendingDown, TrendingUp, Clock, CheckCircle2, XCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { Wallet, TrendingDown, TrendingUp, Clock, XCircle, Loader2, Users, CalendarDays } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { format } from "date-fns";
+import { useTeamOwner } from "@/hooks/useTeamOwner";
+import { format, subDays, startOfDay, eachDayOfInterval } from "date-fns";
 import { uk } from "date-fns/locale";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 
 interface Transaction {
   id: string;
@@ -19,6 +20,7 @@ interface Transaction {
   date: string;
   status?: string;
   site_name?: string;
+  user_email?: string;
 }
 
 interface TeamInfo {
@@ -27,11 +29,38 @@ interface TeamInfo {
   balance: number;
 }
 
+interface DailyData {
+  date: string;
+  amount: number;
+  count: number;
+}
+
+interface BuyerData {
+  name: string;
+  email: string;
+  amount: number;
+  count: number;
+}
+
+const CHART_COLORS = [
+  "hsl(var(--primary))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+  "#8884d8",
+  "#82ca9d",
+  "#ffc658",
+];
+
 const Balance = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const { isTeamOwner } = useTeamOwner();
   const [teamInfo, setTeamInfo] = useState<TeamInfo | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [dailyData, setDailyData] = useState<DailyData[]>([]);
+  const [buyerData, setBuyerData] = useState<BuyerData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -44,7 +73,7 @@ const Balance = () => {
     if (user) {
       fetchFinancialData();
     }
-  }, [user]);
+  }, [user, isTeamOwner]);
 
   const fetchFinancialData = async () => {
     setIsLoading(true);
@@ -59,8 +88,10 @@ const Balance = () => {
         .limit(1)
         .maybeSingle();
 
+      let teamId: string | null = null;
       if (membership?.teams) {
         const team = membership.teams as unknown as TeamInfo;
+        teamId = team.id;
         setTeamInfo({
           id: team.id,
           name: team.name,
@@ -68,20 +99,57 @@ const Balance = () => {
         });
       }
 
-      // Get generation history with sale prices
-      const { data: generations } = await supabase
+      // Get generation history - for team owners, get all team members' data
+      let generationsQuery = supabase
         .from("generation_history")
-        .select("id, site_name, sale_price, status, created_at")
-        .eq("user_id", user!.id)
+        .select("id, site_name, sale_price, status, created_at, user_id")
         .not("sale_price", "is", null)
         .order("created_at", { ascending: false });
 
+      if (!isTeamOwner) {
+        generationsQuery = generationsQuery.eq("user_id", user!.id);
+      }
+
+      const { data: generations } = await generationsQuery;
+
+      // Get team members for buyer chart (only for team owners)
+      let teamMembersMap: Map<string, { email: string; name: string }> = new Map();
+      if (isTeamOwner && teamId) {
+        const { data: teamMembers } = await supabase
+          .from("team_members")
+          .select("user_id")
+          .eq("team_id", teamId)
+          .eq("status", "approved");
+
+        if (teamMembers) {
+          const userIds = teamMembers.map(m => m.user_id);
+          
+          // Get profiles for these users
+          const { data: profiles } = await supabase
+            .from("profiles")
+            .select("user_id, display_name")
+            .in("user_id", userIds);
+
+          profiles?.forEach(p => {
+            teamMembersMap.set(p.user_id, { 
+              email: p.display_name || p.user_id.slice(0, 8), 
+              name: p.display_name || "Користувач" 
+            });
+          });
+        }
+      }
+
       // Get appeals
-      const { data: appeals } = await supabase
+      let appealsQuery = supabase
         .from("appeals")
         .select("id, generation_id, amount_to_refund, status, created_at, resolved_at")
-        .eq("user_id", user!.id)
         .order("created_at", { ascending: false });
+
+      if (!isTeamOwner) {
+        appealsQuery = appealsQuery.eq("user_id", user!.id);
+      }
+
+      const { data: appeals } = await appealsQuery;
 
       // Build transactions list
       const txList: Transaction[] = [];
@@ -89,6 +157,7 @@ const Balance = () => {
       // Add generations as transactions
       generations?.forEach(gen => {
         if (gen.sale_price && gen.sale_price > 0) {
+          const userInfo = teamMembersMap.get(gen.user_id || "");
           txList.push({
             id: gen.id,
             type: "generation",
@@ -96,7 +165,8 @@ const Balance = () => {
             description: gen.site_name || "Генерація сайту",
             date: gen.created_at,
             status: gen.status,
-            site_name: gen.site_name || undefined
+            site_name: gen.site_name || undefined,
+            user_email: userInfo?.email
           });
         }
       });
@@ -132,8 +202,61 @@ const Balance = () => {
 
       // Sort by date descending
       txList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      
       setTransactions(txList);
+
+      // Build daily chart data (last 14 days)
+      const last14Days = eachDayOfInterval({
+        start: subDays(new Date(), 13),
+        end: new Date()
+      });
+
+      const dailyMap = new Map<string, { amount: number; count: number }>();
+      last14Days.forEach(day => {
+        dailyMap.set(format(day, "yyyy-MM-dd"), { amount: 0, count: 0 });
+      });
+
+      generations?.forEach(gen => {
+        if (gen.sale_price && gen.sale_price > 0) {
+          const dateKey = format(new Date(gen.created_at), "yyyy-MM-dd");
+          if (dailyMap.has(dateKey)) {
+            const current = dailyMap.get(dateKey)!;
+            dailyMap.set(dateKey, {
+              amount: current.amount + gen.sale_price,
+              count: current.count + 1
+            });
+          }
+        }
+      });
+
+      const dailyChartData = Array.from(dailyMap.entries()).map(([date, data]) => ({
+        date: format(new Date(date), "d MMM", { locale: uk }),
+        amount: data.amount,
+        count: data.count
+      }));
+      setDailyData(dailyChartData);
+
+      // Build buyer chart data (only for team owners)
+      if (isTeamOwner && generations) {
+        const buyerMap = new Map<string, { email: string; name: string; amount: number; count: number }>();
+        
+        generations.forEach(gen => {
+          if (gen.sale_price && gen.sale_price > 0 && gen.user_id) {
+            const userInfo = teamMembersMap.get(gen.user_id) || { email: gen.user_id.slice(0, 8), name: "Невідомий" };
+            const current = buyerMap.get(gen.user_id) || { ...userInfo, amount: 0, count: 0 };
+            buyerMap.set(gen.user_id, {
+              ...current,
+              amount: current.amount + gen.sale_price,
+              count: current.count + 1
+            });
+          }
+        });
+
+        const buyerChartData = Array.from(buyerMap.values())
+          .sort((a, b) => b.amount - a.amount)
+          .slice(0, 8);
+        setBuyerData(buyerChartData);
+      }
+
     } catch (error) {
       console.error("Error fetching financial data:", error);
     }
@@ -185,7 +308,9 @@ const Balance = () => {
       <div className="p-4 md:p-6 space-y-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold">Баланс</h1>
-          <p className="text-muted-foreground text-sm">Фінансова діяльність команди</p>
+          <p className="text-muted-foreground text-sm">
+            {isTeamOwner ? "Фінансова діяльність команди" : "Ваша фінансова діяльність"}
+          </p>
         </div>
 
         {isLoading ? (
@@ -253,6 +378,107 @@ const Balance = () => {
               </Card>
             </div>
 
+            {/* Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Daily Chart */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4" />
+                    Витрати по днях
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {dailyData.some(d => d.amount > 0) ? (
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={dailyData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis 
+                          dataKey="date" 
+                          tick={{ fontSize: 11 }} 
+                          className="text-muted-foreground"
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 11 }} 
+                          className="text-muted-foreground"
+                          tickFormatter={(value) => `$${value}`}
+                        />
+                        <Tooltip 
+                          formatter={(value: number) => [`$${value.toFixed(2)}`, "Сума"]}
+                          labelFormatter={(label) => `Дата: ${label}`}
+                          contentStyle={{ 
+                            backgroundColor: "hsl(var(--popover))", 
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "8px"
+                          }}
+                        />
+                        <Bar 
+                          dataKey="amount" 
+                          fill="hsl(var(--primary))" 
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                      <p>Немає даних за останні 14 днів</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Buyer Chart (only for team owners) */}
+              {isTeamOwner && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Витрати по баєрах
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {buyerData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={250}>
+                        <PieChart>
+                          <Pie
+                            data={buyerData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={90}
+                            paddingAngle={2}
+                            dataKey="amount"
+                            nameKey="name"
+                            label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                            labelLine={false}
+                          >
+                            {buyerData.map((_, index) => (
+                              <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip 
+                            formatter={(value: number, name: string, props: any) => [
+                              `$${value.toFixed(2)} (${props.payload.count} сайтів)`, 
+                              props.payload.name
+                            ]}
+                            contentStyle={{ 
+                              backgroundColor: "hsl(var(--popover))", 
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: "8px"
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                        <p>Немає даних по баєрах</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
             {/* Transactions List */}
             <Card>
               <CardHeader className="pb-3">
@@ -265,7 +491,7 @@ const Balance = () => {
                     <p>Немає транзакцій</p>
                   </div>
                 ) : (
-                  <ScrollArea className="h-[400px]">
+                  <ScrollArea className="h-[300px]">
                     <div className="divide-y divide-border">
                       {transactions.map((tx) => (
                         <div key={tx.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors">
@@ -276,6 +502,9 @@ const Balance = () => {
                             <p className="text-sm font-medium truncate">{tx.description}</p>
                             <p className="text-xs text-muted-foreground">
                               {format(new Date(tx.date), "d MMM yyyy, HH:mm", { locale: uk })}
+                              {tx.user_email && isTeamOwner && (
+                                <span className="ml-2 text-primary">• {tx.user_email}</span>
+                              )}
                             </p>
                           </div>
                           <div className="text-right shrink-0">
