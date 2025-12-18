@@ -877,39 +877,64 @@ export function WebsiteGenerator() {
   // Admin must select team first
   if (isAdmin && !selectedAdminTeamId) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto p-6 max-w-md">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-3xl">
           <div className="border border-border">
-            <div className="p-4 border-b border-border">
-              <h1 className="text-lg font-medium text-center">Оберіть команду</h1>
-              <p className="text-xs text-muted-foreground text-center mt-1">
-                Для генерації сайту потрібно обрати команду
-              </p>
+            <div className="p-2 border-b border-border">
+              <h1 className="text-sm font-medium text-center">Оберіть команду</h1>
             </div>
-            <div className="p-4 space-y-3">
+            <div className="p-3">
               {adminTeams.length === 0 ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
               ) : (
-                adminTeams.map(team => (
-                  <button
-                    key={team.id}
-                    onClick={() => setSelectedAdminTeamId(team.id)}
-                    className="w-full flex items-center justify-between p-3 border border-border rounded hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Users className="h-5 w-5 text-muted-foreground" />
-                      <span className="font-medium">{team.name}</span>
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Positive balance column */}
+                  <div className="space-y-1.5">
+                    <div className="text-xs text-muted-foreground font-medium px-1 mb-2 flex items-center gap-1">
+                      <span className="text-green-500">●</span> Плюсовий баланс
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Wallet className="h-4 w-4 text-muted-foreground" />
-                      <span className={`text-sm font-semibold ${team.balance < 0 ? "text-destructive" : ""}`}>
-                        ${team.balance.toFixed(0)}
-                      </span>
+                    {adminTeams
+                      .filter(team => team.balance >= 0)
+                      .sort((a, b) => b.balance - a.balance)
+                      .map(team => (
+                        <button
+                          key={team.id}
+                          onClick={() => setSelectedAdminTeamId(team.id)}
+                          className="w-full flex items-center justify-between p-2 border border-border rounded text-sm hover:bg-muted/50 transition-colors"
+                        >
+                          <span className="font-medium truncate">{team.name}</span>
+                          <span className="text-green-600 font-semibold ml-2">${team.balance.toFixed(0)}</span>
+                        </button>
+                      ))}
+                    {adminTeams.filter(team => team.balance >= 0).length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-2">Немає команд</p>
+                    )}
+                  </div>
+                  {/* Negative balance column */}
+                  <div className="space-y-1.5">
+                    <div className="text-xs text-muted-foreground font-medium px-1 mb-2 flex items-center gap-1">
+                      <span className="text-destructive">●</span> Мінусовий баланс
                     </div>
-                  </button>
-                ))
+                    {adminTeams
+                      .filter(team => team.balance < 0)
+                      .sort((a, b) => a.balance - b.balance)
+                      .map(team => (
+                        <button
+                          key={team.id}
+                          onClick={() => setSelectedAdminTeamId(team.id)}
+                          className="w-full flex items-center justify-between p-2 border border-border rounded text-sm hover:bg-muted/50 transition-colors"
+                        >
+                          <span className="font-medium truncate">{team.name}</span>
+                          <span className="text-destructive font-semibold ml-2">${team.balance.toFixed(0)}</span>
+                        </button>
+                      ))}
+                    {adminTeams.filter(team => team.balance < 0).length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-2">Немає команд</p>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           </div>
