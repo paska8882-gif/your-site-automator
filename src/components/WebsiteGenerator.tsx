@@ -855,10 +855,9 @@ export function WebsiteGenerator() {
             <div className="text-sm font-medium">Новий сайт</div>
           </div>
           <div className="p-3 space-y-3">
-            {/* Mode Selection - Compact toggle for admin */}
+            {/* Mode Selection + Site Name - in one row for admin */}
             {isAdmin && (
-              <div className="flex flex-wrap items-center gap-3">
-
+              <div className="flex flex-wrap items-end gap-3">
                 <div className="inline-flex rounded-md border border-border p-0.5 bg-muted/30">
                   <button
                     type="button"
@@ -925,23 +924,39 @@ export function WebsiteGenerator() {
                     </Select>
                   </>
                 )}
+
+                <div className="flex-1 min-w-[150px]">
+                  <Label htmlFor="siteName" className="text-xs mb-1 block">
+                    Назва / Домен <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="siteName"
+                    placeholder="my-company, techsolutions"
+                    value={siteName}
+                    onChange={(e) => setSiteName(e.target.value)}
+                    disabled={isSubmitting || isImproving}
+                    className="h-8 text-sm"
+                  />
+                </div>
               </div>
             )}
 
-            {/* Site Name Field */}
-            <div className="space-y-1">
-              <Label htmlFor="siteName" className="text-xs">
-                Назва / Домен <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="siteName"
-                placeholder="my-company, techsolutions, coffee-shop"
-                value={siteName}
-                onChange={(e) => setSiteName(e.target.value)}
-                disabled={isSubmitting || isImproving}
-                className="h-8 text-sm"
-              />
-            </div>
+            {/* Site Name Field - for non-admin users */}
+            {!isAdmin && (
+              <div className="space-y-1">
+                <Label htmlFor="siteName" className="text-xs">
+                  Назва / Домен <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="siteName"
+                  placeholder="my-company, techsolutions, coffee-shop"
+                  value={siteName}
+                  onChange={(e) => setSiteName(e.target.value)}
+                  disabled={isSubmitting || isImproving}
+                  className="h-8 text-sm"
+                />
+              </div>
+            )}
 
             {/* Description Field */}
             <div className="space-y-1">
@@ -951,8 +966,14 @@ export function WebsiteGenerator() {
               <Textarea
                 placeholder="Сучасний сайт для IT-компанії. Темна тема, мінімалізм. Сторінки: головна, послуги, портфоліо, контакти..."
                 value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                className="min-h-[100px] resize-none text-sm"
+                onChange={(e) => {
+                  setPrompt(e.target.value);
+                  // Auto-resize
+                  e.target.style.height = 'auto';
+                  e.target.style.height = `${Math.max(60, e.target.scrollHeight)}px`;
+                }}
+                className="min-h-[60px] text-sm overflow-hidden"
+                style={{ resize: 'none' }}
                 disabled={isSubmitting || isImproving}
               />
               <Button
@@ -1240,58 +1261,6 @@ export function WebsiteGenerator() {
               </div>
             </div>
 
-            {/* Preset Management */}
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Пресет..."
-                value={presetName}
-                onChange={(e) => setPresetName(e.target.value)}
-                className="h-7 text-xs w-28"
-                disabled={isSubmitting}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                onClick={saveCurrentPreset}
-                disabled={isSubmitting || !presetName.trim()}
-              >
-                <Save className="h-3 w-3 mr-1" />
-                Зберегти
-              </Button>
-              {presets.length > 0 && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-7 px-2 text-xs" disabled={isSubmitting}>
-                      <FolderOpen className="h-3 w-3 mr-1" />
-                      ({presets.length})
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-48 p-2" align="end">
-                    <div className="space-y-1 max-h-48 overflow-y-auto">
-                      {presets.map((preset) => (
-                        <div key={preset.id} className="flex items-center justify-between gap-1 px-2 py-1 rounded hover:bg-muted">
-                          <button
-                            onClick={() => loadPreset(preset)}
-                            className="text-xs text-left flex-1 truncate"
-                          >
-                            {preset.name}
-                          </button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-5 w-5 text-destructive hover:text-destructive"
-                            onClick={() => deletePreset(preset.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              )}
-            </div>
               </>
             )}
 
@@ -1353,31 +1322,85 @@ export function WebsiteGenerator() {
               </Button>
             )}
 
-            {/* Standard mode generate button */}
+            {/* Standard mode: Preset + Generate Button in one row */}
             {(!isAdmin || adminGenerationMode === "standard") && (
               <>
             <div className="flex flex-col gap-2">
-              <Button
-                onClick={handleGenerateClick}
-                disabled={isSubmitting || !siteName.trim() || !prompt.trim() || getAllSelectedLanguages().length === 0 || selectedAiModels.length === 0 || selectedWebsiteTypes.length === 0 || selectedImageSources.length === 0 || (isAdmin ? exceedsCreditLimit : insufficientBalance) || (isAdmin && !selectedAdminTeamId)}
-                className="w-full h-9 text-sm"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                    Відправка...
-                  </>
-                ) : (
-                  <>
-                    Згенерувати {totalGenerations > 1 ? `(${totalGenerations})` : ""}
-                    {teamPricing && (
-                      <span className="ml-1 text-xs opacity-80">
-                        ${calculateTotalCost().toFixed(2)}
-                      </span>
-                    )}
-                  </>
+              <div className="flex items-center gap-2">
+                {/* Generate Button - left side */}
+                <Button
+                  onClick={handleGenerateClick}
+                  disabled={isSubmitting || !siteName.trim() || !prompt.trim() || getAllSelectedLanguages().length === 0 || selectedAiModels.length === 0 || selectedWebsiteTypes.length === 0 || selectedImageSources.length === 0 || (isAdmin ? exceedsCreditLimit : insufficientBalance) || (isAdmin && !selectedAdminTeamId)}
+                  className="h-9 text-sm"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      Відправка...
+                    </>
+                  ) : (
+                    <>
+                      Згенерувати {totalGenerations > 1 ? `(${totalGenerations})` : ""}
+                      {teamPricing && (
+                        <span className="ml-1 text-xs opacity-80">
+                          ${calculateTotalCost().toFixed(2)}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </Button>
+
+                {/* Preset Management - same row */}
+                <Input
+                  placeholder="Пресет..."
+                  value={presetName}
+                  onChange={(e) => setPresetName(e.target.value)}
+                  className="h-9 text-xs w-24"
+                  disabled={isSubmitting}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-2 text-xs"
+                  onClick={saveCurrentPreset}
+                  disabled={isSubmitting || !presetName.trim()}
+                >
+                  <Save className="h-3 w-3" />
+                </Button>
+                {presets.length > 0 && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-9 px-2 text-xs" disabled={isSubmitting}>
+                        <FolderOpen className="h-3 w-3 mr-1" />
+                        {presets.length}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48 p-2" align="end">
+                      <div className="space-y-1 max-h-48 overflow-y-auto">
+                        {presets.map((preset) => (
+                          <div key={preset.id} className="flex items-center justify-between gap-1 px-2 py-1 rounded hover:bg-muted">
+                            <button
+                              onClick={() => loadPreset(preset)}
+                              className="text-xs text-left flex-1 truncate"
+                            >
+                              {preset.name}
+                            </button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5 text-destructive hover:text-destructive"
+                              onClick={() => deletePreset(preset.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 )}
-              </Button>
+              </div>
+              
               {insufficientBalance && teamPricing && (
                 <p className="text-xs text-destructive flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" />
