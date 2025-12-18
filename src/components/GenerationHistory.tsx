@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAdmin } from "@/hooks/useAdmin";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -71,6 +72,7 @@ interface SingleHistoryItemProps {
   getCssFile: (files: GeneratedFile[] | null) => GeneratedFile | undefined;
   toast: ReturnType<typeof useToast>["toast"];
   compact?: boolean;
+  isAdmin?: boolean;
 }
 
 function SingleHistoryItem({
@@ -91,6 +93,7 @@ function SingleHistoryItem({
   getCssFile,
   toast,
   compact = false,
+  isAdmin = false,
 }: SingleHistoryItemProps) {
   const getStatusIcon = (status: string, salePrice?: number | null) => {
     if (status === "failed" && (salePrice === 0 || salePrice === null)) {
@@ -181,18 +184,20 @@ function SingleHistoryItem({
               )}
               {item.status === "completed" && (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={compact ? "h-6 w-6 p-0" : ""}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEdit(item.id);
-                    }}
-                    title="Редагувати"
-                  >
-                    <Pencil className={compact ? "h-3 w-3" : "h-4 w-4"} />
-                  </Button>
+                  {isAdmin && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={compact ? "h-6 w-6 p-0" : ""}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(item.id);
+                      }}
+                      title="Редагувати"
+                    >
+                      <Pencil className={compact ? "h-3 w-3" : "h-4 w-4"} />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -364,6 +369,7 @@ function SingleHistoryItem({
 export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: GenerationHistoryProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { isAdmin } = useAdmin();
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [appeals, setAppeals] = useState<Appeal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -1161,6 +1167,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
                           getCssFile={getCssFile}
                           toast={toast}
                           compact
+                          isAdmin={isAdmin}
                         />
                       ))}
                     </div>
@@ -1189,6 +1196,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
                   getAppeal={getAppealForItem}
                   getCssFile={getCssFile}
                   toast={toast}
+                  isAdmin={isAdmin}
                 />
               );
             }
