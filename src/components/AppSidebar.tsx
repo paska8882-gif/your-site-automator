@@ -87,15 +87,19 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r-0 sidebar-gradient">
-      {/* Header with Logo - Click to toggle theme */}
+      {/* Header with Logo - Auth page style */}
       <SidebarHeader className="border-b border-sidebar-border p-4">
         <div className="flex items-center gap-3">
           <button
             onClick={toggleTheme}
-            className="w-9 h-9 rounded-md flex items-center justify-center bg-sidebar-primary hover:opacity-90 transition-all duration-300 cursor-pointer"
-            title={theme === "dark" ? "Світла тема" : "Темна тема"}
+            className="relative group cursor-pointer"
           >
-            <span className="font-bold text-base text-sidebar-primary-foreground">D</span>
+            {/* Glow effect */}
+            <div className="absolute inset-0 rounded-lg blur-md animate-pulse opacity-30 pointer-events-none bg-sidebar-primary" />
+            {/* Button */}
+            <div className="relative w-9 h-9 rounded-lg flex items-center justify-center shadow-lg transition-transform duration-200 group-hover:scale-110 group-active:scale-95 bg-sidebar-primary shadow-sidebar-primary/30">
+              <span className="font-bold text-base text-sidebar-primary-foreground pointer-events-none">D</span>
+            </div>
           </button>
           {!collapsed && (
             <div className="flex flex-col overflow-hidden">
