@@ -90,6 +90,7 @@ export type Database = {
           site_name: string | null
           specific_ai_model: string | null
           status: string
+          team_id: string | null
           user_id: string | null
           website_type: string | null
           zip_data: string | null
@@ -109,6 +110,7 @@ export type Database = {
           site_name?: string | null
           specific_ai_model?: string | null
           status?: string
+          team_id?: string | null
           user_id?: string | null
           website_type?: string | null
           zip_data?: string | null
@@ -128,11 +130,20 @@ export type Database = {
           site_name?: string | null
           specific_ai_model?: string | null
           status?: string
+          team_id?: string | null
           user_id?: string | null
           website_type?: string | null
           zip_data?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "generation_history_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invite_codes: {
         Row: {
