@@ -21,13 +21,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isBlocked, setIsBlocked] = useState(false);
 
   const checkBlockedStatus = async (userId: string) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("is_blocked")
-      .eq("user_id", userId)
-      .maybeSingle();
-    
-    setIsBlocked(data?.is_blocked ?? false);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("is_blocked")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (error) {
+        // If backend is temporarily down, don't block the user by keeping stale state.
+        setIsBlocked(false);
+        return;
+      }
+
+      setIsBlocked(data?.is_blocked ?? false);
+    } catch {
+      setIsBlocked(false);
+    }
   };
 
   useEffect(() => {
