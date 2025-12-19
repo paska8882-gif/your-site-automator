@@ -20,3 +20,6 @@ max_duration_seconds = 600
 
 [functions.cleanup-stale-generations]
 verify_jwt = false
+
+[functions.reset-user-password]
+verify_jwt = false
