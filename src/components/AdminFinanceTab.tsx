@@ -212,37 +212,35 @@ export function AdminFinanceTab() {
     }));
     setBalanceTransactions(enrichedBalanceTx);
 
-    // Fetch generation transactions
-    const { data: members } = await supabase
-      .from("team_members")
-      .select("user_id")
-      .eq("team_id", teamId)
-      .eq("status", "approved");
-
-    if (!members || members.length === 0) {
-      setTeamTransactions([]);
-      setLoadingTransactions(false);
-      return;
-    }
-
-    const userIds = members.map(m => m.user_id);
-
+    // Fetch generation transactions directly by team_id (not through team_members)
+    // This ensures generations are shown for the correct team even if a user is in multiple teams
     const { data: gens } = await supabase
       .from("generation_history")
       .select("*")
-      .in("user_id", userIds)
+      .eq("team_id", teamId)
       .order("created_at", { ascending: false })
       .limit(100);
 
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("user_id, display_name")
-      .in("user_id", userIds);
+    // Get user IDs from generations to fetch their profiles
+    const userIds = [...new Set(gens?.map(g => g.user_id).filter(Boolean) || [])];
+    
+    const { data: profiles } = userIds.length > 0 
+      ? await supabase.from("profiles").select("user_id, display_name").in("user_id", userIds)
+      : { data: [] };
 
-    const profileMap = new Map(profiles?.map(p => [p.user_id, p.display_name]) || []);
+    const profileMap = new Map<string, string>(
+      (profiles || []).map(p => [p.user_id, p.display_name || "Unknown"])
+    );
 
-    const transactions = (gens || []).map(g => ({
-      ...g,
+    const transactions: TeamTransaction[] = (gens || []).map(g => ({
+      id: g.id,
+      site_name: g.site_name,
+      sale_price: g.sale_price,
+      generation_cost: g.generation_cost,
+      created_at: g.created_at,
+      status: g.status,
+      website_type: g.website_type,
+      ai_model: g.ai_model,
       user_display_name: profileMap.get(g.user_id || "") || "Unknown"
     }));
 
