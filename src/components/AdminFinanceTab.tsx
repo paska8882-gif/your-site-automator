@@ -141,7 +141,7 @@ export function AdminFinanceTab() {
 
       const { data: generationsData } = await supabase
         .from("generation_history")
-        .select(`id, site_name, website_type, ai_model, specific_ai_model, status, created_at, sale_price, generation_cost, user_id`)
+        .select(`id, site_name, website_type, ai_model, specific_ai_model, status, created_at, sale_price, generation_cost, user_id, team_id`)
         .eq("status", "completed")
         .order("created_at", { ascending: false });
 
@@ -149,12 +149,6 @@ export function AdminFinanceTab() {
       const { data: profilesData } = await supabase
         .from("profiles")
         .select("user_id, display_name")
-        .in("user_id", userIds);
-
-      const { data: membershipsData } = await supabase
-        .from("team_members")
-        .select("user_id, team_id")
-        .eq("status", "approved")
         .in("user_id", userIds);
 
       setTeams(teamsData || []);
@@ -166,16 +160,14 @@ export function AdminFinanceTab() {
       const profilesMap: Record<string, { display_name: string | null }> = {};
       profilesData?.forEach(p => { profilesMap[p.user_id] = { display_name: p.display_name }; });
 
-      const userTeamMap: Record<string, string> = {};
-      membershipsData?.forEach(m => {
-        const team = teamsData?.find(t => t.id === m.team_id);
-        if (team) userTeamMap[m.user_id] = team.name;
-      });
+      // Map team_id to team name directly from generations
+      const teamIdToName: Record<string, string> = {};
+      teamsData?.forEach(t => { teamIdToName[t.id] = t.name; });
 
       const enrichedGenerations = generationsData?.map(g => ({
         ...g,
         profile: g.user_id ? profilesMap[g.user_id] : undefined,
-        team_name: g.user_id ? userTeamMap[g.user_id] : undefined,
+        team_name: g.team_id ? teamIdToName[g.team_id] : undefined,
       })) || [];
 
       setGenerations(enrichedGenerations);
