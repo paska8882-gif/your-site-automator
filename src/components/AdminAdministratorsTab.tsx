@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
+import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { 
   Shield, 
   ShieldOff,
@@ -19,7 +20,8 @@ import {
   AlertTriangle,
   Lock,
   Check,
-  ChevronsUpDown
+  ChevronsUpDown,
+  Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -233,6 +235,11 @@ export const AdminAdministratorsTab = () => {
 
   return (
     <div className="space-y-6">
+      <AdminPageHeader 
+        icon={Settings} 
+        title="Адміністратори" 
+        description="Управління правами адміністраторів системи" 
+      />
       {/* Info Card */}
       <Card className="border-yellow-500/50 bg-yellow-500/10">
         <CardContent className="p-4 flex items-start gap-3">

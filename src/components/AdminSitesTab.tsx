@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EditPreview } from "@/components/EditPreview";
+import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { 
   Search, 
   Download, 
@@ -464,6 +465,11 @@ export const AdminSitesTab = () => {
 
   return (
     <div className="space-y-3">
+      <AdminPageHeader 
+        icon={FileCode} 
+        title="Сайти" 
+        description="Історія всіх згенерованих сайтів" 
+      />
       {/* Stats - compact row */}
       <div className="flex flex-wrap gap-2">
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">

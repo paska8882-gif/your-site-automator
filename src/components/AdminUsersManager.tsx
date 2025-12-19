@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { 
   Users, 
   UserPlus,
@@ -18,7 +19,8 @@ import {
   ShieldCheck,
   Pencil,
   Check,
-  X
+  X,
+  UserCog
 } from "lucide-react";
 
 type TeamRole = "owner" | "team_lead" | "buyer" | "tech_dev";
@@ -307,6 +309,11 @@ export const AdminUsersManager = () => {
 
   return (
     <div className="space-y-3">
+      <AdminPageHeader 
+        icon={UserCog} 
+        title="Користувачі" 
+        description="Управління користувачами та їхніми ролями" 
+      />
       {/* Stats + Search row */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
