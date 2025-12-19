@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -486,27 +486,67 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
   };
 
   // Check for stale generations (older than 30 minutes) and mark them as failed with refund
+  // NOTE: best-effort; must not spam backend when unhealthy.
+  const staleCheckStateRef = useRef({
+    failureCount: 0,
+    nextAllowedAt: 0,
+    lastToastAt: 0,
+  });
+
   const checkStaleGenerations = async () => {
+    const state = staleCheckStateRef.current;
+
+    // Backoff guard
+    if (Date.now() < state.nextAllowedAt) return;
+
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      state.nextAllowedAt = Date.now() + 60_000;
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8_000);
+
     try {
-      // Call edge function that handles cleanup with refunds
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cleanup-stale-generations`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
+        signal: controller.signal,
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.processed > 0) {
-          console.log(`Stale cleanup: ${result.processed} processed, ${result.refunded} refunded`);
-          // Refresh history to show updated statuses
-          fetchHistory();
-        }
+      if (!response.ok) {
+        throw new Error(`cleanup-stale-generations failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      state.failureCount = 0;
+      state.nextAllowedAt = Date.now() + 5 * 60_000; // success: don't run often
+
+      if (result.processed > 0) {
+        console.log(`Stale cleanup: ${result.processed} processed, ${result.refunded} refunded`);
+        fetchHistory();
       }
     } catch (error) {
+      state.failureCount += 1;
+      const backoffMs = Math.min(30 * 60_000, 30_000 * Math.pow(2, state.failureCount - 1));
+      state.nextAllowedAt = Date.now() + backoffMs;
+
+      if (Date.now() - state.lastToastAt > 5 * 60_000) {
+        state.lastToastAt = Date.now();
+        toast({
+          title: "Бекенд тимчасово недоступний",
+          description: "Деякі дані можуть не завантажуватись. Спробуйте пізніше.",
+          variant: "destructive",
+        });
+      }
+
       console.error("Error checking stale generations:", error);
+    } finally {
+      clearTimeout(timeout);
     }
   };
 
