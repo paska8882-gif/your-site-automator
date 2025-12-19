@@ -753,45 +753,45 @@ export function AdminFinanceTab() {
           </CardHeader>
           <CardContent className="px-3 pb-3">
             {/* Bulk pricing row */}
-            <div className="flex items-center gap-1.5 p-1.5 mb-2 rounded border-2 border-dashed border-primary/30 bg-primary/5">
-              <span className="font-medium text-[10px] min-w-14 text-primary">Всі:</span>
-              <span className="text-[10px] text-muted-foreground">H:</span>
-              <Input type="number" step="0.01" placeholder="7" className="w-10 h-5 text-[10px] px-1"
+            <div className="flex items-center gap-1 py-0.5 mb-1.5 px-1 rounded border-2 border-dashed border-primary/30 bg-primary/5">
+              <span className="font-medium text-[9px] w-20 text-primary">Всі:</span>
+              <span className="text-[9px] text-muted-foreground">H:</span>
+              <Input type="number" step="0.01" placeholder="7" className="w-9 h-4 text-[9px] px-1"
                 value={bulkPrices.html}
                 onChange={(e) => setBulkPrices(prev => ({ ...prev, html: e.target.value }))} />
-              <span className="text-[10px] text-muted-foreground">R:</span>
-              <Input type="number" step="0.01" placeholder="9" className="w-10 h-5 text-[10px] px-1"
+              <span className="text-[9px] text-muted-foreground">R:</span>
+              <Input type="number" step="0.01" placeholder="9" className="w-9 h-4 text-[9px] px-1"
                 value={bulkPrices.react}
                 onChange={(e) => setBulkPrices(prev => ({ ...prev, react: e.target.value }))} />
-              <span className="text-[10px] text-amber-600">E:</span>
-              <Input type="number" step="0.01" placeholder="7" className="w-10 h-5 text-[10px] px-1"
+              <span className="text-[9px] text-amber-600">E:</span>
+              <Input type="number" step="0.01" placeholder="7" className="w-9 h-4 text-[9px] px-1"
                 value={bulkPrices.external}
                 onChange={(e) => setBulkPrices(prev => ({ ...prev, external: e.target.value }))} />
-              <Button size="sm" variant="default" className="h-5 px-2 text-[10px] ml-auto"
+              <Button size="sm" variant="default" className="h-4 px-1.5 text-[9px] ml-auto"
                 onClick={saveBulkPricing} disabled={savingBulk}>
-                {savingBulk ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : "Застосувати"}
+                {savingBulk ? <Loader2 className="h-2 w-2 animate-spin" /> : "OK"}
               </Button>
             </div>
             
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {teams.map((team) => (
-                <div key={team.id} className="flex items-center gap-1.5 p-1.5 rounded border bg-card">
-                  <span className="font-medium text-[10px] min-w-14 truncate">{team.name}</span>
-                  <span className="text-[10px] text-muted-foreground">H:</span>
-                  <Input type="number" step="0.01" className="w-10 h-5 text-[10px] px-1"
+                <div key={team.id} className="flex items-center gap-1 py-0.5">
+                  <span className="font-medium text-[9px] w-20 truncate">{team.name}</span>
+                  <span className="text-[9px] text-muted-foreground">H:</span>
+                  <Input type="number" step="0.01" className="w-9 h-4 text-[9px] px-1"
                     value={getPricingValue(team.id, "html_price")}
                     onChange={(e) => handlePricingChange(team.id, "html_price", e.target.value)} />
-                  <span className="text-[10px] text-muted-foreground">R:</span>
-                  <Input type="number" step="0.01" className="w-10 h-5 text-[10px] px-1"
+                  <span className="text-[9px] text-muted-foreground">R:</span>
+                  <Input type="number" step="0.01" className="w-9 h-4 text-[9px] px-1"
                     value={getPricingValue(team.id, "react_price")}
                     onChange={(e) => handlePricingChange(team.id, "react_price", e.target.value)} />
-                  <span className="text-[10px] text-amber-600">E:</span>
-                  <Input type="number" step="0.01" className="w-10 h-5 text-[10px] px-1"
+                  <span className="text-[9px] text-amber-600">E:</span>
+                  <Input type="number" step="0.01" className="w-9 h-4 text-[9px] px-1"
                     value={getPricingValue(team.id, "external_price")}
                     onChange={(e) => handlePricingChange(team.id, "external_price", e.target.value)} />
-                  <Button size="sm" variant="ghost" className="h-5 w-5 p-0 ml-auto"
+                  <Button size="sm" variant="ghost" className="h-4 w-4 p-0 ml-auto"
                     onClick={() => savePricing(team.id)} disabled={savingPricing === team.id}>
-                    {savingPricing === team.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Save className="h-2.5 w-2.5" />}
+                    {savingPricing === team.id ? <Loader2 className="h-2 w-2 animate-spin" /> : <Save className="h-2 w-2" />}
                   </Button>
                 </div>
               ))}
@@ -808,36 +808,28 @@ export function AdminFinanceTab() {
             </div>
           </CardHeader>
           <CardContent className="px-3 pb-3">
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {teams.map((team) => (
                 <div key={team.id} className="flex items-center gap-1 py-0.5">
-                  <span className="font-medium text-[10px] truncate w-20">{team.name}</span>
-                  <span className={`font-bold text-[10px] w-12 ${team.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className="font-medium text-[9px] truncate w-20">{team.name}</span>
+                  <span className={`font-bold text-[9px] w-12 ${team.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     ${team.balance.toFixed(2)}
                   </span>
-                  <Input 
-                    type="number" 
-                    step="0.01" 
-                    min="0" 
-                    placeholder="$" 
-                    className="w-12 h-5 text-[10px] px-1"
+                  <Input type="number" step="0.01" min="0" placeholder="$" 
+                    className="w-10 h-4 text-[9px] px-1"
                     value={topUpAmounts[team.id] || ""}
-                    onChange={(e) => setTopUpAmounts(prev => ({ ...prev, [team.id]: e.target.value }))} 
-                  />
-                  <Input 
-                    type="text" 
-                    placeholder="Квитанція" 
-                    className="flex-1 h-5 text-[10px] px-1"
+                    onChange={(e) => setTopUpAmounts(prev => ({ ...prev, [team.id]: e.target.value }))} />
+                  <Input type="text" placeholder="Квитанція" 
+                    className="flex-1 h-4 text-[9px] px-1"
                     value={topUpNotes[team.id] || ""}
-                    onChange={(e) => setTopUpNotes(prev => ({ ...prev, [team.id]: e.target.value }))} 
-                  />
-                  <Button size="sm" variant="default" className="h-5 w-5 p-0"
+                    onChange={(e) => setTopUpNotes(prev => ({ ...prev, [team.id]: e.target.value }))} />
+                  <Button size="sm" variant="default" className="h-4 w-4 p-0"
                     onClick={() => topUpBalance(team.id)} 
                     disabled={savingBalance === team.id || !topUpAmounts[team.id] || !topUpNotes[team.id]?.trim()}>
-                    {savingBalance === team.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Plus className="h-2.5 w-2.5" />}
+                    {savingBalance === team.id ? <Loader2 className="h-2 w-2 animate-spin" /> : <Plus className="h-2 w-2" />}
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => handleViewTeam(team)}>
-                    <Eye className="h-2.5 w-2.5" />
+                  <Button size="sm" variant="ghost" className="h-4 w-4 p-0" onClick={() => handleViewTeam(team)}>
+                    <Eye className="h-2 w-2" />
                   </Button>
                 </div>
               ))}
