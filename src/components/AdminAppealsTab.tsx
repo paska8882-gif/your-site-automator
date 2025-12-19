@@ -130,21 +130,33 @@ export function AdminAppealsTab() {
       if (appealError) throw appealError;
 
       // If approved, refund the amount to team balance
-      if (approved && selectedAppeal.amount_to_refund > 0) {
+      if (approved && selectedAppeal.amount_to_refund > 0 && selectedAppeal.team_id) {
         // Get current team balance
-        const { data: team } = await supabase
+        const { data: team, error: teamFetchError } = await supabase
           .from("teams")
           .select("balance")
           .eq("id", selectedAppeal.team_id)
           .single();
 
+        if (teamFetchError) {
+          console.error("Error fetching team balance:", teamFetchError);
+          throw new Error("Не вдалося отримати баланс команди");
+        }
+
         if (team) {
-          const newBalance = (team.balance || 0) + selectedAppeal.amount_to_refund;
+          const newBalance = Number(team.balance || 0) + Number(selectedAppeal.amount_to_refund);
           
-          await supabase
+          const { error: balanceUpdateError } = await supabase
             .from("teams")
             .update({ balance: newBalance })
             .eq("id", selectedAppeal.team_id);
+
+          if (balanceUpdateError) {
+            console.error("Error updating team balance:", balanceUpdateError);
+            throw new Error("Не вдалося оновити баланс команди");
+          }
+          
+          console.log(`Refunded $${selectedAppeal.amount_to_refund} to team ${selectedAppeal.team_id}. New balance: $${newBalance}`);
         }
       }
 
