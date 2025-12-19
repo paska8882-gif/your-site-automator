@@ -71,45 +71,30 @@ export default function Auth() {
     }
   };
 
-  const validateInviteCode = async (code: string): Promise<{ valid: boolean; teamId?: string; role?: string }> => {
+  const validateInviteCode = async (code: string): Promise<{ valid: boolean }> => {
     const { data, error } = await supabase
       .from("invite_codes")
-      .select("id, team_id, assigned_role")
+      .select("id")
       .eq("code", code.toUpperCase())
       .eq("is_active", true)
       .is("used_by", null)
       .maybeSingle();
     
-    if (error || !data) {
-      return { valid: false };
-    }
-    
-    return { 
-      valid: true, 
-      teamId: data.team_id || undefined,
-      role: data.assigned_role || undefined
-    };
+    return { valid: !error && !!data };
   };
 
-  const markInviteCodeAsUsed = async (code: string, userId: string) => {
-    await supabase
-      .from("invite_codes")
-      .update({ used_by: userId, used_at: new Date().toISOString() })
-      .eq("code", code.toUpperCase());
-  };
-
-  const joinTeam = async (userId: string, teamId: string, role: string) => {
-    // RLS дозволяє тільки pending статус при самостійному insert
-    const { error } = await supabase.from("team_members").insert({
-      team_id: teamId,
-      user_id: userId,
-      role: role as "owner" | "team_lead" | "buyer" | "tech_dev",
-      status: "pending"
+  const registerWithInviteCode = async (code: string, userId: string) => {
+    const { data, error } = await supabase.rpc("register_with_invite_code", {
+      p_invite_code: code,
+      p_user_id: userId
     });
     
     if (error) {
-      console.error("Failed to join team:", error);
+      console.error("Registration error:", error);
+      return { success: false, error: error.message };
     }
+    
+    return data as { success: boolean; team_id?: string; role?: string; status?: string; error?: string };
   };
 
   const verifyUserRole = async (userId: string, expectedRole: TeamRole): Promise<{ valid: boolean; actualRole?: string }> => {
@@ -224,22 +209,34 @@ export default function Auth() {
           }
         } else {
           if (data?.user) {
-            await markInviteCodeAsUsed(inviteCode, data.user.id);
+            // Використовуємо функцію з підвищеними правами для реєстрації
+            const regResult = await registerWithInviteCode(inviteCode, data.user.id);
             
-            if (codeResult.teamId && codeResult.role) {
-              await joinTeam(data.user.id, codeResult.teamId, codeResult.role);
+            if (!regResult.success) {
+              toast({
+                title: "Помилка",
+                description: regResult.error || "Не вдалося завершити реєстрацію",
+                variant: "destructive",
+              });
+              setIsSubmitting(false);
+              return;
             }
+            
+            const isOwner = regResult.role === "owner";
+            const isPending = regResult.team_id && !isOwner;
+            
+            toast({
+              title: "Реєстрація успішна",
+              description: isPending 
+                ? "Ваш акаунт створено! Очікуйте затвердження від Owner команди." 
+                : "Ваш акаунт створено!",
+            });
+          } else {
+            toast({
+              title: "Реєстрація успішна",
+              description: "Ваш акаунт створено!",
+            });
           }
-          
-          const isOwner = codeResult.role === "owner";
-          const isPending = codeResult.teamId && !isOwner;
-          
-          toast({
-            title: "Реєстрація успішна",
-            description: isPending 
-              ? "Ваш акаунт створено! Очікуйте затвердження від Owner команди." 
-              : "Ваш акаунт створено!",
-          });
         }
       }
     } finally {
