@@ -115,20 +115,21 @@ export default function Auth() {
     };
   };
 
+  const checkIsAdmin = async (userId: string): Promise<boolean> => {
+    const { data, error } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .maybeSingle();
+    
+    return !error && !!data;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) return;
-
-    // Перевірка вибору ролі для логіну
-    if (isLogin && !selectedRole) {
-      toast({
-        title: "Оберіть роль",
-        description: "Для входу потрібно обрати вашу роль в команді",
-        variant: "destructive",
-      });
-      return;
-    }
 
     setIsSubmitting(true);
 
@@ -157,22 +158,38 @@ export default function Auth() {
           return;
         }
         
-        // Перевіряємо роль користувача
-        if (data?.user && selectedRole) {
-          const roleCheck = await verifyUserRole(data.user.id, selectedRole);
+        if (data?.user) {
+          // Перевіряємо чи користувач адмін - адміни пропускають перевірку ролі
+          const isAdmin = await checkIsAdmin(data.user.id);
           
-          if (!roleCheck.valid) {
-            // Вийти з системи, бо роль не співпадає
-            await supabase.auth.signOut();
-            toast({
-              title: "Невірна роль",
-              description: roleCheck.actualRole 
-                ? `Ваша роль: ${roleCheck.actualRole}. Оберіть правильну роль.`
-                : "Вас не затверджено в жодній команді або роль не призначена.",
-              variant: "destructive",
-            });
-            setIsSubmitting(false);
-            return;
+          if (!isAdmin) {
+            // Для не-адмінів перевіряємо вибір ролі
+            if (!selectedRole) {
+              await supabase.auth.signOut();
+              toast({
+                title: "Оберіть роль",
+                description: "Для входу потрібно обрати вашу роль в команді",
+                variant: "destructive",
+              });
+              setIsSubmitting(false);
+              return;
+            }
+            
+            // Перевіряємо роль користувача в команді
+            const roleCheck = await verifyUserRole(data.user.id, selectedRole);
+            
+            if (!roleCheck.valid) {
+              await supabase.auth.signOut();
+              toast({
+                title: "Невірна роль",
+                description: roleCheck.actualRole 
+                  ? `Ваша роль: ${roleCheck.actualRole}. Оберіть правильну роль.`
+                  : "Вас не затверджено в жодній команді або роль не призначена.",
+                variant: "destructive",
+              });
+              setIsSubmitting(false);
+              return;
+            }
           }
         }
         
