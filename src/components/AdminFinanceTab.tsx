@@ -90,6 +90,11 @@ export function AdminFinanceTab() {
   const [loading, setLoading] = useState(true);
   const [savingPricing, setSavingPricing] = useState<string | null>(null);
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>("all");
+  const [selectedUserFilter, setSelectedUserFilter] = useState<string>("all");
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>("all");
+  const [selectedAiFilter, setSelectedAiFilter] = useState<string>("all");
+  const [dateFromFilter, setDateFromFilter] = useState<string>("");
+  const [dateToFilter, setDateToFilter] = useState<string>("");
   const [editingPrices, setEditingPrices] = useState<Record<string, Partial<TeamPricing>>>({});
   const [topUpAmounts, setTopUpAmounts] = useState<Record<string, string>>({});
   const [topUpNotes, setTopUpNotes] = useState<Record<string, string>>({});
@@ -387,9 +392,30 @@ export function AdminFinanceTab() {
     return (teamPricing[teamId]?.[field] as number) ?? defaults[field] ?? 0;
   };
 
-  const filteredGenerations = selectedTeamFilter === "all"
-    ? generations
-    : generations.filter(g => g.team_name === selectedTeamFilter);
+  const filteredGenerations = useMemo(() => {
+    return generations.filter(g => {
+      if (selectedTeamFilter !== "all" && g.team_name !== selectedTeamFilter) return false;
+      if (selectedUserFilter !== "all" && g.profile?.display_name !== selectedUserFilter) return false;
+      if (selectedTypeFilter !== "all" && g.website_type !== selectedTypeFilter) return false;
+      if (selectedAiFilter !== "all" && g.ai_model !== selectedAiFilter) return false;
+      if (dateFromFilter) {
+        const genDate = new Date(g.created_at);
+        const fromDate = new Date(dateFromFilter);
+        if (genDate < fromDate) return false;
+      }
+      if (dateToFilter) {
+        const genDate = new Date(g.created_at);
+        const toDate = new Date(dateToFilter);
+        toDate.setHours(23, 59, 59, 999);
+        if (genDate > toDate) return false;
+      }
+      return true;
+    });
+  }, [generations, selectedTeamFilter, selectedUserFilter, selectedTypeFilter, selectedAiFilter, dateFromFilter, dateToFilter]);
+
+  const uniqueUsers = useMemo(() => 
+    [...new Set(generations.map(g => g.profile?.display_name).filter(Boolean))] as string[]
+  , [generations]);
 
   const totalSales = filteredGenerations.reduce((sum, g) => sum + (g.sale_price || 0), 0);
   const totalCosts = filteredGenerations.reduce((sum, g) => sum + (g.generation_cost || 0), 0);
@@ -816,19 +842,90 @@ export function AdminFinanceTab() {
 
       {/* Generations Finance Table */}
       <Card>
-        <CardHeader className="py-2 px-3 flex flex-row items-center justify-between">
-          <CardTitle className="text-xs font-medium">Історія генерацій</CardTitle>
-          <Select value={selectedTeamFilter} onValueChange={setSelectedTeamFilter}>
-            <SelectTrigger className="w-28 h-6 text-xs">
-              <SelectValue placeholder="Команда" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" className="text-xs">Всі</SelectItem>
-              {[...new Set(generations.map(g => g.team_name).filter(Boolean))].map((teamName) => (
-                <SelectItem key={teamName} value={teamName!} className="text-xs">{teamName}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <CardHeader className="py-2 px-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <CardTitle className="text-xs font-medium">Історія генерацій</CardTitle>
+            <Select value={selectedTeamFilter} onValueChange={setSelectedTeamFilter}>
+              <SelectTrigger className="w-24 h-6 text-[10px]">
+                <SelectValue placeholder="Команда" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">Всі команди</SelectItem>
+                {[...new Set(generations.map(g => g.team_name).filter(Boolean))].map((teamName) => (
+                  <SelectItem key={teamName} value={teamName!} className="text-xs">{teamName}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedUserFilter} onValueChange={setSelectedUserFilter}>
+              <SelectTrigger className="w-24 h-6 text-[10px]">
+                <SelectValue placeholder="Юзер" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">Всі юзери</SelectItem>
+                {uniqueUsers.map((userName) => (
+                  <SelectItem key={userName} value={userName} className="text-xs">{userName}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedTypeFilter} onValueChange={setSelectedTypeFilter}>
+              <SelectTrigger className="w-20 h-6 text-[10px]">
+                <SelectValue placeholder="Тип" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">Всі типи</SelectItem>
+                <SelectItem value="html" className="text-xs">HTML</SelectItem>
+                <SelectItem value="react" className="text-xs">React</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={selectedAiFilter} onValueChange={setSelectedAiFilter}>
+              <SelectTrigger className="w-20 h-6 text-[10px]">
+                <SelectValue placeholder="AI" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">Всі AI</SelectItem>
+                <SelectItem value="junior" className="text-xs">Junior</SelectItem>
+                <SelectItem value="senior" className="text-xs">Senior</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-muted-foreground">З:</span>
+              <Input 
+                type="date" 
+                className="w-28 h-6 text-[10px] px-1" 
+                value={dateFromFilter}
+                onChange={(e) => setDateFromFilter(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-muted-foreground">По:</span>
+              <Input 
+                type="date" 
+                className="w-28 h-6 text-[10px] px-1" 
+                value={dateToFilter}
+                onChange={(e) => setDateToFilter(e.target.value)}
+              />
+            </div>
+            {(selectedTeamFilter !== "all" || selectedUserFilter !== "all" || selectedTypeFilter !== "all" || selectedAiFilter !== "all" || dateFromFilter || dateToFilter) && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-6 text-[10px] px-2"
+                onClick={() => {
+                  setSelectedTeamFilter("all");
+                  setSelectedUserFilter("all");
+                  setSelectedTypeFilter("all");
+                  setSelectedAiFilter("all");
+                  setDateFromFilter("");
+                  setDateToFilter("");
+                }}
+              >
+                Скинути
+              </Button>
+            )}
+            <Badge variant="outline" className="text-[10px] ml-auto">
+              {filteredGenerations.length} з {generations.length}
+            </Badge>
+          </div>
         </CardHeader>
         <CardContent className="px-3 pb-3">
           <Table>
@@ -839,21 +936,21 @@ export function AdminFinanceTab() {
                 <TableHead className="text-[10px] py-1">Юзер</TableHead>
                 <TableHead className="text-[10px] py-1">Тип</TableHead>
                 <TableHead className="text-[10px] py-1">AI</TableHead>
-                <TableHead className="text-[10px] py-1">Витр</TableHead>
-                <TableHead className="text-[10px] py-1">Прод</TableHead>
+                <TableHead className="text-[10px] py-1 text-right">Витр</TableHead>
+                <TableHead className="text-[10px] py-1 text-right">Прод</TableHead>
                 <TableHead className="text-[10px] py-1">Дата</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredGenerations.slice(0, 20).map((gen) => (
+              {filteredGenerations.slice(0, 50).map((gen) => (
                 <TableRow key={gen.id}>
                   <TableCell className="text-[10px] py-1 max-w-20 truncate">{gen.site_name || "—"}</TableCell>
                   <TableCell className="text-[10px] py-1">{gen.team_name || "—"}</TableCell>
                   <TableCell className="text-[10px] py-1">{gen.profile?.display_name || "—"}</TableCell>
                   <TableCell className="text-[10px] py-1">{gen.website_type?.toUpperCase()}</TableCell>
                   <TableCell className="text-[10px] py-1">{gen.ai_model === 'senior' ? 'Sr' : 'Jr'}</TableCell>
-                  <TableCell className="text-[10px] py-1 text-red-600">{gen.generation_cost ? `$${gen.generation_cost.toFixed(2)}` : "—"}</TableCell>
-                  <TableCell className="text-[10px] py-1 text-green-600">{gen.sale_price ? `$${gen.sale_price.toFixed(2)}` : "—"}</TableCell>
+                  <TableCell className="text-[10px] py-1 text-right text-red-600">{gen.generation_cost ? `$${gen.generation_cost.toFixed(2)}` : "—"}</TableCell>
+                  <TableCell className="text-[10px] py-1 text-right text-green-600">{gen.sale_price ? `$${gen.sale_price.toFixed(2)}` : "—"}</TableCell>
                   <TableCell className="text-[10px] py-1">{new Date(gen.created_at).toLocaleDateString("uk-UA")}</TableCell>
                 </TableRow>
               ))}
@@ -863,6 +960,26 @@ export function AdminFinanceTab() {
                 </TableRow>
               )}
             </TableBody>
+            {filteredGenerations.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 bg-muted/50">
+                  <td colSpan={5} className="text-[10px] py-1.5 px-3 font-bold">
+                    ВСЬОГО ({filteredGenerations.length} генерацій)
+                  </td>
+                  <td className="text-[10px] py-1.5 px-3 text-right font-bold text-red-600">
+                    ${totalCosts.toFixed(2)}
+                  </td>
+                  <td className="text-[10px] py-1.5 px-3 text-right font-bold text-green-600">
+                    ${totalSales.toFixed(2)}
+                  </td>
+                  <td className="text-[10px] py-1.5 px-3 font-bold">
+                    <span className={totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      =${totalProfit.toFixed(2)}
+                    </span>
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </Table>
         </CardContent>
       </Card>
