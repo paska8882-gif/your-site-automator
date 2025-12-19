@@ -112,16 +112,48 @@ export default function Auth() {
     }
   };
 
+  const verifyUserRole = async (userId: string, expectedRole: TeamRole): Promise<{ valid: boolean; actualRole?: string }> => {
+    const { data, error } = await supabase
+      .from("team_members")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("status", "approved")
+      .maybeSingle();
+    
+    if (error || !data) {
+      return { valid: false };
+    }
+    
+    return { 
+      valid: data.role === expectedRole,
+      actualRole: data.role 
+    };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) return;
 
+    // Перевірка вибору ролі для логіну
+    if (isLogin && !selectedRole) {
+      toast({
+        title: "Оберіть роль",
+        description: "Для входу потрібно обрати вашу роль в команді",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       if (isLogin) {
-        const { error } = await signIn(email, password);
+        const { error, data } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        
         if (error) {
           if (error.message.includes("Invalid login credentials")) {
             toast({
@@ -136,12 +168,33 @@ export default function Auth() {
               variant: "destructive",
             });
           }
-        } else {
-          toast({
-            title: "Успішний вхід",
-            description: "Ласкаво просимо!",
-          });
+          setIsSubmitting(false);
+          return;
         }
+        
+        // Перевіряємо роль користувача
+        if (data?.user && selectedRole) {
+          const roleCheck = await verifyUserRole(data.user.id, selectedRole);
+          
+          if (!roleCheck.valid) {
+            // Вийти з системи, бо роль не співпадає
+            await supabase.auth.signOut();
+            toast({
+              title: "Невірна роль",
+              description: roleCheck.actualRole 
+                ? `Ваша роль: ${roleCheck.actualRole}. Оберіть правильну роль.`
+                : "Вас не затверджено в жодній команді або роль не призначена.",
+              variant: "destructive",
+            });
+            setIsSubmitting(false);
+            return;
+          }
+        }
+        
+        toast({
+          title: "Успішний вхід",
+          description: "Ласкаво просимо!",
+        });
       } else {
         const codeResult = await validateInviteCode(inviteCode);
         if (!codeResult.valid) {
