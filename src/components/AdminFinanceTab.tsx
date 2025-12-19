@@ -20,12 +20,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Save, DollarSign, TrendingUp, TrendingDown, Settings, Wallet, Plus, Eye, BarChart3, Receipt, ExternalLink } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Loader2, Save, DollarSign, TrendingUp, TrendingDown, Settings, Wallet, Plus, Eye, BarChart3, Receipt, ExternalLink, CalendarIcon, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { uk } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface Team {
   id: string;
@@ -93,8 +96,8 @@ export function AdminFinanceTab() {
   const [selectedUserFilter, setSelectedUserFilter] = useState<string>("all");
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>("all");
   const [selectedAiFilter, setSelectedAiFilter] = useState<string>("all");
-  const [dateFromFilter, setDateFromFilter] = useState<string>("");
-  const [dateToFilter, setDateToFilter] = useState<string>("");
+  const [dateFromFilter, setDateFromFilter] = useState<Date | undefined>(undefined);
+  const [dateToFilter, setDateToFilter] = useState<Date | undefined>(undefined);
   const [editingPrices, setEditingPrices] = useState<Record<string, Partial<TeamPricing>>>({});
   const [topUpAmounts, setTopUpAmounts] = useState<Record<string, string>>({});
   const [topUpNotes, setTopUpNotes] = useState<Record<string, string>>({});
@@ -400,14 +403,11 @@ export function AdminFinanceTab() {
       if (selectedAiFilter !== "all" && g.ai_model !== selectedAiFilter) return false;
       if (dateFromFilter) {
         const genDate = new Date(g.created_at);
-        const fromDate = new Date(dateFromFilter);
-        if (genDate < fromDate) return false;
+        if (genDate < startOfDay(dateFromFilter)) return false;
       }
       if (dateToFilter) {
         const genDate = new Date(g.created_at);
-        const toDate = new Date(dateToFilter);
-        toDate.setHours(23, 59, 59, 999);
-        if (genDate > toDate) return false;
+        if (genDate > endOfDay(dateToFilter)) return false;
       }
       return true;
     });
@@ -842,160 +842,175 @@ export function AdminFinanceTab() {
 
       {/* Generations Finance Table */}
       <Card>
-        <CardHeader className="py-3 px-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold">Історія генерацій</CardTitle>
-            <Badge variant="secondary" className="text-xs">
-              {filteredGenerations.length} з {generations.length}
+        <CardHeader className="py-2 px-3">
+          <div className="flex items-center justify-between mb-2">
+            <CardTitle className="text-xs font-medium">Історія генерацій</CardTitle>
+            <Badge variant="secondary" className="text-[10px]">
+              {filteredGenerations.length}/{generations.length}
             </Badge>
           </div>
           
           {/* Filters Row */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-1.5">
             <Select value={selectedTeamFilter} onValueChange={setSelectedTeamFilter}>
-              <SelectTrigger className="w-32 h-8 text-xs">
+              <SelectTrigger className="w-24 h-6 text-[11px]">
                 <SelectValue placeholder="Команда" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all" className="text-xs">Всі команди</SelectItem>
+                <SelectItem value="all" className="text-[11px]">Всі команди</SelectItem>
                 {[...new Set(generations.map(g => g.team_name).filter(Boolean))].map((teamName) => (
-                  <SelectItem key={teamName} value={teamName!} className="text-xs">{teamName}</SelectItem>
+                  <SelectItem key={teamName} value={teamName!} className="text-[11px]">{teamName}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             
             <Select value={selectedUserFilter} onValueChange={setSelectedUserFilter}>
-              <SelectTrigger className="w-32 h-8 text-xs">
+              <SelectTrigger className="w-24 h-6 text-[11px]">
                 <SelectValue placeholder="Юзер" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all" className="text-xs">Всі юзери</SelectItem>
+                <SelectItem value="all" className="text-[11px]">Всі юзери</SelectItem>
                 {uniqueUsers.map((userName) => (
-                  <SelectItem key={userName} value={userName} className="text-xs">{userName}</SelectItem>
+                  <SelectItem key={userName} value={userName} className="text-[11px]">{userName}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             
             <Select value={selectedTypeFilter} onValueChange={setSelectedTypeFilter}>
-              <SelectTrigger className="w-24 h-8 text-xs">
+              <SelectTrigger className="w-16 h-6 text-[11px]">
                 <SelectValue placeholder="Тип" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all" className="text-xs">Всі типи</SelectItem>
-                <SelectItem value="html" className="text-xs">HTML</SelectItem>
-                <SelectItem value="react" className="text-xs">React</SelectItem>
+                <SelectItem value="all" className="text-[11px]">Всі</SelectItem>
+                <SelectItem value="html" className="text-[11px]">HTML</SelectItem>
+                <SelectItem value="react" className="text-[11px]">React</SelectItem>
               </SelectContent>
             </Select>
             
             <Select value={selectedAiFilter} onValueChange={setSelectedAiFilter}>
-              <SelectTrigger className="w-24 h-8 text-xs">
+              <SelectTrigger className="w-16 h-6 text-[11px]">
                 <SelectValue placeholder="AI" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all" className="text-xs">Всі AI</SelectItem>
-                <SelectItem value="junior" className="text-xs">Junior</SelectItem>
-                <SelectItem value="senior" className="text-xs">Senior</SelectItem>
+                <SelectItem value="all" className="text-[11px]">Всі</SelectItem>
+                <SelectItem value="junior" className="text-[11px]">Jr</SelectItem>
+                <SelectItem value="senior" className="text-[11px]">Sr</SelectItem>
               </SelectContent>
             </Select>
             
-            <div className="flex items-center gap-2 border rounded-md px-2 py-1 bg-background">
-              <span className="text-xs text-muted-foreground whitespace-nowrap">Період:</span>
-              <Input 
-                type="date" 
-                className="w-32 h-6 text-xs border-0 p-0 focus-visible:ring-0" 
-                value={dateFromFilter}
-                onChange={(e) => setDateFromFilter(e.target.value)}
-              />
-              <span className="text-xs text-muted-foreground">—</span>
-              <Input 
-                type="date" 
-                className="w-32 h-6 text-xs border-0 p-0 focus-visible:ring-0" 
-                value={dateToFilter}
-                onChange={(e) => setDateToFilter(e.target.value)}
-              />
-            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("h-6 text-[11px] px-2 justify-start", !dateFromFilter && "text-muted-foreground")}>
+                  <CalendarIcon className="h-3 w-3 mr-1" />
+                  {dateFromFilter ? format(dateFromFilter, "dd.MM.yy") : "Від"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dateFromFilter}
+                  onSelect={setDateFromFilter}
+                  initialFocus
+                  className="pointer-events-auto"
+                  locale={uk}
+                />
+              </PopoverContent>
+            </Popover>
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("h-6 text-[11px] px-2 justify-start", !dateToFilter && "text-muted-foreground")}>
+                  <CalendarIcon className="h-3 w-3 mr-1" />
+                  {dateToFilter ? format(dateToFilter, "dd.MM.yy") : "До"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dateToFilter}
+                  onSelect={setDateToFilter}
+                  initialFocus
+                  className="pointer-events-auto"
+                  locale={uk}
+                />
+              </PopoverContent>
+            </Popover>
             
             {(selectedTeamFilter !== "all" || selectedUserFilter !== "all" || selectedTypeFilter !== "all" || selectedAiFilter !== "all" || dateFromFilter || dateToFilter) && (
               <Button 
-                variant="outline" 
+                variant="ghost" 
                 size="sm" 
-                className="h-8 text-xs"
+                className="h-6 text-[11px] px-1.5"
                 onClick={() => {
                   setSelectedTeamFilter("all");
                   setSelectedUserFilter("all");
                   setSelectedTypeFilter("all");
                   setSelectedAiFilter("all");
-                  setDateFromFilter("");
-                  setDateToFilter("");
+                  setDateFromFilter(undefined);
+                  setDateToFilter(undefined);
                 }}
               >
-                Скинути фільтри
+                <X className="h-3 w-3" />
               </Button>
             )}
           </div>
         </CardHeader>
-        <CardContent className="px-4 pb-4">
+        <CardContent className="px-3 pb-3">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-xs py-2">Сайт</TableHead>
-                <TableHead className="text-xs py-2">Команда</TableHead>
-                <TableHead className="text-xs py-2">Юзер</TableHead>
-                <TableHead className="text-xs py-2">Тип</TableHead>
-                <TableHead className="text-xs py-2">AI</TableHead>
-                <TableHead className="text-xs py-2 text-right">Витрати</TableHead>
-                <TableHead className="text-xs py-2 text-right">Продаж</TableHead>
-                <TableHead className="text-xs py-2">Дата</TableHead>
+                <TableHead className="text-[11px] py-1.5">Сайт</TableHead>
+                <TableHead className="text-[11px] py-1.5">Команда</TableHead>
+                <TableHead className="text-[11px] py-1.5">Юзер</TableHead>
+                <TableHead className="text-[11px] py-1.5">Тип</TableHead>
+                <TableHead className="text-[11px] py-1.5">AI</TableHead>
+                <TableHead className="text-[11px] py-1.5 text-right">Витр</TableHead>
+                <TableHead className="text-[11px] py-1.5 text-right">Прод</TableHead>
+                <TableHead className="text-[11px] py-1.5">Дата</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredGenerations.slice(0, 50).map((gen) => (
                 <TableRow key={gen.id}>
-                  <TableCell className="text-xs py-2 max-w-28 truncate">{gen.site_name || "—"}</TableCell>
-                  <TableCell className="text-xs py-2">{gen.team_name || "—"}</TableCell>
-                  <TableCell className="text-xs py-2">{gen.profile?.display_name || "—"}</TableCell>
-                  <TableCell className="text-xs py-2">
-                    <Badge variant="outline" className="text-[10px]">{gen.website_type?.toUpperCase()}</Badge>
-                  </TableCell>
-                  <TableCell className="text-xs py-2">
-                    <Badge variant={gen.ai_model === 'senior' ? 'default' : 'secondary'} className="text-[10px]">
-                      {gen.ai_model === 'senior' ? 'Senior' : 'Junior'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs py-2 text-right font-medium text-red-600">
+                  <TableCell className="text-[11px] py-1 max-w-24 truncate">{gen.site_name || "—"}</TableCell>
+                  <TableCell className="text-[11px] py-1">{gen.team_name || "—"}</TableCell>
+                  <TableCell className="text-[11px] py-1">{gen.profile?.display_name || "—"}</TableCell>
+                  <TableCell className="text-[11px] py-1">{gen.website_type?.toUpperCase()}</TableCell>
+                  <TableCell className="text-[11px] py-1">{gen.ai_model === 'senior' ? 'Sr' : 'Jr'}</TableCell>
+                  <TableCell className="text-[11px] py-1 text-right text-red-600">
                     {gen.generation_cost ? `$${gen.generation_cost.toFixed(2)}` : "—"}
                   </TableCell>
-                  <TableCell className="text-xs py-2 text-right font-medium text-green-600">
+                  <TableCell className="text-[11px] py-1 text-right text-green-600">
                     {gen.sale_price ? `$${gen.sale_price.toFixed(2)}` : "—"}
                   </TableCell>
-                  <TableCell className="text-xs py-2 text-muted-foreground">
-                    {new Date(gen.created_at).toLocaleDateString("uk-UA")}
+                  <TableCell className="text-[11px] py-1 text-muted-foreground">
+                    {format(new Date(gen.created_at), "dd.MM.yy")}
                   </TableCell>
                 </TableRow>
               ))}
               {filteredGenerations.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8 text-sm">
-                    Немає даних за вибраними фільтрами
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-4 text-[11px]">
+                    Немає даних
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
             {filteredGenerations.length > 0 && (
               <tfoot>
-                <tr className="border-t-2 bg-muted/50 font-semibold">
-                  <td colSpan={5} className="text-xs py-3 px-4">
-                    ВСЬОГО: {filteredGenerations.length} генерацій
+                <tr className="border-t bg-muted/50">
+                  <td colSpan={5} className="text-[11px] py-1.5 px-3 font-medium">
+                    Всього: {filteredGenerations.length}
                   </td>
-                  <td className="text-xs py-3 px-4 text-right text-red-600">
+                  <td className="text-[11px] py-1.5 px-3 text-right font-medium text-red-600">
                     ${totalCosts.toFixed(2)}
                   </td>
-                  <td className="text-xs py-3 px-4 text-right text-green-600">
+                  <td className="text-[11px] py-1.5 px-3 text-right font-medium text-green-600">
                     ${totalSales.toFixed(2)}
                   </td>
-                  <td className="text-xs py-3 px-4">
-                    <span className={`font-bold ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      Прибуток: ${totalProfit.toFixed(2)}
+                  <td className="text-[11px] py-1.5 px-3 font-medium">
+                    <span className={totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      =${totalProfit.toFixed(2)}
                     </span>
                   </td>
                 </tr>
