@@ -74,6 +74,47 @@ export type Database = {
           },
         ]
       }
+      balance_transactions: {
+        Row: {
+          admin_id: string
+          amount: number
+          balance_after: number
+          balance_before: number
+          created_at: string
+          id: string
+          note: string
+          team_id: string
+        }
+        Insert: {
+          admin_id: string
+          amount: number
+          balance_after: number
+          balance_before: number
+          created_at?: string
+          id?: string
+          note: string
+          team_id: string
+        }
+        Update: {
+          admin_id?: string
+          amount?: number
+          balance_after?: number
+          balance_before?: number
+          created_at?: string
+          id?: string
+          note?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "balance_transactions_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback: {
         Row: {
           created_at: string

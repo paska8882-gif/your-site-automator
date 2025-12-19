@@ -20,7 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Save, DollarSign, TrendingUp, TrendingDown, Settings, Wallet, Plus, Eye, BarChart3 } from "lucide-react";
+import { Loader2, Save, DollarSign, TrendingUp, TrendingDown, Settings, Wallet, Plus, Eye, BarChart3, Receipt, ExternalLink } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
@@ -69,7 +70,20 @@ interface TeamTransaction {
   user_display_name?: string;
 }
 
+interface BalanceTransaction {
+  id: string;
+  team_id: string;
+  amount: number;
+  balance_before: number;
+  balance_after: number;
+  note: string;
+  admin_id: string;
+  created_at: string;
+  admin_display_name?: string;
+}
+
 export function AdminFinanceTab() {
+  const { user } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamPricing, setTeamPricing] = useState<Record<string, TeamPricing>>({});
   const [generations, setGenerations] = useState<GenerationWithFinance[]>([]);
@@ -78,9 +92,11 @@ export function AdminFinanceTab() {
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>("all");
   const [editingPrices, setEditingPrices] = useState<Record<string, Partial<TeamPricing>>>({});
   const [topUpAmounts, setTopUpAmounts] = useState<Record<string, string>>({});
+  const [topUpNotes, setTopUpNotes] = useState<Record<string, string>>({});
   const [savingBalance, setSavingBalance] = useState<string | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [teamTransactions, setTeamTransactions] = useState<TeamTransaction[]>([]);
+  const [balanceTransactions, setBalanceTransactions] = useState<BalanceTransaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [chartPeriod, setChartPeriod] = useState<"7" | "14" | "30">("7");
   const [detailedModelView, setDetailedModelView] = useState(false);
@@ -174,6 +190,29 @@ export function AdminFinanceTab() {
   const fetchTeamTransactions = async (teamId: string) => {
     setLoadingTransactions(true);
     
+    // Fetch balance transactions (deposits)
+    const { data: balanceTxData } = await supabase
+      .from("balance_transactions")
+      .select("*")
+      .eq("team_id", teamId)
+      .order("created_at", { ascending: false });
+
+    // Fetch admin names for balance transactions
+    const adminIds = [...new Set(balanceTxData?.map(t => t.admin_id).filter(Boolean) || [])];
+    const { data: adminProfiles } = await supabase
+      .from("profiles")
+      .select("user_id, display_name")
+      .in("user_id", adminIds);
+    
+    const adminProfileMap = new Map(adminProfiles?.map(p => [p.user_id, p.display_name]) || []);
+
+    const enrichedBalanceTx = (balanceTxData || []).map(t => ({
+      ...t,
+      admin_display_name: adminProfileMap.get(t.admin_id) || "Адмін"
+    }));
+    setBalanceTransactions(enrichedBalanceTx);
+
+    // Fetch generation transactions
     const { data: members } = await supabase
       .from("team_members")
       .select("user_id")
@@ -298,20 +337,49 @@ export function AdminFinanceTab() {
 
   const topUpBalance = async (teamId: string) => {
     const amount = parseFloat(topUpAmounts[teamId] || "0");
+    const note = topUpNotes[teamId]?.trim() || "";
+    
     if (amount <= 0) {
       toast.error("Введіть суму більше 0");
+      return;
+    }
+
+    if (!note) {
+      toast.error("Введіть примітку (посилання на квитанцію)");
+      return;
+    }
+
+    if (!user) {
+      toast.error("Помилка авторизації");
       return;
     }
 
     setSavingBalance(teamId);
     try {
       const team = teams.find(t => t.id === teamId);
-      const newBalance = (team?.balance || 0) + amount;
+      const balanceBefore = team?.balance || 0;
+      const newBalance = balanceBefore + amount;
 
-      await supabase.from("teams").update({ balance: newBalance }).eq("id", teamId);
+      // Create balance transaction record
+      const { error: txError } = await supabase.from("balance_transactions").insert({
+        team_id: teamId,
+        amount,
+        balance_before: balanceBefore,
+        balance_after: newBalance,
+        note,
+        admin_id: user.id,
+      });
+
+      if (txError) throw txError;
+
+      // Update team balance
+      const { error: updateError } = await supabase.from("teams").update({ balance: newBalance }).eq("id", teamId);
+
+      if (updateError) throw updateError;
 
       toast.success(`Баланс поповнено на $${amount.toFixed(2)}`);
       setTopUpAmounts(prev => ({ ...prev, [teamId]: "" }));
+      setTopUpNotes(prev => ({ ...prev, [teamId]: "" }));
       fetchData();
     } catch (error) {
       console.error("Error topping up balance:", error);
@@ -710,22 +778,42 @@ export function AdminFinanceTab() {
             </div>
           </CardHeader>
           <CardContent className="px-3 pb-3">
-            <div className="space-y-1">
+            <div className="space-y-2">
               {teams.map((team) => (
-                <div key={team.id} className="flex items-center gap-1.5 p-1.5 rounded border bg-card">
-                  <span className="font-medium text-[10px] min-w-16 truncate">{team.name}</span>
-                  <span className={`font-bold text-[10px] ${team.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    ${team.balance.toFixed(2)}
-                  </span>
-                  <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => handleViewTeam(team)}>
-                    <Eye className="h-2.5 w-2.5" />
-                  </Button>
-                  <div className="flex items-center gap-0.5 ml-auto">
-                    <Input type="number" step="0.01" min="0" placeholder="$" className="w-12 h-5 text-[10px] px-1"
+                <div key={team.id} className="p-2 rounded border bg-card space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-medium text-[10px] truncate flex-1">{team.name}</span>
+                    <span className={`font-bold text-[10px] ${team.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      ${team.balance.toFixed(2)}
+                    </span>
+                    <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => handleViewTeam(team)}>
+                      <Eye className="h-2.5 w-2.5" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Input 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      placeholder="Сума $" 
+                      className="w-16 h-5 text-[10px] px-1"
                       value={topUpAmounts[team.id] || ""}
-                      onChange={(e) => setTopUpAmounts(prev => ({ ...prev, [team.id]: e.target.value }))} />
-                    <Button size="sm" variant="default" className="h-5 w-5 p-0"
-                      onClick={() => topUpBalance(team.id)} disabled={savingBalance === team.id || !topUpAmounts[team.id]}>
+                      onChange={(e) => setTopUpAmounts(prev => ({ ...prev, [team.id]: e.target.value }))} 
+                    />
+                    <Input 
+                      type="text" 
+                      placeholder="Посилання на квитанцію *" 
+                      className="flex-1 h-5 text-[10px] px-1"
+                      value={topUpNotes[team.id] || ""}
+                      onChange={(e) => setTopUpNotes(prev => ({ ...prev, [team.id]: e.target.value }))} 
+                    />
+                    <Button 
+                      size="sm" 
+                      variant="default" 
+                      className="h-5 px-2 text-[10px]"
+                      onClick={() => topUpBalance(team.id)} 
+                      disabled={savingBalance === team.id || !topUpAmounts[team.id] || !topUpNotes[team.id]?.trim()}
+                    >
                       {savingBalance === team.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Plus className="h-2.5 w-2.5" />}
                     </Button>
                   </div>
@@ -803,31 +891,80 @@ export function AdminFinanceTab() {
           </DialogHeader>
           
           <div className="flex-1 overflow-auto">
-            <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="grid grid-cols-4 gap-2 mb-3">
               <div className="p-2 rounded border bg-muted/50 text-center">
                 <div className="text-[10px] text-muted-foreground">Генерацій</div>
                 <div className="text-sm font-medium">{teamTransactions.length}</div>
               </div>
               <div className="p-2 rounded border bg-muted/50 text-center">
-                <div className="text-[10px] text-muted-foreground">Сума продажів</div>
+                <div className="text-[10px] text-muted-foreground">Продажі</div>
                 <div className="text-sm font-medium text-green-600">${teamTotalSales.toFixed(2)}</div>
               </div>
               <div className="p-2 rounded border bg-muted/50 text-center">
                 <div className="text-[10px] text-muted-foreground">Витрати AI</div>
                 <div className="text-sm font-medium text-red-600">${teamTotalCosts.toFixed(2)}</div>
               </div>
+              <div className="p-2 rounded border bg-muted/50 text-center">
+                <div className="text-[10px] text-muted-foreground">Поповнень</div>
+                <div className="text-sm font-medium text-blue-600">{balanceTransactions.length}</div>
+              </div>
             </div>
 
-            <div className="text-xs font-medium mb-2">Історія транзакцій</div>
+            {/* Balance Transactions (Deposits) */}
+            {balanceTransactions.length > 0 && (
+              <div className="mb-4">
+                <div className="text-xs font-medium mb-2 flex items-center gap-1.5">
+                  <Receipt className="h-3 w-3" />
+                  Історія поповнень
+                </div>
+                <div className="space-y-1 max-h-[150px] overflow-y-auto">
+                  {balanceTransactions.map((t) => (
+                    <div key={t.id} className="p-2 rounded border bg-blue-50 dark:bg-blue-950/30 text-xs flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium text-blue-600">+${t.amount.toFixed(2)}</span>
+                          <span className="text-muted-foreground text-[10px]">
+                            ${t.balance_before.toFixed(2)} → ${t.balance_after.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                          {t.note.startsWith('http') ? (
+                            <a 
+                              href={t.note} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-500 hover:underline flex items-center gap-0.5"
+                            >
+                              <ExternalLink className="h-2.5 w-2.5" />
+                              Квитанція
+                            </a>
+                          ) : (
+                            <span className="truncate">{t.note}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right ml-2">
+                        <div className="text-[10px] text-muted-foreground">{t.admin_display_name}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {new Date(t.created_at).toLocaleDateString("uk-UA")}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="text-xs font-medium mb-2">Історія генерацій</div>
             
             {loadingTransactions ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-4 w-4 animate-spin" />
               </div>
             ) : teamTransactions.length === 0 ? (
-              <p className="text-center text-muted-foreground py-4 text-xs">Немає транзакцій</p>
+              <p className="text-center text-muted-foreground py-4 text-xs">Немає генерацій</p>
             ) : (
-              <div className="space-y-1 max-h-[300px] overflow-y-auto">
+              <div className="space-y-1 max-h-[200px] overflow-y-auto">
                 {teamTransactions.map((t) => (
                   <div key={t.id} className="p-2 rounded border bg-card text-xs flex items-center justify-between">
                     <div className="flex-1 min-w-0">
