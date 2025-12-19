@@ -27,7 +27,7 @@ export function BlockedUserOverlay() {
         </div>
         <div className="flex flex-col gap-3">
           <Button asChild className="gap-2">
-            <a href="https://t.me/assanatraf" target="_blank" rel="noopener noreferrer">
+            <a href="https://t.me/dragonwhite7" target="_blank" rel="noopener noreferrer">
               <MessageCircle className="h-4 w-4" />
               Написати в підтримку
             </a>
