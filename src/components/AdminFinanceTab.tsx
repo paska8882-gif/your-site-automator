@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -98,6 +99,8 @@ export function AdminFinanceTab() {
   const [selectedAiFilter, setSelectedAiFilter] = useState<string>("all");
   const [dateFromFilter, setDateFromFilter] = useState<Date | undefined>(undefined);
   const [dateToFilter, setDateToFilter] = useState<Date | undefined>(undefined);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 25;
   const [editingPrices, setEditingPrices] = useState<Record<string, Partial<TeamPricing>>>({});
   const [topUpAmounts, setTopUpAmounts] = useState<Record<string, string>>({});
   const [topUpNotes, setTopUpNotes] = useState<Record<string, string>>({});
@@ -412,6 +415,17 @@ export function AdminFinanceTab() {
       return true;
     });
   }, [generations, selectedTeamFilter, selectedUserFilter, selectedTypeFilter, selectedAiFilter, dateFromFilter, dateToFilter]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedTeamFilter, selectedUserFilter, selectedTypeFilter, selectedAiFilter, dateFromFilter, dateToFilter]);
+
+  const totalPages = Math.ceil(filteredGenerations.length / itemsPerPage);
+  const paginatedGenerations = filteredGenerations.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const uniqueUsers = useMemo(() => 
     [...new Set(generations.map(g => g.profile?.display_name).filter(Boolean))] as string[]
@@ -970,7 +984,7 @@ export function AdminFinanceTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredGenerations.slice(0, 50).map((gen) => (
+              {paginatedGenerations.map((gen) => (
                 <TableRow key={gen.id}>
                   <TableCell className="text-[11px] py-1 max-w-24 truncate">{gen.site_name || "—"}</TableCell>
                   <TableCell className="text-[11px] py-1">{gen.team_name || "—"}</TableCell>
@@ -988,7 +1002,7 @@ export function AdminFinanceTab() {
                   </TableCell>
                 </TableRow>
               ))}
-              {filteredGenerations.length === 0 && (
+              {paginatedGenerations.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center text-muted-foreground py-4 text-[11px]">
                     Немає даних
@@ -1017,6 +1031,53 @@ export function AdminFinanceTab() {
               </tfoot>
             )}
           </Table>
+          
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-3 pt-3 border-t">
+              <span className="text-[10px] text-muted-foreground">
+                {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredGenerations.length)} з {filteredGenerations.length}
+              </span>
+              <Pagination>
+                <PaginationContent className="gap-0.5">
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      className={cn("h-6 text-[10px] px-2", currentPage === 1 && "pointer-events-none opacity-50")}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <PaginationItem key={pageNum}>
+                        <PaginationLink
+                          onClick={() => setCurrentPage(pageNum)}
+                          isActive={currentPage === pageNum}
+                          className="h-6 w-6 text-[10px] p-0"
+                        >
+                          {pageNum}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      className={cn("h-6 text-[10px] px-2", currentPage === totalPages && "pointer-events-none opacity-50")}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </CardContent>
       </Card>
 
