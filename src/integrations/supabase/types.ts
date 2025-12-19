@@ -74,6 +74,53 @@ export type Database = {
           },
         ]
       }
+      balance_requests: {
+        Row: {
+          admin_comment: string | null
+          amount: number
+          created_at: string
+          id: string
+          note: string
+          processed_at: string | null
+          processed_by: string | null
+          status: string
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          admin_comment?: string | null
+          amount: number
+          created_at?: string
+          id?: string
+          note: string
+          processed_at?: string | null
+          processed_by?: string | null
+          status?: string
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          admin_comment?: string | null
+          amount?: number
+          created_at?: string
+          id?: string
+          note?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          status?: string
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "balance_requests_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       balance_transactions: {
         Row: {
           admin_id: string

@@ -60,6 +60,7 @@ const adminNavItems = [
   { title: "Фідбек", tab: "feedback", icon: MessageCircle },
   { title: "Цитати", tab: "quotes", icon: Quote },
   { title: "Сповіщення", tab: "notifications", icon: Bell },
+  { title: "Поповнення", tab: "balance-requests", icon: Wallet },
   { title: "Фінанси", tab: "finance", icon: DollarSign },
   { title: "Адміни", tab: "admin", icon: Settings },
 ];
