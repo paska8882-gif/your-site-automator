@@ -36,9 +36,6 @@ const Edit = () => {
     }
   }, [user, authLoading, navigate]);
 
-  if (isBlocked) {
-    return <BlockedUserOverlay />;
-  }
 
   useEffect(() => {
     if (!id || !user) return;
@@ -98,57 +95,60 @@ const Edit = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background">
-      {/* Header */}
-      <div className="border-b px-4 py-3 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Назад
-          </Button>
-          <div className="h-4 w-px bg-border" />
-          <span className="font-medium">
-            Редагування #{generation.number}
-          </span>
-          <span className="text-sm text-muted-foreground hidden sm:block">
-            {generation.language.toUpperCase()}
-          </span>
-        </div>
-        {isEditing && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Редагування...
+    <>
+      <div className="h-screen flex flex-col bg-background">
+        {/* Header */}
+        <div className="border-b px-4 py-3 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Назад
+            </Button>
+            <div className="h-4 w-px bg-border" />
+            <span className="font-medium">
+              Редагування #{generation.number}
+            </span>
+            <span className="text-sm text-muted-foreground hidden sm:block">
+              {generation.language.toUpperCase()}
+            </span>
           </div>
-        )}
-      </div>
-
-      {/* Main content - split view */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Chat panel */}
-        <div className="w-[400px] border-r flex flex-col shrink-0">
-          <EditChat
-            generationId={id!}
-            files={files}
-            aiModel={(generation.ai_model as "junior" | "senior") || "senior"}
-            websiteType={(generation.website_type as "html" | "react") || "html"}
-            originalPrompt={generation.prompt}
-            onFilesUpdate={handleFilesUpdate}
-            isEditing={isEditing}
-            setIsEditing={setIsEditing}
-          />
+          {isEditing && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Редагування...
+            </div>
+          )}
         </div>
 
-        {/* Preview panel */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <EditPreview
-            files={files}
-            selectedFile={selectedFile}
-            onSelectFile={setSelectedFile}
-            websiteType={generation.website_type || undefined}
-          />
+        {/* Main content - split view */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Chat panel */}
+          <div className="w-[400px] border-r flex flex-col shrink-0">
+            <EditChat
+              generationId={id!}
+              files={files}
+              aiModel={(generation.ai_model as "junior" | "senior") || "senior"}
+              websiteType={(generation.website_type as "html" | "react") || "html"}
+              originalPrompt={generation.prompt}
+              onFilesUpdate={handleFilesUpdate}
+              isEditing={isEditing}
+              setIsEditing={setIsEditing}
+            />
+          </div>
+
+          {/* Preview panel */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <EditPreview
+              files={files}
+              selectedFile={selectedFile}
+              onSelectFile={setSelectedFile}
+              websiteType={generation.website_type || undefined}
+            />
+          </div>
         </div>
       </div>
-    </div>
+      {isBlocked && <BlockedUserOverlay />}
+    </>
   );
 };
 

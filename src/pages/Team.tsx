@@ -31,10 +31,6 @@ export default function Team() {
     return null;
   }
 
-  if (isBlocked) {
-    return <BlockedUserOverlay />;
-  }
-
   return (
     <AppLayout>
       <div className="p-4 max-w-4xl mx-auto space-y-4">
@@ -51,6 +47,7 @@ export default function Team() {
           </div>
         )}
       </div>
+      {isBlocked && <BlockedUserOverlay />}
     </AppLayout>
   );
 }

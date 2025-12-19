@@ -28,13 +28,10 @@ const Index = () => {
     return null;
   }
 
-  if (isBlocked) {
-    return <BlockedUserOverlay />;
-  }
-
   return (
     <AppLayout>
       <WebsiteGenerator />
+      {isBlocked && <BlockedUserOverlay />}
     </AppLayout>
   );
 };
