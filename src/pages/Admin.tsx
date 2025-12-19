@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useSuperAdmin } from "@/hooks/useSuperAdmin";
 import { Loader2 } from "lucide-react";
 import { AdminTeamsTab } from "@/components/AdminTeamsTab";
 import { AdminSitesTab } from "@/components/AdminSitesTab";
@@ -11,6 +12,7 @@ import { AdminFinanceTab } from "@/components/AdminFinanceTab";
 import { AdminAppealsTab } from "@/components/AdminAppealsTab";
 import { AdminCommunicationTab } from "@/components/AdminCommunicationTab";
 import { AdminBalanceRequestsTab } from "@/components/AdminBalanceRequestsTab";
+import { AdminPaymentDetailsTab } from "@/components/AdminPaymentDetailsTab";
 import { AppLayout } from "@/components/AppLayout";
 
 const Admin = () => {
@@ -18,6 +20,7 @@ const Admin = () => {
   const [searchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const { isAdmin, loading: adminLoading } = useAdmin();
+  const { isSuperAdmin } = useSuperAdmin();
 
   const currentTab = searchParams.get("tab") || "teams";
 
@@ -63,6 +66,8 @@ const Admin = () => {
         return <AdminFinanceTab />;
       case "admin":
         return <AdminAdministratorsTab />;
+      case "payment-details":
+        return isSuperAdmin ? <AdminPaymentDetailsTab /> : <AdminTeamsTab />;
       default:
         return <AdminTeamsTab />;
     }
