@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
+import { AdminPageHeader } from "@/components/AdminPageHeader";
 import {
   Table,
   TableBody,
@@ -571,6 +572,11 @@ export function AdminFinanceTab() {
 
   return (
     <div className="space-y-3">
+      <AdminPageHeader 
+        icon={DollarSign} 
+        title="Фінанси" 
+        description="Аналітика доходів, витрат та прибутку" 
+      />
       {/* Summary inline */}
       <div className="flex flex-wrap gap-2">
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">

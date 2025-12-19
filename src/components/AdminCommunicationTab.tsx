@@ -5,6 +5,7 @@ import { AdminFeedbackTab } from "./AdminFeedbackTab";
 import { AdminNotificationsManager } from "./AdminNotificationsManager";
 import { AdminSupportTab } from "./AdminSupportTab";
 import { AdminQuotesTab } from "./AdminQuotesTab";
+import { AdminPageHeader } from "./AdminPageHeader";
 
 const tabConfig = {
   feedback: { icon: MessageCircle, title: "Фідбек", description: "Відгуки від користувачів" },
@@ -16,20 +17,14 @@ const tabConfig = {
 export function AdminCommunicationTab() {
   const [activeTab, setActiveTab] = useState<keyof typeof tabConfig>("feedback");
   const currentConfig = tabConfig[activeTab];
-  const Icon = currentConfig.icon;
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-primary/10">
-          <Icon className="h-5 w-5 text-primary" />
-        </div>
-        <div>
-          <h1 className="text-lg font-semibold">{currentConfig.title}</h1>
-          <p className="text-xs text-muted-foreground">{currentConfig.description}</p>
-        </div>
-      </div>
+      <AdminPageHeader 
+        icon={currentConfig.icon} 
+        title={currentConfig.title} 
+        description={currentConfig.description} 
+      />
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as keyof typeof tabConfig)}>
         <TabsList className="grid w-full grid-cols-4 h-8">

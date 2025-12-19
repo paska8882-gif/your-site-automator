@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { 
   Loader2, 
   AlertCircle, 
@@ -218,6 +219,11 @@ export function AdminAppealsTab() {
 
   return (
     <div className="space-y-3">
+      <AdminPageHeader 
+        icon={MessageSquare} 
+        title="Апеляції" 
+        description="Розгляд скарг та повернення коштів" 
+      />
       {/* Stats inline */}
       <div className="flex flex-wrap gap-2">
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
