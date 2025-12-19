@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { AlertTriangle, Copy, Check, MessageCircle, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { AlertTriangle, Copy, Check, MessageCircle, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,6 +28,7 @@ export function DebtNotificationPopup({
   teamName,
   balance,
 }: DebtNotificationPopupProps) {
+  const navigate = useNavigate();
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
   const handleCopy = async (network: string, address: string) => {
@@ -109,16 +111,28 @@ export function DebtNotificationPopup({
             <p className="text-sm text-muted-foreground">
               Після оплати зверніться в підтримку для підтвердження
             </p>
-            <Button asChild className="w-full gap-2">
-              <a
-                href="https://t.me/assanatraf"
-                target="_blank"
-                rel="noopener noreferrer"
+            <div className="flex gap-2">
+              <Button 
+                className="flex-1 gap-2" 
+                onClick={() => {
+                  onClose();
+                  navigate("/balance");
+                }}
               >
-                <MessageCircle className="h-4 w-4" />
-                Написати в підтримку
-              </a>
-            </Button>
+                <Wallet className="h-4 w-4" />
+                Поповнити
+              </Button>
+              <Button variant="outline" asChild className="flex-1 gap-2">
+                <a
+                  href="https://t.me/dragonwhite7"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Підтримка
+                </a>
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
