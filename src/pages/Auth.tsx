@@ -99,16 +99,17 @@ export default function Auth() {
   };
 
   const joinTeam = async (userId: string, teamId: string, role: string) => {
-    const isOwner = role === "owner";
-
-    await supabase.from("team_members").insert({
+    // RLS дозволяє тільки pending статус при самостійному insert
+    const { error } = await supabase.from("team_members").insert({
       team_id: teamId,
       user_id: userId,
       role: role as "owner" | "team_lead" | "buyer" | "tech_dev",
-      status: (isOwner ? "approved" : "pending") as "approved" | "pending",
-      approved_at: isOwner ? new Date().toISOString() : null,
-      approved_by: isOwner ? userId : null
+      status: "pending"
     });
+    
+    if (error) {
+      console.error("Failed to join team:", error);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
