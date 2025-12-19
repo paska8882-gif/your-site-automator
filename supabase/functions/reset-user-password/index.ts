@@ -12,6 +12,8 @@ interface ResetPasswordRequest {
 }
 
 serve(async (req: Request) => {
+  console.log("reset-user-password: Request received", req.method);
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -19,6 +21,8 @@ serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    
+    console.log("reset-user-password: Creating admin client");
     
     // Створюємо клієнт з service role key для адмін операцій
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
@@ -30,22 +34,28 @@ serve(async (req: Request) => {
 
     // Перевіряємо авторизацію запиту
     const authHeader = req.headers.get("Authorization");
+    console.log("reset-user-password: Auth header present:", !!authHeader);
+    
     if (!authHeader) {
+      console.log("reset-user-password: No auth header");
       return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
+        JSON.stringify({ error: "Unauthorized - no auth header" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Перевіряємо що запит від адміна
-    const supabaseClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    // Витягуємо токен
+    const token = authHeader.replace("Bearer ", "");
+    
+    // Перевіряємо користувача через admin client
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    
+    console.log("reset-user-password: User check result:", { userId: user?.id, error: userError?.message });
+    
     if (userError || !user) {
+      console.log("reset-user-password: User verification failed");
       return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
+        JSON.stringify({ error: "Unauthorized - invalid token" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
