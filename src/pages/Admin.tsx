@@ -11,6 +11,8 @@ import { AdminFinanceTab } from "@/components/AdminFinanceTab";
 import { AdminAppealsTab } from "@/components/AdminAppealsTab";
 import { AdminSupportTab } from "@/components/AdminSupportTab";
 import { AdminNotificationsManager } from "@/components/AdminNotificationsManager";
+import { AdminFeedbackTab } from "@/components/AdminFeedbackTab";
+import { AdminQuotesTab } from "@/components/AdminQuotesTab";
 import { AppLayout } from "@/components/AppLayout";
 
 const Admin = () => {
@@ -57,6 +59,10 @@ const Admin = () => {
         return <AdminAppealsTab />;
       case "support":
         return <AdminSupportTab />;
+      case "feedback":
+        return <AdminFeedbackTab />;
+      case "quotes":
+        return <AdminQuotesTab />;
       case "notifications":
         return (
           <div className="max-w-md">

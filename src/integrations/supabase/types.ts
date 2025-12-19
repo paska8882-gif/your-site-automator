@@ -74,6 +74,30 @@ export type Database = {
           },
         ]
       }
+      feedback: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       generation_history: {
         Row: {
           ai_model: string | null
@@ -252,6 +276,33 @@ export type Database = {
           is_blocked?: boolean
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      quotes: {
+        Row: {
+          author: string | null
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean
+          text: string
+        }
+        Insert: {
+          author?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean
+          text: string
+        }
+        Update: {
+          author?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean
+          text?: string
         }
         Relationships: []
       }

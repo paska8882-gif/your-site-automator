@@ -34,7 +34,9 @@ import {
   DollarSign,
   MessageSquare,
   Bell,
-  Headphones
+  Headphones,
+  MessageCircle,
+  Quote
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -55,6 +57,8 @@ const adminNavItems = [
   { title: "Користувачі", tab: "users", icon: UserCog },
   { title: "Апеляції", tab: "appeals", icon: MessageSquare },
   { title: "Підтримка", tab: "support", icon: Headphones },
+  { title: "Фідбек", tab: "feedback", icon: MessageCircle },
+  { title: "Цитати", tab: "quotes", icon: Quote },
   { title: "Сповіщення", tab: "notifications", icon: Bell },
   { title: "Фінанси", tab: "finance", icon: DollarSign },
   { title: "Адміни", tab: "admin", icon: Settings },
