@@ -59,6 +59,7 @@ interface BalanceRequest {
   admin_comment: string | null;
   created_at: string;
   processed_at: string | null;
+  user_display_name?: string;
 }
 
 const CHART_COLORS = [
@@ -83,6 +84,7 @@ const Balance = () => {
   const [buyerData, setBuyerData] = useState<BuyerData[]>([]);
   const [teamSpendingData, setTeamSpendingData] = useState<TeamSpendingData[]>([]);
   const [balanceRequests, setBalanceRequests] = useState<BalanceRequest[]>([]);
+  const [teamBalanceRequests, setTeamBalanceRequests] = useState<BalanceRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -94,19 +96,55 @@ const Balance = () => {
   useEffect(() => {
     if (user) {
       fetchFinancialData();
-      fetchBalanceRequests();
     }
   }, [user, isTeamOwner, isAdmin]);
 
+  useEffect(() => {
+    if (user && teamInfo) {
+      fetchBalanceRequests();
+    }
+  }, [user, teamInfo, isTeamOwner]);
+
   const fetchBalanceRequests = async () => {
     try {
-      const { data } = await supabase
+      // Fetch user's own requests
+      const { data: ownRequests } = await supabase
         .from("balance_requests")
         .select("id, amount, note, status, admin_comment, created_at, processed_at")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false });
       
-      setBalanceRequests(data || []);
+      setBalanceRequests(ownRequests || []);
+
+      // If team owner, fetch all team requests
+      if (isTeamOwner && teamInfo) {
+        const { data: teamRequests } = await supabase
+          .from("balance_requests")
+          .select("id, user_id, amount, note, status, admin_comment, created_at, processed_at")
+          .eq("team_id", teamInfo.id)
+          .neq("user_id", user!.id)
+          .order("created_at", { ascending: false });
+
+        if (teamRequests && teamRequests.length > 0) {
+          // Get user names
+          const userIds = [...new Set(teamRequests.map(r => r.user_id))];
+          const { data: profiles } = await supabase
+            .from("profiles")
+            .select("user_id, display_name")
+            .in("user_id", userIds);
+
+          const profileMap = new Map(profiles?.map(p => [p.user_id, p.display_name]) || []);
+
+          const enrichedRequests = teamRequests.map(r => ({
+            ...r,
+            user_display_name: profileMap.get(r.user_id) || "Невідомий"
+          }));
+
+          setTeamBalanceRequests(enrichedRequests);
+        } else {
+          setTeamBalanceRequests([]);
+        }
+      }
     } catch (error) {
       console.error("Error fetching balance requests:", error);
     }
@@ -546,7 +584,7 @@ const Balance = () => {
 
             {/* Balance Requests Section */}
             {teamInfo && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className={`grid grid-cols-1 ${isTeamOwner ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-3`}>
                 <BalanceRequestForm 
                   userId={user.id} 
                   teamId={teamInfo.id}
@@ -555,7 +593,16 @@ const Balance = () => {
                 <BalanceRequestsList 
                   requests={balanceRequests}
                   loading={false}
+                  title="Мої запити"
                 />
+                {isTeamOwner && (
+                  <BalanceRequestsList 
+                    requests={teamBalanceRequests}
+                    loading={false}
+                    showUserName={true}
+                    title="Запити команди"
+                  />
+                )}
               </div>
             )}
 
