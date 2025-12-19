@@ -808,45 +808,37 @@ export function AdminFinanceTab() {
             </div>
           </CardHeader>
           <CardContent className="px-3 pb-3">
-            <div className="space-y-2">
+            <div className="space-y-1">
               {teams.map((team) => (
-                <div key={team.id} className="p-2 rounded border bg-card space-y-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-medium text-[10px] truncate flex-1">{team.name}</span>
-                    <span className={`font-bold text-[10px] ${team.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      ${team.balance.toFixed(2)}
-                    </span>
-                    <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => handleViewTeam(team)}>
-                      <Eye className="h-2.5 w-2.5" />
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Input 
-                      type="number" 
-                      step="0.01" 
-                      min="0" 
-                      placeholder="Сума $" 
-                      className="w-16 h-5 text-[10px] px-1"
-                      value={topUpAmounts[team.id] || ""}
-                      onChange={(e) => setTopUpAmounts(prev => ({ ...prev, [team.id]: e.target.value }))} 
-                    />
-                    <Input 
-                      type="text" 
-                      placeholder="Посилання на квитанцію *" 
-                      className="flex-1 h-5 text-[10px] px-1"
-                      value={topUpNotes[team.id] || ""}
-                      onChange={(e) => setTopUpNotes(prev => ({ ...prev, [team.id]: e.target.value }))} 
-                    />
-                    <Button 
-                      size="sm" 
-                      variant="default" 
-                      className="h-5 px-2 text-[10px]"
-                      onClick={() => topUpBalance(team.id)} 
-                      disabled={savingBalance === team.id || !topUpAmounts[team.id] || !topUpNotes[team.id]?.trim()}
-                    >
-                      {savingBalance === team.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Plus className="h-2.5 w-2.5" />}
-                    </Button>
-                  </div>
+                <div key={team.id} className="flex items-center gap-1 py-0.5">
+                  <span className="font-medium text-[10px] truncate w-20">{team.name}</span>
+                  <span className={`font-bold text-[10px] w-12 ${team.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    ${team.balance.toFixed(2)}
+                  </span>
+                  <Input 
+                    type="number" 
+                    step="0.01" 
+                    min="0" 
+                    placeholder="$" 
+                    className="w-12 h-5 text-[10px] px-1"
+                    value={topUpAmounts[team.id] || ""}
+                    onChange={(e) => setTopUpAmounts(prev => ({ ...prev, [team.id]: e.target.value }))} 
+                  />
+                  <Input 
+                    type="text" 
+                    placeholder="Квитанція" 
+                    className="flex-1 h-5 text-[10px] px-1"
+                    value={topUpNotes[team.id] || ""}
+                    onChange={(e) => setTopUpNotes(prev => ({ ...prev, [team.id]: e.target.value }))} 
+                  />
+                  <Button size="sm" variant="default" className="h-5 w-5 p-0"
+                    onClick={() => topUpBalance(team.id)} 
+                    disabled={savingBalance === team.id || !topUpAmounts[team.id] || !topUpNotes[team.id]?.trim()}>
+                    {savingBalance === team.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Plus className="h-2.5 w-2.5" />}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => handleViewTeam(team)}>
+                    <Eye className="h-2.5 w-2.5" />
+                  </Button>
                 </div>
               ))}
             </div>
