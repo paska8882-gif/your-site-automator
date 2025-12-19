@@ -901,7 +901,15 @@ export function WebsiteGenerator() {
     
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="w-full max-w-4xl">
+        <div className="w-full max-w-4xl space-y-4">
+          {/* Inspirational quote */}
+          <div className="text-center py-4">
+            <blockquote className="text-lg italic text-muted-foreground">
+              "Код — це поезія, яку розуміють машини"
+            </blockquote>
+            <p className="text-xs text-muted-foreground/60 mt-1">— Генератор мудростей v2.0</p>
+          </div>
+
           <div className="flex gap-3">
             {/* Dashboard - compact */}
             {adminTeams.length > 0 && (
@@ -992,6 +1000,23 @@ export function WebsiteGenerator() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Feedback section */}
+          <div className="border border-border rounded p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">Залишити фідбек</span>
+            </div>
+            <Textarea 
+              placeholder="Напишіть свої побажання, ідеї або скарги..."
+              className="min-h-[60px] text-sm resize-none"
+            />
+            <div className="flex justify-end mt-2">
+              <Button size="sm" variant="outline" className="text-xs">
+                Надіслати
+              </Button>
             </div>
           </div>
         </div>
