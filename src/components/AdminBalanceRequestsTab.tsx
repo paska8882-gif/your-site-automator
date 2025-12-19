@@ -142,6 +142,15 @@ export function AdminBalanceRequestsTab() {
 
       if (requestError) throw requestError;
 
+      // Create notification for user
+      await supabase.from("notifications").insert({
+        user_id: request.user_id,
+        title: "Запит на поповнення погоджено",
+        message: `Ваш запит на поповнення балансу на $${request.amount.toFixed(2)} було погоджено. Кошти зараховано на баланс команди.`,
+        type: "balance_approved",
+        data: { request_id: request.id, amount: request.amount }
+      });
+
       toast.success(`Запит на $${request.amount.toFixed(2)} погоджено`);
       setAdminComments(prev => {
         const newComments = { ...prev };
@@ -179,6 +188,15 @@ export function AdminBalanceRequestsTab() {
         .eq("id", request.id);
 
       if (error) throw error;
+
+      // Create notification for user
+      await supabase.from("notifications").insert({
+        user_id: request.user_id,
+        title: "Запит на поповнення відхилено",
+        message: `Ваш запит на поповнення балансу на $${request.amount.toFixed(2)} було відхилено. Причина: ${comment}`,
+        type: "balance_rejected",
+        data: { request_id: request.id, amount: request.amount, reason: comment }
+      });
 
       toast.success("Запит відхилено");
       setAdminComments(prev => {

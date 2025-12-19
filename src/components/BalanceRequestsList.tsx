@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Clock, CheckCircle, XCircle, ExternalLink, Wallet } from "lucide-react";
+import { Clock, CheckCircle, XCircle, ExternalLink, Wallet, Users } from "lucide-react";
 import { format } from "date-fns";
 import { uk } from "date-fns/locale";
 
@@ -13,14 +13,17 @@ interface BalanceRequest {
   admin_comment: string | null;
   created_at: string;
   processed_at: string | null;
+  user_display_name?: string;
 }
 
 interface BalanceRequestsListProps {
   requests: BalanceRequest[];
   loading?: boolean;
+  showUserName?: boolean;
+  title?: string;
 }
 
-export function BalanceRequestsList({ requests, loading }: BalanceRequestsListProps) {
+export function BalanceRequestsList({ requests, loading, showUserName = false, title = "Історія запитів на поповнення" }: BalanceRequestsListProps) {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "approved":
@@ -78,8 +81,8 @@ export function BalanceRequestsList({ requests, loading }: BalanceRequestsListPr
   return (
     <Card className="p-4">
       <div className="flex items-center gap-2 mb-4">
-        <Wallet className="h-4 w-4 text-primary" />
-        <h3 className="font-medium text-sm">Історія запитів на поповнення</h3>
+        {showUserName ? <Users className="h-4 w-4 text-primary" /> : <Wallet className="h-4 w-4 text-primary" />}
+        <h3 className="font-medium text-sm">{title}</h3>
       </div>
 
       {/* Summary */}
@@ -115,7 +118,12 @@ export function BalanceRequestsList({ requests, loading }: BalanceRequestsListPr
                   <div className="shrink-0 mt-0.5">{getStatusIcon(request.status)}</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="font-bold text-sm">${request.amount.toFixed(2)}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm">${request.amount.toFixed(2)}</span>
+                        {showUserName && request.user_display_name && (
+                          <span className="text-xs text-muted-foreground">• {request.user_display_name}</span>
+                        )}
+                      </div>
                       {getStatusBadge(request.status)}
                     </div>
                     <div className="text-xs text-muted-foreground mb-1">
