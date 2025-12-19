@@ -270,6 +270,11 @@ export function WebsiteGenerator() {
   // Debt notification popup
   const [showDebtPopup, setShowDebtPopup] = useState(false);
 
+  // Random quote for team selection page
+  const [randomQuote, setRandomQuote] = useState<{ text: string; author: string | null } | null>(null);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [sendingFeedback, setSendingFeedback] = useState(false);
+
   // Load presets from localStorage
   useEffect(() => {
     const savedPresets = localStorage.getItem("generationPresets");
@@ -281,6 +286,61 @@ export function WebsiteGenerator() {
       }
     }
   }, []);
+
+  // Fetch random quote
+  useEffect(() => {
+    const fetchRandomQuote = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("quotes")
+          .select("text, author")
+          .eq("is_active", true);
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          const randomIndex = Math.floor(Math.random() * data.length);
+          setRandomQuote(data[randomIndex]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch quote:", error);
+        // Fallback quote
+        setRandomQuote({ text: "Код — це поезія, яку розуміють машини", author: "Генератор мудростей v2.0" });
+      }
+    };
+
+    fetchRandomQuote();
+  }, []);
+
+  // Submit feedback
+  const submitFeedback = async () => {
+    if (!feedbackText.trim() || !user) return;
+
+    setSendingFeedback(true);
+    try {
+      const { error } = await supabase.from("feedback").insert({
+        user_id: user.id,
+        message: feedbackText.trim(),
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Дякуємо за фідбек!",
+        description: "Ми обов'язково його розглянемо",
+      });
+      setFeedbackText("");
+    } catch (error) {
+      console.error("Error submitting feedback:", error);
+      toast({
+        title: "Помилка",
+        description: "Не вдалося надіслати фідбек",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingFeedback(false);
+    }
+  };
 
   // Fetch teams for admin selection
   useEffect(() => {
@@ -903,12 +963,16 @@ export function WebsiteGenerator() {
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="w-full max-w-4xl space-y-4">
           {/* Inspirational quote */}
-          <div className="text-center py-4">
-            <blockquote className="text-lg italic text-muted-foreground">
-              "Код — це поезія, яку розуміють машини"
-            </blockquote>
-            <p className="text-xs text-muted-foreground/60 mt-1">— Генератор мудростей v2.0</p>
-          </div>
+          {randomQuote && (
+            <div className="text-center py-4">
+              <blockquote className="text-lg italic text-muted-foreground">
+                "{randomQuote.text}"
+              </blockquote>
+              {randomQuote.author && (
+                <p className="text-xs text-muted-foreground/60 mt-1">— {randomQuote.author}</p>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-3">
             {/* Dashboard - compact */}
@@ -1012,9 +1076,20 @@ export function WebsiteGenerator() {
             <Textarea 
               placeholder="Напишіть свої побажання, ідеї або скарги..."
               className="min-h-[60px] text-sm resize-none"
+              value={feedbackText}
+              onChange={(e) => setFeedbackText(e.target.value)}
             />
             <div className="flex justify-end mt-2">
-              <Button size="sm" variant="outline" className="text-xs">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="text-xs"
+                onClick={submitFeedback}
+                disabled={!feedbackText.trim() || sendingFeedback}
+              >
+                {sendingFeedback ? (
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                ) : null}
                 Надіслати
               </Button>
             </div>
