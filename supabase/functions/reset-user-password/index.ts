@@ -34,10 +34,11 @@ serve(async (req: Request) => {
 
     // Перевіряємо авторизацію запиту
     const authHeader = req.headers.get("Authorization");
-    console.log("reset-user-password: Auth header present:", !!authHeader);
-    
-    if (!authHeader) {
-      console.log("reset-user-password: No auth header");
+    const authPreview = authHeader ? `${authHeader.slice(0, 12)}... (len=${authHeader.length})` : null;
+    console.log("reset-user-password: Auth header:", authPreview);
+
+    if (!authHeader || authHeader === "Bearer" || authHeader === "Bearer " || authHeader.includes("undefined") || authHeader.includes("null")) {
+      console.log("reset-user-password: Missing/invalid auth header");
       return new Response(
         JSON.stringify({ error: "Unauthorized - no auth header" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }

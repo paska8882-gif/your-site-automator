@@ -310,10 +310,20 @@ export const AdminUsersManager = () => {
 
     setResettingPassword(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+
+      if (!accessToken) {
+        throw new Error("Спочатку увійдіть як адмін (нема активної сесії)");
+      }
+
       const { data, error } = await supabase.functions.invoke("reset-user-password", {
         body: {
           userId: resetPasswordUser.user_id,
           newPassword,
+        },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
         },
       });
 
