@@ -310,27 +310,20 @@ export const AdminUsersManager = () => {
 
     setResettingPassword(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/reset-user-password`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${session?.access_token}`
-          },
-          body: JSON.stringify({
-            userId: resetPasswordUser.user_id,
-            newPassword
-          })
-        }
-      );
+      const { data, error } = await supabase.functions.invoke("reset-user-password", {
+        body: {
+          userId: resetPasswordUser.user_id,
+          newPassword,
+        },
+      });
 
-      const result = await response.json();
+      if (error) {
+        throw error;
+      }
 
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to reset password");
+      const result = data as any;
+      if (!result?.success) {
+        throw new Error(result?.error || "Failed to reset password");
       }
 
       toast({

@@ -44,14 +44,19 @@ serve(async (req: Request) => {
       );
     }
 
-    // Витягуємо токен
-    const token = authHeader.replace("Bearer ", "");
-    
-    // Перевіряємо користувача через admin client
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
-    
+    // Перевіряємо користувача через клієнт з JWT у заголовку
+    const supabaseUser = createClient(supabaseUrl, supabaseServiceKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+
+    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
+
     console.log("reset-user-password: User check result:", { userId: user?.id, error: userError?.message });
-    
+
     if (userError || !user) {
       console.log("reset-user-password: User verification failed");
       return new Response(
