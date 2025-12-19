@@ -12,6 +12,8 @@ import { useAdmin } from "@/hooks/useAdmin";
 import { format, subDays, eachDayOfInterval } from "date-fns";
 import { uk } from "date-fns/locale";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { BalanceRequestForm } from "@/components/BalanceRequestForm";
+import { BalanceRequestsList } from "@/components/BalanceRequestsList";
 
 interface Transaction {
   id: string;
@@ -49,6 +51,16 @@ interface TeamSpendingData {
   count: number;
 }
 
+interface BalanceRequest {
+  id: string;
+  amount: number;
+  note: string;
+  status: string;
+  admin_comment: string | null;
+  created_at: string;
+  processed_at: string | null;
+}
+
 const CHART_COLORS = [
   "hsl(var(--primary))",
   "hsl(var(--chart-2))",
@@ -70,6 +82,7 @@ const Balance = () => {
   const [dailyData, setDailyData] = useState<DailyData[]>([]);
   const [buyerData, setBuyerData] = useState<BuyerData[]>([]);
   const [teamSpendingData, setTeamSpendingData] = useState<TeamSpendingData[]>([]);
+  const [balanceRequests, setBalanceRequests] = useState<BalanceRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -81,8 +94,23 @@ const Balance = () => {
   useEffect(() => {
     if (user) {
       fetchFinancialData();
+      fetchBalanceRequests();
     }
   }, [user, isTeamOwner, isAdmin]);
+
+  const fetchBalanceRequests = async () => {
+    try {
+      const { data } = await supabase
+        .from("balance_requests")
+        .select("id, amount, note, status, admin_comment, created_at, processed_at")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: false });
+      
+      setBalanceRequests(data || []);
+    } catch (error) {
+      console.error("Error fetching balance requests:", error);
+    }
+  };
 
   const fetchFinancialData = async () => {
     setIsLoading(true);
@@ -515,6 +543,21 @@ const Balance = () => {
                 </Card>
               )}
             </div>
+
+            {/* Balance Requests Section */}
+            {teamInfo && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <BalanceRequestForm 
+                  userId={user.id} 
+                  teamId={teamInfo.id}
+                  onSuccess={fetchBalanceRequests}
+                />
+                <BalanceRequestsList 
+                  requests={balanceRequests}
+                  loading={false}
+                />
+              </div>
+            )}
 
             {/* Transactions List */}
             <Card className="p-3">

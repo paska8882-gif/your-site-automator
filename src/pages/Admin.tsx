@@ -13,6 +13,7 @@ import { AdminSupportTab } from "@/components/AdminSupportTab";
 import { AdminNotificationsManager } from "@/components/AdminNotificationsManager";
 import { AdminFeedbackTab } from "@/components/AdminFeedbackTab";
 import { AdminQuotesTab } from "@/components/AdminQuotesTab";
+import { AdminBalanceRequestsTab } from "@/components/AdminBalanceRequestsTab";
 import { AppLayout } from "@/components/AppLayout";
 
 const Admin = () => {
@@ -69,6 +70,8 @@ const Admin = () => {
             <AdminNotificationsManager />
           </div>
         );
+      case "balance-requests":
+        return <AdminBalanceRequestsTab />;
       case "finance":
         return <AdminFinanceTab />;
       case "admin":
