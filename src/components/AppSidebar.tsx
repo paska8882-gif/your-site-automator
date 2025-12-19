@@ -33,10 +33,12 @@ import {
   UserCog,
   DollarSign,
   MessageSquare,
-  MessageCircle
+  MessageCircle,
+  CreditCard
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useSuperAdmin } from "@/hooks/useSuperAdmin";
 import { useTheme } from "@/hooks/useTheme";
 import { NotificationBell } from "./NotificationBell";
 import { SupportChat } from "./SupportChat";
@@ -59,11 +61,16 @@ const adminNavItems = [
   { title: "Адміни", tab: "admin", icon: Settings },
 ];
 
+const superAdminNavItems = [
+  { title: "Реквізити", tab: "payment-details", icon: CreditCard },
+];
+
 export function AppSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, signOut } = useAuth();
   const { isAdmin } = useAdmin();
+  const { isSuperAdmin } = useSuperAdmin();
   const { state } = useSidebar();
   const { theme, toggleTheme } = useTheme();
   const collapsed = state === "collapsed";
@@ -155,6 +162,19 @@ export function AppSidebar() {
                       isActive={isAdminPage && getAdminTab() === item.tab}
                       tooltip={item.title}
                       className="transition-colors"
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+                {isSuperAdmin && superAdminNavItems.map((item) => (
+                  <SidebarMenuItem key={item.tab}>
+                    <SidebarMenuButton
+                      onClick={() => navigate(`/admin?tab=${item.tab}`)}
+                      isActive={isAdminPage && getAdminTab() === item.tab}
+                      tooltip={item.title}
+                      className="transition-colors text-amber-500"
                     >
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>

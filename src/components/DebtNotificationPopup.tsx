@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, Copy, Check, MessageCircle, Wallet } from "lucide-react";
+import { AlertTriangle, Copy, Check, MessageCircle, Wallet, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DebtNotificationPopupProps {
   open: boolean;
@@ -17,10 +18,10 @@ interface DebtNotificationPopupProps {
   balance: number;
 }
 
-const PAYMENT_ADDRESSES = {
-  TRC20: "TDdkv5moLsjkjtL5pUXsgDZ79HGYB8k2kS",
-  ERC20: "0x5fda65463736a538b29055eee3fdf3920f9ea3e2",
-};
+interface PaymentAddress {
+  network: string;
+  address: string;
+}
 
 export function DebtNotificationPopup({
   open,
@@ -30,6 +31,31 @@ export function DebtNotificationPopup({
 }: DebtNotificationPopupProps) {
   const navigate = useNavigate();
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+  const [addresses, setAddresses] = useState<PaymentAddress[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (open) {
+      fetchAddresses();
+    }
+  }, [open]);
+
+  const fetchAddresses = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("payment_addresses")
+      .select("network, address")
+      .eq("is_active", true)
+      .neq("address", "")
+      .order("network");
+
+    if (error) {
+      console.error("Error fetching addresses:", error);
+    } else {
+      setAddresses(data || []);
+    }
+    setLoading(false);
+  };
 
   const handleCopy = async (network: string, address: string) => {
     try {
@@ -74,37 +100,47 @@ export function DebtNotificationPopup({
               🔥 Реквізити на оплату
             </h4>
 
-            {Object.entries(PAYMENT_ADDRESSES).map(([network, address]) => (
-              <div
-                key={network}
-                className="rounded-lg border bg-muted/50 p-3 space-y-2"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-sm">{network}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 gap-1"
-                    onClick={() => handleCopy(network, address)}
-                  >
-                    {copiedAddress === network ? (
-                      <>
-                        <Check className="h-3.5 w-3.5 text-green-500" />
-                        <span className="text-xs text-green-500">Скопійовано</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3.5 w-3.5" />
-                        <span className="text-xs">Копіювати</span>
-                      </>
-                    )}
-                  </Button>
-                </div>
-                <code className="block text-xs bg-background rounded p-2 break-all select-all font-mono">
-                  {address}
-                </code>
+            {loading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
-            ))}
+            ) : addresses.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-2">
+                Немає доступних реквізитів
+              </p>
+            ) : (
+              addresses.map((addr) => (
+                <div
+                  key={addr.network}
+                  className="rounded-lg border bg-muted/50 p-3 space-y-2"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-sm">{addr.network}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 gap-1"
+                      onClick={() => handleCopy(addr.network, addr.address)}
+                    >
+                      {copiedAddress === addr.network ? (
+                        <>
+                          <Check className="h-3.5 w-3.5 text-green-500" />
+                          <span className="text-xs text-green-500">Скопійовано</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3.5 w-3.5" />
+                          <span className="text-xs">Копіювати</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <code className="block text-xs bg-background rounded p-2 break-all select-all font-mono">
+                    {addr.address}
+                  </code>
+                </div>
+              ))
+            )}
           </div>
 
           <div className="pt-2 border-t space-y-2">

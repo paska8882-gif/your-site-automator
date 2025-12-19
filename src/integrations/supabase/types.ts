@@ -337,6 +337,60 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_address_history: {
+        Row: {
+          changed_at: string
+          changed_by: string
+          id: string
+          network: string
+          new_address: string
+          old_address: string | null
+        }
+        Insert: {
+          changed_at?: string
+          changed_by: string
+          id?: string
+          network: string
+          new_address: string
+          old_address?: string | null
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string
+          id?: string
+          network?: string
+          new_address?: string
+          old_address?: string | null
+        }
+        Relationships: []
+      }
+      payment_addresses: {
+        Row: {
+          address: string
+          created_at: string
+          id: string
+          is_active: boolean
+          network: string
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          network: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          network?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -601,6 +655,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       is_team_member: {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
@@ -615,7 +670,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "super_admin"
       member_status: "pending" | "approved" | "rejected"
       team_role: "owner" | "team_lead" | "buyer" | "tech_dev"
     }
@@ -745,7 +800,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "super_admin"],
       member_status: ["pending", "approved", "rejected"],
       team_role: ["owner", "team_lead", "buyer", "tech_dev"],
     },
