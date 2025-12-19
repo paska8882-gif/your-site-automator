@@ -20,7 +20,8 @@ import {
   Pencil,
   Check,
   X,
-  UserCog
+  UserCog,
+  KeyRound
 } from "lucide-react";
 
 type TeamRole = "owner" | "team_lead" | "buyer" | "tech_dev";
@@ -73,6 +74,12 @@ export const AdminUsersManager = () => {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editDisplayName, setEditDisplayName] = useState("");
   const [savingName, setSavingName] = useState(false);
+
+  // Reset password dialog
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [resetPasswordUser, setResetPasswordUser] = useState<UserWithRoles | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -283,6 +290,67 @@ export const AdminUsersManager = () => {
     setSavingName(false);
   };
 
+  const openResetPasswordDialog = (user: UserWithRoles) => {
+    setResetPasswordUser(user);
+    setNewPassword("");
+    setResetPasswordDialogOpen(true);
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetPasswordUser || !newPassword) return;
+    
+    if (newPassword.length < 6) {
+      toast({
+        title: "Помилка",
+        description: "Пароль має бути мінімум 6 символів",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setResettingPassword(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/reset-user-password`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({
+            userId: resetPasswordUser.user_id,
+            newPassword
+          })
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to reset password");
+      }
+
+      toast({
+        title: "Успішно",
+        description: `Пароль для ${resetPasswordUser.display_name || resetPasswordUser.user_id.slice(0, 8)} змінено`
+      });
+
+      setResetPasswordDialogOpen(false);
+      setResetPasswordUser(null);
+      setNewPassword("");
+    } catch (error) {
+      toast({
+        title: "Помилка",
+        description: error instanceof Error ? error.message : "Не вдалося скинути пароль",
+        variant: "destructive"
+      });
+    }
+    setResettingPassword(false);
+  };
+
   const filteredUsers = users.filter(user => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
@@ -470,6 +538,15 @@ export const AdminUsersManager = () => {
                           variant="outline"
                           size="sm"
                           className="h-6 text-[10px] px-1.5"
+                          onClick={() => openResetPasswordDialog(user)}
+                          title="Скинути пароль"
+                        >
+                          <KeyRound className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 text-[10px] px-1.5"
                           onClick={() => openAssignDialog(user)}
                         >
                           <UserPlus className="h-3 w-3 mr-0.5" />
@@ -557,6 +634,41 @@ export const AdminUsersManager = () => {
               {selectedUser?.teams.find(t => t.team_id === selectedTeam) 
                 ? "Оновити роль" 
                 : "Призначити"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={resetPasswordDialogOpen} onOpenChange={setResetPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Скинути пароль: {resetPasswordUser?.display_name || resetPasswordUser?.user_id.slice(0, 8)}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Новий пароль</label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Мінімум 6 символів"
+                className="mt-1"
+              />
+            </div>
+            <Button 
+              onClick={handleResetPassword} 
+              disabled={!newPassword || newPassword.length < 6 || resettingPassword}
+              className="w-full"
+            >
+              {resettingPassword ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <KeyRound className="h-4 w-4 mr-2" />
+              )}
+              Скинути пароль
             </Button>
           </div>
         </DialogContent>
