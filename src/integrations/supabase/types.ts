@@ -567,6 +567,7 @@ export type Database = {
       }
       referral_settings: {
         Row: {
+          default_max_referral_invites: number
           id: string
           invite_reward: number
           milestone_generations: number
@@ -576,6 +577,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          default_max_referral_invites?: number
           id?: string
           invite_reward?: number
           milestone_generations?: number
@@ -585,6 +587,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          default_max_referral_invites?: number
           id?: string
           invite_reward?: number
           milestone_generations?: number

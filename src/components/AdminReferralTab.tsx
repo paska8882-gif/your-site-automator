@@ -25,6 +25,7 @@ interface ReferralSettings {
   milestone_reward: number;
   milestone_generations: number;
   new_user_bonus: number;
+  default_max_referral_invites: number;
 }
 
 interface ReferralReward {
@@ -70,7 +71,8 @@ export function AdminReferralTab() {
     invite_reward: 70,
     milestone_reward: 70,
     milestone_generations: 50,
-    new_user_bonus: 100
+    new_user_bonus: 100,
+    default_max_referral_invites: 4
   });
   const [rewards, setRewards] = useState<ReferralReward[]>([]);
   const [invites, setInvites] = useState<ReferralInvite[]>([]);
@@ -114,7 +116,8 @@ export function AdminReferralTab() {
         invite_reward: settingsData.invite_reward,
         milestone_reward: settingsData.milestone_reward,
         milestone_generations: settingsData.milestone_generations,
-        new_user_bonus: settingsData.new_user_bonus
+        new_user_bonus: settingsData.new_user_bonus,
+        default_max_referral_invites: settingsData.default_max_referral_invites ?? 4
       });
     }
 
@@ -235,6 +238,7 @@ export function AdminReferralTab() {
         milestone_reward: settingsForm.milestone_reward,
         milestone_generations: settingsForm.milestone_generations,
         new_user_bonus: settingsForm.new_user_bonus,
+        default_max_referral_invites: settingsForm.default_max_referral_invites,
         updated_at: new Date().toISOString(),
         updated_by: user?.id
       })
@@ -801,6 +805,20 @@ export function AdminReferralTab() {
                   />
                   <p className="text-xs text-muted-foreground">
                     Бонус на баланс для кожного нового користувача
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Ліміт реферальних кодів за замовчуванням</Label>
+                  <Input
+                    type="number"
+                    value={settingsForm.default_max_referral_invites}
+                    onChange={(e) => setSettingsForm(prev => ({ ...prev, default_max_referral_invites: parseInt(e.target.value) || 4 }))}
+                    disabled={!editingSettings}
+                    min={1}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Максимальна кількість активних реферальних кодів для нових команд
                   </p>
                 </div>
               </div>
