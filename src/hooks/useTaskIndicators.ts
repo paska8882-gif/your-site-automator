@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useTaskNotificationSound } from "@/hooks/useTaskNotificationSound";
 
 interface TaskIndicators {
   hasNewTasks: boolean;
@@ -13,8 +14,13 @@ export const useTaskIndicators = (): TaskIndicators => {
   const [hasNewTasks, setHasNewTasks] = useState(false);
   const [hasProblematic, setHasProblematic] = useState(false);
   const [loading, setLoading] = useState(true);
+  const { playNewTaskSound, playProblematicTaskSound } = useTaskNotificationSound();
+  
+  const prevHasNewTasks = useRef(false);
+  const prevHasProblematic = useRef(false);
+  const isInitialLoad = useRef(true);
 
-  const fetchIndicators = async () => {
+  const fetchIndicators = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -27,7 +33,15 @@ export const useTaskIndicators = (): TaskIndicators => {
         .limit(1);
 
       if (!newError) {
-        setHasNewTasks((newTasks?.length || 0) > 0);
+        const newHasNewTasks = (newTasks?.length || 0) > 0;
+        
+        // Play sound if new tasks appeared (not on initial load)
+        if (!isInitialLoad.current && newHasNewTasks && !prevHasNewTasks.current) {
+          playNewTaskSound();
+        }
+        
+        prevHasNewTasks.current = newHasNewTasks;
+        setHasNewTasks(newHasNewTasks);
       }
 
       // Check for problematic tasks (assigned to user or created by user)
@@ -39,14 +53,24 @@ export const useTaskIndicators = (): TaskIndicators => {
         .limit(1);
 
       if (!probError) {
-        setHasProblematic((problematicTasks?.length || 0) > 0);
+        const newHasProblematic = (problematicTasks?.length || 0) > 0;
+        
+        // Play sound if problematic tasks appeared (not on initial load)
+        if (!isInitialLoad.current && newHasProblematic && !prevHasProblematic.current) {
+          playProblematicTaskSound();
+        }
+        
+        prevHasProblematic.current = newHasProblematic;
+        setHasProblematic(newHasProblematic);
       }
+      
+      isInitialLoad.current = false;
     } catch (error) {
       console.error("Error fetching task indicators:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, playNewTaskSound, playProblematicTaskSound]);
 
   useEffect(() => {
     fetchIndicators();
@@ -66,7 +90,7 @@ export const useTaskIndicators = (): TaskIndicators => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [fetchIndicators]);
 
   return { hasNewTasks, hasProblematic, loading };
 };
