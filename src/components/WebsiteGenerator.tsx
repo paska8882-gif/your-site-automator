@@ -823,6 +823,9 @@ export function WebsiteGenerator() {
     ? (teamPricing.balance - calculateTotalCost()) < -selectedTeamCreditLimit
     : false;
 
+  // Maximum concurrent generations limit
+  const MAX_CONCURRENT_GENERATIONS = 30;
+
   const handleGenerateClick = () => {
     if (!siteName.trim()) {
       toast({
@@ -856,6 +859,16 @@ export function WebsiteGenerator() {
       toast({
         title: "Помилка",
         description: "Оберіть хоча б одну мову",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check max concurrent generations limit
+    if (totalGenerations > MAX_CONCURRENT_GENERATIONS) {
+      toast({
+        title: "Забагато генерацій",
+        description: `Максимум ${MAX_CONCURRENT_GENERATIONS} генерацій одночасно. Ви обрали ${totalGenerations}. Зменшіть кількість мов, стилів або сайтів на мову.`,
         variant: "destructive",
       });
       return;
@@ -1498,8 +1511,9 @@ export function WebsiteGenerator() {
                     className="w-16 h-8 text-xs"
                     disabled={isSubmitting}
                   />
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
-                    = <strong>{totalGenerations}</strong> сайтів
+                  <span className={`text-xs whitespace-nowrap ${totalGenerations > MAX_CONCURRENT_GENERATIONS ? 'text-destructive font-medium' : totalGenerations > 20 ? 'text-yellow-600' : 'text-muted-foreground'}`}>
+                    = <strong>{totalGenerations}</strong>/{MAX_CONCURRENT_GENERATIONS} сайтів
+                    {totalGenerations > MAX_CONCURRENT_GENERATIONS && " ⚠️"}
                   </span>
                 </div>
               </div>
@@ -1803,9 +1817,10 @@ export function WebsiteGenerator() {
             {/* Cost breakdown */}
             {teamPricing && totalGenerations > 0 && (
               <Collapsible open={showCostBreakdown} onOpenChange={setShowCostBreakdown}>
-                <div className="flex items-center justify-between text-xs text-muted-foreground border border-border p-2">
-                  <span>
-                    {allLanguages.length}×{sitesPerLanguage}×{styleCount}×{aiModelCount}×{websiteTypeCount}×{imageSourceCount} = <strong className="text-foreground">{totalGenerations}</strong> сайтів • <strong className="text-foreground">${calculateTotalCost().toFixed(2)}</strong>
+                <div className={`flex items-center justify-between text-xs border p-2 ${totalGenerations > MAX_CONCURRENT_GENERATIONS ? 'border-destructive bg-destructive/5' : 'border-border'}`}>
+                  <span className={totalGenerations > MAX_CONCURRENT_GENERATIONS ? 'text-destructive' : 'text-muted-foreground'}>
+                    {allLanguages.length}×{sitesPerLanguage}×{styleCount}×{aiModelCount}×{websiteTypeCount}×{imageSourceCount} = <strong className={totalGenerations > MAX_CONCURRENT_GENERATIONS ? 'text-destructive' : 'text-foreground'}>{totalGenerations}/{MAX_CONCURRENT_GENERATIONS}</strong> сайтів • <strong className="text-foreground">${calculateTotalCost().toFixed(2)}</strong>
+                    {totalGenerations > MAX_CONCURRENT_GENERATIONS && " (перевищено ліміт!)"}
                   </span>
                   <CollapsibleTrigger asChild>
                     <Button variant="ghost" size="sm" className="h-5 px-1 text-xs">
