@@ -124,7 +124,7 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-2">
+      <SidebarContent className="px-2 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         {/* Main Navigation */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs text-sidebar-muted px-2">
