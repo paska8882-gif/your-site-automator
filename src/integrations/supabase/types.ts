@@ -747,6 +747,7 @@ export type Database = {
           created_by: string
           credit_limit: number
           id: string
+          max_referral_invites: number
           name: string
         }
         Insert: {
@@ -756,6 +757,7 @@ export type Database = {
           created_by: string
           credit_limit?: number
           id?: string
+          max_referral_invites?: number
           name: string
         }
         Update: {
@@ -765,6 +767,7 @@ export type Database = {
           created_by?: string
           credit_limit?: number
           id?: string
+          max_referral_invites?: number
           name?: string
         }
         Relationships: []
