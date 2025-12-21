@@ -123,8 +123,8 @@ export const InviteCodesManager = () => {
   };
 
   return (
-    <Card>
-      <CardHeader className="py-2 px-3">
+    <Card className="flex flex-col h-full">
+      <CardHeader className="py-2 px-3 flex-shrink-0">
         <CardTitle className="flex items-center justify-between text-sm">
           <div className="flex items-center gap-1.5">
             <Ticket className="h-3.5 w-3.5" />
@@ -141,9 +141,9 @@ export const InviteCodesManager = () => {
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2 px-3 pb-3">
+      <CardContent className="space-y-2 px-3 pb-3 flex-1 flex flex-col min-h-0">
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2 flex-shrink-0">
           <div className="text-center p-1.5 rounded-md bg-muted">
             <div className="text-sm font-bold">{stats.total}</div>
             <div className="text-[10px] text-muted-foreground">Всього</div>
@@ -166,7 +166,7 @@ export const InviteCodesManager = () => {
         ) : codes.length === 0 ? (
           <p className="text-center text-muted-foreground py-2 text-xs">Немає кодів</p>
         ) : (
-          <div className="space-y-1 max-h-[200px] overflow-y-auto">
+          <div className="space-y-1 flex-1 overflow-y-auto">
             {codes.map((code) => (
               <div key={code.id} className="flex items-center justify-between p-1.5 rounded-md border bg-card">
                 <div className="flex items-center gap-2">
