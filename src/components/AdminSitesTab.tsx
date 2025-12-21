@@ -5,12 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { EditPreview } from "@/components/EditPreview";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import JSZip from "jszip";
 import { 
   Search, 
   Download, 
@@ -27,7 +32,9 @@ import {
   ArrowDown,
   RefreshCw,
   Eye,
-  Pencil
+  Pencil,
+  Upload,
+  Plus
 } from "lucide-react";
 
 interface GeneratedFile {
@@ -107,8 +114,26 @@ interface UserRoleMap {
   [userId: string]: UserRoleInfo | null;
 }
 
+interface TeamInfo {
+  id: string;
+  name: string;
+  balance: number;
+}
+
+interface ExternalUploadForm {
+  teamId: string;
+  siteName: string;
+  prompt: string;
+  language: string;
+  websiteType: string;
+  aiModel: string;
+  salePrice: number;
+  generationCost: number;
+}
+
 export const AdminSitesTab = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [history, setHistory] = useState<GenerationItem[]>([]);
   const [profiles, setProfiles] = useState<Record<string, UserProfile>>({});
   const [teamsMap, setTeamsMap] = useState<Record<string, string>>({});
@@ -121,6 +146,22 @@ export const AdminSitesTab = () => {
   const [previewItem, setPreviewItem] = useState<GenerationItem | null>(null);
   const [previewFiles, setPreviewFiles] = useState<GeneratedFile[]>([]);
   const [selectedPreviewFile, setSelectedPreviewFile] = useState<GeneratedFile | null>(null);
+  
+  // External upload dialog state
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [teams, setTeams] = useState<TeamInfo[]>([]);
+  const [uploadForm, setUploadForm] = useState<ExternalUploadForm>({
+    teamId: "",
+    siteName: "",
+    prompt: "",
+    language: "uk",
+    websiteType: "html",
+    aiModel: "senior",
+    salePrice: 0,
+    generationCost: 0
+  });
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   
   // Sorting
   const [sortColumn, setSortColumn] = useState<SortColumn>("created_at");
@@ -137,7 +178,16 @@ export const AdminSitesTab = () => {
 
   useEffect(() => {
     fetchAllGenerations();
+    fetchTeams();
   }, []);
+
+  const fetchTeams = async () => {
+    const { data } = await supabase
+      .from("teams")
+      .select("id, name, balance")
+      .order("name");
+    setTeams(data || []);
+  };
 
   const fetchAllGenerations = async () => {
     setLoading(true);
@@ -196,6 +246,134 @@ export const AdminSitesTab = () => {
       }
     }
     setLoading(false);
+  };
+
+  const handleExternalUpload = async () => {
+    if (!uploadFile || !uploadForm.teamId || !uploadForm.prompt || !uploadForm.siteName) {
+      toast.error("Заповніть всі обов'язкові поля та виберіть ZIP файл");
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      // Read and parse ZIP file
+      const zip = new JSZip();
+      const zipContent = await zip.loadAsync(uploadFile);
+      
+      // Extract files from ZIP
+      const filesData: GeneratedFile[] = [];
+      const filePromises: Promise<void>[] = [];
+      
+      zipContent.forEach((relativePath, file) => {
+        if (!file.dir) {
+          filePromises.push(
+            file.async("string").then(content => {
+              filesData.push({
+                path: relativePath,
+                content: content
+              });
+            })
+          );
+        }
+      });
+      
+      await Promise.all(filePromises);
+
+      // Convert ZIP to base64
+      const arrayBuffer = await uploadFile.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = "";
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const zipBase64 = btoa(binary);
+
+      // Get the team to find owner
+      const selectedTeam = teams.find(t => t.id === uploadForm.teamId);
+      if (!selectedTeam) {
+        toast.error("Команда не знайдена");
+        setUploading(false);
+        return;
+      }
+
+      // Get team owner
+      const { data: ownerData } = await supabase
+        .from("team_members")
+        .select("user_id")
+        .eq("team_id", uploadForm.teamId)
+        .eq("role", "owner")
+        .eq("status", "approved")
+        .single();
+
+      const ownerId = ownerData?.user_id || null;
+
+      // Create generation history record
+      const now = new Date().toISOString();
+      const { error: insertError } = await supabase
+        .from("generation_history")
+        .insert([{
+          prompt: uploadForm.prompt,
+          site_name: uploadForm.siteName,
+          language: uploadForm.language,
+          website_type: uploadForm.websiteType,
+          ai_model: uploadForm.aiModel,
+          sale_price: uploadForm.salePrice,
+          generation_cost: uploadForm.generationCost,
+          team_id: uploadForm.teamId,
+          user_id: ownerId,
+          status: "completed",
+          files_data: filesData as unknown as null,
+          zip_data: zipBase64,
+          completed_at: now,
+          image_source: "external"
+        }]);
+
+      if (insertError) throw insertError;
+
+      // Update team balance (deduct sale_price)
+      if (uploadForm.salePrice > 0) {
+        const { error: balanceError } = await supabase
+          .from("teams")
+          .update({ balance: selectedTeam.balance - uploadForm.salePrice })
+          .eq("id", uploadForm.teamId);
+
+        if (balanceError) throw balanceError;
+
+        // Create balance transaction record
+        await supabase
+          .from("balance_transactions")
+          .insert({
+            team_id: uploadForm.teamId,
+            amount: -uploadForm.salePrice,
+            balance_before: selectedTeam.balance,
+            balance_after: selectedTeam.balance - uploadForm.salePrice,
+            note: `Зовнішня генерація: ${uploadForm.siteName}`,
+            admin_id: user?.id || ""
+          });
+      }
+
+      toast.success("Сайт успішно завантажено в історію");
+      setUploadDialogOpen(false);
+      setUploadForm({
+        teamId: "",
+        siteName: "",
+        prompt: "",
+        language: "uk",
+        websiteType: "html",
+        aiModel: "senior",
+        salePrice: 0,
+        generationCost: 0
+      });
+      setUploadFile(null);
+      fetchAllGenerations();
+      fetchTeams();
+    } catch (error) {
+      console.error("Error uploading external generation:", error);
+      toast.error("Помилка при завантаженні");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleDownload = async (item: GenerationItem) => {
@@ -465,11 +643,21 @@ export const AdminSitesTab = () => {
 
   return (
     <div className="space-y-3">
-      <AdminPageHeader 
-        icon={FileCode} 
-        title="Сайти" 
-        description="Історія всіх згенерованих сайтів" 
-      />
+      <div className="flex items-center justify-between">
+        <AdminPageHeader 
+          icon={FileCode} 
+          title="Сайти" 
+          description="Історія всіх згенерованих сайтів" 
+        />
+        <Button
+          size="sm"
+          onClick={() => setUploadDialogOpen(true)}
+          className="h-8"
+        >
+          <Upload className="h-4 w-4 mr-2" />
+          Завантажити зовнішній сайт
+        </Button>
+      </div>
       {/* Stats - compact row */}
       <div className="flex flex-wrap gap-2">
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
@@ -834,6 +1022,186 @@ export const AdminSitesTab = () => {
               />
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* External Upload Dialog */}
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              Завантажити зовнішню генерацію
+            </DialogTitle>
+            <DialogDescription>
+              Завантажте ZIP файл сайту, згенерованого на зовнішній платформі. 
+              Він буде доданий в історію команди як звичайна генерація.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Команда *</Label>
+              <Select
+                value={uploadForm.teamId}
+                onValueChange={(value) => setUploadForm(prev => ({ ...prev, teamId: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Виберіть команду" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teams.map(team => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.name} (баланс: ${team.balance.toFixed(2)})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Назва сайту *</Label>
+              <Input
+                value={uploadForm.siteName}
+                onChange={(e) => setUploadForm(prev => ({ ...prev, siteName: e.target.value }))}
+                placeholder="Назва сайту"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Промпт *</Label>
+              <Textarea
+                value={uploadForm.prompt}
+                onChange={(e) => setUploadForm(prev => ({ ...prev, prompt: e.target.value }))}
+                placeholder="Опис сайту / промпт генерації"
+                rows={3}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Мова</Label>
+                <Select
+                  value={uploadForm.language}
+                  onValueChange={(value) => setUploadForm(prev => ({ ...prev, language: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="uk">Українська</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="ru">Русский</SelectItem>
+                    <SelectItem value="de">Deutsch</SelectItem>
+                    <SelectItem value="fr">Français</SelectItem>
+                    <SelectItem value="es">Español</SelectItem>
+                    <SelectItem value="pl">Polski</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Тип сайту</Label>
+                <Select
+                  value={uploadForm.websiteType}
+                  onValueChange={(value) => setUploadForm(prev => ({ ...prev, websiteType: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="html">HTML</SelectItem>
+                    <SelectItem value="react">React</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>AI модель</Label>
+                <Select
+                  value={uploadForm.aiModel}
+                  onValueChange={(value) => setUploadForm(prev => ({ ...prev, aiModel: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="junior">Junior</SelectItem>
+                    <SelectItem value="senior">Senior</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Ціна продажу (списання з балансу)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={uploadForm.salePrice}
+                  onChange={(e) => setUploadForm(prev => ({ ...prev, salePrice: parseFloat(e.target.value) || 0 }))}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Собівартість генерації</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={uploadForm.generationCost}
+                onChange={(e) => setUploadForm(prev => ({ ...prev, generationCost: parseFloat(e.target.value) || 0 }))}
+                placeholder="0.00"
+              />
+              <p className="text-xs text-muted-foreground">
+                Для статистики. Не списується з балансу команди.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>ZIP файл *</Label>
+              <Input
+                type="file"
+                accept=".zip"
+                onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+              />
+              {uploadFile && (
+                <p className="text-xs text-muted-foreground">
+                  Вибрано: {uploadFile.name} ({(uploadFile.size / 1024).toFixed(1)} KB)
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setUploadDialogOpen(false)}
+              disabled={uploading}
+            >
+              Скасувати
+            </Button>
+            <Button
+              onClick={handleExternalUpload}
+              disabled={uploading || !uploadFile || !uploadForm.teamId || !uploadForm.prompt || !uploadForm.siteName}
+            >
+              {uploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Завантаження...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Завантажити
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
