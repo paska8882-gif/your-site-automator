@@ -163,11 +163,19 @@ export function AppSidebar() {
               <SidebarMenu>
                 {adminNavItems.map((item) => {
                   const isTasksItem = item.tab === "tasks";
-                  const taskIndicatorClass = isTasksItem 
+                  const hasIndicator = isTasksItem && (hasProblematic || hasNewTasks);
+                  const indicatorBgClass = isTasksItem 
                     ? hasProblematic 
-                      ? "bg-red-500/20 text-red-500 hover:bg-red-500/30" 
+                      ? "bg-red-500/20 hover:bg-red-500/30" 
                       : hasNewTasks 
-                        ? "bg-amber-500/20 text-amber-500 hover:bg-amber-500/30" 
+                        ? "bg-amber-500/20 hover:bg-amber-500/30" 
+                        : ""
+                    : "";
+                  const indicatorTextClass = isTasksItem
+                    ? hasProblematic
+                      ? "text-red-500 animate-pulse font-semibold"
+                      : hasNewTasks
+                        ? "text-amber-500 animate-pulse font-semibold"
                         : ""
                     : "";
                   
@@ -177,15 +185,10 @@ export function AppSidebar() {
                         onClick={() => navigate(`/admin?tab=${item.tab}`)}
                         isActive={isAdminPage && getAdminTab() === item.tab}
                         tooltip={item.title}
-                        className={`transition-colors ${taskIndicatorClass}`}
+                        className={`transition-colors ${indicatorBgClass}`}
                       >
-                        <div className="relative">
-                          <item.icon className="h-4 w-4" />
-                          {isTasksItem && (hasProblematic || hasNewTasks) && (
-                            <span className={`absolute -top-1 -right-1 h-2 w-2 rounded-full ${hasProblematic ? "bg-red-500" : "bg-amber-500"} animate-pulse`} />
-                          )}
-                        </div>
-                        <span>{item.title}</span>
+                        <item.icon className={`h-4 w-4 ${hasIndicator ? indicatorTextClass : ""}`} />
+                        <span className={indicatorTextClass}>{item.title}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
