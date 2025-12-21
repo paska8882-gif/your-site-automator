@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
-import { ClipboardList, Plus, Clock, User, Users, GripVertical, Trash2, LayoutGrid, List, ChevronDown, UserCheck, Send, Flag, Filter, Pencil } from "lucide-react";
+import { TaskDetailsDialog } from "@/components/TaskDetailsDialog";
+import { ClipboardList, Plus, Clock, User, Users, GripVertical, Trash2, LayoutGrid, List, ChevronDown, UserCheck, Send, Flag, Filter, Pencil, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { uk } from "date-fns/locale";
 
@@ -93,6 +94,8 @@ export const AdminTasksTab = () => {
     team_id: "",
     priority: "medium" as TaskPriority,
   });
+  const [detailsTaskId, setDetailsTaskId] = useState<string | null>(null);
+  const [detailsTaskTitle, setDetailsTaskTitle] = useState("");
 
   // Filter tasks based on user role and priority
   const roleFilteredTasks = isSuperAdmin 
@@ -237,6 +240,7 @@ export const AdminTasksTab = () => {
       const task = tasks.find(t => t.id === taskId);
       if (!task) return;
 
+      const oldStatus = task.status;
       const updates: Record<string, unknown> = { status: newStatus };
       if (newStatus === "done") {
         updates.completed_at = new Date().toISOString();
@@ -248,6 +252,14 @@ export const AdminTasksTab = () => {
         .eq("id", taskId);
 
       if (error) throw error;
+
+      // Record status change history
+      await supabase.from("task_status_history").insert({
+        task_id: taskId,
+        old_status: oldStatus,
+        new_status: newStatus,
+        changed_by: user?.id,
+      });
 
       if (newStatus === "done" && task.created_by !== user?.id) {
         await supabase.from("notifications").insert({
@@ -402,6 +414,18 @@ export const AdminTasksTab = () => {
             <Badge className={`text-xs ${statusConfig[task.status].color}`}>
               {statusConfig[task.status].label}
             </Badge>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-muted-foreground hover:text-blue-500"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDetailsTaskId(task.id);
+                setDetailsTaskTitle(task.title);
+              }}
+            >
+              <MessageCircle className="h-3 w-3" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -882,6 +906,13 @@ export const AdminTasksTab = () => {
       ) : (
         renderListView()
       )}
+
+      <TaskDetailsDialog
+        taskId={detailsTaskId}
+        taskTitle={detailsTaskTitle}
+        isOpen={!!detailsTaskId}
+        onClose={() => setDetailsTaskId(null)}
+      />
     </div>
   );
 };
