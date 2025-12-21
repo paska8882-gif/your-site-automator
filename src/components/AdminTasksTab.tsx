@@ -41,9 +41,9 @@ interface Team {
 }
 
 const statusConfig = {
-  todo: { label: "До виконання", color: "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/40" },
-  in_progress: { label: "В процесі", color: "bg-sky-500/20 text-sky-600 dark:text-sky-400 border-sky-500/40" },
-  done: { label: "Виконано", color: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/40" },
+  todo: { label: "До виконання", color: "bg-amber-600 text-white border-amber-700" },
+  in_progress: { label: "В процесі", color: "bg-sky-600 text-white border-sky-700" },
+  done: { label: "Виконано", color: "bg-emerald-600 text-white border-emerald-700" },
 };
 
 export const AdminTasksTab = () => {
@@ -279,11 +279,11 @@ export const AdminTasksTab = () => {
   const getCardBackground = (status: "todo" | "in_progress" | "done") => {
     switch (status) {
       case "todo":
-        return "bg-amber-100 dark:bg-amber-500/15 hover:bg-amber-200 dark:hover:bg-amber-500/25";
+        return "bg-amber-200 dark:bg-amber-900/40 hover:bg-amber-300 dark:hover:bg-amber-800/50";
       case "in_progress":
-        return "bg-sky-100 dark:bg-sky-500/15 hover:bg-sky-200 dark:hover:bg-sky-500/25";
+        return "bg-sky-200 dark:bg-sky-900/40 hover:bg-sky-300 dark:hover:bg-sky-800/50";
       case "done":
-        return "bg-emerald-100 dark:bg-emerald-500/15 hover:bg-emerald-200 dark:hover:bg-emerald-500/25";
+        return "bg-emerald-200 dark:bg-emerald-900/40 hover:bg-emerald-300 dark:hover:bg-emerald-800/50";
     }
   };
 
