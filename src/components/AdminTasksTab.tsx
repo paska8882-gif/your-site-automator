@@ -53,6 +53,8 @@ export const AdminTasksTab = () => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverStatus, setDragOverStatus] = useState<string | null>(null);
   const [newTask, setNewTask] = useState({
     title: "",
     description: "",
@@ -238,29 +240,87 @@ export const AdminTasksTab = () => {
 
   const isOverdue = (deadline: string) => new Date(deadline) < new Date();
 
+  const handleDragStart = (e: React.DragEvent, taskId: string) => {
+    setDraggedTaskId(taskId);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTaskId(null);
+    setDragOverStatus(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, status: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverStatus(status);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverStatus(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, newStatus: "todo" | "in_progress" | "done") => {
+    e.preventDefault();
+    setDragOverStatus(null);
+    
+    if (!draggedTaskId) return;
+    
+    const task = tasks.find(t => t.id === draggedTaskId);
+    if (!task || task.status === newStatus) {
+      setDraggedTaskId(null);
+      return;
+    }
+
+    await updateTaskStatus(draggedTaskId, newStatus);
+    setDraggedTaskId(null);
+  };
+
+  const getCardBackground = (status: "todo" | "in_progress" | "done") => {
+    switch (status) {
+      case "todo":
+        return "bg-yellow-500/10 hover:bg-yellow-500/15";
+      case "in_progress":
+        return "bg-blue-500/10 hover:bg-blue-500/15";
+      case "done":
+        return "bg-green-500/10 hover:bg-green-500/15";
+    }
+  };
+
   const renderTaskCard = (task: AdminTask) => (
     <Card 
       key={task.id} 
-      className={`mb-3 bg-card/50 border ${isOverdue(task.deadline) && task.status !== "done" ? "border-red-500/50" : "border-border/50"}`}
+      draggable
+      onDragStart={(e) => handleDragStart(e, task.id)}
+      onDragEnd={handleDragEnd}
+      className={`mb-3 cursor-grab active:cursor-grabbing transition-all duration-200 ${getCardBackground(task.status)} border ${
+        isOverdue(task.deadline) && task.status !== "done" ? "border-red-500/50" : "border-border/50"
+      } ${draggedTaskId === task.id ? "opacity-50 scale-95" : "hover:scale-[1.02]"}`}
     >
       <CardContent className="p-3">
         <div className="flex items-start justify-between gap-2 mb-2">
-          <h4 className="font-medium text-sm line-clamp-2">{task.title}</h4>
+          <div className="flex items-center gap-2">
+            <GripVertical className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
+            <h4 className="font-medium text-sm line-clamp-2">{task.title}</h4>
+          </div>
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-destructive"
-            onClick={() => deleteTask(task.id)}
+            className="h-6 w-6 text-muted-foreground hover:text-destructive flex-shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteTask(task.id);
+            }}
           >
             <Trash2 className="h-3 w-3" />
           </Button>
         </div>
         
         {task.description && (
-          <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{task.description}</p>
+          <p className="text-xs text-muted-foreground mb-2 line-clamp-2 ml-6">{task.description}</p>
         )}
         
-        <div className="flex flex-wrap gap-1 mb-2">
+        <div className="flex flex-wrap gap-1 mb-2 ml-6">
           {task.team && (
             <Badge variant="outline" className="text-xs">
               <Users className="h-3 w-3 mr-1" />
@@ -269,30 +329,15 @@ export const AdminTasksTab = () => {
           )}
         </div>
         
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 ml-6">
           <User className="h-3 w-3" />
           <span>{task.assigned_profile?.display_name || "Невідомий"}</span>
         </div>
         
-        <div className={`flex items-center gap-2 text-xs ${isOverdue(task.deadline) && task.status !== "done" ? "text-red-400" : "text-muted-foreground"}`}>
+        <div className={`flex items-center gap-2 text-xs ml-6 ${isOverdue(task.deadline) && task.status !== "done" ? "text-red-400" : "text-muted-foreground"}`}>
           <Clock className="h-3 w-3" />
           <span>{format(new Date(task.deadline), "dd.MM.yyyy HH:mm", { locale: uk })}</span>
         </div>
-
-        {task.status !== "done" && (
-          <div className="mt-3 flex gap-1">
-            {task.status === "todo" && (
-              <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => updateTaskStatus(task.id, "in_progress")}>
-                Почати
-              </Button>
-            )}
-            {task.status === "in_progress" && (
-              <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => updateTaskStatus(task.id, "done")}>
-                Завершити
-              </Button>
-            )}
-          </div>
-        )}
       </CardContent>
     </Card>
   );
@@ -300,19 +345,31 @@ export const AdminTasksTab = () => {
   const renderColumn = (status: "todo" | "in_progress" | "done") => {
     const columnTasks = tasks.filter(t => t.status === status);
     const config = statusConfig[status];
+    const isDragOver = dragOverStatus === status;
 
     return (
-      <div className="flex-1 min-w-[280px]">
+      <div 
+        className="flex-1 min-w-[280px]"
+        onDragOver={(e) => handleDragOver(e, status)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, status)}
+      >
         <div className={`rounded-lg border ${config.color} p-3 mb-3`}>
           <div className="flex items-center justify-between">
             <span className="font-medium">{config.label}</span>
             <Badge variant="secondary" className="text-xs">{columnTasks.length}</Badge>
           </div>
         </div>
-        <div className="space-y-2 max-h-[calc(100vh-400px)] overflow-y-auto pr-1">
+        <div className={`space-y-2 max-h-[calc(100vh-400px)] overflow-y-auto pr-1 rounded-lg p-2 transition-colors duration-200 ${
+          isDragOver ? "bg-primary/10 ring-2 ring-primary/30" : ""
+        }`}>
           {columnTasks.map(renderTaskCard)}
           {columnTasks.length === 0 && (
-            <p className="text-center text-muted-foreground text-sm py-8">Немає завдань</p>
+            <p className={`text-center text-sm py-8 rounded-lg border-2 border-dashed transition-colors ${
+              isDragOver ? "border-primary/50 text-primary bg-primary/5" : "text-muted-foreground border-transparent"
+            }`}>
+              {isDragOver ? "Відпустіть тут" : "Немає завдань"}
+            </p>
           )}
         </div>
       </div>
