@@ -44,10 +44,10 @@ interface Team {
 }
 
 const statusConfig = {
-  todo: { label: "До виконання", color: "bg-slate-600 text-white border-slate-700" },
-  in_progress: { label: "В процесі", color: "bg-indigo-700 text-white border-indigo-800" },
-  done: { label: "Виконано", color: "bg-emerald-600 text-white border-emerald-700" },
-  problematic: { label: "Проблемні", color: "bg-red-600 text-white border-red-700" },
+  todo: { label: "До виконання", color: "bg-gradient-to-r from-slate-600 to-slate-700 text-white border-slate-800 shadow-slate-900/20" },
+  in_progress: { label: "В процесі", color: "bg-gradient-to-r from-blue-700 to-blue-900 text-white border-blue-950 shadow-blue-900/30" },
+  done: { label: "Виконано", color: "bg-gradient-to-r from-emerald-600 to-emerald-800 text-white border-emerald-900 shadow-emerald-900/30" },
+  problematic: { label: "Проблемні", color: "bg-gradient-to-r from-red-600 to-red-800 text-white border-red-900 shadow-red-900/30" },
 };
 
 export const AdminTasksTab = () => {
@@ -61,6 +61,7 @@ export const AdminTasksTab = () => {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
+  const [kanbanFilter, setKanbanFilter] = useState<"all" | "assigned" | "created">("all");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     assigned: true,
     created: true,
@@ -290,13 +291,13 @@ export const AdminTasksTab = () => {
   const getCardBackground = (status: "todo" | "in_progress" | "done" | "problematic") => {
     switch (status) {
       case "todo":
-        return "bg-slate-200 dark:bg-slate-800/50 hover:bg-slate-300 dark:hover:bg-slate-700/60";
+        return "bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 hover:from-slate-200 hover:to-slate-300 dark:hover:from-slate-700 dark:hover:to-slate-800";
       case "in_progress":
-        return "bg-indigo-200 dark:bg-indigo-900/50 hover:bg-indigo-300 dark:hover:bg-indigo-800/60";
+        return "bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-950 hover:from-blue-200 hover:to-blue-300 dark:hover:from-blue-800 dark:hover:to-blue-900";
       case "done":
-        return "bg-emerald-200 dark:bg-emerald-900/40 hover:bg-emerald-300 dark:hover:bg-emerald-800/50";
+        return "bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900 dark:to-emerald-950 hover:from-emerald-200 hover:to-emerald-300 dark:hover:from-emerald-800 dark:hover:to-emerald-900";
       case "problematic":
-        return "bg-red-200 dark:bg-red-900/50 hover:bg-red-300 dark:hover:bg-red-800/60";
+        return "bg-gradient-to-br from-red-100 to-red-200 dark:from-red-900 dark:to-red-950 hover:from-red-200 hover:to-red-300 dark:hover:from-red-800 dark:hover:to-red-900";
     }
   };
 
@@ -382,8 +383,20 @@ export const AdminTasksTab = () => {
     </Card>
   );
 
+  const getKanbanFilteredTasks = () => {
+    switch (kanbanFilter) {
+      case "assigned":
+        return myAssignedTasks;
+      case "created":
+        return myCreatedTasks;
+      default:
+        return filteredTasks;
+    }
+  };
+
   const renderColumn = (status: "todo" | "in_progress" | "done" | "problematic") => {
-    const columnTasks = filteredTasks.filter(t => t.status === status);
+    const kanbanTasks = getKanbanFilteredTasks();
+    const columnTasks = kanbanTasks.filter(t => t.status === status);
     const config = statusConfig[status];
     const isDragOver = dragOverStatus === status;
 
@@ -394,13 +407,13 @@ export const AdminTasksTab = () => {
         onDragLeave={handleDragLeave}
         onDrop={(e) => handleDrop(e, status)}
       >
-        <div className={`rounded-lg border ${config.color} p-3 mb-3`}>
+        <div className={`rounded-xl border ${config.color} p-3 mb-3 shadow-lg`}>
           <div className="flex items-center justify-between">
-            <span className="font-medium">{config.label}</span>
-            <Badge variant="secondary" className="text-xs">{columnTasks.length}</Badge>
+            <span className="font-semibold">{config.label}</span>
+            <Badge variant="secondary" className="text-xs bg-white/20 text-white border-0">{columnTasks.length}</Badge>
           </div>
         </div>
-        <div className={`space-y-2 max-h-[calc(100vh-400px)] overflow-y-auto pr-1 rounded-lg p-2 transition-colors duration-200 ${
+        <div className={`space-y-2 max-h-[calc(100vh-450px)] overflow-y-auto pr-1 rounded-lg p-2 transition-colors duration-200 ${
           isDragOver ? "bg-primary/10 ring-2 ring-primary/30" : ""
         }`}>
           {columnTasks.map(task => renderTaskCard(task))}
@@ -418,7 +431,7 @@ export const AdminTasksTab = () => {
 
   const renderListGroup = (title: string, icon: React.ReactNode, groupKey: string, taskList: AdminTask[]) => (
     <Collapsible open={expandedGroups[groupKey]} onOpenChange={() => toggleGroup(groupKey)} className="mb-4">
-      <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+      <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 rounded-xl bg-gradient-to-r from-muted/50 to-muted hover:from-muted hover:to-muted/80 transition-all shadow-sm">
         <ChevronDown className={`h-4 w-4 transition-transform ${expandedGroups[groupKey] ? "" : "-rotate-90"}`} />
         {icon}
         <span className="font-medium">{title}</span>
@@ -438,13 +451,13 @@ export const AdminTasksTab = () => {
     <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-350px)]">
       {renderListGroup(
         "Призначені мені",
-        <UserCheck className="h-4 w-4 text-indigo-500" />,
+        <UserCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />,
         "assigned",
         myAssignedTasks
       )}
       {renderListGroup(
         "Створені мною",
-        <Send className="h-4 w-4 text-emerald-500" />,
+        <Send className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />,
         "created",
         myCreatedTasks
       )}
@@ -493,11 +506,43 @@ export const AdminTasksTab = () => {
               <List className="h-4 w-4" />
             </Button>
           </div>
+
+          {viewMode === "kanban" && (
+            <div className="flex items-center gap-1 border rounded-lg p-1">
+              <Button
+                variant={kanbanFilter === "all" ? "default" : "ghost"}
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => setKanbanFilter("all")}
+              >
+                <Users className="h-3 w-3 mr-1" />
+                Всі
+              </Button>
+              <Button
+                variant={kanbanFilter === "assigned" ? "default" : "ghost"}
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => setKanbanFilter("assigned")}
+              >
+                <UserCheck className="h-3 w-3 mr-1" />
+                Мені
+              </Button>
+              <Button
+                variant={kanbanFilter === "created" ? "default" : "ghost"}
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => setKanbanFilter("created")}
+              >
+                <Send className="h-3 w-3 mr-1" />
+                Від мене
+              </Button>
+            </div>
+          )}
         </div>
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="sm">
+            <Button size="sm" className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg">
               <Plus className="h-4 w-4 mr-2" />
               Нове завдання
             </Button>
