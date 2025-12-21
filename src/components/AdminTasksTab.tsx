@@ -518,7 +518,7 @@ export const AdminTasksTab = () => {
 
     return (
       <div 
-        className="flex-1 min-w-[280px]"
+        className="flex-1 min-w-0"
         onDragOver={(e) => handleDragOver(e, status)}
         onDragLeave={handleDragLeave}
         onDrop={(e) => handleDrop(e, status)}
@@ -897,7 +897,7 @@ export const AdminTasksTab = () => {
       </div>
 
       {viewMode === "kanban" ? (
-        <div className="grid grid-cols-4 gap-4 flex-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 flex-1 overflow-y-auto">
           {renderColumn("problematic")}
           {renderColumn("todo")}
           {renderColumn("in_progress")}
