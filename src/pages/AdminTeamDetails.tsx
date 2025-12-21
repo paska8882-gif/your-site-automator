@@ -205,6 +205,15 @@ const AdminTeamDetails = () => {
     }
   }, [teamId, isAdmin]);
 
+  // Auto-fill prices when pricing is loaded or website type/ai model changes
+  useEffect(() => {
+    if (pricing) {
+      const salePrice = uploadForm.websiteType === "react" ? pricing.react_price : pricing.html_price;
+      const generationCost = uploadForm.aiModel === "senior" ? pricing.generation_cost_senior : pricing.generation_cost_junior;
+      setUploadForm(prev => ({ ...prev, salePrice, generationCost }));
+    }
+  }, [pricing, uploadForm.websiteType, uploadForm.aiModel]);
+
   const fetchAllData = async () => {
     setLoading(true);
     await Promise.all([
