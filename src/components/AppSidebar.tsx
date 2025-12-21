@@ -42,6 +42,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useSuperAdmin } from "@/hooks/useSuperAdmin";
 import { useTheme } from "@/hooks/useTheme";
+import { useTaskIndicators } from "@/hooks/useTaskIndicators";
 import { NotificationBell } from "./NotificationBell";
 import { SupportChat } from "./SupportChat";
 
@@ -77,6 +78,7 @@ export function AppSidebar() {
   const { isSuperAdmin } = useSuperAdmin();
   const { state } = useSidebar();
   const { theme, toggleTheme } = useTheme();
+  const { hasNewTasks, hasProblematic } = useTaskIndicators();
   const collapsed = state === "collapsed";
 
   const handleSignOut = async () => {
@@ -159,19 +161,35 @@ export function AppSidebar() {
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {adminNavItems.map((item) => (
-                  <SidebarMenuItem key={item.tab}>
-                    <SidebarMenuButton
-                      onClick={() => navigate(`/admin?tab=${item.tab}`)}
-                      isActive={isAdminPage && getAdminTab() === item.tab}
-                      tooltip={item.title}
-                      className="transition-colors"
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                {adminNavItems.map((item) => {
+                  const isTasksItem = item.tab === "tasks";
+                  const taskIndicatorClass = isTasksItem 
+                    ? hasProblematic 
+                      ? "bg-red-500/20 text-red-500 hover:bg-red-500/30" 
+                      : hasNewTasks 
+                        ? "bg-amber-500/20 text-amber-500 hover:bg-amber-500/30" 
+                        : ""
+                    : "";
+                  
+                  return (
+                    <SidebarMenuItem key={item.tab}>
+                      <SidebarMenuButton
+                        onClick={() => navigate(`/admin?tab=${item.tab}`)}
+                        isActive={isAdminPage && getAdminTab() === item.tab}
+                        tooltip={item.title}
+                        className={`transition-colors ${taskIndicatorClass}`}
+                      >
+                        <div className="relative">
+                          <item.icon className="h-4 w-4" />
+                          {isTasksItem && (hasProblematic || hasNewTasks) && (
+                            <span className={`absolute -top-1 -right-1 h-2 w-2 rounded-full ${hasProblematic ? "bg-red-500" : "bg-amber-500"} animate-pulse`} />
+                          )}
+                        </div>
+                        <span>{item.title}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
                 {isSuperAdmin && superAdminNavItems.map((item) => (
                   <SidebarMenuItem key={item.tab}>
                     <SidebarMenuButton
