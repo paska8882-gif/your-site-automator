@@ -823,9 +823,32 @@ export function WebsiteGenerator() {
     ? (teamPricing.balance - calculateTotalCost()) < -selectedTeamCreditLimit
     : false;
 
-  // Maximum concurrent generations limit per user
-  const MAX_CONCURRENT_GENERATIONS_PER_USER = 30;
+  // Maximum concurrent generations limit per user (default 30, can be customized per user)
+  const [userMaxGenerations, setUserMaxGenerations] = useState(30);
   const [activeGenerationsCount, setActiveGenerationsCount] = useState(0);
+
+  // Fetch user's max generations limit from profile
+  useEffect(() => {
+    const fetchUserLimit = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("max_concurrent_generations")
+          .eq("user_id", user.id)
+          .single();
+        
+        if (!error && data?.max_concurrent_generations) {
+          setUserMaxGenerations(data.max_concurrent_generations);
+        }
+      } catch (e) {
+        console.error("Failed to fetch user limit:", e);
+      }
+    };
+
+    fetchUserLimit();
+  }, [user]);
 
   // Fetch active generations count for current user
   useEffect(() => {
@@ -854,7 +877,7 @@ export function WebsiteGenerator() {
   }, [user]);
 
   // Calculate available slots
-  const availableSlots = MAX_CONCURRENT_GENERATIONS_PER_USER - activeGenerationsCount;
+  const availableSlots = userMaxGenerations - activeGenerationsCount;
   const wouldExceedLimit = totalGenerations > availableSlots;
 
   const handleGenerateClick = async () => {
@@ -905,12 +928,12 @@ export function WebsiteGenerator() {
       
       if (!error && count !== null) {
         setActiveGenerationsCount(count);
-        const currentAvailableSlots = MAX_CONCURRENT_GENERATIONS_PER_USER - count;
+        const currentAvailableSlots = userMaxGenerations - count;
         
         if (totalGenerations > currentAvailableSlots) {
           toast({
             title: "Перевищено ліміт одночасних генерацій",
-            description: `У вас зараз ${count} активних генерацій. Доступно ще ${currentAvailableSlots} слотів, а ви хочете запустити ${totalGenerations}. Зачекайте завершення або зменшіть кількість.`,
+            description: `У вас зараз ${count} активних генерацій. Доступно ще ${currentAvailableSlots} слотів (ваш ліміт: ${userMaxGenerations}), а ви хочете запустити ${totalGenerations}. Зачекайте завершення або зменшіть кількість.`,
             variant: "destructive",
           });
           return;
@@ -1556,7 +1579,7 @@ export function WebsiteGenerator() {
                     disabled={isSubmitting}
                   />
                   <span className={`text-xs whitespace-nowrap ${wouldExceedLimit ? 'text-destructive font-medium' : activeGenerationsCount > 20 ? 'text-yellow-600' : 'text-muted-foreground'}`}>
-                    = <strong>{totalGenerations}</strong> сайтів {activeGenerationsCount > 0 && <span className="opacity-70">(активних: {activeGenerationsCount}/{MAX_CONCURRENT_GENERATIONS_PER_USER})</span>}
+                    = <strong>{totalGenerations}</strong> сайтів {activeGenerationsCount > 0 && <span className="opacity-70">(активних: {activeGenerationsCount}/{userMaxGenerations})</span>}
                     {wouldExceedLimit && " ⚠️"}
                   </span>
                 </div>
