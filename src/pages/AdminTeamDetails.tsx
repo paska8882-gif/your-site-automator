@@ -1558,6 +1558,13 @@ const AdminTeamDetails = () => {
                     onChange={(e) => setUploadForm(prev => ({ ...prev, salePrice: parseFloat(e.target.value) || 0 }))}
                     placeholder="0.00"
                   />
+                  {pricing ? (
+                    <p className="text-xs text-muted-foreground">
+                      Стандартна ціна для {uploadForm.websiteType.toUpperCase()}: <span className="font-medium">${(uploadForm.websiteType === "react" ? pricing.react_price : pricing.html_price).toFixed(2)}</span> (з тарифів команди)
+                    </p>
+                  ) : (
+                    <p className="text-xs text-amber-500">Тарифи команди не налаштовані</p>
+                  )}
                 </div>
               </div>
 
@@ -1571,6 +1578,11 @@ const AdminTeamDetails = () => {
                   onChange={(e) => setUploadForm(prev => ({ ...prev, generationCost: parseFloat(e.target.value) || 0 }))}
                   placeholder="0.00"
                 />
+                {pricing && (
+                  <p className="text-xs text-muted-foreground">
+                    Стандартна собівартість для {uploadForm.aiModel === "senior" ? "Senior" : "Junior"}: <span className="font-medium">${(uploadForm.aiModel === "senior" ? pricing.generation_cost_senior : pricing.generation_cost_junior).toFixed(2)}</span> (з тарифів команди)
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   Для статистики. Не списується з балансу.
                 </p>
