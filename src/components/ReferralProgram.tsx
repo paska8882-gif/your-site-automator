@@ -27,7 +27,6 @@ interface ReferralInvite {
   is_active: boolean;
   milestone_reached: boolean;
   invited_team_name?: string;
-  invited_generations?: number;
 }
 
 interface ReferralReward {
@@ -101,10 +100,9 @@ export function ReferralProgram() {
       .order("created_at", { ascending: false });
     
     if (invitesData) {
-      // Enrich with invited team info
+      // Enrich with invited team info (but NOT generation counts - that's private)
       const enrichedInvites = await Promise.all(invitesData.map(async (invite) => {
         let invited_team_name = null;
-        let invited_generations = 0;
 
         if (invite.invited_team_id) {
           const { data: teamData } = await supabase
@@ -113,17 +111,9 @@ export function ReferralProgram() {
             .eq("id", invite.invited_team_id)
             .single();
           invited_team_name = teamData?.name || null;
-
-          // Count generations for milestone tracking
-          const { count } = await supabase
-            .from("generation_history")
-            .select("*", { count: "exact", head: true })
-            .eq("team_id", invite.invited_team_id)
-            .eq("status", "completed");
-          invited_generations = count || 0;
         }
 
-        return { ...invite, invited_team_name, invited_generations };
+        return { ...invite, invited_team_name };
       }));
 
       setInvites(enrichedInvites);
@@ -352,7 +342,7 @@ export function ReferralProgram() {
                   <TableHead>Створено</TableHead>
                   <TableHead>Статус</TableHead>
                   <TableHead>Команда</TableHead>
-                  <TableHead>Генерацій</TableHead>
+                  <TableHead>Milestone</TableHead>
                   <TableHead>Дії</TableHead>
                 </TableRow>
               </TableHeader>
@@ -383,13 +373,16 @@ export function ReferralProgram() {
                     </TableCell>
                     <TableCell>
                       {invite.invited_team_id ? (
-                        <div className="flex items-center gap-1">
-                          <span>{invite.invited_generations}</span>
-                          <span className="text-muted-foreground">/ {settings?.milestone_generations}</span>
-                          {invite.milestone_reached && (
-                            <Check className="h-4 w-4 text-green-500 ml-1" />
-                          )}
-                        </div>
+                        invite.milestone_reached ? (
+                          <Badge variant="default" className="bg-green-500">
+                            <Check className="h-3 w-3 mr-1" />
+                            Досягнуто
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            В процесі
+                          </Badge>
+                        )
                       ) : "-"}
                     </TableCell>
                     <TableCell>
