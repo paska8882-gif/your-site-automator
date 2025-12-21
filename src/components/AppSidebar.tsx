@@ -53,6 +53,7 @@ const mainNavItems = [
 ];
 
 const adminNavItems = [
+  { title: "Завдання", tab: "tasks", icon: ClipboardList },
   { title: "Команди", tab: "teams", icon: Users },
   { title: "Сайти", tab: "sites", icon: FileCode },
   { title: "Користувачі", tab: "users", icon: UserCog },
@@ -60,7 +61,6 @@ const adminNavItems = [
   { title: "Комунікація", tab: "communication", icon: MessageCircle },
   { title: "Поповнення", tab: "balance-requests", icon: Wallet },
   { title: "Реферали", tab: "referral", icon: Gift },
-  { title: "Завдання", tab: "tasks", icon: ClipboardList },
   { title: "Фінанси", tab: "finance", icon: DollarSign },
   { title: "Адміни", tab: "admin", icon: Settings },
 ];
