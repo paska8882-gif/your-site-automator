@@ -13,6 +13,7 @@ import { AdminAppealsTab } from "@/components/AdminAppealsTab";
 import { AdminCommunicationTab } from "@/components/AdminCommunicationTab";
 import { AdminBalanceRequestsTab } from "@/components/AdminBalanceRequestsTab";
 import { AdminPaymentDetailsTab } from "@/components/AdminPaymentDetailsTab";
+import { AdminReferralTab } from "@/components/AdminReferralTab";
 import { AppLayout } from "@/components/AppLayout";
 
 const Admin = () => {
@@ -66,6 +67,8 @@ const Admin = () => {
         return <AdminFinanceTab />;
       case "admin":
         return <AdminAdministratorsTab />;
+      case "referral":
+        return <AdminReferralTab />;
       case "payment-details":
         return isSuperAdmin ? <AdminPaymentDetailsTab /> : <AdminTeamsTab />;
       default:
