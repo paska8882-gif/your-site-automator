@@ -192,7 +192,7 @@ export function WebsiteGenerator() {
   const [siteName, setSiteName] = useState(draft.siteName || "");
   const [prompt, setPrompt] = useState(draft.prompt || "");
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(draft.selectedLanguages || ["uk"]);
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(draft.selectedLanguages || []);
   const [customLanguage, setCustomLanguage] = useState(draft.customLanguage || "");
   const [isOtherSelected, setIsOtherSelected] = useState(draft.isOtherSelected || false);
   const [selectedStyles, setSelectedStyles] = useState<string[]>(draft.selectedStyles || []);
