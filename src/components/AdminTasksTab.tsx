@@ -900,7 +900,7 @@ export const AdminTasksTab = () => {
       </div>
 
       {viewMode === "kanban" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 flex-1 overflow-y-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {renderColumn("problematic")}
           {renderColumn("todo")}
           {renderColumn("in_progress")}
