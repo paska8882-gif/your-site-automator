@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
-import { ClipboardList, Plus, Clock, User, Users, GripVertical, Trash2, LayoutGrid, List, ChevronDown, UserCheck, Send, Flag, Filter } from "lucide-react";
+import { ClipboardList, Plus, Clock, User, Users, GripVertical, Trash2, LayoutGrid, List, ChevronDown, UserCheck, Send, Flag, Filter, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { uk } from "date-fns/locale";
 
@@ -67,6 +67,8 @@ export const AdminTasksTab = () => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<AdminTask | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
@@ -78,6 +80,13 @@ export const AdminTasksTab = () => {
     all: true,
   });
   const [newTask, setNewTask] = useState({
+    title: "",
+    description: "",
+    assigned_to: "",
+    team_id: "",
+    priority: "medium" as TaskPriority,
+  });
+  const [editTask, setEditTask] = useState({
     title: "",
     description: "",
     assigned_to: "",
@@ -267,6 +276,57 @@ export const AdminTasksTab = () => {
     }
   };
 
+  const openEditDialog = (task: AdminTask) => {
+    setEditingTask(task);
+    setEditTask({
+      title: task.title,
+      description: task.description || "",
+      assigned_to: task.assigned_to,
+      team_id: task.team_id || "",
+      priority: task.priority,
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const updateTask = async () => {
+    if (!editingTask || !editTask.title || !editTask.assigned_to) {
+      toast({ title: "Помилка", description: "Заповніть обов'язкові поля", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("admin_tasks")
+        .update({
+          title: editTask.title,
+          description: editTask.description || null,
+          assigned_to: editTask.assigned_to,
+          team_id: editTask.team_id || null,
+          priority: editTask.priority,
+        })
+        .eq("id", editingTask.id);
+
+      if (error) throw error;
+
+      // Notify new assignee if changed
+      if (editTask.assigned_to !== editingTask.assigned_to && editTask.assigned_to !== user?.id) {
+        await supabase.from("notifications").insert({
+          user_id: editTask.assigned_to,
+          title: "Завдання перепризначено",
+          message: `Вам призначено завдання: ${editTask.title}`,
+          type: "task_assigned",
+        });
+      }
+
+      toast({ title: "Успішно", description: "Завдання оновлено" });
+      setIsEditDialogOpen(false);
+      setEditingTask(null);
+    } catch (error) {
+      console.error("Error updating task:", error);
+      toast({ title: "Помилка", description: "Не вдалося оновити завдання", variant: "destructive" });
+    }
+  };
+
   const isOverdue = (deadline: string) => new Date(deadline) < new Date();
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
@@ -342,6 +402,17 @@ export const AdminTasksTab = () => {
             <Badge className={`text-xs ${statusConfig[task.status].color}`}>
               {statusConfig[task.status].label}
             </Badge>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-muted-foreground hover:text-primary"
+              onClick={(e) => {
+                e.stopPropagation();
+                openEditDialog(task);
+              }}
+            >
+              <Pencil className="h-3 w-3" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -700,6 +771,101 @@ export const AdminTasksTab = () => {
               
               <Button onClick={createTask} className="w-full">
                 Створити завдання
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Task Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Редагувати завдання</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Назва *</label>
+                <Input
+                  value={editTask.title}
+                  onChange={(e) => setEditTask({ ...editTask, title: e.target.value })}
+                  placeholder="Введіть назву завдання"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-1 block">Опис</label>
+                <Textarea
+                  value={editTask.description}
+                  onChange={(e) => setEditTask({ ...editTask, description: e.target.value })}
+                  placeholder="Введіть опис завдання"
+                  rows={3}
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-1 block">Виконавець *</label>
+                <Select value={editTask.assigned_to} onValueChange={(v) => setEditTask({ ...editTask, assigned_to: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Оберіть адміністратора" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {admins.map((admin) => (
+                      <SelectItem key={admin.user_id} value={admin.user_id}>
+                        {admin.display_name || "Без імені"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-1 block">Команда (опціонально)</label>
+                <Select value={editTask.team_id || "none"} onValueChange={(v) => setEditTask({ ...editTask, team_id: v === "none" ? "" : v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Без команди" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Без команди</SelectItem>
+                    {teams.map((team) => (
+                      <SelectItem key={team.id} value={team.id}>
+                        {team.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-1 block">Пріоритет</label>
+                <Select value={editTask.priority} onValueChange={(v) => setEditTask({ ...editTask, priority: v as TaskPriority })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Середній" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">
+                      <div className="flex items-center gap-2">
+                        <Flag className="h-3 w-3 text-slate-500" />
+                        Низький
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="medium">
+                      <div className="flex items-center gap-2">
+                        <Flag className="h-3 w-3 text-amber-500" />
+                        Середній
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="high">
+                      <div className="flex items-center gap-2">
+                        <Flag className="h-3 w-3 text-red-500" />
+                        Високий
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <Button onClick={updateTask} className="w-full">
+                Зберегти зміни
               </Button>
             </div>
           </DialogContent>
