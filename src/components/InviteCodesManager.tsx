@@ -16,8 +16,10 @@ import {
   RefreshCw,
   XCircle,
   Users,
-  User
+  User,
+  Filter
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface InviteCode {
   id: string;
@@ -53,10 +55,22 @@ export const InviteCodesManager = () => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deactivating, setDeactivating] = useState(false);
+  const [filterTeam, setFilterTeam] = useState<string>("all");
+  const [filterRole, setFilterRole] = useState<string>("all");
+  const [teams, setTeams] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     fetchCodes();
+    fetchTeams();
   }, []);
+
+  const fetchTeams = async () => {
+    const { data } = await supabase
+      .from("teams")
+      .select("id, name")
+      .order("name");
+    setTeams(data || []);
+  };
 
   const fetchCodes = async () => {
     setLoading(true);
@@ -213,9 +227,20 @@ export const InviteCodesManager = () => {
     }
   };
 
+  // Apply filters
+  const filteredCodes = codes.filter(code => {
+    if (filterTeam === "none" && code.team_id !== null) return false;
+    if (filterTeam !== "all" && filterTeam !== "none" && code.team_id !== filterTeam) return false;
+    if (filterRole !== "all" && code.assigned_role !== filterRole) return false;
+    return true;
+  });
+
   // Separate active and inactive codes
-  const activeCodes = codes.filter(c => c.is_active && !c.used_by);
-  const inactiveCodes = codes.filter(c => !c.is_active || c.used_by);
+  const activeCodes = filteredCodes.filter(c => c.is_active && !c.used_by);
+  const inactiveCodes = filteredCodes.filter(c => !c.is_active || c.used_by);
+
+  // Unique roles from codes
+  const uniqueRoles = [...new Set(codes.filter(c => c.assigned_role).map(c => c.assigned_role!))];
 
   const stats = {
     total: codes.length,
@@ -307,17 +332,51 @@ export const InviteCodesManager = () => {
       </CardHeader>
       <CardContent className="space-y-2 px-3 pb-3 flex-1 flex flex-col min-h-0">
         {/* Stats */}
+        {/* Filters */}
+        <div className="flex gap-2 flex-shrink-0">
+          <div className="flex-1">
+            <Select value={filterTeam} onValueChange={setFilterTeam}>
+              <SelectTrigger className="h-7 text-xs">
+                <Filter className="h-3 w-3 mr-1" />
+                <SelectValue placeholder="Команда" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">Всі команди</SelectItem>
+                <SelectItem value="none" className="text-xs">Без команди</SelectItem>
+                {teams.map(team => (
+                  <SelectItem key={team.id} value={team.id} className="text-xs">{team.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex-1">
+            <Select value={filterRole} onValueChange={setFilterRole}>
+              <SelectTrigger className="h-7 text-xs">
+                <User className="h-3 w-3 mr-1" />
+                <SelectValue placeholder="Роль" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">Всі ролі</SelectItem>
+                {uniqueRoles.map(role => (
+                  <SelectItem key={role} value={role} className="text-xs capitalize">{role}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Stats */}
         <div className="grid grid-cols-3 gap-2 flex-shrink-0">
           <div className="text-center p-1.5 rounded-md bg-muted">
-            <div className="text-sm font-bold">{stats.total}</div>
+            <div className="text-sm font-bold">{filteredCodes.length}</div>
             <div className="text-[10px] text-muted-foreground">Всього</div>
           </div>
           <div className="text-center p-1.5 rounded-md bg-muted">
-            <div className="text-sm font-bold text-green-500">{stats.active}</div>
+            <div className="text-sm font-bold text-green-500">{activeCodes.length}</div>
             <div className="text-[10px] text-muted-foreground">Активних</div>
           </div>
           <div className="text-center p-1.5 rounded-md bg-muted">
-            <div className="text-sm font-bold text-blue-500">{stats.used}</div>
+            <div className="text-sm font-bold text-blue-500">{inactiveCodes.length}</div>
             <div className="text-[10px] text-muted-foreground">Використано</div>
           </div>
         </div>
