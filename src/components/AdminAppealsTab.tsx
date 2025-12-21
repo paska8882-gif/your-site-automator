@@ -74,7 +74,6 @@ export function AdminAppealsTab() {
 
     // Get unique IDs for joins
     const userIds = [...new Set(appealsData.map(a => a.user_id))];
-    const teamIds = [...new Set(appealsData.map(a => a.team_id))];
     const generationIds = [...new Set(appealsData.map(a => a.generation_id))];
 
     // Fetch profiles
@@ -83,26 +82,34 @@ export function AdminAppealsTab() {
       .select("user_id, display_name")
       .in("user_id", userIds);
 
-    // Fetch teams
+    // Fetch generations with team_id
+    const { data: generations } = await supabase
+      .from("generation_history")
+      .select("id, site_name, prompt, team_id")
+      .in("id", generationIds);
+
+    // Get team IDs from generations (the actual team that paid for the site)
+    const generationTeamIds = [...new Set(generations?.map(g => g.team_id).filter(Boolean) || [])];
+
+    // Fetch teams based on generation team_ids
     const { data: teams } = await supabase
       .from("teams")
       .select("id, name")
-      .in("id", teamIds);
+      .in("id", generationTeamIds);
 
-    // Fetch generations
-    const { data: generations } = await supabase
-      .from("generation_history")
-      .select("id, site_name, prompt")
-      .in("id", generationIds);
-
-    // Combine data
-    const enrichedAppeals: Appeal[] = appealsData.map(appeal => ({
-      ...appeal,
-      user_name: profiles?.find(p => p.user_id === appeal.user_id)?.display_name || "Невідомий",
-      team_name: teams?.find(t => t.id === appeal.team_id)?.name || "Невідома команда",
-      site_name: generations?.find(g => g.id === appeal.generation_id)?.site_name || "Невідомий сайт",
-      prompt: generations?.find(g => g.id === appeal.generation_id)?.prompt
-    }));
+    // Combine data - use team from generation_history, not from appeal
+    const enrichedAppeals: Appeal[] = appealsData.map(appeal => {
+      const generation = generations?.find(g => g.id === appeal.generation_id);
+      const actualTeamId = generation?.team_id || appeal.team_id;
+      return {
+        ...appeal,
+        team_id: actualTeamId, // Override with the actual team that paid
+        user_name: profiles?.find(p => p.user_id === appeal.user_id)?.display_name || "Невідомий",
+        team_name: teams?.find(t => t.id === actualTeamId)?.name || "Невідома команда",
+        site_name: generation?.site_name || "Невідомий сайт",
+        prompt: generation?.prompt
+      };
+    });
 
     setAppeals(enrichedAppeals);
     setLoading(false);
