@@ -897,7 +897,7 @@ export const AdminTasksTab = () => {
       </div>
 
       {viewMode === "kanban" ? (
-        <div className="flex gap-4 overflow-x-auto pb-4 flex-1">
+        <div className="grid grid-cols-4 gap-4 flex-1">
           {renderColumn("problematic")}
           {renderColumn("todo")}
           {renderColumn("in_progress")}
