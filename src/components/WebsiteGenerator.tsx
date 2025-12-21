@@ -960,8 +960,8 @@ export function WebsiteGenerator() {
     const negativeTeams = adminTeams.filter(team => team.balance < 0).sort((a, b) => a.balance - b.balance);
     
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="w-full max-w-4xl space-y-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 lg:p-8">
+        <div className="w-full max-w-4xl lg:max-w-6xl xl:max-w-7xl space-y-4">
           {/* Inspirational quote */}
           {randomQuote && (
             <div className="text-center py-4">
@@ -974,10 +974,10 @@ export function WebsiteGenerator() {
             </div>
           )}
 
-          <div className="flex gap-3">
-            {/* Dashboard - compact */}
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Dashboard - responsive width */}
             {adminTeams.length > 0 && (
-              <div className="w-64 shrink-0">
+              <div className="w-full lg:w-72 xl:w-80 shrink-0">
                 <AdminTeamsDashboard teams={adminTeams} />
               </div>
             )}
@@ -1018,13 +1018,13 @@ export function WebsiteGenerator() {
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     {/* Positive balance column */}
-                    <div className="space-y-1">
+                    <div className="space-y-1 lg:col-span-1">
                       <div className="text-[10px] text-muted-foreground font-medium px-1 flex items-center gap-1">
-                        <span className="text-green-500">●</span> Плюс
+                        <span className="text-green-500">●</span> Плюс ({positiveTeams.length})
                       </div>
-                      <div className="max-h-[280px] overflow-y-auto space-y-1">
+                      <div className="max-h-[280px] lg:max-h-[400px] overflow-y-auto space-y-1.5">
                         {positiveTeams.map(team => (
                           <button
                             key={team.id}
@@ -1041,11 +1041,11 @@ export function WebsiteGenerator() {
                       </div>
                     </div>
                     {/* Negative balance column */}
-                    <div className="space-y-1">
+                    <div className="space-y-1 lg:col-span-1">
                       <div className="text-[10px] text-muted-foreground font-medium px-1 flex items-center gap-1">
-                        <span className="text-destructive">●</span> Мінус
+                        <span className="text-destructive">●</span> Мінус ({negativeTeams.length})
                       </div>
-                      <div className="max-h-[280px] overflow-y-auto space-y-1">
+                      <div className="max-h-[280px] lg:max-h-[400px] overflow-y-auto space-y-1.5">
                         {negativeTeams.map(team => (
                           <button
                             key={team.id}
@@ -1103,7 +1103,7 @@ export function WebsiteGenerator() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6 max-w-4xl">
+      <div className="container mx-auto p-4 lg:p-6 max-w-4xl lg:max-w-5xl xl:max-w-6xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-lg font-medium">Генератор сайтів</h1>
