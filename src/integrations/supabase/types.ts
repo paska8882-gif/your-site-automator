@@ -23,6 +23,7 @@ export type Database = {
           deadline: string
           description: string | null
           id: string
+          priority: Database["public"]["Enums"]["task_priority"]
           status: Database["public"]["Enums"]["admin_task_status"]
           team_id: string | null
           title: string
@@ -35,6 +36,7 @@ export type Database = {
           deadline: string
           description?: string | null
           id?: string
+          priority?: Database["public"]["Enums"]["task_priority"]
           status?: Database["public"]["Enums"]["admin_task_status"]
           team_id?: string | null
           title: string
@@ -47,6 +49,7 @@ export type Database = {
           deadline?: string
           description?: string | null
           id?: string
+          priority?: Database["public"]["Enums"]["task_priority"]
           status?: Database["public"]["Enums"]["admin_task_status"]
           team_id?: string | null
           title?: string
@@ -873,6 +876,7 @@ export type Database = {
       admin_task_status: "todo" | "in_progress" | "done" | "problematic"
       app_role: "admin" | "user" | "super_admin"
       member_status: "pending" | "approved" | "rejected"
+      task_priority: "low" | "medium" | "high"
       team_role: "owner" | "team_lead" | "buyer" | "tech_dev"
     }
     CompositeTypes: {
@@ -1004,6 +1008,7 @@ export const Constants = {
       admin_task_status: ["todo", "in_progress", "done", "problematic"],
       app_role: ["admin", "user", "super_admin"],
       member_status: ["pending", "approved", "rejected"],
+      task_priority: ["low", "medium", "high"],
       team_role: ["owner", "team_lead", "buyer", "tech_dev"],
     },
   },
