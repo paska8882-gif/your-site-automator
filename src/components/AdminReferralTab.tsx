@@ -9,9 +9,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Gift, Settings, Loader2, Check, X, DollarSign, Users, Target, Save, Edit } from "lucide-react";
+import { Gift, Settings, Loader2, Check, X, DollarSign, Users, Target, Save, Edit, Plus, Power } from "lucide-react";
 import { format } from "date-fns";
+
+interface Team {
+  id: string;
+  name: string;
+}
 
 interface ReferralSettings {
   id: string;
@@ -71,6 +77,13 @@ export function AdminReferralTab() {
   const [selectedReward, setSelectedReward] = useState<ReferralReward | null>(null);
   const [processing, setProcessing] = useState(false);
   const [adminComment, setAdminComment] = useState("");
+  
+  // New states for admin invite management
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [showCreateInviteDialog, setShowCreateInviteDialog] = useState(false);
+  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
+  const [creatingInvite, setCreatingInvite] = useState(false);
+  const [togglingInvite, setTogglingInvite] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -78,6 +91,16 @@ export function AdminReferralTab() {
 
   const fetchData = async () => {
     setLoading(true);
+    
+    // Fetch all teams for the dropdown
+    const { data: teamsData } = await supabase
+      .from("teams")
+      .select("id, name")
+      .order("name");
+    
+    if (teamsData) {
+      setTeams(teamsData);
+    }
     
     // Fetch settings
     const { data: settingsData } = await supabase
@@ -328,6 +351,112 @@ export function AdminReferralTab() {
     }
   };
 
+  const toggleInviteStatus = async (inviteId: string, currentStatus: boolean) => {
+    setTogglingInvite(inviteId);
+    
+    const { error } = await supabase
+      .from("referral_invites")
+      .update({ is_active: !currentStatus })
+      .eq("id", inviteId);
+    
+    if (error) {
+      toast({
+        title: "Помилка",
+        description: "Не вдалося змінити статус коду",
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: currentStatus ? "Деактивовано" : "Активовано",
+        description: `Інвайт код ${currentStatus ? "деактивовано" : "активовано"}`
+      });
+      fetchData();
+    }
+    
+    setTogglingInvite(null);
+  };
+
+  const generateRandomCode = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "";
+    for (let i = 0; i < 8; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  };
+
+  const createInviteForTeam = async () => {
+    if (!selectedTeamId) {
+      toast({
+        title: "Помилка",
+        description: "Оберіть команду",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setCreatingInvite(true);
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast({
+        title: "Помилка",
+        description: "Користувач не авторизований",
+        variant: "destructive"
+      });
+      setCreatingInvite(false);
+      return;
+    }
+
+    // Get team owner
+    const { data: ownerData } = await supabase
+      .from("team_members")
+      .select("user_id")
+      .eq("team_id", selectedTeamId)
+      .eq("role", "owner")
+      .eq("status", "approved")
+      .single();
+    
+    if (!ownerData) {
+      toast({
+        title: "Помилка",
+        description: "Не вдалося знайти власника команди",
+        variant: "destructive"
+      });
+      setCreatingInvite(false);
+      return;
+    }
+
+    const code = generateRandomCode();
+    
+    const { error } = await supabase
+      .from("referral_invites")
+      .insert({
+        code,
+        referrer_user_id: ownerData.user_id,
+        referrer_team_id: selectedTeamId,
+        is_active: true
+      });
+    
+    if (error) {
+      toast({
+        title: "Помилка",
+        description: error.message,
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Код створено",
+        description: `Реферальний код ${code} створено для команди`
+      });
+      setShowCreateInviteDialog(false);
+      setSelectedTeamId("");
+      fetchData();
+    }
+    
+    setCreatingInvite(false);
+  };
+
   const pendingRewards = rewards.filter(r => r.status === "pending");
   const totalPending = pendingRewards.reduce((sum, r) => sum + r.amount, 0);
   const totalApproved = rewards.filter(r => r.status === "approved").reduce((sum, r) => sum + r.amount, 0);
@@ -513,6 +642,12 @@ export function AdminReferralTab() {
         </TabsContent>
 
         <TabsContent value="invites" className="space-y-4">
+          <div className="flex justify-end">
+            <Button onClick={() => setShowCreateInviteDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Створити код для команди
+            </Button>
+          </div>
           <Card>
             <CardContent className="p-0">
               <Table>
@@ -525,6 +660,7 @@ export function AdminReferralTab() {
                     <TableHead>Генерацій</TableHead>
                     <TableHead>Статус</TableHead>
                     <TableHead>Дата</TableHead>
+                    <TableHead>Дії</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -560,6 +696,25 @@ export function AdminReferralTab() {
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {format(new Date(invite.created_at), "dd.MM.yyyy")}
+                      </TableCell>
+                      <TableCell>
+                        {!invite.used_at && (
+                          <Button
+                            size="sm"
+                            variant={invite.is_active ? "destructive" : "outline"}
+                            onClick={() => toggleInviteStatus(invite.id, invite.is_active)}
+                            disabled={togglingInvite === invite.id}
+                          >
+                            {togglingInvite === invite.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Power className="h-4 w-4 mr-1" />
+                                {invite.is_active ? "Деактивувати" : "Активувати"}
+                              </>
+                            )}
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -708,6 +863,46 @@ export function AdminReferralTab() {
             >
               {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
               Схвалити
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Invite for Team Dialog */}
+      <Dialog open={showCreateInviteDialog} onOpenChange={setShowCreateInviteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Створити реферальний код для команди</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Оберіть команду</Label>
+              <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Виберіть команду..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {teams.map((team) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Код буде прив'язаний до власника обраної команди
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateInviteDialog(false)}>
+              Скасувати
+            </Button>
+            <Button onClick={createInviteForTeam} disabled={creatingInvite || !selectedTeamId}>
+              {creatingInvite ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+              Створити код
             </Button>
           </DialogFooter>
         </DialogContent>
