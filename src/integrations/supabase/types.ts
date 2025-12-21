@@ -454,6 +454,147 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_invites: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          invited_team_id: string | null
+          invited_user_id: string | null
+          is_active: boolean
+          milestone_reached: boolean
+          referrer_team_id: string | null
+          referrer_user_id: string
+          used_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          invited_team_id?: string | null
+          invited_user_id?: string | null
+          is_active?: boolean
+          milestone_reached?: boolean
+          referrer_team_id?: string | null
+          referrer_user_id: string
+          used_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          invited_team_id?: string | null
+          invited_user_id?: string | null
+          is_active?: boolean
+          milestone_reached?: boolean
+          referrer_team_id?: string | null
+          referrer_user_id?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_invites_invited_team_id_fkey"
+            columns: ["invited_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_invites_referrer_team_id_fkey"
+            columns: ["referrer_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_rewards: {
+        Row: {
+          admin_comment: string | null
+          amount: number
+          created_at: string
+          id: string
+          processed_at: string | null
+          processed_by: string | null
+          referral_invite_id: string
+          reward_type: string
+          status: string
+          team_id: string | null
+          user_id: string
+        }
+        Insert: {
+          admin_comment?: string | null
+          amount: number
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          referral_invite_id: string
+          reward_type: string
+          status?: string
+          team_id?: string | null
+          user_id: string
+        }
+        Update: {
+          admin_comment?: string | null
+          amount?: number
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          referral_invite_id?: string
+          reward_type?: string
+          status?: string
+          team_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_rewards_referral_invite_id_fkey"
+            columns: ["referral_invite_id"]
+            isOneToOne: false
+            referencedRelation: "referral_invites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_rewards_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_settings: {
+        Row: {
+          id: string
+          invite_reward: number
+          milestone_generations: number
+          milestone_reward: number
+          new_user_bonus: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          invite_reward?: number
+          milestone_generations?: number
+          milestone_reward?: number
+          new_user_bonus?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          invite_reward?: number
+          milestone_generations?: number
+          milestone_reward?: number
+          new_user_bonus?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       support_conversations: {
         Row: {
           created_at: string

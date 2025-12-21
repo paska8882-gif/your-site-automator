@@ -34,7 +34,8 @@ import {
   DollarSign,
   MessageSquare,
   MessageCircle,
-  CreditCard
+  CreditCard,
+  Gift
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -57,6 +58,7 @@ const adminNavItems = [
   { title: "Апеляції", tab: "appeals", icon: MessageSquare },
   { title: "Комунікація", tab: "communication", icon: MessageCircle },
   { title: "Поповнення", tab: "balance-requests", icon: Wallet },
+  { title: "Реферали", tab: "referral", icon: Gift },
   { title: "Фінанси", tab: "finance", icon: DollarSign },
   { title: "Адміни", tab: "admin", icon: Settings },
 ];
