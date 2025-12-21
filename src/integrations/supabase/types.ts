@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_tasks: {
+        Row: {
+          assigned_to: string
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          deadline: string
+          description: string | null
+          id: string
+          status: Database["public"]["Enums"]["admin_task_status"]
+          team_id: string | null
+          title: string
+        }
+        Insert: {
+          assigned_to: string
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          deadline: string
+          description?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["admin_task_status"]
+          team_id?: string | null
+          title: string
+        }
+        Update: {
+          assigned_to?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          deadline?: string
+          description?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["admin_task_status"]
+          team_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_tasks_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appeals: {
         Row: {
           admin_comment: string | null
@@ -823,6 +870,7 @@ export type Database = {
       }
     }
     Enums: {
+      admin_task_status: "todo" | "in_progress" | "done"
       app_role: "admin" | "user" | "super_admin"
       member_status: "pending" | "approved" | "rejected"
       team_role: "owner" | "team_lead" | "buyer" | "tech_dev"
@@ -953,6 +1001,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      admin_task_status: ["todo", "in_progress", "done"],
       app_role: ["admin", "user", "super_admin"],
       member_status: ["pending", "approved", "rejected"],
       team_role: ["owner", "team_lead", "buyer", "tech_dev"],
