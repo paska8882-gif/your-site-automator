@@ -405,15 +405,18 @@ export const AdminTasksTab = () => {
       } ${draggedTaskId === task.id ? "opacity-50 scale-95" : "hover:scale-[1.02]"}`}
     >
       <CardContent className="p-3">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="flex items-center gap-2">
-            {showDragHandle && <GripVertical className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />}
+        <div className="flex items-start gap-2 mb-2">
+          {showDragHandle && <GripVertical className="h-4 w-4 text-muted-foreground/50 flex-shrink-0 mt-0.5" />}
+          <div className="flex-1 min-w-0">
             <h4 className="font-medium text-sm line-clamp-2">{task.title}</h4>
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <Badge className={`text-xs ${statusConfig[task.status].color}`}>
-              {statusConfig[task.status].label}
-            </Badge>
+        </div>
+        
+        <div className="flex items-center gap-1 mb-2 flex-wrap">
+          <Badge className={`text-xs ${statusConfig[task.status].color}`}>
+            {statusConfig[task.status].label}
+          </Badge>
+          <div className="flex items-center gap-0.5 ml-auto">
             <Button
               variant="ghost"
               size="icon"
@@ -529,7 +532,7 @@ export const AdminTasksTab = () => {
             <Badge variant="secondary" className="text-xs bg-white/20 text-white border-0">{columnTasks.length}</Badge>
           </div>
         </div>
-        <div className={`space-y-2 max-h-[calc(100vh-450px)] overflow-y-auto pr-1 rounded-lg p-2 transition-colors duration-200 ${
+        <div className={`space-y-2 max-h-[calc(100vh-450px)] overflow-y-auto overflow-x-hidden pr-1 rounded-lg p-2 transition-colors duration-200 ${
           isDragOver ? "bg-primary/10 ring-2 ring-primary/30" : ""
         }`}>
           {columnTasks.map(task => renderTaskCard(task))}
