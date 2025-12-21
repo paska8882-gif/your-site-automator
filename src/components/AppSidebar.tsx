@@ -35,7 +35,8 @@ import {
   MessageSquare,
   MessageCircle,
   CreditCard,
-  Gift
+  Gift,
+  ClipboardList
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -59,6 +60,7 @@ const adminNavItems = [
   { title: "Комунікація", tab: "communication", icon: MessageCircle },
   { title: "Поповнення", tab: "balance-requests", icon: Wallet },
   { title: "Реферали", tab: "referral", icon: Gift },
+  { title: "Завдання", tab: "tasks", icon: ClipboardList },
   { title: "Фінанси", tab: "finance", icon: DollarSign },
   { title: "Адміни", tab: "admin", icon: Settings },
 ];
