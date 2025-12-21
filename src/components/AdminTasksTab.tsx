@@ -567,7 +567,7 @@ export const AdminTasksTab = () => {
   );
 
   const renderListView = () => (
-    <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-350px)]">
+    <div className="space-y-4 overflow-y-auto overflow-x-hidden max-h-[calc(100vh-350px)] scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
       {renderListGroup(
         "Призначені мені",
         <UserCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />,
