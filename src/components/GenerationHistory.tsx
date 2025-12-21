@@ -239,20 +239,34 @@ function SingleHistoryItem({
                   >
                     <Download className="h-4 w-4" />
                   </Button>
-                  {!getAppeal(item.id) && !compact && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAppeal(item);
-                      }}
-                      title="Подати апеляцію"
-                    >
-                      <AlertTriangle className="h-4 w-4" />
-                    </Button>
-                  )}
+                  {(() => {
+                    const appeal = getAppeal(item.id);
+                    if (appeal) {
+                      return (
+                        <Badge 
+                          variant={appeal.status === "approved" ? "default" : appeal.status === "rejected" ? "destructive" : "outline"}
+                          className="text-xs h-6"
+                          title={`Апеляція: ${appeal.status === "pending" ? "На розгляді" : appeal.status === "approved" ? "Схвалено" : "Відхилено"}`}
+                        >
+                          {appeal.status === "pending" ? "⏳" : appeal.status === "approved" ? "✓" : "✗"}
+                        </Badge>
+                      );
+                    }
+                    return (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAppeal(item);
+                        }}
+                        title="Подати апеляцію"
+                      >
+                        <AlertTriangle className="h-4 w-4" />
+                      </Button>
+                    );
+                  })()}
                   <ChevronDown
                     className={`h-4 w-4 transition-transform ${expandedId === item.id ? "rotate-180" : ""}`}
                   />
