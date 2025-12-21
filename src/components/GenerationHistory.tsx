@@ -452,8 +452,8 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
   const [appealDialogOpen, setAppealDialogOpen] = useState(false);
   const [appealItem, setAppealItem] = useState<HistoryItem | null>(null);
   const [appealReason, setAppealReason] = useState("");
-  const [appealScreenshot, setAppealScreenshot] = useState<File | null>(null);
-  const [appealScreenshotPreview, setAppealScreenshotPreview] = useState<string | null>(null);
+  const [appealScreenshots, setAppealScreenshots] = useState<File[]>([]);
+  const [appealScreenshotPreviews, setAppealScreenshotPreviews] = useState<string[]>([]);
   const [submittingAppeal, setSubmittingAppeal] = useState(false);
 
   const fetchHistory = async () => {
@@ -814,34 +814,60 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
   const openAppealDialog = (item: HistoryItem) => {
     setAppealItem(item);
     setAppealReason("");
-    setAppealScreenshot(null);
-    setAppealScreenshotPreview(null);
+    setAppealScreenshots([]);
+    setAppealScreenshotPreviews([]);
     setAppealDialogOpen(true);
   };
 
   const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const maxFiles = 5;
+    const currentCount = appealScreenshots.length;
+    const remainingSlots = maxFiles - currentCount;
+    
+    if (remainingSlots <= 0) {
+      toast({
+        title: "Досягнуто ліміт",
+        description: `Максимум ${maxFiles} зображень`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const filesToAdd = files.slice(0, remainingSlots);
+    const validFiles: File[] = [];
+    const newPreviews: string[] = [];
+
+    filesToAdd.forEach(file => {
       if (file.size > 5 * 1024 * 1024) {
         toast({
           title: "Файл занадто великий",
-          description: "Максимальний розмір файлу 5 МБ",
+          description: `${file.name}: максимальний розмір 5 МБ`,
           variant: "destructive"
         });
         return;
       }
-      setAppealScreenshot(file);
+      validFiles.push(file);
       const reader = new FileReader();
       reader.onload = (e) => {
-        setAppealScreenshotPreview(e.target?.result as string);
+        newPreviews.push(e.target?.result as string);
+        if (newPreviews.length === validFiles.length) {
+          setAppealScreenshots(prev => [...prev, ...validFiles]);
+          setAppealScreenshotPreviews(prev => [...prev, ...newPreviews]);
+        }
       };
       reader.readAsDataURL(file);
-    }
+    });
+
+    // Reset input
+    e.target.value = '';
   };
 
-  const removeScreenshot = () => {
-    setAppealScreenshot(null);
-    setAppealScreenshotPreview(null);
+  const removeScreenshot = (index: number) => {
+    setAppealScreenshots(prev => prev.filter((_, i) => i !== index));
+    setAppealScreenshotPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const submitAppeal = async () => {
@@ -862,15 +888,15 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
         .limit(1)
         .maybeSingle();
 
-      // Upload screenshot if provided
-      let screenshotUrl: string | null = null;
-      if (appealScreenshot) {
-        const fileExt = appealScreenshot.name.split('.').pop();
-        const fileName = `${user.id}/${appealItem.id}-${Date.now()}.${fileExt}`;
+      // Upload screenshots if provided
+      const screenshotUrls: string[] = [];
+      for (const screenshot of appealScreenshots) {
+        const fileExt = screenshot.name.split('.').pop();
+        const fileName = `${user.id}/${appealItem.id}-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
           .from('appeal-screenshots')
-          .upload(fileName, appealScreenshot);
+          .upload(fileName, screenshot);
 
         if (uploadError) {
           console.error("Screenshot upload error:", uploadError);
@@ -878,7 +904,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
           const { data: { publicUrl } } = supabase.storage
             .from('appeal-screenshots')
             .getPublicUrl(fileName);
-          screenshotUrl = publicUrl;
+          screenshotUrls.push(publicUrl);
         }
       }
 
@@ -890,7 +916,8 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
           team_id: membership?.team_id || null,
           reason: appealReason.trim(),
           amount_to_refund: appealItem.sale_price || 0,
-          screenshot_url: screenshotUrl
+          screenshot_url: screenshotUrls.length > 0 ? screenshotUrls[0] : null,
+          screenshot_urls: screenshotUrls
         });
 
       if (error) throw error;
@@ -905,8 +932,8 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
       setAppealDialogOpen(false);
       setAppealItem(null);
       setAppealReason("");
-      setAppealScreenshot(null);
-      setAppealScreenshotPreview(null);
+      setAppealScreenshots([]);
+      setAppealScreenshotPreviews([]);
       fetchHistory();
     } catch (error) {
       console.error("Error submitting appeal:", error);
@@ -1350,31 +1377,41 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Скріншот помилки (необов'язково)</label>
-                {appealScreenshotPreview ? (
-                  <div className="mt-2 relative">
-                    <img 
-                      src={appealScreenshotPreview} 
-                      alt="Скріншот" 
-                      className="max-h-40 rounded border object-contain"
-                    />
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-1 right-1 h-6 w-6"
-                      onClick={removeScreenshot}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                <label className="text-sm font-medium">Скріншоти помилки (необов'язково, до 5 шт.)</label>
+                {appealScreenshotPreviews.length > 0 && (
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    {appealScreenshotPreviews.map((preview, index) => (
+                      <div key={index} className="relative">
+                        <img 
+                          src={preview} 
+                          alt={`Скріншот ${index + 1}`} 
+                          className="h-24 w-full rounded border object-cover"
+                        />
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-1 right-1 h-5 w-5"
+                          onClick={() => removeScreenshot(index)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
                   </div>
-                ) : (
+                )}
+                {appealScreenshotPreviews.length < 5 && (
                   <div className="mt-2">
                     <label className="flex items-center justify-center gap-2 p-4 border-2 border-dashed rounded cursor-pointer hover:bg-muted/50 transition-colors">
                       <Upload className="h-5 w-5 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Завантажити зображення (до 5 МБ)</span>
+                      <span className="text-sm text-muted-foreground">
+                        {appealScreenshotPreviews.length > 0 
+                          ? `Додати ще (${5 - appealScreenshotPreviews.length} залишилось)` 
+                          : "Завантажити зображення (до 5 МБ кожне)"}
+                      </span>
                       <input
                         type="file"
                         accept="image/*"
+                        multiple
                         onChange={handleScreenshotChange}
                         className="hidden"
                       />

@@ -43,6 +43,7 @@ interface Appeal {
   amount_to_refund: number;
   admin_comment: string | null;
   screenshot_url: string | null;
+  screenshot_urls: string[] | null;
   created_at: string;
   resolved_at: string | null;
   resolved_by: string | null;
@@ -221,6 +222,7 @@ export function AdminAppealsTab() {
       const actualTeamId = generation?.team_id || appeal.team_id;
       return {
         ...appeal,
+        screenshot_urls: (appeal.screenshot_urls as string[] | null) || null,
         team_id: actualTeamId, // Override with the actual team that paid
         user_name: profiles?.find(p => p.user_id === appeal.user_id)?.display_name || "Невідомий",
         team_name: teams?.find(t => t.id === actualTeamId)?.name || "Невідома команда",
@@ -673,7 +675,16 @@ export function AdminAppealsTab() {
                           <TableCell className="py-1.5 text-xs max-w-[120px] truncate" title={appeal.site_name}>
                             <div className="flex items-center gap-1">
                               {appeal.site_name}
-                              {appeal.screenshot_url && <span title="Є скріншот"><Image className="h-3 w-3 text-muted-foreground" /></span>}
+                              {(appeal.screenshot_urls?.length || appeal.screenshot_url) && (
+                                <span title={`${appeal.screenshot_urls?.length || 1} скріншот(ів)`} className="flex items-center">
+                                  <Image className="h-3 w-3 text-muted-foreground" />
+                                  {(appeal.screenshot_urls?.length || 0) > 1 && (
+                                    <span className="text-[10px] text-muted-foreground ml-0.5">
+                                      {appeal.screenshot_urls?.length}
+                                    </span>
+                                  )}
+                                </span>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell className="py-1.5 text-xs font-medium">
@@ -775,24 +786,29 @@ export function AdminAppealsTab() {
                 <p className="p-3 bg-muted rounded-md mt-1">{selectedAppeal.reason}</p>
               </div>
 
-              {selectedAppeal.screenshot_url && (
+              {(selectedAppeal.screenshot_urls?.length || selectedAppeal.screenshot_url) && (
                 <div>
                   <span className="text-muted-foreground text-sm flex items-center gap-1">
                     <Image className="h-3 w-3" />
-                    Скріншот:
+                    Скріншоти ({selectedAppeal.screenshot_urls?.length || 1}):
                   </span>
-                  <a 
-                    href={selectedAppeal.screenshot_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="block mt-1"
-                  >
-                    <img 
-                      src={selectedAppeal.screenshot_url} 
-                      alt="Скріншот помилки" 
-                      className="max-h-48 rounded border object-contain hover:opacity-80 transition-opacity cursor-pointer"
-                    />
-                  </a>
+                  <div className="mt-1 grid grid-cols-2 gap-2">
+                    {(selectedAppeal.screenshot_urls?.length ? selectedAppeal.screenshot_urls : [selectedAppeal.screenshot_url]).filter(Boolean).map((url, index) => (
+                      <a 
+                        key={index}
+                        href={url!} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="block"
+                      >
+                        <img 
+                          src={url!} 
+                          alt={`Скріншот ${index + 1}`} 
+                          className="max-h-32 rounded border object-cover hover:opacity-80 transition-opacity cursor-pointer w-full"
+                        />
+                      </a>
+                    ))}
+                  </div>
                 </div>
               )}
 
