@@ -30,7 +30,9 @@ import {
   Pencil,
   ExternalLink,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  ChevronLeft,
+  X
 } from "lucide-react";
 
 interface Appeal {
@@ -97,6 +99,31 @@ export function AdminAppealsTab() {
   const [pendingGroupOpen, setPendingGroupOpen] = useState(true);
   const [historicalGroupOpen, setHistoricalGroupOpen] = useState(true);
   const [noAppealsGroupOpen, setNoAppealsGroupOpen] = useState(false);
+
+  // Lightbox state
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  const openLightbox = (images: string[], startIndex: number = 0) => {
+    setLightboxImages(images);
+    setLightboxIndex(startIndex);
+    setLightboxOpen(true);
+  };
+
+  const closeLightbox = () => {
+    setLightboxOpen(false);
+    setLightboxImages([]);
+    setLightboxIndex(0);
+  };
+
+  const nextImage = () => {
+    setLightboxIndex((prev) => (prev + 1) % lightboxImages.length);
+  };
+
+  const prevImage = () => {
+    setLightboxIndex((prev) => (prev - 1 + lightboxImages.length) % lightboxImages.length);
+  };
 
   const handleTeamSelect = (teamId: string | null) => {
     setSelectedTeamId(teamId);
@@ -793,21 +820,22 @@ export function AdminAppealsTab() {
                     Скріншоти ({selectedAppeal.screenshot_urls?.length || 1}):
                   </span>
                   <div className="mt-1 grid grid-cols-2 gap-2">
-                    {(selectedAppeal.screenshot_urls?.length ? selectedAppeal.screenshot_urls : [selectedAppeal.screenshot_url]).filter(Boolean).map((url, index) => (
-                      <a 
-                        key={index}
-                        href={url!} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="block"
-                      >
-                        <img 
-                          src={url!} 
-                          alt={`Скріншот ${index + 1}`} 
-                          className="max-h-32 rounded border object-cover hover:opacity-80 transition-opacity cursor-pointer w-full"
-                        />
-                      </a>
-                    ))}
+                    {(() => {
+                      const images = (selectedAppeal.screenshot_urls?.length ? selectedAppeal.screenshot_urls : [selectedAppeal.screenshot_url]).filter(Boolean) as string[];
+                      return images.map((url, index) => (
+                        <div
+                          key={index}
+                          className="cursor-pointer"
+                          onClick={() => openLightbox(images, index)}
+                        >
+                          <img 
+                            src={url} 
+                            alt={`Скріншот ${index + 1}`} 
+                            className="max-h-32 rounded border object-cover hover:opacity-80 transition-opacity w-full"
+                          />
+                        </div>
+                      ));
+                    })()}
                   </div>
                 </div>
               )}
@@ -873,6 +901,84 @@ export function AdminAppealsTab() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Lightbox for full-size image viewing */}
+      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none">
+          <div className="relative flex items-center justify-center min-h-[80vh]">
+            {/* Close button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-2 right-2 z-50 text-white hover:bg-white/20"
+              onClick={closeLightbox}
+            >
+              <X className="h-6 w-6" />
+            </Button>
+            
+            {/* Image counter */}
+            {lightboxImages.length > 1 && (
+              <div className="absolute top-2 left-2 z-50 text-white text-sm bg-black/50 px-2 py-1 rounded">
+                {lightboxIndex + 1} / {lightboxImages.length}
+              </div>
+            )}
+            
+            {/* Previous button */}
+            {lightboxImages.length > 1 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute left-2 z-50 text-white hover:bg-white/20 h-12 w-12"
+                onClick={prevImage}
+              >
+                <ChevronLeft className="h-8 w-8" />
+              </Button>
+            )}
+            
+            {/* Main image */}
+            {lightboxImages[lightboxIndex] && (
+              <img
+                src={lightboxImages[lightboxIndex]}
+                alt={`Скріншот ${lightboxIndex + 1}`}
+                className="max-w-full max-h-[90vh] object-contain"
+              />
+            )}
+            
+            {/* Next button */}
+            {lightboxImages.length > 1 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-2 z-50 text-white hover:bg-white/20 h-12 w-12"
+                onClick={nextImage}
+              >
+                <ChevronRight className="h-8 w-8" />
+              </Button>
+            )}
+            
+            {/* Thumbnail strip */}
+            {lightboxImages.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-black/50 p-2 rounded">
+                {lightboxImages.map((url, index) => (
+                  <div
+                    key={index}
+                    className={`cursor-pointer rounded overflow-hidden border-2 transition-all ${
+                      index === lightboxIndex ? 'border-white' : 'border-transparent opacity-60 hover:opacity-100'
+                    }`}
+                    onClick={() => setLightboxIndex(index)}
+                  >
+                    <img
+                      src={url}
+                      alt={`Мініатюра ${index + 1}`}
+                      className="h-12 w-16 object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
