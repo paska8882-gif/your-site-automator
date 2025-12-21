@@ -113,6 +113,10 @@
   .dark .sidebar-gradient {
     background: linear-gradient(180deg, hsl(0 0% 14%) 0%, hsl(0 0% 8%) 100%);
   }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @keyframes float {

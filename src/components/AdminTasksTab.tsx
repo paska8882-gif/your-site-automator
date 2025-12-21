@@ -532,9 +532,9 @@ export const AdminTasksTab = () => {
             <Badge variant="secondary" className="text-xs bg-white/20 text-white border-0">{columnTasks.length}</Badge>
           </div>
         </div>
-        <div className={`space-y-2 max-h-[calc(100vh-450px)] overflow-y-auto overflow-x-hidden pr-1 rounded-lg p-2 transition-colors duration-200 ${
+        <div className={`space-y-2 max-h-[calc(100vh-450px)] overflow-y-auto overflow-x-hidden rounded-lg p-2 transition-colors duration-200 scrollbar-hide ${
           isDragOver ? "bg-primary/10 ring-2 ring-primary/30" : ""
-        }`}>
+        }`} style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {columnTasks.map(task => renderTaskCard(task))}
           {columnTasks.length === 0 && (
             <p className={`text-center text-sm py-8 rounded-lg border-2 border-dashed transition-colors ${
