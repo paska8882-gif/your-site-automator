@@ -120,6 +120,14 @@ interface TeamInfo {
   balance: number;
 }
 
+interface TeamPricing {
+  team_id: string;
+  html_price: number;
+  react_price: number;
+  generation_cost_junior: number;
+  generation_cost_senior: number;
+}
+
 interface ExternalUploadForm {
   teamId: string;
   siteName: string;
@@ -150,6 +158,7 @@ export const AdminSitesTab = () => {
   // External upload dialog state
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [teams, setTeams] = useState<TeamInfo[]>([]);
+  const [teamPricings, setTeamPricings] = useState<TeamPricing[]>([]);
   const [uploadForm, setUploadForm] = useState<ExternalUploadForm>({
     teamId: "",
     siteName: "",
@@ -181,12 +190,25 @@ export const AdminSitesTab = () => {
     fetchTeams();
   }, []);
 
+  // Auto-fill prices when team or website type changes
+  useEffect(() => {
+    if (uploadForm.teamId) {
+      const pricing = teamPricings.find(p => p.team_id === uploadForm.teamId);
+      if (pricing) {
+        const salePrice = uploadForm.websiteType === "react" ? pricing.react_price : pricing.html_price;
+        const generationCost = uploadForm.aiModel === "senior" ? pricing.generation_cost_senior : pricing.generation_cost_junior;
+        setUploadForm(prev => ({ ...prev, salePrice, generationCost }));
+      }
+    }
+  }, [uploadForm.teamId, uploadForm.websiteType, uploadForm.aiModel, teamPricings]);
+
   const fetchTeams = async () => {
-    const { data } = await supabase
-      .from("teams")
-      .select("id, name, balance")
-      .order("name");
-    setTeams(data || []);
+    const [teamsRes, pricingsRes] = await Promise.all([
+      supabase.from("teams").select("id, name, balance").order("name"),
+      supabase.from("team_pricing").select("team_id, html_price, react_price, generation_cost_junior, generation_cost_senior")
+    ]);
+    setTeams(teamsRes.data || []);
+    setTeamPricings(pricingsRes.data || []);
   };
 
   const fetchAllGenerations = async () => {
