@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,10 @@ import {
   TrendingDown,
   Users,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Download,
+  Pencil,
+  ExternalLink
 } from "lucide-react";
 
 interface Appeal {
@@ -44,6 +48,11 @@ interface Appeal {
   team_name?: string;
   site_name?: string;
   prompt?: string;
+  // Generation data for download
+  zip_data?: string | null;
+  website_type?: string | null;
+  ai_model?: string | null;
+  language?: string;
 }
 
 interface Team {
@@ -64,6 +73,7 @@ interface BalanceTransaction {
 
 export function AdminAppealsTab() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [appeals, setAppeals] = useState<Appeal[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAppeal, setSelectedAppeal] = useState<Appeal | null>(null);
@@ -168,10 +178,10 @@ export function AdminAppealsTab() {
       .select("user_id, display_name")
       .in("user_id", userIds);
 
-    // Fetch generations with team_id
+    // Fetch generations with team_id and zip_data for download
     const { data: generations } = await supabase
       .from("generation_history")
-      .select("id, site_name, prompt, team_id")
+      .select("id, site_name, prompt, team_id, zip_data, website_type, ai_model, language")
       .in("id", generationIds);
 
     // Get team IDs from generations (the actual team that paid for the site)
@@ -193,7 +203,11 @@ export function AdminAppealsTab() {
         user_name: profiles?.find(p => p.user_id === appeal.user_id)?.display_name || "Невідомий",
         team_name: teams?.find(t => t.id === actualTeamId)?.name || "Невідома команда",
         site_name: generation?.site_name || "Невідомий сайт",
-        prompt: generation?.prompt
+        prompt: generation?.prompt,
+        zip_data: generation?.zip_data,
+        website_type: generation?.website_type,
+        ai_model: generation?.ai_model,
+        language: generation?.language
       };
     });
 
@@ -306,6 +320,55 @@ export function AdminAppealsTab() {
     }
     
     setProcessing(false);
+  };
+
+  // Download ZIP handler
+  const handleDownload = (appeal: Appeal) => {
+    if (!appeal.zip_data) {
+      toast({
+        title: "Помилка",
+        description: "ZIP-файл недоступний",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const byteCharacters = atob(appeal.zip_data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: "application/zip" });
+
+      const siteName = appeal.site_name || "website";
+      const lang = appeal.language?.toUpperCase() || "AUTO";
+      const type = appeal.website_type?.toUpperCase() || "HTML";
+      const aiLabel = appeal.ai_model === "senior" ? "Senior_AI" : "Junior_AI";
+      const filename = `${siteName}-${lang}-${type}-${aiLabel}.zip`;
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Завантаження",
+        description: "ZIP-архів завантажено",
+      });
+    } catch (error) {
+      console.error("Download error:", error);
+      toast({
+        title: "Помилка",
+        description: "Не вдалося завантажити файл",
+        variant: "destructive",
+      });
+    }
   };
 
   const getStatusIcon = (status: string) => {
@@ -584,6 +647,41 @@ export function AdminAppealsTab() {
                   <span className="text-muted-foreground">Сума до повернення:</span>
                   <p className="font-medium text-lg">${selectedAppeal.amount_to_refund.toFixed(2)}</p>
                 </div>
+              </div>
+
+              {/* Site actions */}
+              <div className="flex flex-wrap gap-2 p-3 bg-muted/50 rounded-md">
+                <span className="text-sm text-muted-foreground w-full mb-1">Дії з сайтом:</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => navigate(`/edit/${selectedAppeal.generation_id}`)}
+                >
+                  <Eye className="h-3.5 w-3.5 mr-1.5" />
+                  Переглянути
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => {
+                    navigate(`/edit/${selectedAppeal.generation_id}`);
+                  }}
+                >
+                  <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                  Редагувати
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => handleDownload(selectedAppeal)}
+                  disabled={!selectedAppeal.zip_data}
+                >
+                  <Download className="h-3.5 w-3.5 mr-1.5" />
+                  Завантажити ZIP
+                </Button>
               </div>
 
               <div>
