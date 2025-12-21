@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, PieChart, Pie, Cell } from "recharts";
 import { 
   ArrowLeft, 
   Users, 
@@ -428,6 +429,74 @@ const AdminTeamDetails = () => {
     return acc;
   }, {} as Record<string, TeamMember[]>);
 
+  // Chart data - generations by day
+  const generationsChartData = useMemo(() => {
+    const last30Days: Record<string, { date: string; completed: number; failed: number; sales: number; costs: number }> = {};
+    
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      last30Days[dateStr] = { date: dateStr, completed: 0, failed: 0, sales: 0, costs: 0 };
+    }
+
+    generations.forEach(g => {
+      const dateStr = new Date(g.created_at).toISOString().split('T')[0];
+      if (last30Days[dateStr]) {
+        if (g.status === "completed") {
+          last30Days[dateStr].completed += 1;
+          last30Days[dateStr].sales += g.sale_price || 0;
+          last30Days[dateStr].costs += g.generation_cost || 0;
+        } else if (g.status === "failed") {
+          last30Days[dateStr].failed += 1;
+        }
+      }
+    });
+
+    return Object.values(last30Days).map(d => ({
+      ...d,
+      dateLabel: new Date(d.date).toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit" })
+    }));
+  }, [generations]);
+
+  // Chart data - balance history
+  const balanceChartData = useMemo(() => {
+    if (transactions.length === 0) return [];
+    
+    const sorted = [...transactions].sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+
+    return sorted.slice(-30).map(tx => ({
+      date: new Date(tx.created_at).toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit" }),
+      balance: tx.balance_after,
+      change: tx.amount
+    }));
+  }, [transactions]);
+
+  // Chart data - generation types pie
+  const typesPieData = useMemo(() => {
+    const types: Record<string, number> = {};
+    generations.filter(g => g.status === "completed").forEach(g => {
+      const type = g.website_type || "unknown";
+      types[type] = (types[type] || 0) + 1;
+    });
+    return Object.entries(types).map(([name, value]) => ({ name, value }));
+  }, [generations]);
+
+  // Chart data - AI models pie
+  const modelsPieData = useMemo(() => {
+    const models: Record<string, number> = {};
+    generations.filter(g => g.status === "completed").forEach(g => {
+      const model = g.ai_model || "unknown";
+      models[model] = (models[model] || 0) + 1;
+    });
+    return Object.entries(models).map(([name, value]) => ({ name: name === "junior" ? "Junior" : "Senior", value }));
+  }, [generations]);
+
+  const COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))"];
+
+
   if (authLoading || adminLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -519,7 +588,230 @@ const AdminTeamDetails = () => {
           </Card>
         </div>
 
-        {/* Admin Settings */}
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Generations Over Time */}
+          <Card>
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Генерації за останні 30 днів
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-2 pb-4">
+              <div className="h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={generationsChartData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis 
+                      dataKey="dateLabel" 
+                      tick={{ fontSize: 10 }}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: "hsl(var(--popover))", 
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                        fontSize: "12px"
+                      }}
+                    />
+                    <Bar dataKey="completed" name="Успішні" fill="hsl(var(--chart-2))" radius={[2, 2, 0, 0]} />
+                    <Bar dataKey="failed" name="Невдалі" fill="hsl(var(--destructive))" radius={[2, 2, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Sales & Costs Over Time */}
+          <Card>
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Продажі та витрати
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-2 pb-4">
+              <div className="h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={generationsChartData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis 
+                      dataKey="dateLabel" 
+                      tick={{ fontSize: 10 }}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: "hsl(var(--popover))", 
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                        fontSize: "12px"
+                      }}
+                      formatter={(value: number) => [`$${value.toFixed(2)}`, ""]}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="sales" 
+                      name="Продажі" 
+                      stroke="hsl(var(--chart-2))" 
+                      fill="hsl(var(--chart-2))" 
+                      fillOpacity={0.3} 
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="costs" 
+                      name="Витрати" 
+                      stroke="hsl(var(--chart-4))" 
+                      fill="hsl(var(--chart-4))" 
+                      fillOpacity={0.3} 
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Balance History */}
+          <Card>
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Wallet className="h-4 w-4" />
+                Історія балансу
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-2 pb-4">
+              <div className="h-[200px]">
+                {balanceChartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={balanceChartData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="date" 
+                        tick={{ fontSize: 10 }}
+                        interval="preserveStartEnd"
+                      />
+                      <YAxis tick={{ fontSize: 10 }} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: "hsl(var(--popover))", 
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px",
+                          fontSize: "12px"
+                        }}
+                        formatter={(value: number) => [`$${value.toFixed(2)}`, ""]}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="balance" 
+                        name="Баланс" 
+                        stroke="hsl(var(--primary))" 
+                        fill="hsl(var(--primary))" 
+                        fillOpacity={0.3} 
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                    Немає даних про транзакції
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Pie Charts */}
+          <Card>
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Розподіл генерацій
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-2 pb-4">
+              <div className="h-[200px] flex">
+                {/* Types Pie */}
+                <div className="flex-1">
+                  <div className="text-xs text-center text-muted-foreground mb-1">За типом</div>
+                  {typesPieData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="90%">
+                      <PieChart>
+                        <Pie
+                          data={typesPieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={30}
+                          outerRadius={60}
+                          paddingAngle={2}
+                          dataKey="value"
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          labelLine={false}
+                        >
+                          {typesPieData.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: "hsl(var(--popover))", 
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "8px",
+                            fontSize: "12px"
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-muted-foreground text-xs">
+                      Немає даних
+                    </div>
+                  )}
+                </div>
+                {/* Models Pie */}
+                <div className="flex-1">
+                  <div className="text-xs text-center text-muted-foreground mb-1">За AI моделлю</div>
+                  {modelsPieData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="90%">
+                      <PieChart>
+                        <Pie
+                          data={modelsPieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={30}
+                          outerRadius={60}
+                          paddingAngle={2}
+                          dataKey="value"
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          labelLine={false}
+                        >
+                          {modelsPieData.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: "hsl(var(--popover))", 
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "8px",
+                            fontSize: "12px"
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-muted-foreground text-xs">
+                      Немає даних
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
           <CardHeader className="py-3 px-4">
             <CardTitle className="text-sm flex items-center gap-2">
