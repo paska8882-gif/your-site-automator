@@ -1,16 +1,19 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSuperAdmin } from "@/hooks/useSuperAdmin";
 import { toast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
-import { ClipboardList, Plus, Clock, User, Users, GripVertical, Trash2 } from "lucide-react";
+import { ClipboardList, Plus, Clock, User, Users, GripVertical, Trash2, LayoutGrid, List, ChevronDown, UserCheck, Send } from "lucide-react";
 import { format } from "date-fns";
 import { uk } from "date-fns/locale";
 
@@ -48,6 +51,7 @@ const statusConfig = {
 
 export const AdminTasksTab = () => {
   const { user } = useAuth();
+  const { isSuperAdmin } = useSuperAdmin();
   const [tasks, setTasks] = useState<AdminTask[]>([]);
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -55,6 +59,12 @@ export const AdminTasksTab = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
+    assigned: true,
+    created: true,
+    all: true,
+  });
   const [newTask, setNewTask] = useState({
     title: "",
     description: "",
@@ -62,9 +72,16 @@ export const AdminTasksTab = () => {
     team_id: "",
   });
 
+  // Filter tasks based on user role
+  const filteredTasks = isSuperAdmin 
+    ? tasks 
+    : tasks.filter(t => t.assigned_to === user?.id || t.created_by === user?.id);
+
+  const myAssignedTasks = filteredTasks.filter(t => t.assigned_to === user?.id);
+  const myCreatedTasks = filteredTasks.filter(t => t.created_by === user?.id && t.assigned_to !== user?.id);
+
   const fetchData = async () => {
     try {
-      // Fetch tasks with profiles and teams
       const { data: tasksData, error: tasksError } = await supabase
         .from("admin_tasks")
         .select("*")
@@ -72,7 +89,6 @@ export const AdminTasksTab = () => {
 
       if (tasksError) throw tasksError;
 
-      // Fetch profiles for assigned_to and created_by
       const userIds = [...new Set([
         ...(tasksData || []).map(t => t.assigned_to),
         ...(tasksData || []).map(t => t.created_by)
@@ -85,7 +101,6 @@ export const AdminTasksTab = () => {
 
       const profilesMap = new Map(profilesData?.map(p => [p.user_id, p]) || []);
 
-      // Fetch teams
       const teamIds = (tasksData || []).filter(t => t.team_id).map(t => t.team_id);
       const { data: teamsData } = await supabase
         .from("teams")
@@ -104,7 +119,6 @@ export const AdminTasksTab = () => {
 
       setTasks(enrichedTasks);
 
-      // Fetch admins
       const { data: adminRoles } = await supabase
         .from("user_roles")
         .select("user_id")
@@ -119,7 +133,6 @@ export const AdminTasksTab = () => {
         setAdmins(adminProfiles || []);
       }
 
-      // Fetch all teams
       const { data: allTeams } = await supabase
         .from("teams")
         .select("id, name")
@@ -136,7 +149,6 @@ export const AdminTasksTab = () => {
   useEffect(() => {
     fetchData();
 
-    // Subscribe to realtime changes
     const channel = supabase
       .channel("admin-tasks-changes")
       .on(
@@ -174,7 +186,6 @@ export const AdminTasksTab = () => {
 
       if (error) throw error;
 
-      // Create notification for assigned admin
       if (newTask.assigned_to !== user.id) {
         await supabase.from("notifications").insert({
           user_id: newTask.assigned_to,
@@ -210,7 +221,6 @@ export const AdminTasksTab = () => {
 
       if (error) throw error;
 
-      // Notify creator when task is completed
       if (newStatus === "done" && task.created_by !== user?.id) {
         await supabase.from("notifications").insert({
           user_id: task.created_by,
@@ -287,63 +297,90 @@ export const AdminTasksTab = () => {
     }
   };
 
-  const renderTaskCard = (task: AdminTask) => (
+  const toggleGroup = (group: string) => {
+    setExpandedGroups(prev => ({ ...prev, [group]: !prev[group] }));
+  };
+
+  const renderTaskCard = (task: AdminTask, showDragHandle = true) => (
     <Card 
       key={task.id} 
-      draggable
+      draggable={showDragHandle}
       onDragStart={(e) => handleDragStart(e, task.id)}
       onDragEnd={handleDragEnd}
-      className={`mb-3 cursor-grab active:cursor-grabbing transition-all duration-200 ${getCardBackground(task.status)} border ${
+      className={`mb-3 ${showDragHandle ? "cursor-grab active:cursor-grabbing" : ""} transition-all duration-200 ${getCardBackground(task.status)} border ${
         isOverdue(task.deadline) && task.status !== "done" ? "border-red-500/50" : "border-border/50"
       } ${draggedTaskId === task.id ? "opacity-50 scale-95" : "hover:scale-[1.02]"}`}
     >
       <CardContent className="p-3">
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="flex items-center gap-2">
-            <GripVertical className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
+            {showDragHandle && <GripVertical className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />}
             <h4 className="font-medium text-sm line-clamp-2">{task.title}</h4>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-destructive flex-shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              deleteTask(task.id);
-            }}
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <Badge className={`text-xs ${statusConfig[task.status].color}`}>
+              {statusConfig[task.status].label}
+            </Badge>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-muted-foreground hover:text-destructive"
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteTask(task.id);
+              }}
+            >
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
         </div>
         
         {task.description && (
-          <p className="text-xs text-muted-foreground mb-2 line-clamp-2 ml-6">{task.description}</p>
+          <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{task.description}</p>
         )}
         
-        <div className="flex flex-wrap gap-1 mb-2 ml-6">
+        <div className="flex flex-wrap gap-2 mb-2">
           {task.team && (
             <Badge variant="outline" className="text-xs">
               <Users className="h-3 w-3 mr-1" />
               {task.team.name}
             </Badge>
           )}
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <UserCheck className="h-3 w-3" />
+            <span>{task.assigned_profile?.display_name || "Невідомий"}</span>
+          </div>
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Send className="h-3 w-3" />
+            <span>{task.creator_profile?.display_name || "Невідомий"}</span>
+          </div>
         </div>
         
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 ml-6">
-          <User className="h-3 w-3" />
-          <span>{task.assigned_profile?.display_name || "Невідомий"}</span>
-        </div>
-        
-        <div className={`flex items-center gap-2 text-xs ml-6 ${isOverdue(task.deadline) && task.status !== "done" ? "text-red-400" : "text-muted-foreground"}`}>
+        <div className={`flex items-center gap-2 text-xs ${isOverdue(task.deadline) && task.status !== "done" ? "text-red-500 font-medium" : "text-muted-foreground"}`}>
           <Clock className="h-3 w-3" />
           <span>{format(new Date(task.deadline), "dd.MM.yyyy HH:mm", { locale: uk })}</span>
         </div>
+
+        {task.status !== "done" && viewMode === "list" && (
+          <div className="mt-3 flex gap-1">
+            {task.status === "todo" && (
+              <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => updateTaskStatus(task.id, "in_progress")}>
+                Почати
+              </Button>
+            )}
+            {task.status === "in_progress" && (
+              <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => updateTaskStatus(task.id, "done")}>
+                Завершити
+              </Button>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
 
   const renderColumn = (status: "todo" | "in_progress" | "done") => {
-    const columnTasks = tasks.filter(t => t.status === status);
+    const columnTasks = filteredTasks.filter(t => t.status === status);
     const config = statusConfig[status];
     const isDragOver = dragOverStatus === status;
 
@@ -363,7 +400,7 @@ export const AdminTasksTab = () => {
         <div className={`space-y-2 max-h-[calc(100vh-400px)] overflow-y-auto pr-1 rounded-lg p-2 transition-colors duration-200 ${
           isDragOver ? "bg-primary/10 ring-2 ring-primary/30" : ""
         }`}>
-          {columnTasks.map(renderTaskCard)}
+          {columnTasks.map(task => renderTaskCard(task))}
           {columnTasks.length === 0 && (
             <p className={`text-center text-sm py-8 rounded-lg border-2 border-dashed transition-colors ${
               isDragOver ? "border-primary/50 text-primary bg-primary/5" : "text-muted-foreground border-transparent"
@@ -376,6 +413,47 @@ export const AdminTasksTab = () => {
     );
   };
 
+  const renderListGroup = (title: string, icon: React.ReactNode, groupKey: string, taskList: AdminTask[]) => (
+    <Collapsible open={expandedGroups[groupKey]} onOpenChange={() => toggleGroup(groupKey)} className="mb-4">
+      <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+        <ChevronDown className={`h-4 w-4 transition-transform ${expandedGroups[groupKey] ? "" : "-rotate-90"}`} />
+        {icon}
+        <span className="font-medium">{title}</span>
+        <Badge variant="secondary" className="ml-auto">{taskList.length}</Badge>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="pt-3 space-y-2">
+        {taskList.length === 0 ? (
+          <p className="text-center text-muted-foreground text-sm py-4">Немає завдань</p>
+        ) : (
+          taskList.map(task => renderTaskCard(task, false))
+        )}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+
+  const renderListView = () => (
+    <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-350px)]">
+      {renderListGroup(
+        "Призначені мені",
+        <UserCheck className="h-4 w-4 text-indigo-500" />,
+        "assigned",
+        myAssignedTasks
+      )}
+      {renderListGroup(
+        "Створені мною",
+        <Send className="h-4 w-4 text-emerald-500" />,
+        "created",
+        myCreatedTasks
+      )}
+      {isSuperAdmin && renderListGroup(
+        "Всі завдання",
+        <Users className="h-4 w-4 text-slate-500" />,
+        "all",
+        filteredTasks
+      )}
+    </div>
+  );
+
   if (loading) {
     return <div className="flex items-center justify-center h-64">Завантаження...</div>;
   }
@@ -385,12 +463,33 @@ export const AdminTasksTab = () => {
       <AdminPageHeader
         icon={ClipboardList}
         title="Завдання"
-        description="Канбан-дошка для управління завданнями адміністраторів"
+        description="Управління завданнями адміністраторів"
       />
 
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-sm text-muted-foreground">
-          Всього: {tasks.length} | Активних: {tasks.filter(t => t.status !== "done").length}
+      <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-muted-foreground">
+            Всього: {filteredTasks.length} | Активних: {filteredTasks.filter(t => t.status !== "done").length}
+          </div>
+          
+          <div className="flex items-center gap-1 border rounded-lg p-1">
+            <Button
+              variant={viewMode === "kanban" ? "default" : "ghost"}
+              size="sm"
+              className="h-7 px-2"
+              onClick={() => setViewMode("kanban")}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="sm"
+              className="h-7 px-2"
+              onClick={() => setViewMode("list")}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -470,11 +569,15 @@ export const AdminTasksTab = () => {
         </Dialog>
       </div>
 
-      <div className="flex gap-4 overflow-x-auto pb-4 flex-1">
-        {renderColumn("todo")}
-        {renderColumn("in_progress")}
-        {renderColumn("done")}
-      </div>
+      {viewMode === "kanban" ? (
+        <div className="flex gap-4 overflow-x-auto pb-4 flex-1">
+          {renderColumn("todo")}
+          {renderColumn("in_progress")}
+          {renderColumn("done")}
+        </div>
+      ) : (
+        renderListView()
+      )}
     </div>
   );
 };
