@@ -31,7 +31,10 @@ import {
   Code,
   Clock,
   BarChart3,
-  FileText
+  FileText,
+  AlertTriangle,
+  Save,
+  Edit
 } from "lucide-react";
 
 interface Team {
@@ -84,11 +87,26 @@ interface BalanceTransaction {
 }
 
 interface TeamPricing {
+  id: string;
   html_price: number;
   react_price: number;
   generation_cost_junior: number;
   generation_cost_senior: number;
   external_price: number | null;
+}
+
+interface Appeal {
+  id: string;
+  reason: string;
+  status: string;
+  amount_to_refund: number;
+  created_at: string;
+  resolved_at: string | null;
+  admin_comment: string | null;
+  user_id: string;
+  generation_id: string;
+  user_name?: string;
+  site_name?: string;
 }
 
 const roleIcons: Record<string, typeof Crown> = {
@@ -118,10 +136,22 @@ const AdminTeamDetails = () => {
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [transactions, setTransactions] = useState<BalanceTransaction[]>([]);
   const [pricing, setPricing] = useState<TeamPricing | null>(null);
+  const [appeals, setAppeals] = useState<Appeal[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [savingCreditLimit, setSavingCreditLimit] = useState(false);
   const [creditLimitInput, setCreditLimitInput] = useState("");
+  
+  // Pricing edit state
+  const [editingPricing, setEditingPricing] = useState(false);
+  const [savingPricing, setSavingPricing] = useState(false);
+  const [pricingForm, setPricingForm] = useState({
+    html_price: "0",
+    react_price: "0",
+    generation_cost_junior: "0.10",
+    generation_cost_senior: "0.25",
+    external_price: "7"
+  });
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -145,7 +175,8 @@ const AdminTeamDetails = () => {
       fetchAdmins(),
       fetchGenerations(),
       fetchTransactions(),
-      fetchPricing()
+      fetchPricing(),
+      fetchAppeals()
     ]);
     setLoading(false);
   };
@@ -269,6 +300,80 @@ const AdminTeamDetails = () => {
       .maybeSingle();
 
     setPricing(data);
+    if (data) {
+      setPricingForm({
+        html_price: data.html_price.toString(),
+        react_price: data.react_price.toString(),
+        generation_cost_junior: data.generation_cost_junior.toString(),
+        generation_cost_senior: data.generation_cost_senior.toString(),
+        external_price: data.external_price?.toString() || "7"
+      });
+    }
+  };
+
+  const fetchAppeals = async () => {
+    const { data: appealsData } = await supabase
+      .from("appeals")
+      .select("*")
+      .eq("team_id", teamId)
+      .order("created_at", { ascending: false });
+
+    if (appealsData && appealsData.length > 0) {
+      const userIds = [...new Set(appealsData.map(a => a.user_id))];
+      const genIds = appealsData.map(a => a.generation_id);
+      
+      const [profilesRes, gensRes] = await Promise.all([
+        supabase.from("profiles").select("user_id, display_name").in("user_id", userIds),
+        supabase.from("generation_history").select("id, site_name").in("id", genIds)
+      ]);
+
+      const profileMap = new Map(profilesRes.data?.map(p => [p.user_id, p.display_name]) || []);
+      const genMap = new Map(gensRes.data?.map(g => [g.id, g.site_name]) || []);
+
+      setAppeals(appealsData.map(a => ({
+        ...a,
+        user_name: profileMap.get(a.user_id) || "Невідомий",
+        site_name: genMap.get(a.generation_id) || "Без назви"
+      })));
+    } else {
+      setAppeals([]);
+    }
+  };
+
+  const handleSavePricing = async () => {
+    setSavingPricing(true);
+    
+    const pricingData = {
+      team_id: teamId,
+      html_price: parseFloat(pricingForm.html_price) || 0,
+      react_price: parseFloat(pricingForm.react_price) || 0,
+      generation_cost_junior: parseFloat(pricingForm.generation_cost_junior) || 0.10,
+      generation_cost_senior: parseFloat(pricingForm.generation_cost_senior) || 0.25,
+      external_price: parseFloat(pricingForm.external_price) || 7
+    };
+
+    let error;
+    if (pricing?.id) {
+      const res = await supabase
+        .from("team_pricing")
+        .update(pricingData)
+        .eq("id", pricing.id);
+      error = res.error;
+    } else {
+      const res = await supabase
+        .from("team_pricing")
+        .insert(pricingData);
+      error = res.error;
+    }
+
+    if (error) {
+      toast({ title: "Помилка", description: "Не вдалося зберегти тарифи", variant: "destructive" });
+    } else {
+      toast({ title: "Збережено", description: "Тарифи оновлено" });
+      setEditingPricing(false);
+      fetchPricing();
+    }
+    setSavingPricing(false);
   };
 
   const handleAssignAdmin = async (adminId: string | null) => {
@@ -478,7 +583,7 @@ const AdminTeamDetails = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="members" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="members" className="text-xs">
               <Users className="h-4 w-4 mr-1" />
               Команда
@@ -494,6 +599,15 @@ const AdminTeamDetails = () => {
             <TabsTrigger value="pricing" className="text-xs">
               <FileText className="h-4 w-4 mr-1" />
               Тарифи
+            </TabsTrigger>
+            <TabsTrigger value="appeals" className="text-xs">
+              <AlertTriangle className="h-4 w-4 mr-1" />
+              Апеляції
+              {appeals.filter(a => a.status === "pending").length > 0 && (
+                <Badge variant="destructive" className="ml-1 text-[10px] px-1">
+                  {appeals.filter(a => a.status === "pending").length}
+                </Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -661,13 +775,84 @@ const AdminTeamDetails = () => {
           <TabsContent value="pricing">
             <Card>
               <CardHeader className="py-3 px-4">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Тарифи команди
+                <CardTitle className="text-sm flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Тарифи команди
+                  </span>
+                  {!editingPricing ? (
+                    <Button size="sm" variant="outline" onClick={() => setEditingPricing(true)}>
+                      <Edit className="h-3 w-3 mr-1" />
+                      Редагувати
+                    </Button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => setEditingPricing(false)}>
+                        Скасувати
+                      </Button>
+                      <Button size="sm" onClick={handleSavePricing} disabled={savingPricing}>
+                        {savingPricing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
+                        Зберегти
+                      </Button>
+                    </div>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                {pricing ? (
+                {editingPricing ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">HTML ціна ($)</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={pricingForm.html_price}
+                        onChange={(e) => setPricingForm(p => ({ ...p, html_price: e.target.value }))}
+                        className="h-9"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">React ціна ($)</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={pricingForm.react_price}
+                        onChange={(e) => setPricingForm(p => ({ ...p, react_price: e.target.value }))}
+                        className="h-9"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">Зовнішня ціна ($)</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={pricingForm.external_price}
+                        onChange={(e) => setPricingForm(p => ({ ...p, external_price: e.target.value }))}
+                        className="h-9"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">Витрати Junior AI ($)</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={pricingForm.generation_cost_junior}
+                        onChange={(e) => setPricingForm(p => ({ ...p, generation_cost_junior: e.target.value }))}
+                        className="h-9"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">Витрати Senior AI ($)</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={pricingForm.generation_cost_senior}
+                        onChange={(e) => setPricingForm(p => ({ ...p, generation_cost_senior: e.target.value }))}
+                        className="h-9"
+                      />
+                    </div>
+                  </div>
+                ) : pricing ? (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div className="p-3 rounded border bg-muted/30">
                       <div className="text-xs text-muted-foreground mb-1">HTML ціна</div>
@@ -691,7 +876,77 @@ const AdminTeamDetails = () => {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-muted-foreground text-sm">Тарифи не налаштовані (використовуються стандартні)</p>
+                  <div className="text-center py-4">
+                    <p className="text-muted-foreground text-sm mb-3">Тарифи не налаштовані (використовуються стандартні)</p>
+                    <Button size="sm" onClick={() => setEditingPricing(true)}>
+                      <Edit className="h-3 w-3 mr-1" />
+                      Створити тарифи
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Appeals Tab */}
+          <TabsContent value="appeals">
+            <Card>
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    Апеляції команди
+                  </span>
+                  <div className="flex gap-2 text-xs">
+                    <Badge variant="secondary">{appeals.filter(a => a.status === "pending").length} очікує</Badge>
+                    <Badge variant="default">{appeals.filter(a => a.status === "approved").length} схвалено</Badge>
+                    <Badge variant="destructive">{appeals.filter(a => a.status === "rejected").length} відхилено</Badge>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {appeals.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8 text-sm">Немає апеляцій</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Дата</TableHead>
+                        <TableHead className="text-xs">Користувач</TableHead>
+                        <TableHead className="text-xs">Сайт</TableHead>
+                        <TableHead className="text-xs">Причина</TableHead>
+                        <TableHead className="text-xs">Сума</TableHead>
+                        <TableHead className="text-xs">Статус</TableHead>
+                        <TableHead className="text-xs">Коментар</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {appeals.map((appeal) => (
+                        <TableRow key={appeal.id}>
+                          <TableCell className="text-xs">
+                            {new Date(appeal.created_at).toLocaleDateString("uk-UA")}
+                          </TableCell>
+                          <TableCell className="text-xs">{appeal.user_name}</TableCell>
+                          <TableCell className="text-xs max-w-[120px] truncate">{appeal.site_name}</TableCell>
+                          <TableCell className="text-xs max-w-[200px] truncate">{appeal.reason}</TableCell>
+                          <TableCell className="text-xs font-medium text-orange-600">
+                            ${appeal.amount_to_refund.toFixed(2)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={appeal.status === "approved" ? "default" : appeal.status === "rejected" ? "destructive" : "secondary"}
+                              className="text-[10px]"
+                            >
+                              {appeal.status === "pending" ? "Очікує" : appeal.status === "approved" ? "Схвалено" : "Відхилено"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs max-w-[150px] truncate text-muted-foreground">
+                            {appeal.admin_comment || "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 )}
               </CardContent>
             </Card>
