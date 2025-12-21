@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import Edit from "./pages/Edit";
 import Admin from "./pages/Admin";
 import AdminLogin from "./pages/AdminLogin";
+import AdminTeamDetails from "./pages/AdminTeamDetails";
 import Team from "./pages/Team";
 import History from "./pages/History";
 import Balance from "./pages/Balance";
@@ -31,6 +32,7 @@ const App = () => (
               <Route path="/edit/:id" element={<Edit />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/admin-login" element={<AdminLogin />} />
+              <Route path="/admin/team/:teamId" element={<AdminTeamDetails />} />
               <Route path="/team" element={<Team />} />
               <Route path="/history" element={<History />} />
               <Route path="/balance" element={<Balance />} />

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +18,8 @@ import {
   RefreshCw,
   Eye,
   Wallet,
-  UserCog
+  UserCog,
+  ExternalLink
 } from "lucide-react";
 
 interface Admin {
@@ -59,6 +61,7 @@ const generateCode = () => {
 };
 
 export const AdminTeamsManager = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
   const [teams, setTeams] = useState<Team[]>([]);
@@ -459,12 +462,26 @@ export const AdminTeamsManager = () => {
       <Dialog open={!!selectedTeam} onOpenChange={(open) => !open && setSelectedTeam(null)}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle className="text-sm flex items-center gap-2">
-              {selectedTeam?.name}
-              <Badge variant="outline" className="text-xs">
-                <Wallet className="h-3 w-3 mr-1" />
-                Баланс: ${selectedTeam?.balance?.toFixed(2) || "0.00"}
-              </Badge>
+            <DialogTitle className="text-sm flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {selectedTeam?.name}
+                <Badge variant="outline" className="text-xs">
+                  <Wallet className="h-3 w-3 mr-1" />
+                  Баланс: ${selectedTeam?.balance?.toFixed(2) || "0.00"}
+                </Badge>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => {
+                  setSelectedTeam(null);
+                  navigate(`/admin/team/${selectedTeam?.id}`);
+                }}
+              >
+                <ExternalLink className="h-3 w-3 mr-1" />
+                Відкрити повністю
+              </Button>
             </DialogTitle>
           </DialogHeader>
           
