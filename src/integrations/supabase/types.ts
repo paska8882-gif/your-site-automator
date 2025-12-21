@@ -707,6 +707,73 @@ export type Database = {
           },
         ]
       }
+      task_comments: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_status_history: {
+        Row: {
+          changed_at: string
+          changed_by: string
+          id: string
+          new_status: Database["public"]["Enums"]["admin_task_status"]
+          old_status: Database["public"]["Enums"]["admin_task_status"] | null
+          task_id: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by: string
+          id?: string
+          new_status: Database["public"]["Enums"]["admin_task_status"]
+          old_status?: Database["public"]["Enums"]["admin_task_status"] | null
+          task_id: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string
+          id?: string
+          new_status?: Database["public"]["Enums"]["admin_task_status"]
+          old_status?: Database["public"]["Enums"]["admin_task_status"] | null
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_status_history_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_members: {
         Row: {
           approved_at: string | null
