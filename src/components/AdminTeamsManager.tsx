@@ -340,8 +340,8 @@ export const AdminTeamsManager = () => {
 
   return (
     <>
-      <Card>
-        <CardHeader className="py-3 px-4">
+      <Card className="flex flex-col h-full">
+        <CardHeader className="py-3 px-4 flex-shrink-0">
           <CardTitle className="flex items-center justify-between text-sm">
             <div className="flex items-center gap-1.5">
               <Users className="h-4 w-4" />
@@ -352,8 +352,8 @@ export const AdminTeamsManager = () => {
             </Button>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3 px-4 pb-4">
-          <div className="flex gap-2">
+        <CardContent className="space-y-3 px-4 pb-4 flex-1 flex flex-col min-h-0">
+          <div className="flex gap-2 flex-shrink-0">
             <Input
               placeholder="Назва нової команди"
               value={newTeamName}
@@ -374,7 +374,7 @@ export const AdminTeamsManager = () => {
           ) : teams.length === 0 ? (
             <p className="text-center text-muted-foreground py-3 text-xs">Немає команд</p>
           ) : (
-            <div className="space-y-1.5 max-h-[250px] overflow-y-auto">
+            <div className="space-y-1.5 flex-1 overflow-y-auto">
               {teams.map((team) => (
                 <div key={team.id} className="p-2 rounded-md border bg-card space-y-1">
                   <div className="flex items-center justify-between">
