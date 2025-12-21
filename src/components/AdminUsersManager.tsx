@@ -21,7 +21,8 @@ import {
   Check,
   X,
   UserCog,
-  KeyRound
+  KeyRound,
+  Zap
 } from "lucide-react";
 
 type TeamRole = "owner" | "team_lead" | "buyer" | "tech_dev";
@@ -31,6 +32,7 @@ interface UserProfile {
   display_name: string | null;
   created_at: string;
   is_blocked: boolean;
+  max_concurrent_generations: number;
 }
 
 interface Team {
@@ -75,6 +77,11 @@ export const AdminUsersManager = () => {
   const [editDisplayName, setEditDisplayName] = useState("");
   const [savingName, setSavingName] = useState(false);
 
+  // Edit max concurrent generations
+  const [editingGenLimitUserId, setEditingGenLimitUserId] = useState<string | null>(null);
+  const [editGenLimit, setEditGenLimit] = useState(30);
+  const [savingGenLimit, setSavingGenLimit] = useState(false);
+
   // Reset password dialog
   const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
   const [resetPasswordUser, setResetPasswordUser] = useState<UserWithRoles | null>(null);
@@ -91,7 +98,7 @@ export const AdminUsersManager = () => {
     // Fetch all profiles
     const { data: profilesData } = await supabase
       .from("profiles")
-      .select("user_id, display_name, created_at, is_blocked")
+      .select("user_id, display_name, created_at, is_blocked, max_concurrent_generations")
       .order("created_at", { ascending: false });
 
     // Fetch all admin roles
@@ -130,6 +137,7 @@ export const AdminUsersManager = () => {
 
     const usersWithRoles: UserWithRoles[] = (profilesData || []).map(profile => ({
       ...profile,
+      max_concurrent_generations: (profile as any).max_concurrent_generations ?? 30,
       isAdmin: adminUserIds.has(profile.user_id),
       teams: userMemberships[profile.user_id] || []
     }));
@@ -290,6 +298,45 @@ export const AdminUsersManager = () => {
     setSavingName(false);
   };
 
+  const startEditGenLimit = (user: UserWithRoles) => {
+    setEditingGenLimitUserId(user.user_id);
+    setEditGenLimit(user.max_concurrent_generations);
+  };
+
+  const cancelEditGenLimit = () => {
+    setEditingGenLimitUserId(null);
+    setEditGenLimit(30);
+  };
+
+  const saveGenLimit = async (userId: string) => {
+    setSavingGenLimit(true);
+    try {
+      const limitValue = Math.max(1, Math.min(100, editGenLimit));
+      const { error } = await supabase
+        .from("profiles")
+        .update({ max_concurrent_generations: limitValue })
+        .eq("user_id", userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Успішно",
+        description: `Ліміт генерацій оновлено до ${limitValue}`
+      });
+
+      setEditingGenLimitUserId(null);
+      setEditGenLimit(30);
+      fetchData();
+    } catch (error) {
+      toast({
+        title: "Помилка",
+        description: "Не вдалося оновити ліміт",
+        variant: "destructive"
+      });
+    }
+    setSavingGenLimit(false);
+  };
+
   const openResetPasswordDialog = (user: UserWithRoles) => {
     setResetPasswordUser(user);
     setNewPassword("");
@@ -430,6 +477,7 @@ export const AdminUsersManager = () => {
                 <TableRow>
                   <TableHead className="text-[10px] py-1">Користувач</TableHead>
                   <TableHead className="text-[10px] py-1">Команди</TableHead>
+                  <TableHead className="text-[10px] py-1">Ліміт</TableHead>
                   <TableHead className="text-[10px] py-1">Статус</TableHead>
                   <TableHead className="text-[10px] py-1">Дата</TableHead>
                   <TableHead className="text-[10px] py-1 text-right">Дії</TableHead>
@@ -517,6 +565,60 @@ export const AdminUsersManager = () => {
                         </div>
                       ) : (
                         <span className="text-muted-foreground text-[10px]">Немає</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="py-1.5">
+                      {editingGenLimitUserId === user.user_id ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="number"
+                            value={editGenLimit}
+                            onChange={(e) => setEditGenLimit(parseInt(e.target.value) || 1)}
+                            min={1}
+                            max={100}
+                            className="h-6 w-14 text-xs"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") saveGenLimit(user.user_id);
+                              if (e.key === "Escape") cancelEditGenLimit();
+                            }}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 w-5 p-0"
+                            onClick={() => saveGenLimit(user.user_id)}
+                            disabled={savingGenLimit}
+                          >
+                            {savingGenLimit ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Check className="h-3 w-3 text-green-500" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 w-5 p-0"
+                            onClick={cancelEditGenLimit}
+                            disabled={savingGenLimit}
+                          >
+                            <X className="h-3 w-3 text-destructive" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <Zap className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs font-medium">{user.max_concurrent_generations}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-4 w-4 p-0"
+                            onClick={() => startEditGenLimit(user)}
+                          >
+                            <Pencil className="h-2.5 w-2.5" />
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                     <TableCell className="py-1.5">

@@ -398,6 +398,7 @@ export type Database = {
           display_name: string | null
           id: string
           is_blocked: boolean
+          max_concurrent_generations: number
           updated_at: string
           user_id: string
         }
@@ -407,6 +408,7 @@ export type Database = {
           display_name?: string | null
           id?: string
           is_blocked?: boolean
+          max_concurrent_generations?: number
           updated_at?: string
           user_id: string
         }
@@ -416,6 +418,7 @@ export type Database = {
           display_name?: string | null
           id?: string
           is_blocked?: boolean
+          max_concurrent_generations?: number
           updated_at?: string
           user_id?: string
         }
