@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { 
@@ -27,7 +28,9 @@ import {
   ArrowDownRight,
   Download,
   Pencil,
-  ExternalLink
+  ExternalLink,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 
 interface Appeal {
@@ -89,7 +92,11 @@ export function AdminAppealsTab() {
   const [transactions, setTransactions] = useState<BalanceTransaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
 
-  // Update URL when team changes
+  // Collapsible group states
+  const [pendingGroupOpen, setPendingGroupOpen] = useState(true);
+  const [historicalGroupOpen, setHistoricalGroupOpen] = useState(true);
+  const [noAppealsGroupOpen, setNoAppealsGroupOpen] = useState(false);
+
   const handleTeamSelect = (teamId: string | null) => {
     setSelectedTeamId(teamId);
     const newParams = new URLSearchParams(searchParams);
@@ -508,33 +515,42 @@ export function AdminAppealsTab() {
                     return (
                       <>
                         {teamsWithPending.length > 0 && (
-                          <>
-                            <div className="text-[10px] text-yellow-600 font-medium px-2 pt-2 pb-1 flex items-center gap-1">
+                          <Collapsible open={pendingGroupOpen} onOpenChange={setPendingGroupOpen}>
+                            <CollapsibleTrigger className="w-full text-[10px] text-yellow-600 font-medium px-2 pt-2 pb-1 flex items-center gap-1 hover:bg-muted/30 rounded cursor-pointer">
+                              {pendingGroupOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                               <Clock className="h-3 w-3" />
-                              Активні апеляції
-                            </div>
-                            {teamsWithPending.map(renderTeam)}
-                          </>
+                              Активні апеляції ({teamsWithPending.length})
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              {teamsWithPending.map(renderTeam)}
+                            </CollapsibleContent>
+                          </Collapsible>
                         )}
                         
                         {teamsWithHistorical.length > 0 && (
-                          <>
-                            <div className="text-[10px] text-muted-foreground font-medium px-2 pt-2 pb-1 flex items-center gap-1">
+                          <Collapsible open={historicalGroupOpen} onOpenChange={setHistoricalGroupOpen}>
+                            <CollapsibleTrigger className="w-full text-[10px] text-muted-foreground font-medium px-2 pt-2 pb-1 flex items-center gap-1 hover:bg-muted/30 rounded cursor-pointer">
+                              {historicalGroupOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                               <CheckCircle className="h-3 w-3" />
-                              Історичні апеляції
-                            </div>
-                            {teamsWithHistorical.map(renderTeam)}
-                          </>
+                              Історичні апеляції ({teamsWithHistorical.length})
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              {teamsWithHistorical.map(renderTeam)}
+                            </CollapsibleContent>
+                          </Collapsible>
                         )}
                         
                         {teamsWithNoAppeals.length > 0 && (
-                          <>
-                            <div className="text-[10px] text-muted-foreground/60 font-medium px-2 pt-2 pb-1 flex items-center gap-1">
+                          <Collapsible open={noAppealsGroupOpen} onOpenChange={setNoAppealsGroupOpen}>
+                            <CollapsibleTrigger className="w-full text-[10px] text-muted-foreground/60 font-medium px-2 pt-2 pb-1 flex items-center gap-1 hover:bg-muted/30 rounded cursor-pointer">
+                              {noAppealsGroupOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                               <Users className="h-3 w-3" />
-                              Без апеляцій
-                            </div>
-                            {teamsWithNoAppeals.map(renderTeam)}
-                          </>
+                              Без апеляцій ({teamsWithNoAppeals.length})
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              {teamsWithNoAppeals.map(renderTeam)}
+                            </CollapsibleContent>
+                          </Collapsible>
                         )}
                       </>
                     );
