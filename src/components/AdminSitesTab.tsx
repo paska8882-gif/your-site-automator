@@ -1166,6 +1166,18 @@ export const AdminSitesTab = () => {
                   onChange={(e) => setUploadForm(prev => ({ ...prev, salePrice: parseFloat(e.target.value) || 0 }))}
                   placeholder="0.00"
                 />
+                {uploadForm.teamId && (() => {
+                  const pricing = teamPricings.find(p => p.team_id === uploadForm.teamId);
+                  if (pricing) {
+                    const standardPrice = uploadForm.websiteType === "react" ? pricing.react_price : pricing.html_price;
+                    return (
+                      <p className="text-xs text-muted-foreground">
+                        Стандартна ціна для {uploadForm.websiteType.toUpperCase()}: <span className="font-medium">${standardPrice.toFixed(2)}</span> (з тарифів команди)
+                      </p>
+                    );
+                  }
+                  return <p className="text-xs text-amber-500">Тарифи команди не налаштовані</p>;
+                })()}
               </div>
             </div>
 
@@ -1179,6 +1191,18 @@ export const AdminSitesTab = () => {
                 onChange={(e) => setUploadForm(prev => ({ ...prev, generationCost: parseFloat(e.target.value) || 0 }))}
                 placeholder="0.00"
               />
+              {uploadForm.teamId && (() => {
+                const pricing = teamPricings.find(p => p.team_id === uploadForm.teamId);
+                if (pricing) {
+                  const standardCost = uploadForm.aiModel === "senior" ? pricing.generation_cost_senior : pricing.generation_cost_junior;
+                  return (
+                    <p className="text-xs text-muted-foreground">
+                      Стандартна собівартість для {uploadForm.aiModel === "senior" ? "Senior" : "Junior"}: <span className="font-medium">${standardCost.toFixed(2)}</span> (з тарифів команди)
+                    </p>
+                  );
+                }
+                return null;
+              })()}
               <p className="text-xs text-muted-foreground">
                 Для статистики. Не списується з балансу команди.
               </p>
