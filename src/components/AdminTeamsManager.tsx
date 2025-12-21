@@ -19,7 +19,8 @@ import {
   Eye,
   Wallet,
   UserCog,
-  ExternalLink
+  ExternalLink,
+  Search
 } from "lucide-react";
 
 interface Admin {
@@ -73,6 +74,12 @@ export const AdminTeamsManager = () => {
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+
+  const filteredTeams = teams.filter(team => 
+    team.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   useEffect(() => {
     fetchTeams();
@@ -357,15 +364,17 @@ export const AdminTeamsManager = () => {
         </CardHeader>
         <CardContent className="space-y-3 px-4 pb-4 flex-1 flex flex-col min-h-0">
           <div className="flex gap-2 flex-shrink-0">
-            <Input
-              placeholder="Назва нової команди"
-              value={newTeamName}
-              onChange={(e) => setNewTeamName(e.target.value)}
-              disabled={creating}
-              className="h-8 text-xs"
-            />
-            <Button onClick={handleCreateTeam} disabled={creating || !newTeamName.trim()} size="sm" className="h-8 text-xs">
-              {creating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
+            <div className="relative flex-1">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+              <Input
+                placeholder="Пошук команди..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 text-xs pl-7"
+              />
+            </div>
+            <Button onClick={() => setShowCreateDialog(true)} size="sm" className="h-8 text-xs">
+              <Plus className="h-3 w-3 mr-1" />
               Створити
             </Button>
           </div>
@@ -374,11 +383,13 @@ export const AdminTeamsManager = () => {
             <div className="flex items-center justify-center py-3">
               <Loader2 className="h-4 w-4 animate-spin" />
             </div>
-          ) : teams.length === 0 ? (
-            <p className="text-center text-muted-foreground py-3 text-xs">Немає команд</p>
+          ) : filteredTeams.length === 0 ? (
+            <p className="text-center text-muted-foreground py-3 text-xs">
+              {searchQuery ? "Команд не знайдено" : "Немає команд"}
+            </p>
           ) : (
             <div className="space-y-1.5 flex-1 overflow-y-auto">
-              {teams.map((team) => (
+              {filteredTeams.map((team) => (
                 <div key={team.id} className="p-2 rounded-md border bg-card space-y-1">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
@@ -538,6 +549,49 @@ export const AdminTeamsManager = () => {
                 ))}
               </div>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Team Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Створити нову команду</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              placeholder="Назва команди"
+              value={newTeamName}
+              onChange={(e) => setNewTeamName(e.target.value)}
+              disabled={creating}
+              className="h-9"
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  setShowCreateDialog(false);
+                  setNewTeamName("");
+                }}
+                disabled={creating}
+              >
+                Скасувати
+              </Button>
+              <Button 
+                onClick={async () => {
+                  await handleCreateTeam();
+                  setShowCreateDialog(false);
+                }} 
+                disabled={creating || !newTeamName.trim()} 
+                size="sm"
+              >
+                {creating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
+                Створити
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
