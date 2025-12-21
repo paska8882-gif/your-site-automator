@@ -17,9 +17,12 @@ import {
   XCircle,
   Users,
   User,
-  Filter
+  Filter,
+  Layers
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 
 interface InviteCode {
   id: string;
@@ -57,7 +60,9 @@ export const InviteCodesManager = () => {
   const [deactivating, setDeactivating] = useState(false);
   const [filterTeam, setFilterTeam] = useState<string>("all");
   const [filterRole, setFilterRole] = useState<string>("all");
+  const [groupByTeam, setGroupByTeam] = useState(false);
   const [teams, setTeams] = useState<{ id: string; name: string }[]>([]);
+  const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set(["no-team"]));
 
   useEffect(() => {
     fetchCodes();
@@ -242,6 +247,33 @@ export const InviteCodesManager = () => {
   // Unique roles from codes
   const uniqueRoles = [...new Set(codes.filter(c => c.assigned_role).map(c => c.assigned_role!))];
 
+  // Group codes by team
+  const groupCodesByTeam = (codesToGroup: InviteCode[]) => {
+    const groups: { [key: string]: { name: string; codes: InviteCode[] } } = {};
+    
+    codesToGroup.forEach(code => {
+      const key = code.team_id || "no-team";
+      const name = code.team_name || "Без команди";
+      
+      if (!groups[key]) {
+        groups[key] = { name, codes: [] };
+      }
+      groups[key].codes.push(code);
+    });
+    
+    return groups;
+  };
+
+  const toggleTeamExpanded = (teamId: string) => {
+    const newExpanded = new Set(expandedTeams);
+    if (newExpanded.has(teamId)) {
+      newExpanded.delete(teamId);
+    } else {
+      newExpanded.add(teamId);
+    }
+    setExpandedTeams(newExpanded);
+  };
+
   const stats = {
     total: codes.length,
     active: activeCodes.length,
@@ -311,6 +343,41 @@ export const InviteCodesManager = () => {
     </div>
   );
 
+  const renderGroupedCodes = (codesToRender: InviteCode[], showCheckbox: boolean) => {
+    const groups = groupCodesByTeam(codesToRender);
+    const sortedKeys = Object.keys(groups).sort((a, b) => {
+      if (a === "no-team") return 1;
+      if (b === "no-team") return -1;
+      return groups[a].name.localeCompare(groups[b].name);
+    });
+
+    return (
+      <div className="space-y-2">
+        {sortedKeys.map(key => (
+          <Collapsible
+            key={key}
+            open={expandedTeams.has(key)}
+            onOpenChange={() => toggleTeamExpanded(key)}
+          >
+            <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-md bg-muted/50 hover:bg-muted text-xs font-medium">
+              <div className="flex items-center gap-2">
+                <Users className="h-3 w-3" />
+                <span>{groups[key].name}</span>
+                <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                  {groups[key].codes.length}
+                </Badge>
+              </div>
+              <ChevronDown className={`h-3 w-3 transition-transform ${expandedTeams.has(key) ? "rotate-180" : ""}`} />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-1 space-y-1 pl-2">
+              {groups[key].codes.map(code => renderCodeItem(code, showCheckbox))}
+            </CollapsibleContent>
+          </Collapsible>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <Card className="flex flex-col h-full">
       <CardHeader className="py-2 px-3 flex-shrink-0">
@@ -320,6 +387,15 @@ export const InviteCodesManager = () => {
             Інвайт-коди
           </div>
           <div className="flex items-center gap-1">
+            <Button 
+              variant={groupByTeam ? "default" : "ghost"} 
+              size="sm" 
+              className="h-6 w-6 p-0" 
+              onClick={() => setGroupByTeam(!groupByTeam)}
+              title="Групувати по командах"
+            >
+              <Layers className="h-3 w-3" />
+            </Button>
             <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={fetchCodes} disabled={loading}>
               <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
             </Button>
@@ -331,7 +407,6 @@ export const InviteCodesManager = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2 px-3 pb-3 flex-1 flex flex-col min-h-0">
-        {/* Stats */}
         {/* Filters */}
         <div className="flex gap-2 flex-shrink-0">
           <div className="flex-1">
@@ -433,6 +508,8 @@ export const InviteCodesManager = () => {
               <div className="space-y-1 flex-1 overflow-y-auto">
                 {activeCodes.length === 0 ? (
                   <p className="text-center text-muted-foreground py-2 text-xs">Немає активних кодів</p>
+                ) : groupByTeam ? (
+                  renderGroupedCodes(activeCodes, true)
                 ) : (
                   activeCodes.map(code => renderCodeItem(code, true))
                 )}
@@ -443,6 +520,8 @@ export const InviteCodesManager = () => {
               <div className="space-y-1 flex-1 overflow-y-auto h-full">
                 {inactiveCodes.length === 0 ? (
                   <p className="text-center text-muted-foreground py-2 text-xs">Немає неактивних кодів</p>
+                ) : groupByTeam ? (
+                  renderGroupedCodes(inactiveCodes, false)
                 ) : (
                   inactiveCodes.map(code => renderCodeItem(code, false))
                 )}
