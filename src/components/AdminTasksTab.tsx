@@ -13,15 +13,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
-import { ClipboardList, Plus, Clock, User, Users, GripVertical, Trash2, LayoutGrid, List, ChevronDown, UserCheck, Send } from "lucide-react";
+import { ClipboardList, Plus, Clock, User, Users, GripVertical, Trash2, LayoutGrid, List, ChevronDown, UserCheck, Send, Flag, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { uk } from "date-fns/locale";
+
+type TaskPriority = "low" | "medium" | "high";
 
 interface AdminTask {
   id: string;
   title: string;
   description: string | null;
   status: "todo" | "in_progress" | "done" | "problematic";
+  priority: TaskPriority;
   team_id: string | null;
   assigned_to: string;
   created_by: string;
@@ -50,6 +53,12 @@ const statusConfig = {
   problematic: { label: "Проблемні", color: "bg-gradient-to-r from-red-600 to-red-800 text-white border-red-900 shadow-red-900/30" },
 };
 
+const priorityConfig = {
+  low: { label: "Низький", color: "text-slate-500", bgColor: "bg-slate-100 dark:bg-slate-800", icon: "border-l-slate-400" },
+  medium: { label: "Середній", color: "text-amber-500", bgColor: "bg-amber-100 dark:bg-amber-900/30", icon: "border-l-amber-500" },
+  high: { label: "Високий", color: "text-red-500", bgColor: "bg-red-100 dark:bg-red-900/30", icon: "border-l-red-500" },
+};
+
 export const AdminTasksTab = () => {
   const { user } = useAuth();
   const { isSuperAdmin } = useSuperAdmin();
@@ -62,6 +71,7 @@ export const AdminTasksTab = () => {
   const [dragOverStatus, setDragOverStatus] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
   const [kanbanFilter, setKanbanFilter] = useState<"all" | "assigned" | "created">("all");
+  const [priorityFilter, setPriorityFilter] = useState<TaskPriority | "all">("all");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     assigned: true,
     created: true,
@@ -72,12 +82,17 @@ export const AdminTasksTab = () => {
     description: "",
     assigned_to: "",
     team_id: "",
+    priority: "medium" as TaskPriority,
   });
 
-  // Filter tasks based on user role
-  const filteredTasks = isSuperAdmin 
+  // Filter tasks based on user role and priority
+  const roleFilteredTasks = isSuperAdmin 
     ? tasks 
     : tasks.filter(t => t.assigned_to === user?.id || t.created_by === user?.id);
+
+  const filteredTasks = priorityFilter === "all" 
+    ? roleFilteredTasks 
+    : roleFilteredTasks.filter(t => t.priority === priorityFilter);
 
   const myAssignedTasks = filteredTasks.filter(t => t.assigned_to === user?.id);
   const myCreatedTasks = filteredTasks.filter(t => t.created_by === user?.id && t.assigned_to !== user?.id);
@@ -114,6 +129,7 @@ export const AdminTasksTab = () => {
       const enrichedTasks = (tasksData || []).map(task => ({
         ...task,
         status: task.status as "todo" | "in_progress" | "done" | "problematic",
+        priority: (task.priority || "medium") as TaskPriority,
         assigned_profile: profilesMap.get(task.assigned_to),
         creator_profile: profilesMap.get(task.created_by),
         team: task.team_id ? teamsMap.get(task.team_id) : null,
@@ -183,6 +199,7 @@ export const AdminTasksTab = () => {
         assigned_to: newTask.assigned_to,
         created_by: user.id,
         team_id: newTask.team_id || null,
+        priority: newTask.priority,
         deadline: deadline.toISOString(),
       });
 
@@ -198,7 +215,7 @@ export const AdminTasksTab = () => {
       }
 
       toast({ title: "Успішно", description: "Завдання створено" });
-      setNewTask({ title: "", description: "", assigned_to: "", team_id: "" });
+      setNewTask({ title: "", description: "", assigned_to: "", team_id: "", priority: "medium" });
       setIsDialogOpen(false);
     } catch (error) {
       console.error("Error creating task:", error);
@@ -311,7 +328,7 @@ export const AdminTasksTab = () => {
       draggable={showDragHandle}
       onDragStart={(e) => handleDragStart(e, task.id)}
       onDragEnd={handleDragEnd}
-      className={`mb-3 ${showDragHandle ? "cursor-grab active:cursor-grabbing" : ""} transition-all duration-200 ${getCardBackground(task.status)} border ${
+      className={`mb-3 ${showDragHandle ? "cursor-grab active:cursor-grabbing" : ""} transition-all duration-200 ${getCardBackground(task.status)} border-l-4 ${priorityConfig[task.priority].icon} border ${
         isOverdue(task.deadline) && task.status !== "done" ? "border-red-500/50" : "border-border/50"
       } ${draggedTaskId === task.id ? "opacity-50 scale-95" : "hover:scale-[1.02]"}`}
     >
@@ -344,6 +361,10 @@ export const AdminTasksTab = () => {
         )}
         
         <div className="flex flex-wrap gap-2 mb-2">
+          <Badge variant="outline" className={`text-xs ${priorityConfig[task.priority].bgColor} ${priorityConfig[task.priority].color} border-0`}>
+            <Flag className="h-3 w-3 mr-1" />
+            {priorityConfig[task.priority].label}
+          </Badge>
           {task.team && (
             <Badge variant="outline" className="text-xs">
               <Users className="h-3 w-3 mr-1" />
@@ -538,6 +559,45 @@ export const AdminTasksTab = () => {
               </Button>
             </div>
           )}
+
+          <div className="flex items-center gap-1 border rounded-lg p-1">
+            <Filter className="h-3 w-3 text-muted-foreground ml-1" />
+            <Button
+              variant={priorityFilter === "all" ? "default" : "ghost"}
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => setPriorityFilter("all")}
+            >
+              Всі
+            </Button>
+            <Button
+              variant={priorityFilter === "high" ? "default" : "ghost"}
+              size="sm"
+              className={`h-7 px-2 text-xs ${priorityFilter !== "high" ? "text-red-500" : ""}`}
+              onClick={() => setPriorityFilter("high")}
+            >
+              <Flag className="h-3 w-3 mr-1" />
+              Високий
+            </Button>
+            <Button
+              variant={priorityFilter === "medium" ? "default" : "ghost"}
+              size="sm"
+              className={`h-7 px-2 text-xs ${priorityFilter !== "medium" ? "text-amber-500" : ""}`}
+              onClick={() => setPriorityFilter("medium")}
+            >
+              <Flag className="h-3 w-3 mr-1" />
+              Середній
+            </Button>
+            <Button
+              variant={priorityFilter === "low" ? "default" : "ghost"}
+              size="sm"
+              className={`h-7 px-2 text-xs ${priorityFilter !== "low" ? "text-slate-500" : ""}`}
+              onClick={() => setPriorityFilter("low")}
+            >
+              <Flag className="h-3 w-3 mr-1" />
+              Низький
+            </Button>
+          </div>
         </div>
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -600,6 +660,35 @@ export const AdminTasksTab = () => {
                         {team.name}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+              </Select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-1 block">Пріоритет</label>
+                <Select value={newTask.priority} onValueChange={(v) => setNewTask({ ...newTask, priority: v as TaskPriority })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Середній" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">
+                      <div className="flex items-center gap-2">
+                        <Flag className="h-3 w-3 text-slate-500" />
+                        Низький
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="medium">
+                      <div className="flex items-center gap-2">
+                        <Flag className="h-3 w-3 text-amber-500" />
+                        Середній
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="high">
+                      <div className="flex items-center gap-2">
+                        <Flag className="h-3 w-3 text-red-500" />
+                        Високий
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
