@@ -1119,10 +1119,10 @@ export function WebsiteGenerator() {
                 <div className="p-2.5">
                   <span className="text-[9px] text-muted-foreground/60">21 грудня 2025</span>
                   <h3 className="text-xs font-medium line-clamp-2 mt-1 group-hover:text-primary transition-colors">
-                    Claude 4 та GPT-5: нова ера генерації коду
+                    Нейромережі навчились писати код краще
                   </h3>
                   <p className="text-[10px] text-muted-foreground line-clamp-2 mt-1">
-                    Нові моделі показують вражаючі результати у написанні веб-сайтів. Точність коду зросла на 40%.
+                    Останні дослідження показують значний прогрес у автоматичній генерації веб-сторінок.
                   </p>
                 </div>
               </article>
