@@ -960,7 +960,7 @@ export function WebsiteGenerator() {
     const negativeTeams = adminTeams.filter(team => team.balance < 0).sort((a, b) => a.balance - b.balance);
     
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4 lg:p-8">
+      <div className="min-h-screen bg-background flex items-start justify-center p-4 pt-8 lg:p-8 lg:pt-12">
         <div className="w-full max-w-4xl lg:max-w-6xl xl:max-w-7xl space-y-4">
           {/* Inspirational quote */}
           {randomQuote && (
