@@ -21,7 +21,7 @@ interface AdminTask {
   id: string;
   title: string;
   description: string | null;
-  status: "todo" | "in_progress" | "done";
+  status: "todo" | "in_progress" | "done" | "problematic";
   team_id: string | null;
   assigned_to: string;
   created_by: string;
@@ -47,6 +47,7 @@ const statusConfig = {
   todo: { label: "До виконання", color: "bg-slate-600 text-white border-slate-700" },
   in_progress: { label: "В процесі", color: "bg-indigo-700 text-white border-indigo-800" },
   done: { label: "Виконано", color: "bg-emerald-600 text-white border-emerald-700" },
+  problematic: { label: "Проблемні", color: "bg-red-600 text-white border-red-700" },
 };
 
 export const AdminTasksTab = () => {
@@ -111,7 +112,7 @@ export const AdminTasksTab = () => {
 
       const enrichedTasks = (tasksData || []).map(task => ({
         ...task,
-        status: task.status as "todo" | "in_progress" | "done",
+        status: task.status as "todo" | "in_progress" | "done" | "problematic",
         assigned_profile: profilesMap.get(task.assigned_to),
         creator_profile: profilesMap.get(task.created_by),
         team: task.team_id ? teamsMap.get(task.team_id) : null,
@@ -204,7 +205,7 @@ export const AdminTasksTab = () => {
     }
   };
 
-  const updateTaskStatus = async (taskId: string, newStatus: "todo" | "in_progress" | "done") => {
+  const updateTaskStatus = async (taskId: string, newStatus: "todo" | "in_progress" | "done" | "problematic") => {
     try {
       const task = tasks.find(t => t.id === taskId);
       if (!task) return;
@@ -270,7 +271,7 @@ export const AdminTasksTab = () => {
     setDragOverStatus(null);
   };
 
-  const handleDrop = async (e: React.DragEvent, newStatus: "todo" | "in_progress" | "done") => {
+  const handleDrop = async (e: React.DragEvent, newStatus: "todo" | "in_progress" | "done" | "problematic") => {
     e.preventDefault();
     setDragOverStatus(null);
     
@@ -286,7 +287,7 @@ export const AdminTasksTab = () => {
     setDraggedTaskId(null);
   };
 
-  const getCardBackground = (status: "todo" | "in_progress" | "done") => {
+  const getCardBackground = (status: "todo" | "in_progress" | "done" | "problematic") => {
     switch (status) {
       case "todo":
         return "bg-slate-200 dark:bg-slate-800/50 hover:bg-slate-300 dark:hover:bg-slate-700/60";
@@ -294,6 +295,8 @@ export const AdminTasksTab = () => {
         return "bg-indigo-200 dark:bg-indigo-900/50 hover:bg-indigo-300 dark:hover:bg-indigo-800/60";
       case "done":
         return "bg-emerald-200 dark:bg-emerald-900/40 hover:bg-emerald-300 dark:hover:bg-emerald-800/50";
+      case "problematic":
+        return "bg-red-200 dark:bg-red-900/50 hover:bg-red-300 dark:hover:bg-red-800/60";
     }
   };
 
@@ -363,7 +366,7 @@ export const AdminTasksTab = () => {
 
         {task.status !== "done" && viewMode === "list" && (
           <div className="mt-3 flex gap-1">
-            {task.status === "todo" && (
+            {(task.status === "todo" || task.status === "problematic") && (
               <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => updateTaskStatus(task.id, "in_progress")}>
                 Почати
               </Button>
@@ -379,7 +382,7 @@ export const AdminTasksTab = () => {
     </Card>
   );
 
-  const renderColumn = (status: "todo" | "in_progress" | "done") => {
+  const renderColumn = (status: "todo" | "in_progress" | "done" | "problematic") => {
     const columnTasks = filteredTasks.filter(t => t.status === status);
     const config = statusConfig[status];
     const isDragOver = dragOverStatus === status;
@@ -571,6 +574,7 @@ export const AdminTasksTab = () => {
 
       {viewMode === "kanban" ? (
         <div className="flex gap-4 overflow-x-auto pb-4 flex-1">
+          {renderColumn("problematic")}
           {renderColumn("todo")}
           {renderColumn("in_progress")}
           {renderColumn("done")}
