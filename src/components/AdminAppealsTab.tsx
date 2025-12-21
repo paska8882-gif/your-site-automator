@@ -458,32 +458,87 @@ export function AdminAppealsTab() {
                     <span className="font-medium">Всі команди</span>
                     <span className="text-muted-foreground">{appeals.length}</span>
                   </button>
-                  {teams.map(team => {
-                    const teamAppealsCount = appeals.filter(a => a.team_id === team.id).length;
-                    const pendingTeamAppeals = appeals.filter(a => a.team_id === team.id && a.status === "pending").length;
-                    return (
-                      <button
-                        key={team.id}
-                        onClick={() => handleTeamSelect(team.id)}
-                        className={`w-full flex items-center justify-between p-2 rounded text-xs transition-colors ${
-                          selectedTeamId === team.id ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/50"
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <Users className="h-3 w-3 text-muted-foreground shrink-0" />
-                          <span className="font-medium truncate">{team.name}</span>
-                          {pendingTeamAppeals > 0 && (
-                            <Badge variant="outline" className="h-4 px-1 text-[9px] bg-yellow-500/10 text-yellow-600 border-yellow-500/30">
-                              {pendingTeamAppeals}
-                            </Badge>
-                          )}
-                        </div>
-                        <span className={`font-semibold shrink-0 ${team.balance < 0 ? "text-destructive" : "text-green-600"}`}>
-                          ${team.balance.toFixed(0)}
-                        </span>
-                      </button>
+                  
+                  {/* Group teams by appeal status */}
+                  {(() => {
+                    // Teams with pending appeals
+                    const teamsWithPending = teams.filter(team => 
+                      appeals.some(a => a.team_id === team.id && a.status === "pending")
                     );
-                  })}
+                    // Teams with only historical appeals (no pending)
+                    const teamsWithHistorical = teams.filter(team => 
+                      appeals.some(a => a.team_id === team.id) && 
+                      !appeals.some(a => a.team_id === team.id && a.status === "pending")
+                    );
+                    // Teams with no appeals
+                    const teamsWithNoAppeals = teams.filter(team => 
+                      !appeals.some(a => a.team_id === team.id)
+                    );
+
+                    const renderTeam = (team: Team) => {
+                      const pendingTeamAppeals = appeals.filter(a => a.team_id === team.id && a.status === "pending").length;
+                      const totalTeamAppeals = appeals.filter(a => a.team_id === team.id).length;
+                      return (
+                        <button
+                          key={team.id}
+                          onClick={() => handleTeamSelect(team.id)}
+                          className={`w-full flex items-center justify-between p-2 rounded text-xs transition-colors ${
+                            selectedTeamId === team.id ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/50"
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <Users className="h-3 w-3 text-muted-foreground shrink-0" />
+                            <span className="font-medium truncate">{team.name}</span>
+                            {pendingTeamAppeals > 0 && (
+                              <Badge variant="outline" className="h-4 px-1 text-[9px] bg-yellow-500/10 text-yellow-600 border-yellow-500/30">
+                                {pendingTeamAppeals}
+                              </Badge>
+                            )}
+                            {totalTeamAppeals > 0 && pendingTeamAppeals === 0 && (
+                              <span className="text-muted-foreground text-[9px]">({totalTeamAppeals})</span>
+                            )}
+                          </div>
+                          <span className={`font-semibold shrink-0 ${team.balance < 0 ? "text-destructive" : "text-green-600"}`}>
+                            ${team.balance.toFixed(0)}
+                          </span>
+                        </button>
+                      );
+                    };
+
+                    return (
+                      <>
+                        {teamsWithPending.length > 0 && (
+                          <>
+                            <div className="text-[10px] text-yellow-600 font-medium px-2 pt-2 pb-1 flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              Активні апеляції
+                            </div>
+                            {teamsWithPending.map(renderTeam)}
+                          </>
+                        )}
+                        
+                        {teamsWithHistorical.length > 0 && (
+                          <>
+                            <div className="text-[10px] text-muted-foreground font-medium px-2 pt-2 pb-1 flex items-center gap-1">
+                              <CheckCircle className="h-3 w-3" />
+                              Історичні апеляції
+                            </div>
+                            {teamsWithHistorical.map(renderTeam)}
+                          </>
+                        )}
+                        
+                        {teamsWithNoAppeals.length > 0 && (
+                          <>
+                            <div className="text-[10px] text-muted-foreground/60 font-medium px-2 pt-2 pb-1 flex items-center gap-1">
+                              <Users className="h-3 w-3" />
+                              Без апеляцій
+                            </div>
+                            {teamsWithNoAppeals.map(renderTeam)}
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </ScrollArea>
             </CardContent>
