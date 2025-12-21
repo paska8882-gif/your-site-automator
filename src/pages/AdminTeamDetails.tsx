@@ -43,6 +43,7 @@ interface Team {
   name: string;
   balance: number;
   credit_limit: number;
+  max_referral_invites: number;
   created_at: string;
   created_by: string;
   assigned_admin_id: string | null;
@@ -142,6 +143,8 @@ const AdminTeamDetails = () => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [savingCreditLimit, setSavingCreditLimit] = useState(false);
   const [creditLimitInput, setCreditLimitInput] = useState("");
+  const [referralLimitInput, setReferralLimitInput] = useState("4");
+  const [savingReferralLimit, setSavingReferralLimit] = useState(false);
   
   // Pricing edit state
   const [editingPricing, setEditingPricing] = useState(false);
@@ -192,6 +195,7 @@ const AdminTeamDetails = () => {
     if (!error && data) {
       setTeam(data);
       setCreditLimitInput(data.credit_limit?.toString() || "0");
+      setReferralLimitInput(data.max_referral_invites?.toString() || "4");
     }
   };
 
@@ -407,6 +411,24 @@ const AdminTeamDetails = () => {
       fetchTeam();
     }
     setSavingCreditLimit(false);
+  };
+
+  const handleUpdateReferralLimit = async () => {
+    const newLimit = parseInt(referralLimitInput) || 4;
+    setSavingReferralLimit(true);
+    
+    const { error } = await supabase
+      .from("teams")
+      .update({ max_referral_invites: newLimit })
+      .eq("id", teamId);
+
+    if (error) {
+      toast({ title: "Помилка", description: "Не вдалося оновити ліміт", variant: "destructive" });
+    } else {
+      toast({ title: "Збережено", description: `Ліміт інвайтів: ${newLimit}` });
+      fetchTeam();
+    }
+    setSavingReferralLimit(false);
   };
 
   const handleCopy = async (text: string, id: string) => {
@@ -867,6 +889,27 @@ const AdminTeamDetails = () => {
                   <Badge variant="outline" className="text-base px-3 py-1">
                     ${team.credit_limit?.toFixed(2) || "0.00"}
                   </Badge>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Ліміт реферальних інвайтів</label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    value={referralLimitInput}
+                    onChange={(e) => setReferralLimitInput(e.target.value)}
+                    className="h-9 w-20"
+                    min={0}
+                    step={1}
+                  />
+                  <Button 
+                    size="sm" 
+                    className="h-9"
+                    onClick={handleUpdateReferralLimit}
+                    disabled={savingReferralLimit}
+                  >
+                    {savingReferralLimit ? <Loader2 className="h-4 w-4 animate-spin" /> : "Зберегти"}
+                  </Button>
                 </div>
               </div>
             </div>

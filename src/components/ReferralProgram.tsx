@@ -48,6 +48,8 @@ export function ReferralProgram() {
   const [rewards, setRewards] = useState<ReferralReward[]>([]);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [userTeamId, setUserTeamId] = useState<string | null>(null);
+  const [maxInvites, setMaxInvites] = useState(4);
+  const [activeInvitesCount, setActiveInvitesCount] = useState(0);
 
   useEffect(() => {
     if (user) {
@@ -68,7 +70,7 @@ export function ReferralProgram() {
       setSettings(settingsData);
     }
 
-    // Fetch user's team
+    // Fetch user's team and its settings
     const { data: membership } = await supabase
       .from("team_members")
       .select("team_id")
@@ -78,6 +80,17 @@ export function ReferralProgram() {
     
     if (membership) {
       setUserTeamId(membership.team_id);
+      
+      // Get team's max referral invites limit
+      const { data: teamData } = await supabase
+        .from("teams")
+        .select("max_referral_invites")
+        .eq("id", membership.team_id)
+        .single();
+      
+      if (teamData) {
+        setMaxInvites(teamData.max_referral_invites || 4);
+      }
     }
 
     // Fetch user's referral invites
@@ -114,6 +127,13 @@ export function ReferralProgram() {
       }));
 
       setInvites(enrichedInvites);
+      
+      // Count active invites that haven't reached milestone
+      // Active = is_active && (!used_at || (used_at && !milestone_reached))
+      const activeCount = enrichedInvites.filter(i => 
+        i.is_active && (!i.used_at || !i.milestone_reached)
+      ).length;
+      setActiveInvitesCount(activeCount);
     }
 
     // Fetch user's rewards
@@ -130,8 +150,19 @@ export function ReferralProgram() {
     setLoading(false);
   };
 
+  const canGenerateCode = activeInvitesCount < maxInvites;
+
   const generateCode = async () => {
     if (!user) return;
+    
+    if (!canGenerateCode) {
+      toast({
+        title: "Ліміт досягнуто",
+        description: `Ви маєте ${maxInvites} активних кодів. Дочекайтесь поки запрошені команди досягнуть ${settings?.milestone_generations || 50} генерацій.`,
+        variant: "destructive"
+      });
+      return;
+    }
     
     setGenerating(true);
     
@@ -277,12 +308,25 @@ export function ReferralProgram() {
             Ви отримаєте ${settings?.invite_reward || 0} після схвалення адміністратором.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button onClick={generateCode} disabled={generating}>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2 text-sm">
+            <Badge variant={canGenerateCode ? "secondary" : "destructive"}>
+              {activeInvitesCount} / {maxInvites}
+            </Badge>
+            <span className="text-muted-foreground">
+              активних кодів (які ще не досягли {settings?.milestone_generations || 50} генерацій)
+            </span>
+          </div>
+          <Button onClick={generateCode} disabled={generating || !canGenerateCode}>
             {generating ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 Генерація...
+              </>
+            ) : !canGenerateCode ? (
+              <>
+                <Gift className="h-4 w-4 mr-2" />
+                Ліміт досягнуто
               </>
             ) : (
               <>
