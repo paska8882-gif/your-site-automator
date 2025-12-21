@@ -4,14 +4,19 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Ticket, 
   Plus, 
   Copy, 
   Check, 
   Loader2,
-  RefreshCw
+  RefreshCw,
+  XCircle,
+  Users,
+  User
 } from "lucide-react";
 
 interface InviteCode {
@@ -22,6 +27,12 @@ interface InviteCode {
   used_at: string | null;
   created_at: string;
   is_active: boolean;
+  team_id: string | null;
+  assigned_role: string | null;
+  // Joined data
+  creator_name?: string;
+  user_name?: string;
+  team_name?: string;
 }
 
 const generateCode = () => {
@@ -40,6 +51,8 @@ export const InviteCodesManager = () => {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deactivating, setDeactivating] = useState(false);
 
   useEffect(() => {
     fetchCodes();
@@ -47,16 +60,55 @@ export const InviteCodesManager = () => {
 
   const fetchCodes = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    
+    // Fetch invite codes
+    const { data: codesData, error } = await supabase
       .from("invite_codes")
       .select("*")
       .order("created_at", { ascending: false });
 
     if (error) {
       console.error("Error fetching codes:", error);
-    } else {
-      setCodes(data || []);
+      setLoading(false);
+      return;
     }
+
+    // Get unique user IDs (creators and users)
+    const creatorIds = [...new Set((codesData || []).map(c => c.created_by))];
+    const userIds = [...new Set((codesData || []).filter(c => c.used_by).map(c => c.used_by!))];
+    const allUserIds = [...new Set([...creatorIds, ...userIds])];
+    const teamIds = [...new Set((codesData || []).filter(c => c.team_id).map(c => c.team_id!))];
+
+    // Fetch profiles
+    let profilesMap = new Map<string, string>();
+    if (allUserIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, display_name")
+        .in("user_id", allUserIds);
+      profiles?.forEach(p => profilesMap.set(p.user_id, p.display_name || "Без імені"));
+    }
+
+    // Fetch teams
+    let teamsMap = new Map<string, string>();
+    if (teamIds.length > 0) {
+      const { data: teams } = await supabase
+        .from("teams")
+        .select("id, name")
+        .in("id", teamIds);
+      teams?.forEach(t => teamsMap.set(t.id, t.name));
+    }
+
+    // Combine data
+    const codesWithDetails = (codesData || []).map(code => ({
+      ...code,
+      creator_name: profilesMap.get(code.created_by) || code.created_by.slice(0, 8),
+      user_name: code.used_by ? profilesMap.get(code.used_by) || code.used_by.slice(0, 8) : null,
+      team_name: code.team_id ? teamsMap.get(code.team_id) || null : null
+    }));
+
+    setCodes(codesWithDetails);
+    setSelectedIds(new Set());
     setLoading(false);
   };
 
@@ -116,11 +168,123 @@ export const InviteCodesManager = () => {
     }
   };
 
+  const handleMassDeactivate = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setDeactivating(true);
+    
+    const { error } = await supabase
+      .from("invite_codes")
+      .update({ is_active: false })
+      .in("id", Array.from(selectedIds));
+
+    if (error) {
+      toast({
+        title: "Помилка",
+        description: "Не вдалося деактивувати коди",
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Успішно",
+        description: `Деактивовано ${selectedIds.size} кодів`
+      });
+      fetchCodes();
+    }
+    setDeactivating(false);
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const selectAllActive = () => {
+    const activeCodes = codes.filter(c => c.is_active && !c.used_by);
+    if (selectedIds.size === activeCodes.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(activeCodes.map(c => c.id)));
+    }
+  };
+
+  // Separate active and inactive codes
+  const activeCodes = codes.filter(c => c.is_active && !c.used_by);
+  const inactiveCodes = codes.filter(c => !c.is_active || c.used_by);
+
   const stats = {
     total: codes.length,
-    active: codes.filter(c => c.is_active && !c.used_by).length,
+    active: activeCodes.length,
     used: codes.filter(c => c.used_by).length
   };
+
+  const renderCodeItem = (code: InviteCode, showCheckbox: boolean = false) => (
+    <div key={code.id} className="p-2 rounded-md border bg-card space-y-1">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {showCheckbox && (
+            <Checkbox
+              checked={selectedIds.has(code.id)}
+              onCheckedChange={() => toggleSelect(code.id)}
+              className="h-3.5 w-3.5"
+            />
+          )}
+          <code className="font-mono text-[10px] bg-muted px-1.5 py-0.5 rounded">{code.code}</code>
+          {code.used_by ? (
+            <Badge variant="secondary" className="text-[10px] px-1 py-0">Використано</Badge>
+          ) : code.is_active ? (
+            <Badge variant="default" className="bg-green-500 text-[10px] px-1 py-0">Активний</Badge>
+          ) : (
+            <Badge variant="outline" className="text-[10px] px-1 py-0">Неактивний</Badge>
+          )}
+          {code.assigned_role && (
+            <Badge variant="outline" className="text-[10px] px-1 py-0 capitalize">{code.assigned_role}</Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] text-muted-foreground">{new Date(code.created_at).toLocaleDateString("uk-UA")}</span>
+          {!code.used_by && code.is_active && (
+            <>
+              <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => handleCopyCode(code.code, code.id)}>
+                {copiedId === code.id ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+              </Button>
+              <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1" onClick={() => handleToggleActive(code.id, code.is_active)}>
+                Деактив
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+      
+      {/* Details row */}
+      <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+        <div className="flex items-center gap-1">
+          <User className="h-2.5 w-2.5" />
+          <span>Створив: {code.creator_name}</span>
+        </div>
+        {code.team_name && (
+          <div className="flex items-center gap-1">
+            <Users className="h-2.5 w-2.5" />
+            <span>Команда: {code.team_name}</span>
+          </div>
+        )}
+        {code.used_by && (
+          <div className="flex items-center gap-1 text-blue-500">
+            <Check className="h-2.5 w-2.5" />
+            <span>Використав: {code.user_name}</span>
+            {code.used_at && (
+              <span>({new Date(code.used_at).toLocaleDateString("uk-UA")})</span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <Card className="flex flex-col h-full">
@@ -158,7 +322,7 @@ export const InviteCodesManager = () => {
           </div>
         </div>
 
-        {/* Codes list */}
+        {/* Codes list with tabs */}
         {loading ? (
           <div className="flex items-center justify-center py-2">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -166,35 +330,66 @@ export const InviteCodesManager = () => {
         ) : codes.length === 0 ? (
           <p className="text-center text-muted-foreground py-2 text-xs">Немає кодів</p>
         ) : (
-          <div className="space-y-1 flex-1 overflow-y-auto">
-            {codes.map((code) => (
-              <div key={code.id} className="flex items-center justify-between p-1.5 rounded-md border bg-card">
-                <div className="flex items-center gap-2">
-                  <code className="font-mono text-[10px] bg-muted px-1.5 py-0.5 rounded">{code.code}</code>
-                  {code.used_by ? (
-                    <Badge variant="secondary" className="text-[10px] px-1 py-0">Використано</Badge>
-                  ) : code.is_active ? (
-                    <Badge variant="default" className="bg-green-500 text-[10px] px-1 py-0">Активний</Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-[10px] px-1 py-0">Неактивний</Badge>
+          <Tabs defaultValue="active" className="flex-1 flex flex-col min-h-0">
+            <TabsList className="grid w-full grid-cols-2 h-7 flex-shrink-0">
+              <TabsTrigger value="active" className="text-xs h-6">
+                Активні ({activeCodes.length})
+              </TabsTrigger>
+              <TabsTrigger value="inactive" className="text-xs h-6">
+                Неактивні ({inactiveCodes.length})
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="active" className="flex-1 overflow-hidden flex flex-col mt-2">
+              {activeCodes.length > 0 && (
+                <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={selectedIds.size === activeCodes.length && activeCodes.length > 0}
+                      onCheckedChange={selectAllActive}
+                      className="h-3.5 w-3.5"
+                    />
+                    <span className="text-[10px] text-muted-foreground">
+                      {selectedIds.size > 0 ? `Вибрано: ${selectedIds.size}` : "Вибрати всі"}
+                    </span>
+                  </div>
+                  {selectedIds.size > 0 && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="h-6 text-xs px-2"
+                      onClick={handleMassDeactivate}
+                      disabled={deactivating}
+                    >
+                      {deactivating ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <XCircle className="h-3 w-3 mr-1" />
+                      )}
+                      Деактивувати ({selectedIds.size})
+                    </Button>
                   )}
                 </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-muted-foreground">{new Date(code.created_at).toLocaleDateString("uk-UA")}</span>
-                  {!code.used_by && (
-                    <>
-                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => handleCopyCode(code.code, code.id)}>
-                        {copiedId === code.id ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1" onClick={() => handleToggleActive(code.id, code.is_active)}>
-                        {code.is_active ? "Деактив" : "Актив"}
-                      </Button>
-                    </>
-                  )}
-                </div>
+              )}
+              <div className="space-y-1 flex-1 overflow-y-auto">
+                {activeCodes.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-2 text-xs">Немає активних кодів</p>
+                ) : (
+                  activeCodes.map(code => renderCodeItem(code, true))
+                )}
               </div>
-            ))}
-          </div>
+            </TabsContent>
+            
+            <TabsContent value="inactive" className="flex-1 overflow-hidden mt-2">
+              <div className="space-y-1 flex-1 overflow-y-auto h-full">
+                {inactiveCodes.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-2 text-xs">Немає неактивних кодів</p>
+                ) : (
+                  inactiveCodes.map(code => renderCodeItem(code, false))
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
         )}
       </CardContent>
     </Card>
