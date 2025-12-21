@@ -25,6 +25,7 @@ export type Database = {
           resolved_at: string | null
           resolved_by: string | null
           screenshot_url: string | null
+          screenshot_urls: Json | null
           status: string
           team_id: string | null
           user_id: string
@@ -39,6 +40,7 @@ export type Database = {
           resolved_at?: string | null
           resolved_by?: string | null
           screenshot_url?: string | null
+          screenshot_urls?: Json | null
           status?: string
           team_id?: string | null
           user_id: string
@@ -53,6 +55,7 @@ export type Database = {
           resolved_at?: string | null
           resolved_by?: string | null
           screenshot_url?: string | null
+          screenshot_urls?: Json | null
           status?: string
           team_id?: string | null
           user_id?: string
