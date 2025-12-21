@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Hash, Wand2, Palette, ChevronDown, AlertTriangle, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp, Filter } from "lucide-react";
+import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Hash, Wand2, Palette, ChevronDown, AlertTriangle, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp, Filter, Newspaper } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { startGeneration, AiModel, WebsiteType, SeniorMode, ImageSource, LAYOUT_STYLES } from "@/lib/websiteGenerator";
@@ -34,6 +34,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
 import { useBalanceSound } from "@/hooks/useBalanceSound";
+
+// News images
+import newsAiNeuralNetwork from "@/assets/news/ai-neural-network.jpg";
+import newsWebDevelopment from "@/assets/news/web-development.jpg";
+import newsAiCollaboration from "@/assets/news/ai-collaboration.jpg";
 
 interface TeamPricing {
   teamId: string;
@@ -1092,6 +1097,69 @@ export function WebsiteGenerator() {
                 ) : null}
                 Надіслати
               </Button>
+            </div>
+          </div>
+
+          {/* News section */}
+          <div className="border border-border rounded p-3">
+            <div className="flex items-center gap-2 mb-3">
+              <Newspaper className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">Новини</span>
+            </div>
+            <div className="space-y-3">
+              {/* Article 1 */}
+              <article className="flex gap-3 group cursor-pointer">
+                <img 
+                  src={newsAiNeuralNetwork} 
+                  alt="AI Neural Networks" 
+                  className="w-20 h-14 object-cover rounded grayscale group-hover:grayscale-0 transition-all duration-300"
+                />
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-xs font-medium line-clamp-1 group-hover:text-primary transition-colors">
+                    Claude 4 та GPT-5: нова ера генерації коду
+                  </h3>
+                  <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">
+                    Нові моделі показують вражаючі результати у написанні веб-сайтів. Точність коду зросла на 40%.
+                  </p>
+                  <span className="text-[9px] text-muted-foreground/60 mt-1 block">21 грудня 2025</span>
+                </div>
+              </article>
+
+              {/* Article 2 */}
+              <article className="flex gap-3 group cursor-pointer">
+                <img 
+                  src={newsWebDevelopment} 
+                  alt="Web Development" 
+                  className="w-20 h-14 object-cover rounded grayscale group-hover:grayscale-0 transition-all duration-300"
+                />
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-xs font-medium line-clamp-1 group-hover:text-primary transition-colors">
+                    React 20: що нового для AI-генерації
+                  </h3>
+                  <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">
+                    Нові хуки та серверні компоненти спрощують інтеграцію з генеративними моделями.
+                  </p>
+                  <span className="text-[9px] text-muted-foreground/60 mt-1 block">19 грудня 2025</span>
+                </div>
+              </article>
+
+              {/* Article 3 */}
+              <article className="flex gap-3 group cursor-pointer">
+                <img 
+                  src={newsAiCollaboration} 
+                  alt="AI Collaboration" 
+                  className="w-20 h-14 object-cover rounded grayscale group-hover:grayscale-0 transition-all duration-300"
+                />
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-xs font-medium line-clamp-1 group-hover:text-primary transition-colors">
+                    Модерація контенту: AI vs людина
+                  </h3>
+                  <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">
+                    Дослідження показало, що AI-модератори працюють у 5 разів швидше при тій же точності.
+                  </p>
+                  <span className="text-[9px] text-muted-foreground/60 mt-1 block">17 грудня 2025</span>
+                </div>
+              </article>
             </div>
           </div>
         </div>
