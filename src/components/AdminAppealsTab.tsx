@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -74,17 +74,32 @@ interface BalanceTransaction {
 export function AdminAppealsTab() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [appeals, setAppeals] = useState<Appeal[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAppeal, setSelectedAppeal] = useState<Appeal | null>(null);
   const [adminComment, setAdminComment] = useState("");
   const [processing, setProcessing] = useState(false);
   
-  // Teams and balances
+  // Teams and balances - restore from URL
   const [teams, setTeams] = useState<Team[]>([]);
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(
+    searchParams.get("teamId")
+  );
   const [transactions, setTransactions] = useState<BalanceTransaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+
+  // Update URL when team changes
+  const handleTeamSelect = (teamId: string | null) => {
+    setSelectedTeamId(teamId);
+    const newParams = new URLSearchParams(searchParams);
+    if (teamId) {
+      newParams.set("teamId", teamId);
+    } else {
+      newParams.delete("teamId");
+    }
+    setSearchParams(newParams, { replace: true });
+  };
 
   useEffect(() => {
     fetchAppeals();
@@ -435,7 +450,7 @@ export function AdminAppealsTab() {
               <ScrollArea className="h-[300px]">
                 <div className="space-y-1">
                   <button
-                    onClick={() => setSelectedTeamId(null)}
+                    onClick={() => handleTeamSelect(null)}
                     className={`w-full flex items-center justify-between p-2 rounded text-xs transition-colors ${
                       !selectedTeamId ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/50"
                     }`}
@@ -449,7 +464,7 @@ export function AdminAppealsTab() {
                     return (
                       <button
                         key={team.id}
-                        onClick={() => setSelectedTeamId(team.id)}
+                        onClick={() => handleTeamSelect(team.id)}
                         className={`w-full flex items-center justify-between p-2 rounded text-xs transition-colors ${
                           selectedTeamId === team.id ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/50"
                         }`}
