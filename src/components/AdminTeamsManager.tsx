@@ -20,12 +20,19 @@ import {
   Wallet,
   UserCog,
   ExternalLink,
-  Search
+  Search,
+  Crown
 } from "lucide-react";
 
 interface Admin {
   user_id: string;
   display_name: string | null;
+}
+
+interface TeamMember {
+  user_id: string;
+  display_name: string | null;
+  role: string;
 }
 
 interface Team {
@@ -38,6 +45,8 @@ interface Team {
   members_count?: number;
   assigned_admin_id?: string | null;
   assigned_admin_name?: string | null;
+  owner_name?: string | null;
+  has_owner?: boolean;
 }
 
 interface Transaction {
@@ -76,6 +85,11 @@ export const AdminTeamsManager = () => {
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showOwnerDialog, setShowOwnerDialog] = useState(false);
+  const [ownerDialogTeam, setOwnerDialogTeam] = useState<Team | null>(null);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [assigningOwner, setAssigningOwner] = useState(false);
 
   const filteredTeams = teams.filter(team => 
     team.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -170,11 +184,32 @@ export const AdminTeamsManager = () => {
         .eq("team_id", team.id)
         .eq("status", "approved");
 
+      // Check if team has an owner
+      const { data: ownerData } = await supabase
+        .from("team_members")
+        .select("user_id")
+        .eq("team_id", team.id)
+        .eq("role", "owner")
+        .eq("status", "approved")
+        .limit(1);
+      
+      let ownerName = null;
+      if (ownerData && ownerData.length > 0) {
+        const { data: ownerProfile } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("user_id", ownerData[0].user_id)
+          .maybeSingle();
+        ownerName = ownerProfile?.display_name || "Без імені";
+      }
+
       return {
         ...team,
         owner_code: codeData?.code,
         members_count: count || 0,
-        assigned_admin_name: team.assigned_admin_id ? adminProfilesMap.get(team.assigned_admin_id) : null
+        assigned_admin_name: team.assigned_admin_id ? adminProfilesMap.get(team.assigned_admin_id) : null,
+        owner_name: ownerName,
+        has_owner: !!(ownerData && ownerData.length > 0)
       };
     }));
 
@@ -345,6 +380,70 @@ export const AdminTeamsManager = () => {
     }
   };
 
+  const openOwnerDialog = async (team: Team) => {
+    setOwnerDialogTeam(team);
+    setShowOwnerDialog(true);
+    setLoadingMembers(true);
+    
+    // Fetch team members
+    const { data: members } = await supabase
+      .from("team_members")
+      .select("user_id, role")
+      .eq("team_id", team.id)
+      .eq("status", "approved");
+    
+    if (members && members.length > 0) {
+      const userIds = members.map(m => m.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, display_name")
+        .in("user_id", userIds);
+      
+      const profileMap = new Map(profiles?.map(p => [p.user_id, p.display_name]) || []);
+      
+      setTeamMembers(members.map(m => ({
+        user_id: m.user_id,
+        display_name: profileMap.get(m.user_id) || "Без імені",
+        role: m.role
+      })));
+    } else {
+      setTeamMembers([]);
+    }
+    
+    setLoadingMembers(false);
+  };
+
+  const handleAssignOwner = async (userId: string) => {
+    if (!ownerDialogTeam) return;
+    
+    setAssigningOwner(true);
+    
+    // Remove owner role from all current owners
+    await supabase
+      .from("team_members")
+      .update({ role: "buyer" })
+      .eq("team_id", ownerDialogTeam.id)
+      .eq("role", "owner");
+    
+    // Set new owner
+    const { error } = await supabase
+      .from("team_members")
+      .update({ role: "owner" })
+      .eq("team_id", ownerDialogTeam.id)
+      .eq("user_id", userId);
+    
+    if (error) {
+      toast({ title: "Помилка", description: "Не вдалося призначити власника", variant: "destructive" });
+    } else {
+      toast({ title: "Збережено", description: "Власника команди призначено" });
+      setShowOwnerDialog(false);
+      setOwnerDialogTeam(null);
+      fetchTeams();
+    }
+    
+    setAssigningOwner(false);
+  };
+
   const totalSales = transactions.reduce((sum, t) => sum + (t.sale_price || 0), 0);
   const totalCosts = transactions.reduce((sum, t) => sum + (t.generation_cost || 0), 0);
 
@@ -410,8 +509,32 @@ export const AdminTeamsManager = () => {
                     </div>
                   </div>
                   
+                  {/* Owner section */}
                   <div className="flex items-center gap-1.5 text-xs">
-                    <span className="text-muted-foreground">Owner:</span>
+                    <Crown className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-muted-foreground">Власник:</span>
+                    {team.has_owner ? (
+                      <>
+                        <Badge variant="default" className="text-[10px] px-1.5 py-0 bg-amber-500/20 text-amber-600 border-amber-500/30">
+                          {team.owner_name}
+                        </Badge>
+                        <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1" onClick={() => openOwnerDialog(team)}>
+                          Змінити
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 text-destructive border-destructive/30">Не призначено</Badge>
+                        <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1" onClick={() => openOwnerDialog(team)}>
+                          Призначити
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Owner code section */}
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className="text-muted-foreground">Owner код:</span>
                     {team.owner_code ? (
                       <>
                         <code className="font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">{team.owner_code}</code>
@@ -590,6 +713,88 @@ export const AdminTeamsManager = () => {
               >
                 {creating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
                 Створити
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Owner Dialog */}
+      <Dialog open={showOwnerDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowOwnerDialog(false);
+          setOwnerDialogTeam(null);
+          setTeamMembers([]);
+        }
+      }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <Crown className="h-4 w-4 text-amber-500" />
+              Призначити власника: {ownerDialogTeam?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {loadingMembers ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            ) : teamMembers.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4 text-xs">
+                Команда не має затверджених членів
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {teamMembers.map((member) => (
+                  <div 
+                    key={member.user_id} 
+                    className={`p-2 rounded-md border flex items-center justify-between ${
+                      member.role === "owner" ? "bg-amber-500/10 border-amber-500/30" : "bg-card"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{member.display_name}</span>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                        {member.role}
+                      </Badge>
+                    </div>
+                    {member.role === "owner" ? (
+                      <Badge className="text-[10px] bg-amber-500">
+                        <Crown className="h-3 w-3 mr-1" />
+                        Власник
+                      </Badge>
+                    ) : (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="h-6 text-[10px]"
+                        onClick={() => handleAssignOwner(member.user_id)}
+                        disabled={assigningOwner}
+                      >
+                        {assigningOwner ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <>
+                            <Crown className="h-3 w-3 mr-1" />
+                            Призначити
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  setShowOwnerDialog(false);
+                  setOwnerDialogTeam(null);
+                }}
+              >
+                Закрити
               </Button>
             </div>
           </div>
