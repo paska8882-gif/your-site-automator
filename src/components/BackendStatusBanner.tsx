@@ -1,4 +1,4 @@
-import { AlertTriangle, RefreshCcw } from "lucide-react";
+import { AlertTriangle, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -23,12 +23,14 @@ export function BackendStatusBanner({ isDown, onRetry, className }: BackendStatu
         <div className="flex items-center gap-2 text-sm text-foreground">
           <AlertTriangle className="h-4 w-4 text-destructive" />
           <span>
-            Бекенд тимчасово недоступний — дані можуть не завантажуватись.
+            Сервіс тимчасово недоступний, повідомте підтримку
           </span>
         </div>
-        <Button variant="outline" size="sm" onClick={onRetry}>
-          <RefreshCcw className="mr-2 h-4 w-4" />
-          Спробувати знову
+        <Button variant="outline" size="sm" asChild>
+          <a href="https://t.me/dragonwhite7" target="_blank" rel="noopener noreferrer">
+            <MessageCircle className="mr-2 h-4 w-4" />
+            Підтримка
+          </a>
         </Button>
       </div>
     </div>
