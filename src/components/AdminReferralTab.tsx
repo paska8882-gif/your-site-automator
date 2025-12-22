@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Gift, Settings, Loader2, Check, X, DollarSign, Users, Target, Save, Edit, Plus, Power } from "lucide-react";
+import { Gift, Settings, Loader2, Check, X, DollarSign, Users, Target, Save, Edit, Plus, Power, ChevronDown, ChevronRight } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { format } from "date-fns";
 
 interface Team {
@@ -86,6 +87,10 @@ export function AdminReferralTab() {
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
   const [creatingInvite, setCreatingInvite] = useState(false);
   const [togglingInvite, setTogglingInvite] = useState<string | null>(null);
+  
+  // Grouping states for invites
+  const [inviteGroupBy, setInviteGroupBy] = useState<"status" | "team">("status");
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchData();
@@ -646,86 +651,267 @@ export function AdminReferralTab() {
         </TabsContent>
 
         <TabsContent value="invites" className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center">
+            <div className="flex gap-2">
+              <Select value={inviteGroupBy} onValueChange={(value: "status" | "team") => {
+                setInviteGroupBy(value);
+                setExpandedGroups(new Set());
+              }}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Групування" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="status">По статусу</SelectItem>
+                  <SelectItem value="team">По команді</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Button onClick={() => setShowCreateInviteDialog(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Створити код для команди
             </Button>
           </div>
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Код</TableHead>
-                    <TableHead>Реферер</TableHead>
-                    <TableHead>Команда рефера</TableHead>
-                    <TableHead>Запрошена команда</TableHead>
-                    <TableHead>Генерацій</TableHead>
-                    <TableHead>Статус</TableHead>
-                    <TableHead>Дата</TableHead>
-                    <TableHead>Дії</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {invites.map((invite) => (
-                    <TableRow key={invite.id}>
-                      <TableCell className="font-mono font-medium">{invite.code}</TableCell>
-                      <TableCell>{invite.referrer_email}</TableCell>
-                      <TableCell>{invite.referrer_team_name || "-"}</TableCell>
-                      <TableCell>{invite.invited_team_name || "-"}</TableCell>
-                      <TableCell>
-                        {invite.invited_team_id ? (
-                          <div className="flex items-center gap-1">
-                            <span>{invite.invited_generations}</span>
-                            <span className="text-muted-foreground">/ {settings?.milestone_generations}</span>
-                            {invite.milestone_reached && (
-                              <Check className="h-4 w-4 text-green-500" />
-                            )}
+          
+          {inviteGroupBy === "status" ? (
+            // Group by status (active/inactive/used)
+            <div className="space-y-4">
+              {[
+                { key: "active", label: "Активні", filter: (i: ReferralInvite) => i.is_active && !i.used_at, color: "bg-blue-500/10 text-blue-500" },
+                { key: "used", label: "Використані", filter: (i: ReferralInvite) => !!i.used_at, color: "bg-green-500/10 text-green-500" },
+                { key: "inactive", label: "Неактивні", filter: (i: ReferralInvite) => !i.is_active && !i.used_at, color: "bg-muted text-muted-foreground" }
+              ].map(group => {
+                const groupInvites = invites.filter(group.filter);
+                if (groupInvites.length === 0) return null;
+                
+                const isExpanded = expandedGroups.has(group.key);
+                
+                return (
+                  <Card key={group.key}>
+                    <Collapsible open={isExpanded} onOpenChange={(open) => {
+                      const newSet = new Set(expandedGroups);
+                      if (open) newSet.add(group.key);
+                      else newSet.delete(group.key);
+                      setExpandedGroups(newSet);
+                    }}>
+                      <CollapsibleTrigger asChild>
+                        <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              {isExpanded ? (
+                                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                              )}
+                              <Badge variant="outline" className={group.color}>
+                                {group.label}
+                              </Badge>
+                              <span className="text-sm text-muted-foreground">
+                                {groupInvites.length} кодів
+                              </span>
+                            </div>
                           </div>
-                        ) : "-"}
-                      </TableCell>
-                      <TableCell>
-                        {invite.used_at ? (
-                          <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">
-                            Використано
-                          </Badge>
-                        ) : invite.is_active ? (
-                          <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/30">
-                            Активний
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline">Неактивний</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {format(new Date(invite.created_at), "dd.MM.yyyy")}
-                      </TableCell>
-                      <TableCell>
-                        {!invite.used_at && (
-                          <Button
-                            size="sm"
-                            variant={invite.is_active ? "destructive" : "outline"}
-                            onClick={() => toggleInviteStatus(invite.id, invite.is_active)}
-                            disabled={togglingInvite === invite.id}
-                          >
-                            {togglingInvite === invite.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <Power className="h-4 w-4 mr-1" />
-                                {invite.is_active ? "Деактивувати" : "Активувати"}
-                              </>
-                            )}
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                        </CardHeader>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <CardContent className="p-0">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Код</TableHead>
+                                <TableHead>Реферер</TableHead>
+                                <TableHead>Команда рефера</TableHead>
+                                <TableHead>Запрошена команда</TableHead>
+                                <TableHead>Генерацій</TableHead>
+                                <TableHead>Дата</TableHead>
+                                <TableHead>Дії</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {groupInvites.map((invite) => (
+                                <TableRow key={invite.id}>
+                                  <TableCell className="font-mono font-medium">{invite.code}</TableCell>
+                                  <TableCell>{invite.referrer_email}</TableCell>
+                                  <TableCell>{invite.referrer_team_name || "-"}</TableCell>
+                                  <TableCell>{invite.invited_team_name || "-"}</TableCell>
+                                  <TableCell>
+                                    {invite.invited_team_id ? (
+                                      <div className="flex items-center gap-1">
+                                        <span>{invite.invited_generations}</span>
+                                        <span className="text-muted-foreground">/ {settings?.milestone_generations}</span>
+                                        {invite.milestone_reached && (
+                                          <Check className="h-4 w-4 text-green-500" />
+                                        )}
+                                      </div>
+                                    ) : "-"}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-muted-foreground">
+                                    {format(new Date(invite.created_at), "dd.MM.yyyy")}
+                                  </TableCell>
+                                  <TableCell>
+                                    {!invite.used_at && (
+                                      <Button
+                                        size="sm"
+                                        variant={invite.is_active ? "destructive" : "outline"}
+                                        onClick={() => toggleInviteStatus(invite.id, invite.is_active)}
+                                        disabled={togglingInvite === invite.id}
+                                      >
+                                        {togglingInvite === invite.id ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <>
+                                            <Power className="h-4 w-4 mr-1" />
+                                            {invite.is_active ? "Деактивувати" : "Активувати"}
+                                          </>
+                                        )}
+                                      </Button>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </CardContent>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            // Group by team
+            <div className="space-y-4">
+              {(() => {
+                const teamGroups = invites.reduce((acc, invite) => {
+                  const teamKey = invite.referrer_team_id || "no_team";
+                  const teamName = invite.referrer_team_name || "Без команди";
+                  if (!acc[teamKey]) {
+                    acc[teamKey] = { name: teamName, invites: [] };
+                  }
+                  acc[teamKey].invites.push(invite);
+                  return acc;
+                }, {} as Record<string, { name: string; invites: ReferralInvite[] }>);
+                
+                return Object.entries(teamGroups).map(([teamKey, group]) => {
+                  const isExpanded = expandedGroups.has(teamKey);
+                  const activeCount = group.invites.filter(i => i.is_active && !i.used_at).length;
+                  const usedCount = group.invites.filter(i => i.used_at).length;
+                  
+                  return (
+                    <Card key={teamKey}>
+                      <Collapsible open={isExpanded} onOpenChange={(open) => {
+                        const newSet = new Set(expandedGroups);
+                        if (open) newSet.add(teamKey);
+                        else newSet.delete(teamKey);
+                        setExpandedGroups(newSet);
+                      }}>
+                        <CollapsibleTrigger asChild>
+                          <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                {isExpanded ? (
+                                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                                ) : (
+                                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                                )}
+                                <span className="font-medium">{group.name}</span>
+                                <span className="text-sm text-muted-foreground">
+                                  {group.invites.length} кодів
+                                </span>
+                              </div>
+                              <div className="flex gap-2">
+                                {activeCount > 0 && (
+                                  <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/30">
+                                    {activeCount} активних
+                                  </Badge>
+                                )}
+                                {usedCount > 0 && (
+                                  <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">
+                                    {usedCount} використано
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </CardHeader>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <CardContent className="p-0">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Код</TableHead>
+                                  <TableHead>Реферер</TableHead>
+                                  <TableHead>Запрошена команда</TableHead>
+                                  <TableHead>Генерацій</TableHead>
+                                  <TableHead>Статус</TableHead>
+                                  <TableHead>Дата</TableHead>
+                                  <TableHead>Дії</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {group.invites.map((invite) => (
+                                  <TableRow key={invite.id}>
+                                    <TableCell className="font-mono font-medium">{invite.code}</TableCell>
+                                    <TableCell>{invite.referrer_email}</TableCell>
+                                    <TableCell>{invite.invited_team_name || "-"}</TableCell>
+                                    <TableCell>
+                                      {invite.invited_team_id ? (
+                                        <div className="flex items-center gap-1">
+                                          <span>{invite.invited_generations}</span>
+                                          <span className="text-muted-foreground">/ {settings?.milestone_generations}</span>
+                                          {invite.milestone_reached && (
+                                            <Check className="h-4 w-4 text-green-500" />
+                                          )}
+                                        </div>
+                                      ) : "-"}
+                                    </TableCell>
+                                    <TableCell>
+                                      {invite.used_at ? (
+                                        <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">
+                                          Використано
+                                        </Badge>
+                                      ) : invite.is_active ? (
+                                        <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/30">
+                                          Активний
+                                        </Badge>
+                                      ) : (
+                                        <Badge variant="outline">Неактивний</Badge>
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                      {format(new Date(invite.created_at), "dd.MM.yyyy")}
+                                    </TableCell>
+                                    <TableCell>
+                                      {!invite.used_at && (
+                                        <Button
+                                          size="sm"
+                                          variant={invite.is_active ? "destructive" : "outline"}
+                                          onClick={() => toggleInviteStatus(invite.id, invite.is_active)}
+                                          disabled={togglingInvite === invite.id}
+                                        >
+                                          {togglingInvite === invite.id ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                          ) : (
+                                            <>
+                                              <Power className="h-4 w-4 mr-1" />
+                                              {invite.is_active ? "Деактивувати" : "Активувати"}
+                                            </>
+                                          )}
+                                        </Button>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </CardContent>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    </Card>
+                  );
+                });
+              })()}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4">
