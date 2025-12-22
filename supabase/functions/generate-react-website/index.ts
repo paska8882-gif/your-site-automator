@@ -166,6 +166,50 @@ const LAYOUT_VARIATIONS = [
 
 const REACT_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE REACT WEBSITE WITH 10X BETTER UI
 
+**🌍 LANGUAGE COMPLIANCE - ABSOLUTELY MANDATORY:**
+The website MUST be generated in the EXACT language specified in the request. This is NON-NEGOTIABLE:
+
+1. **ALL text content** MUST be in the specified language:
+   - Headings, paragraphs, buttons, links, navigation
+   - Form labels, placeholders, error messages
+   - Footer text, copyright notices
+   - Cookie banner text
+   - Alt text for images
+   - Meta descriptions and page titles
+
+2. **Language code mapping** (use correct language for each code):
+   - EN = English (US/UK)
+   - DE = German (Deutsch)
+   - FR = French (Français)
+   - ES = Spanish (Español)
+   - IT = Italian (Italiano)
+   - PL = Polish (Polski)
+   - NL = Dutch (Nederlands)
+   - UK/UA = Ukrainian (Українська)
+   - PT = Portuguese (Português)
+   - CS/CZ = Czech (Čeština)
+   - SV = Swedish (Svenska)
+   - NO = Norwegian (Norsk)
+   - DA = Danish (Dansk)
+   - FI = Finnish (Suomi)
+   - RU = Russian (Русский)
+   - TR = Turkish (Türkçe)
+   - AR = Arabic (العربية) - RTL layout
+   - HE = Hebrew (עברית) - RTL layout
+   - ZH = Chinese (中文)
+   - JA = Japanese (日本語)
+   - KO = Korean (한국어)
+
+3. **NEVER mix languages** - If the site is in German, ALL text must be German
+4. **NEVER default to Ukrainian** - Only use Ukrainian if explicitly specified as UK/UA
+5. **If language is "EN" or "English"** - Generate ALL content in proper English
+6. **Button text examples by language:**
+   - EN: "Get Started", "Learn More", "Contact Us"
+   - DE: "Jetzt starten", "Mehr erfahren", "Kontakt"
+   - FR: "Commencer", "En savoir plus", "Contactez-nous"
+   - ES: "Comenzar", "Saber más", "Contáctenos"
+   - PL: "Rozpocznij", "Dowiedz się więcej", "Kontakt"
+
 **DESIGN PHILOSOPHY - 10X BETTER UI:**
 - Start with FUNCTIONAL and BEAUTIFUL base UI - Every pixel must serve a purpose
 - Always make 10X better UI than standard - Go beyond expectations
