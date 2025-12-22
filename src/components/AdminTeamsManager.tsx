@@ -22,7 +22,8 @@ import {
   ExternalLink,
   Search,
   Crown,
-  UserPlus
+  UserPlus,
+  Ticket
 } from "lucide-react";
 
 interface Admin {
@@ -101,6 +102,13 @@ export const AdminTeamsManager = () => {
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("buyer");
+  
+  // Invite code generation states
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [inviteDialogTeam, setInviteDialogTeam] = useState<Team | null>(null);
+  const [inviteRole, setInviteRole] = useState<string>("buyer");
+  const [generatingInvite, setGeneratingInvite] = useState(false);
+  const [generatedInviteCode, setGeneratedInviteCode] = useState<string | null>(null);
 
   const filteredTeams = teams.filter(team => 
     team.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -513,6 +521,37 @@ export const AdminTeamsManager = () => {
     setAddingMember(false);
   };
 
+  const openInviteDialog = (team: Team) => {
+    setInviteDialogTeam(team);
+    setShowInviteDialog(true);
+    setInviteRole("buyer");
+    setGeneratedInviteCode(null);
+  };
+
+  const handleGenerateInviteCode = async () => {
+    if (!user || !inviteDialogTeam) return;
+    
+    setGeneratingInvite(true);
+    const newCode = generateCode();
+
+    const { error } = await supabase
+      .from("invite_codes")
+      .insert({
+        code: newCode,
+        created_by: user.id,
+        team_id: inviteDialogTeam.id,
+        assigned_role: inviteRole as "owner" | "team_lead" | "buyer" | "tech_dev"
+      });
+
+    if (error) {
+      toast({ title: "Помилка", description: "Не вдалося створити код", variant: "destructive" });
+    } else {
+      setGeneratedInviteCode(newCode);
+      toast({ title: "Код створено", description: `${newCode} (${inviteRole})` });
+    }
+    setGeneratingInvite(false);
+  };
+
   const filteredUsers = allUsers.filter(u => 
     (u.display_name || "").toLowerCase().includes(userSearchQuery.toLowerCase()) ||
     u.user_id.toLowerCase().includes(userSearchQuery.toLowerCase())
@@ -574,6 +613,9 @@ export const AdminTeamsManager = () => {
                       </Badge>
                     </div>
                     <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => openInviteDialog(team)} title="Створити інвайт-код">
+                        <Ticket className="h-3 w-3" />
+                      </Button>
                       <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => openAddMemberDialog(team)} title="Додати члена">
                         <UserPlus className="h-3 w-3" />
                       </Button>
@@ -969,6 +1011,88 @@ export const AdminTeamsManager = () => {
               >
                 {addingMember ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <UserPlus className="h-3 w-3 mr-1" />}
                 Додати
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Generate Invite Code Dialog */}
+      <Dialog open={showInviteDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowInviteDialog(false);
+          setInviteDialogTeam(null);
+          setGeneratedInviteCode(null);
+          setInviteRole("buyer");
+        }
+      }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <Ticket className="h-4 w-4" />
+              Створити інвайт-код: {inviteDialogTeam?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-xs text-muted-foreground">Роль для інвайту</label>
+              <Select value={inviteRole} onValueChange={setInviteRole}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="owner">Owner (Власник)</SelectItem>
+                  <SelectItem value="team_lead">Team Lead</SelectItem>
+                  <SelectItem value="buyer">Buyer</SelectItem>
+                  <SelectItem value="tech_dev">Tech Dev</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {generatedInviteCode && (
+              <div className="p-3 rounded-lg bg-muted border space-y-2">
+                <div className="text-xs text-muted-foreground">Згенерований код:</div>
+                <div className="flex items-center justify-between">
+                  <code className="font-mono text-lg font-bold">{generatedInviteCode}</code>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 w-8 p-0"
+                    onClick={() => handleCopyCode(generatedInviteCode, "invite-dialog")}
+                  >
+                    {copiedId === "invite-dialog" ? (
+                      <Check className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex gap-2 justify-end">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  setShowInviteDialog(false);
+                  setInviteDialogTeam(null);
+                  setGeneratedInviteCode(null);
+                }}
+              >
+                Закрити
+              </Button>
+              <Button 
+                size="sm"
+                onClick={handleGenerateInviteCode}
+                disabled={generatingInvite}
+              >
+                {generatingInvite ? (
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                ) : (
+                  <Plus className="h-3 w-3 mr-1" />
+                )}
+                {generatedInviteCode ? "Новий код" : "Створити"}
               </Button>
             </div>
           </div>
