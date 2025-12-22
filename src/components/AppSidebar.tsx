@@ -36,11 +36,13 @@ import {
   MessageCircle,
   CreditCard,
   Gift,
-  ClipboardList
+  ClipboardList,
+  Gauge
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useSuperAdmin } from "@/hooks/useSuperAdmin";
+import { useTeamOwner } from "@/hooks/useTeamOwner";
 import { useTheme } from "@/hooks/useTheme";
 import { useTaskIndicators } from "@/hooks/useTaskIndicators";
 import { NotificationBell } from "./NotificationBell";
@@ -76,6 +78,7 @@ export function AppSidebar() {
   const { user, signOut } = useAuth();
   const { isAdmin } = useAdmin();
   const { isSuperAdmin } = useSuperAdmin();
+  const { isTeamOwner } = useTeamOwner();
   const { state } = useSidebar();
   const { theme, toggleTheme } = useTheme();
   const { hasNewTasks, hasProblematic } = useTaskIndicators();
@@ -145,10 +148,24 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              
+              {/* Owner Dashboard - only visible for team owners */}
+              {isTeamOwner && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate("/dashboard")}
+                    isActive={isActive("/dashboard")}
+                    tooltip="Пульт"
+                    className="transition-colors text-amber-500"
+                  >
+                    <Gauge className="h-4 w-4" />
+                    <span>Пульт</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
 
         {/* Admin Section */}
         {isAdmin && (
