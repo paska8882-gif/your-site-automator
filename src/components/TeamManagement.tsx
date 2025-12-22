@@ -78,6 +78,7 @@ export const TeamManagement = () => {
   const [generating, setGenerating] = useState(false);
   const [newInviteRole, setNewInviteRole] = useState<TeamRole>("team_lead");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [pendingRoles, setPendingRoles] = useState<Record<string, TeamRole>>({});
 
   useEffect(() => {
     fetchMyTeams();
@@ -191,13 +192,16 @@ export const TeamManagement = () => {
     });
   };
 
-  const handleApproveMember = async (memberId: string) => {
+  const handleApproveMember = async (memberId: string, currentRole: TeamRole) => {
     if (!user) return;
+
+    const newRole = pendingRoles[memberId] || currentRole;
 
     const { error } = await supabase
       .from("team_members")
       .update({ 
         status: "approved",
+        role: newRole,
         approved_at: new Date().toISOString(),
         approved_by: user.id
       })
@@ -210,9 +214,18 @@ export const TeamManagement = () => {
         variant: "destructive"
       });
     } else {
-      toast({ title: "Члена команди затверджено" });
+      toast({ title: "Члена команди затверджено", description: `Роль: ${roleLabels[newRole]}` });
+      setPendingRoles(prev => {
+        const next = { ...prev };
+        delete next[memberId];
+        return next;
+      });
       if (selectedTeam) fetchTeamData(selectedTeam);
     }
+  };
+
+  const handlePendingRoleChange = (memberId: string, role: TeamRole) => {
+    setPendingRoles(prev => ({ ...prev, [memberId]: role }));
   };
 
   const handleRejectMember = async (memberId: string) => {
@@ -309,20 +322,35 @@ export const TeamManagement = () => {
                   Очікують затвердження ({pendingMembers.length})
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-3">
                 {pendingMembers.map(member => (
-                  <div key={member.id} className="flex items-center justify-between p-3 rounded-lg border">
-                    <div>
-                      <p className="font-medium">
-                        {member.profile?.display_name || member.user_id.slice(0, 8) + "..."}
-                      </p>
-                      <Badge variant="outline">{roleLabels[member.role]}</Badge>
+                  <div key={member.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border gap-3">
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <p className="font-medium">
+                          {member.profile?.display_name || member.user_id.slice(0, 8) + "..."}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Запитана роль: {roleLabels[member.role]}</p>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Select 
+                        value={pendingRoles[member.id] || member.role} 
+                        onValueChange={(v) => handlePendingRoleChange(member.id, v as TeamRole)}
+                      >
+                        <SelectTrigger className="w-[130px] h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="team_lead">Team Lead</SelectItem>
+                          <SelectItem value="buyer">Buyer</SelectItem>
+                          <SelectItem value="tech_dev">Tech Dev</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <Button
                         size="sm"
                         variant="default"
-                        onClick={() => handleApproveMember(member.id)}
+                        onClick={() => handleApproveMember(member.id, member.role)}
                       >
                         <UserCheck className="h-4 w-4 mr-1" />
                         Прийняти
