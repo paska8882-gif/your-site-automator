@@ -156,6 +156,10 @@ export const AdminSitesTab = () => {
   const [previewFiles, setPreviewFiles] = useState<GeneratedFile[]>([]);
   const [selectedPreviewFile, setSelectedPreviewFile] = useState<GeneratedFile | null>(null);
   
+  // Details dialog state (for viewing prompts)
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsItem, setDetailsItem] = useState<GenerationItem | null>(null);
+  
   // External upload dialog state
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [teams, setTeams] = useState<TeamInfo[]>([]);
@@ -909,7 +913,13 @@ export const AdminSitesTab = () => {
                   {sortedHistory.map((item) => (
                     <Collapsible key={item.id} asChild>
                       <>
-                        <TableRow className="cursor-pointer hover:bg-accent/50">
+                        <TableRow 
+                          className="cursor-pointer hover:bg-accent/50"
+                          onClick={() => {
+                            setDetailsItem(item);
+                            setDetailsOpen(true);
+                          }}
+                        >
                           <TableCell>
                             <div className="flex items-center gap-1">
                               {getStatusIcon(item.status, item.sale_price)}
@@ -1255,6 +1265,119 @@ export const AdminSitesTab = () => {
                 </>
               )}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Details Dialog - Shows both prompts */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileCode className="h-5 w-5" />
+              Деталі генерації: {detailsItem?.site_name || `Site ${detailsItem?.number}`}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {detailsItem && (
+            <div className="space-y-4 py-4">
+              {/* General info */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                <div>
+                  <span className="text-muted-foreground text-xs">Статус</span>
+                  <div className="flex items-center gap-1 mt-1">
+                    {getStatusIcon(detailsItem.status, detailsItem.sale_price)}
+                    <span className="font-medium">
+                      {detailsItem.status === "completed" ? "Готово" :
+                       detailsItem.status === "generating" ? "Генерація" :
+                       detailsItem.status === "pending" ? "Очікує" : "Помилка"}
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-muted-foreground text-xs">AI модель</span>
+                  <p className="font-medium">{detailsItem.ai_model === "senior" ? "Senior" : "Junior"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground text-xs">Тип</span>
+                  <p className="font-medium">{detailsItem.website_type === "react" ? "React" : "HTML"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground text-xs">Мова</span>
+                  <p className="font-medium">{detailsItem.language}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-muted-foreground text-xs">Команда</span>
+                  <p className="font-medium">{getTeamName(detailsItem.team_id)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground text-xs">Користувач</span>
+                  <p className="font-medium">{getUserName(detailsItem.user_id)}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-muted-foreground text-xs">Дата</span>
+                  <p className="font-medium">{new Date(detailsItem.created_at).toLocaleString("uk-UA")}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground text-xs">Ціна продажу</span>
+                  <p className="font-medium">${detailsItem.sale_price || 0}</p>
+                </div>
+              </div>
+
+              {/* Original prompt from client */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Промпт клієнта (оригінальний)</Label>
+                <div className="p-3 rounded-md bg-muted/50 border text-sm whitespace-pre-wrap max-h-40 overflow-y-auto">
+                  {detailsItem.prompt}
+                </div>
+              </div>
+
+              {/* Improved prompt (commercial secret) */}
+              {detailsItem.improved_prompt && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold flex items-center gap-2">
+                    Покращений промпт (AI+)
+                    <Badge variant="outline" className="text-[10px] px-1 py-0 text-primary border-primary/50">
+                      Комерційна таємниця
+                    </Badge>
+                  </Label>
+                  <div className="p-3 rounded-md bg-primary/5 border border-primary/20 text-sm whitespace-pre-wrap max-h-60 overflow-y-auto">
+                    {detailsItem.improved_prompt}
+                  </div>
+                </div>
+              )}
+
+              {/* Error message if failed */}
+              {detailsItem.error_message && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-destructive">Помилка</Label>
+                  <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive">
+                    {detailsItem.error_message}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailsOpen(false)}>
+              Закрити
+            </Button>
+            {detailsItem?.status === "completed" && detailsItem?.files_data && (
+              <Button onClick={() => {
+                setDetailsOpen(false);
+                handlePreview(detailsItem);
+              }}>
+                <Eye className="h-4 w-4 mr-2" />
+                Превью
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
