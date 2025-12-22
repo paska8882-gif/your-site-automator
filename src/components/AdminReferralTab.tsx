@@ -417,23 +417,33 @@ export function AdminReferralTab() {
       return;
     }
 
-    // Get team owner
+    // Try to find team owner first, then any approved member, otherwise use admin
+    let referrerUserId = user.id; // Default: admin creating the code
+    
     const { data: ownerData } = await supabase
       .from("team_members")
       .select("user_id")
       .eq("team_id", selectedTeamId)
       .eq("role", "owner")
       .eq("status", "approved")
-      .single();
+      .maybeSingle();
     
-    if (!ownerData) {
-      toast({
-        title: "Помилка",
-        description: "Не вдалося знайти власника команди",
-        variant: "destructive"
-      });
-      setCreatingInvite(false);
-      return;
+    if (ownerData) {
+      referrerUserId = ownerData.user_id;
+    } else {
+      // Try any approved team member
+      const { data: memberData } = await supabase
+        .from("team_members")
+        .select("user_id")
+        .eq("team_id", selectedTeamId)
+        .eq("status", "approved")
+        .limit(1)
+        .maybeSingle();
+      
+      if (memberData) {
+        referrerUserId = memberData.user_id;
+      }
+      // If no members at all, keep admin as referrer
     }
 
     const code = generateRandomCode();
@@ -441,8 +451,8 @@ export function AdminReferralTab() {
     const { error } = await supabase
       .from("referral_invites")
       .insert({
-        code,
-        referrer_user_id: ownerData.user_id,
+        code: `REF-${code}`,
+        referrer_user_id: referrerUserId,
         referrer_team_id: selectedTeamId,
         is_active: true
       });
