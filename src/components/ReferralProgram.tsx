@@ -142,6 +142,15 @@ export function ReferralProgram() {
 
   const canGenerateCode = activeInvitesCount < maxInvites;
 
+  const generateSafeCodePart = (length = 6) => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // без 0/O та 1/I
+    let out = "";
+    for (let i = 0; i < length; i++) {
+      out += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return out;
+  };
+
   const generateCode = async () => {
     if (!user) return;
     
@@ -156,8 +165,8 @@ export function ReferralProgram() {
     
     setGenerating(true);
     
-    // Generate unique code
-    const code = `REF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    // Generate unique, human-friendly code (без неоднозначних символів)
+    const code = `REF-${generateSafeCodePart(6)}`;
     
     const { error } = await supabase
       .from("referral_invites")
@@ -349,7 +358,7 @@ export function ReferralProgram() {
               <TableBody>
                 {invites.map((invite) => (
                   <TableRow key={invite.id}>
-                    <TableCell className="font-mono font-medium">{invite.code}</TableCell>
+                    <TableCell className="font-mono font-medium whitespace-nowrap">{invite.code}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {format(new Date(invite.created_at), "dd.MM.yyyy")}
                     </TableCell>
