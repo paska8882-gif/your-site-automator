@@ -249,6 +249,7 @@ export type Database = {
           generation_cost: number | null
           id: string
           image_source: string | null
+          improved_prompt: string | null
           language: string
           number: number
           prompt: string
@@ -270,6 +271,7 @@ export type Database = {
           generation_cost?: number | null
           id?: string
           image_source?: string | null
+          improved_prompt?: string | null
           language?: string
           number?: number
           prompt: string
@@ -291,6 +293,7 @@ export type Database = {
           generation_cost?: number | null
           id?: string
           image_source?: string | null
+          improved_prompt?: string | null
           language?: string
           number?: number
           prompt?: string
