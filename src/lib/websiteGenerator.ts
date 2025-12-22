@@ -36,6 +36,20 @@ export const LAYOUT_STYLES = [
   { id: "portfolio", name: "Креативне портфоліо" },
 ];
 
+// Helper to get fresh access token (refresh if needed)
+async function getFreshAccessToken(): Promise<string | null> {
+  // First try to refresh the session
+  const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+  
+  if (!refreshError && refreshData?.session?.access_token) {
+    return refreshData.session.access_token;
+  }
+  
+  // If refresh fails, try getting current session
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token || null;
+}
+
 export async function startGeneration(
   prompt: string,
   language?: string,
@@ -55,32 +69,55 @@ export async function startGeneration(
 
   const functionName = websiteType === "react" ? "generate-react-website" : "generate-website";
 
+  const makeRequest = async (accessToken: string) => {
+    return fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ 
+        prompt: improvedPrompt || prompt,
+        originalPrompt: prompt,
+        improvedPrompt: improvedPrompt || null,
+        language, aiModel, layoutStyle, siteName, seniorMode, imageSource, teamId 
+      }),
+    });
+  };
+
   try {
     const {
       data: { session },
     } = await supabase.auth.getSession();
 
     if (!session?.access_token) {
-      return { success: false, error: "Authentication required" };
+      return { success: false, error: "Необхідна авторизація. Будь ласка, увійдіть знову." };
     }
 
-    const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ 
-        prompt: improvedPrompt || prompt, // Use improved prompt for generation if available
-        originalPrompt: prompt, // Always send original prompt to save in history
-        improvedPrompt: improvedPrompt || null, // Send improved prompt separately to save in DB
-        language, aiModel, layoutStyle, siteName, seniorMode, imageSource, teamId 
-      }),
-    });
+    let resp = await makeRequest(session.access_token);
+
+    // If 401 error, try to refresh token and retry once
+    if (resp.status === 401) {
+      console.log("Got 401, attempting to refresh token...");
+      const freshToken = await getFreshAccessToken();
+      
+      if (freshToken) {
+        console.log("Token refreshed, retrying request...");
+        resp = await makeRequest(freshToken);
+      } else {
+        return { success: false, error: "Сесія закінчилась. Будь ласка, увійдіть знову." };
+      }
+    }
 
     if (!resp.ok) {
       const errText = await resp.text().catch(() => "");
+      
+      // Check for specific auth errors after retry
+      if (resp.status === 401) {
+        return { success: false, error: "Сесія закінчилась. Будь ласка, увійдіть знову." };
+      }
+      
       return { success: false, error: errText || `HTTP ${resp.status}` };
     }
 
@@ -105,13 +142,14 @@ async function startCodexGeneration(
   let teamId: string | null = overrideTeamId || null;
 
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session?.access_token) {
-      return { success: false, error: "Authentication required" };
+    // Try to get fresh token first
+    let accessToken = await getFreshAccessToken();
+    
+    if (!accessToken) {
+      return { success: false, error: "Необхідна авторизація. Будь ласка, увійдіть знову." };
     }
+    
+    const { data: { session } } = await supabase.auth.getSession();
 
     // If no override teamId, get user's team from membership
     if (!teamId) {
@@ -202,7 +240,7 @@ async function startCodexGeneration(
     const { error: invokeError } = await supabase.functions.invoke("codex-proxy", {
       body: { historyId },
       headers: {
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${accessToken}`,
       },
     });
 
