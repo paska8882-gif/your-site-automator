@@ -972,9 +972,10 @@ export function WebsiteGenerator() {
     setIsSubmitting(true);
 
     try {
-      // If enhanced mode, improve prompt first (invisible to user)
+      // If enhanced mode, improve prompt first (show loading state)
       let promptToUse = prompt;
       if (aiEngagementLevel === "enhanced") {
+        setIsImproving(true);
         try {
           const { data: sessionData } = await supabase.auth.getSession();
           if (sessionData?.session) {
@@ -991,6 +992,8 @@ export function WebsiteGenerator() {
         } catch (improveError) {
           console.error("Failed to improve prompt, using original:", improveError);
           // Continue with original prompt if improvement fails
+        } finally {
+          setIsImproving(false);
         }
       }
 
@@ -1820,10 +1823,17 @@ export function WebsiteGenerator() {
                   className="h-9 text-sm"
                 >
                   {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                      Відправка...
-                    </>
+                    isImproving ? (
+                      <>
+                        <Sparkles className="mr-1 h-3 w-3 animate-pulse" />
+                        Покращуємо промт...
+                      </>
+                    ) : (
+                      <>
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        Генеруємо... {generationProgress.total > 0 && `${generationProgress.completed}/${generationProgress.total}`}
+                      </>
+                    )
                   ) : (
                     <>
                       Згенерувати {totalGenerations > 1 ? `(${totalGenerations})` : ""}
