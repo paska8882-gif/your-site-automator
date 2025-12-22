@@ -9,46 +9,41 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `Ти — створатор промптів для багатосторінкових React сайтів. Твоя задача — проаналізувати запит і створити промпт для генерації професійного багатосторінкового React сайту.
+const SYSTEM_PROMPT = `You are a prompt refiner for professional, multi-page React websites.
 
-**КРИТИЧНО ВАЖЛИВО: ВИЗНАЧЕННЯ МОВИ**
-При визначенні мови керуйся наступними пріоритетами:
-1. **Явне вказання в запиті** — якщо користувач явно вказав мову (наприклад, "Language: EN", "Мова: українська"), використовуй ВКАЗАНУ мову
-2. **Мова контенту** — якщо мова явно не вказана, аналізуй мову представленого контенту
-3. **За замовчуванням** — якщо мову неможливо визначити, використовуй англійську (EN)
+Your job:
+- Analyze the user's request
+- Extract the required pages/sections, brand details, geo/country, and contact info
+- Produce a clear GENERATION BRIEF that a separate website generator will follow
 
-**АНАЛІЗ ЗАПИТУ:**
-1. **Визнач мову користувача** — використовуй правила пріоритету вище
-2. **Визнач структуру сайту** — які сторінки потрібні користувачу
-3. **Витягни ключову інформацію** — компанія, послуги, контакти, УТП
-4. **Збережи мову і стиль** — точно як у запиті
-5. **Визнач кількість сторінок** — скільки сторінок вказано або логічно потрібно
+LANGUAGE (CRITICAL, NON-NEGOTIABLE):
+- If the user explicitly specifies a language (e.g. "Language: EN", "Мова: українська", "Язык: русский"), set TARGET_LANGUAGE to that exact language/code.
+- Otherwise infer from the language of the user's message.
+- If still unclear, default to EN.
+- IMPORTANT: Do NOT "default" to Ukrainian unless explicitly requested.
 
-**ФОРМАТ ВИВОДУ:**
+OUTPUT RULES:
+- Write the brief itself in ENGLISH (meta-instructions), but keep TARGET_LANGUAGE exactly as determined.
+- Do NOT translate the user's business content; only describe what to generate.
 
-Create a professional MULTI-PAGE React website for [Назва] with complete structure:
-
-**LANGUAGE:** [Визначена мова з запиту за правилами]
-
-**MULTI-PAGE STRUCTURE:**
-[Перелічи ВСІ сторінки які потрібні]
-
-**DESIGN:**
-- Language: [Мова з запиту]
-- Colors: [Кольори з запиту АБО професійна палітра]
-- Style: [Стиль з запиту]
-- **PREMIUM DESIGN: Modern, professional, excellent UX**
-
-**TECHNICAL:**
-- **FUNCTIONAL COOKIE SYSTEM** - Real cookie collection with localStorage, not just a banner
-- All pages fully functional and complete
-
-**MANDATORY RESTRICTIONS:**
-- **NEVER include any prices, costs, pricing information, or financial figures**
-- **NEVER show currency symbols (€, $, £, ₴) with numbers**
-- **NEVER include pricing tables, cost estimates, or rate cards**
-- **NEVER mention specific monetary amounts or price ranges**
-- Instead of prices, use: "Contact us for pricing", "Request a quote", "Get custom pricing"`.trim();
+Return ONLY this structure:
+TARGET_LANGUAGE: <value>
+SITE_NAME: <value if present>
+GEO/COUNTRY: <value if present>
+PAGES:
+- <page 1>
+- <page 2>
+DESIGN:
+- style: <summary>
+- colors: <summary>
+CONTENT:
+- key offerings: <bullets>
+- primary CTAs: <bullets>
+CONTACT:
+- phone: <required format + must be clickable tel:>
+- email: <if present>
+- address: <if present>
+`.trim();
 
 // 10 unique layout variations for randomization or manual selection
 const LAYOUT_VARIATIONS = [
@@ -339,10 +334,11 @@ All phone numbers MUST be:
    
 2. **CLICKABLE with tel: links** - ALWAYS wrap phone numbers in anchor tags:
    <a href="tel:+14155551234">+1 (415) 555-1234</a>
-   
-3. **NEVER use fake numbers like 1234567, 0000000, or 123-456-7890**
 
-4. **Match the country/language of the website** - If the site is for Germany, use German phone format
+3. **NEVER use fake numbers like 1234567, 0000000, or 123-456-7890**
+4. **Avoid obvious placeholders** like 555, repeated digits (1111), or sequences (1234)
+
+5. **Match the country/language of the website** - If the site is for Germany, use German phone format
 
 **VISUAL EXCELLENCE GUIDELINES:**
 - Whitespace is king - Generous spacing (1.5x standard)
@@ -906,7 +902,7 @@ async function runGeneration({
       },
       {
         role: "user",
-        content: `${REACT_GENERATION_PROMPT}\n\n${imageStrategy}\n\n${IMAGE_CSS}\n\n=== MANDATORY LAYOUT STRUCTURE (FOLLOW EXACTLY) ===\n${selectedLayout.description}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== LANGUAGE ===\n${language || "Detect from request"}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
+        content: `${REACT_GENERATION_PROMPT}\n\n${imageStrategy}\n\n${IMAGE_CSS}\n\n=== MANDATORY LAYOUT STRUCTURE (FOLLOW EXACTLY) ===\n${selectedLayout.description}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== TARGET WEBSITE LANGUAGE (MUST FOLLOW) ===\n${language ? language : "Use the language explicitly specified in the user's request; if none is specified, infer from the user's text. Default to English. NEVER default to Ukrainian."}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
       },
     ],
   };
