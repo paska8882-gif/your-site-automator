@@ -612,15 +612,17 @@ export const AdminTeamsManager = () => {
                         ${team.balance?.toFixed(2) || "0.00"}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => openInviteDialog(team)} title="Створити інвайт-код">
-                        <Ticket className="h-3 w-3" />
+                    <div className="flex items-center gap-1.5">
+                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => openInviteDialog(team)} title="Створити інвайт-код">
+                        <Ticket className="h-3.5 w-3.5 mr-1" />
+                        Інвайт
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => openAddMemberDialog(team)} title="Додати члена">
-                        <UserPlus className="h-3 w-3" />
+                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => openAddMemberDialog(team)} title="Додати члена">
+                        <UserPlus className="h-3.5 w-3.5 mr-1" />
+                        Додати
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => handleViewTeam(team)}>
-                        <Eye className="h-3 w-3" />
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleViewTeam(team)}>
+                        <Eye className="h-4 w-4" />
                       </Button>
                       <span className="text-[10px] text-muted-foreground">
                         {new Date(team.created_at).toLocaleDateString("uk-UA")}
