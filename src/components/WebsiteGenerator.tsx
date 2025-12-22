@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Hash, Wand2, Palette, ChevronDown, AlertTriangle, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp, Filter, Newspaper } from "lucide-react";
+import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Hash, Palette, ChevronDown, AlertTriangle, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp, Filter, Newspaper } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { startGeneration, AiModel, WebsiteType, SeniorMode, ImageSource, LAYOUT_STYLES } from "@/lib/websiteGenerator";
@@ -160,6 +160,7 @@ interface GeneratorDraft {
   selectedImageSources: ImageSource[];
   seniorMode: SeniorMode;
   adminGenerationMode: "standard" | "senior_direct";
+  aiEngagementLevel: "basic" | "enhanced";
 }
 
 const loadDraft = (): Partial<GeneratorDraft> => {
@@ -206,6 +207,8 @@ export function WebsiteGenerator() {
   const [seniorMode, setSeniorMode] = useState<SeniorMode>(draft.seniorMode || undefined);
   // Admin generation mode: "standard" (all options) vs "senior_direct" (simple Senior mode flow)
   const [adminGenerationMode, setAdminGenerationMode] = useState<"standard" | "senior_direct">(draft.adminGenerationMode || "standard");
+  // AI engagement level: "basic" (original prompt) or "enhanced" (AI-improved prompt, +$1)
+  const [aiEngagementLevel, setAiEngagementLevel] = useState<"basic" | "enhanced">(draft.aiEngagementLevel || "basic");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImproving, setIsImproving] = useState(false);
   
@@ -259,12 +262,13 @@ export function WebsiteGenerator() {
       selectedImageSources,
       seniorMode,
       adminGenerationMode,
+      aiEngagementLevel,
     });
   }, [
     siteName, prompt, selectedLanguages, customLanguage, isOtherSelected,
     selectedStyles, customStyle, isOtherStyleSelected, sitesPerLanguage,
     selectedAiModels, selectedWebsiteTypes, selectedImageSources,
-    seniorMode, adminGenerationMode
+    seniorMode, adminGenerationMode, aiEngagementLevel
   ]);
   
   // Presets
@@ -761,6 +765,7 @@ export function WebsiteGenerator() {
     let total = 0;
     const htmlPrice = teamPricing?.htmlPrice || 7;
     const reactPrice = teamPricing?.reactPrice || 9;
+    const enhancedExtra = aiEngagementLevel === "enhanced" ? 1 : 0;
     
     const websiteTypesToUse = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes : ["html"];
     const imageSourcesToUse = selectedImageSources.length > 0 ? selectedImageSources : ["basic"];
@@ -768,7 +773,7 @@ export function WebsiteGenerator() {
     for (const wt of websiteTypesToUse) {
       for (const is of imageSourcesToUse) {
         const basePrice = wt === "react" ? reactPrice : htmlPrice;
-        const pricePerSite = basePrice + (is === "ai" ? 2 : 0);
+        const pricePerSite = basePrice + (is === "ai" ? 2 : 0) + enhancedExtra;
         const count = allLanguages.length * sitesPerLanguage * styleCount * aiModelCount;
         total += count * pricePerSite;
       }
@@ -781,6 +786,7 @@ export function WebsiteGenerator() {
     const breakdown: CostBreakdownItem[] = [];
     const htmlPrice = teamPricing?.htmlPrice || 7;
     const reactPrice = teamPricing?.reactPrice || 9;
+    const enhancedExtra = aiEngagementLevel === "enhanced" ? 1 : 0;
     
     const websiteTypesToUse = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes : ["html" as WebsiteType];
     const imageSourcesToUse = selectedImageSources.length > 0 ? selectedImageSources : ["basic" as ImageSource];
@@ -791,14 +797,14 @@ export function WebsiteGenerator() {
         for (const ai of aiModelsToUse) {
           const basePrice = wt === "react" ? reactPrice : htmlPrice;
           const aiPhotoExtra = is === "ai" ? 2 : 0;
-          const pricePerSite = basePrice + aiPhotoExtra;
+          const pricePerSite = basePrice + aiPhotoExtra + enhancedExtra;
           const count = allLanguages.length * sitesPerLanguage * styleCount;
           
           breakdown.push({
             websiteType: wt,
             imageSource: is,
             aiModel: ai,
-            basePrice,
+            basePrice: basePrice + enhancedExtra,
             aiPhotoExtra,
             pricePerSite,
             count,
@@ -966,6 +972,28 @@ export function WebsiteGenerator() {
     setIsSubmitting(true);
 
     try {
+      // If enhanced mode, improve prompt first (invisible to user)
+      let promptToUse = prompt;
+      if (aiEngagementLevel === "enhanced") {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (sessionData?.session) {
+            const { data, error } = await supabase.functions.invoke('improve-prompt', {
+              body: { prompt },
+              headers: {
+                Authorization: `Bearer ${sessionData.session.access_token}`,
+              },
+            });
+            if (!error && data?.improvedPrompt) {
+              promptToUse = sanitizeImprovedPrompt(data.improvedPrompt);
+            }
+          }
+        } catch (improveError) {
+          console.error("Failed to improve prompt, using original:", improveError);
+          // Continue with original prompt if improvement fails
+        }
+      }
+
       // Create all generation requests in parallel
       // Combinations: languages × sitesPerLanguage × styles × aiModels × websiteTypes × imageSources
       const stylesToUse = allStyles.length > 0 ? allStyles : [undefined];
@@ -982,7 +1010,7 @@ export function WebsiteGenerator() {
         const currentSeniorMode = model === "senior" ? seniorMode : undefined;
         // For admins, pass selected team ID; for regular users, teamId is undefined (uses their membership)
         const teamIdToUse = isAdmin ? selectedAdminTeamId : undefined;
-        const result = await startGeneration(prompt, lang, model, wType, style, siteName, currentSeniorMode, iSource, teamIdToUse);
+        const result = await startGeneration(promptToUse, lang, model, wType, style, siteName, currentSeniorMode, iSource, teamIdToUse);
         setGenerationProgress(prev => ({ ...prev, completed: prev.completed + 1 }));
         return result;
       };
@@ -1407,26 +1435,40 @@ export function WebsiteGenerator() {
                 style={{ resize: 'none' }}
                 disabled={isSubmitting || isImproving}
               />
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleImprovePrompt}
-                  disabled={isImproving || isSubmitting || !prompt.trim()}
-                  className="h-7 text-xs px-2"
-                >
-                  {isImproving ? (
-                    <>
-                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                      Покращення...
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 className="mr-1 h-3 w-3" />
-                      Покращити
-                    </>
-                  )}
-                </Button>
+              <div className="flex items-center justify-between">
+                {/* AI Engagement Level Toggle */}
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs text-muted-foreground">Рівень AI:</Label>
+                  <div className="inline-flex rounded-md border border-border p-0.5 bg-muted/30">
+                    <button
+                      type="button"
+                      onClick={() => setAiEngagementLevel("basic")}
+                      disabled={isSubmitting}
+                      className={`px-2.5 py-1 text-xs font-medium rounded-sm transition-colors ${
+                        aiEngagementLevel === "basic"
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Базовий
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAiEngagementLevel("enhanced")}
+                      disabled={isSubmitting}
+                      className={`px-2.5 py-1 text-xs font-medium rounded-sm transition-colors flex items-center gap-1 ${
+                        aiEngagementLevel === "enhanced"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      Покращений (+$1)
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Clear button */}
                 <Button
                   variant="ghost"
                   size="sm"
