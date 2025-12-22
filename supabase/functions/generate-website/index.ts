@@ -244,6 +244,35 @@ function declineCookies() {
 - NEVER mention specific price ranges or "starting from" prices
 - ALWAYS replace price references with: "Contact us", "Request a quote", "Get pricing", "Custom pricing available"
 
+**📞 PHONE NUMBERS - MANDATORY REQUIREMENTS:**
+All phone numbers MUST be:
+1. **REALISTIC for the specified country** - Use proper country code and format:
+   - USA/Canada: +1 (555) 123-4567 or +1 555-123-4567
+   - UK: +44 20 7946 0958 or +44 7911 123456
+   - Germany: +49 30 12345678 or +49 151 12345678
+   - France: +33 1 23 45 67 89 or +33 6 12 34 56 78
+   - Italy: +39 02 1234 5678 or +39 333 123 4567
+   - Spain: +34 91 123 45 67 or +34 612 345 678
+   - Poland: +48 22 123 45 67 or +48 512 345 678
+   - Netherlands: +31 20 123 4567 or +31 6 12345678
+   - Ukraine: +380 44 123 4567 or +380 67 123 4567
+   - Australia: +61 2 1234 5678 or +61 412 345 678
+   - Switzerland: +41 44 123 45 67 or +41 79 123 45 67
+   - Austria: +43 1 234 56 78 or +43 664 123 4567
+   - Belgium: +32 2 123 45 67 or +32 470 12 34 56
+   - Portugal: +351 21 123 4567 or +351 912 345 678
+   - Czech Republic: +420 221 234 567 or +420 602 123 456
+   - Sweden: +46 8 123 456 78 or +46 70 123 45 67
+   - Norway: +47 22 12 34 56 or +47 912 34 567
+   - Denmark: +45 32 12 34 56 or +45 20 12 34 56
+   
+2. **CLICKABLE with tel: links** - ALWAYS wrap phone numbers in anchor tags:
+   <a href="tel:+14155551234">+1 (415) 555-1234</a>
+   
+3. **NEVER use fake numbers like 1234567, 0000000, or 123-456-7890**
+
+4. **Match the country/language of the website** - If the site is for Germany, use German phone format
+
 **CRITICAL REQUIREMENT: PAGE CONTENT LENGTH**
 Each page MUST have SUBSTANTIAL content with proper scroll depth:
 
