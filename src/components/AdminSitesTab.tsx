@@ -49,6 +49,7 @@ interface GenerationItem {
   id: string;
   number: number;
   prompt: string;
+  improved_prompt: string | null;
   language: string;
   created_at: string;
   completed_at: string | null;
@@ -915,7 +916,14 @@ export const AdminSitesTab = () => {
                             </div>
                           </TableCell>
                           <TableCell className="font-medium">
-                            {item.site_name || `Site ${item.number}`}
+                            <div className="flex items-center gap-1">
+                              {item.site_name || `Site ${item.number}`}
+                              {item.improved_prompt && (
+                                <Badge variant="outline" className="text-[10px] px-1 py-0 text-primary border-primary/50" title={`Покращений промт: ${item.improved_prompt.substring(0, 200)}...`}>
+                                  AI+
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <Badge variant="secondary" className="text-xs">

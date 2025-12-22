@@ -1013,7 +1013,9 @@ export function WebsiteGenerator() {
         const currentSeniorMode = model === "senior" ? seniorMode : undefined;
         // For admins, pass selected team ID; for regular users, teamId is undefined (uses their membership)
         const teamIdToUse = isAdmin ? selectedAdminTeamId : undefined;
-        const result = await startGeneration(promptToUse, lang, model, wType, style, siteName, currentSeniorMode, iSource, teamIdToUse);
+        // Pass original prompt and improved prompt separately
+        const improvedPromptToUse = aiEngagementLevel === "enhanced" && promptToUse !== prompt ? promptToUse : undefined;
+        const result = await startGeneration(prompt, lang, model, wType, style, siteName, currentSeniorMode, iSource, teamIdToUse, improvedPromptToUse);
         setGenerationProgress(prev => ({ ...prev, completed: prev.completed + 1 }));
         return result;
       };

@@ -1211,7 +1211,13 @@ serve(async (req) => {
 
     console.log("Authenticated request from user:", user.id);
 
-    const { prompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId } = await req.json();
+    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId } = await req.json();
+
+    // Use the improved prompt for generation if provided, otherwise use the original prompt
+    const promptForGeneration = prompt;
+    // Store the original prompt (what user submitted) and improved prompt separately
+    const promptToSave = originalPrompt || prompt;
+    const improvedPromptToSave = improvedPrompt || null;
 
     if (!prompt) {
       return new Response(JSON.stringify({ success: false, error: "Prompt is required" }), {
@@ -1290,10 +1296,12 @@ serve(async (req) => {
     }
 
     // Create history entry immediately with pending status AND sale_price AND team_id
+    // Save original prompt (what user sees) and improved prompt separately (for admins only)
     const { data: historyEntry, error: insertError } = await supabase
       .from("generation_history")
       .insert({
-        prompt,
+        prompt: promptToSave,
+        improved_prompt: improvedPromptToSave,
         language: language || "auto",
         user_id: user.id,
         team_id: teamId || null,

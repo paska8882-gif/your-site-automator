@@ -45,7 +45,8 @@ export async function startGeneration(
   siteName?: string,
   seniorMode?: SeniorMode,
   imageSource: ImageSource = "basic",
-  teamId?: string // Optional team ID for admin generation
+  teamId?: string, // Optional team ID for admin generation
+  improvedPrompt?: string // AI-improved prompt (commercial secret)
 ): Promise<GenerationResult> {
   // Если выбран режим Codex для Senior AI - обращаемся к внешнему вебхуку
   if (aiModel === "senior" && seniorMode === "codex") {
@@ -70,7 +71,12 @@ export async function startGeneration(
         apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ prompt, language, aiModel, layoutStyle, siteName, seniorMode, imageSource, teamId }),
+      body: JSON.stringify({ 
+        prompt: improvedPrompt || prompt, // Use improved prompt for generation if available
+        originalPrompt: prompt, // Always send original prompt to save in history
+        improvedPrompt: improvedPrompt || null, // Send improved prompt separately to save in DB
+        language, aiModel, layoutStyle, siteName, seniorMode, imageSource, teamId 
+      }),
     });
 
     if (!resp.ok) {
