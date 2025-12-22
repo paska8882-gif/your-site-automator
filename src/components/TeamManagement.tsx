@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Users, 
@@ -16,7 +17,8 @@ import {
   UserCheck,
   UserX,
   Clock,
-  Ticket
+  Ticket,
+  UserCog
 } from "lucide-react";
 
 type TeamRole = "owner" | "team_lead" | "buyer" | "tech_dev";
@@ -79,6 +81,12 @@ export const TeamManagement = () => {
   const [newInviteRole, setNewInviteRole] = useState<TeamRole>("team_lead");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [pendingRoles, setPendingRoles] = useState<Record<string, TeamRole>>({});
+  
+  // Role change dialog
+  const [showRoleDialog, setShowRoleDialog] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
+  const [newRole, setNewRole] = useState<TeamRole>("buyer");
+  const [changingRole, setChangingRole] = useState(false);
 
   useEffect(() => {
     fetchMyTeams();
@@ -246,6 +254,41 @@ export const TeamManagement = () => {
     }
   };
 
+  const openRoleDialog = (member: TeamMember) => {
+    setSelectedMember(member);
+    setNewRole(member.role);
+    setShowRoleDialog(true);
+  };
+
+  const handleChangeRole = async () => {
+    if (!selectedMember || !selectedTeam || !user) return;
+    
+    setChangingRole(true);
+
+    // If changing to owner, demote current owner first
+    if (newRole === "owner") {
+      await supabase
+        .from("team_members")
+        .update({ role: "buyer" })
+        .eq("team_id", selectedTeam)
+        .eq("role", "owner");
+    }
+
+    const { error } = await supabase
+      .from("team_members")
+      .update({ role: newRole })
+      .eq("id", selectedMember.id);
+
+    if (error) {
+      toast({ title: "Помилка", description: "Не вдалося змінити роль", variant: "destructive" });
+    } else {
+      toast({ title: "Збережено", description: `Роль змінено на ${roleLabels[newRole]}` });
+      setShowRoleDialog(false);
+      fetchTeamData(selectedTeam);
+    }
+    setChangingRole(false);
+  };
+
   const pendingMembers = members.filter(m => m.status === "pending");
   const approvedMembers = members.filter(m => m.status === "approved");
   const activeInvites = inviteCodes.filter(c => c.is_active && !c.used_by);
@@ -389,7 +432,7 @@ export const TeamManagement = () => {
             </CardHeader>
             <CardContent className="space-y-2">
               {approvedMembers.map(member => (
-                <div key={member.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                <div key={member.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                   <div className="flex items-center gap-3">
                     <span className="font-medium">
                       {member.profile?.display_name || member.user_id.slice(0, 8) + "..."}
@@ -398,6 +441,16 @@ export const TeamManagement = () => {
                       {roleLabels[member.role]}
                     </Badge>
                   </div>
+                  {member.role !== "owner" && member.user_id !== user?.id && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openRoleDialog(member)}
+                    >
+                      <UserCog className="h-4 w-4 mr-1" />
+                      Змінити роль
+                    </Button>
+                  )}
                 </div>
               ))}
             </CardContent>
@@ -475,6 +528,46 @@ export const TeamManagement = () => {
           </Card>
         </>
       )}
+
+      {/* Role Change Dialog */}
+      <Dialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <UserCog className="h-4 w-4" />
+              Змінити роль: {selectedMember?.profile?.display_name || "Користувач"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Select value={newRole} onValueChange={(v) => setNewRole(v as TeamRole)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="owner">Owner (Власник)</SelectItem>
+                <SelectItem value="team_lead">Team Lead</SelectItem>
+                <SelectItem value="buyer">Buyer</SelectItem>
+                <SelectItem value="tech_dev">Tech Dev</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {newRole === "owner" && (
+              <p className="text-xs text-amber-600 bg-amber-500/10 p-2 rounded">
+                Ви передаєте права власника цьому користувачу. Ваша роль буде змінена на Buyer.
+              </p>
+            )}
+
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowRoleDialog(false)} disabled={changingRole}>
+                Скасувати
+              </Button>
+              <Button onClick={handleChangeRole} disabled={changingRole || newRole === selectedMember?.role}>
+                {changingRole ? <Loader2 className="h-4 w-4 animate-spin" /> : "Зберегти"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
