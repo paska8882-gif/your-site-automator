@@ -729,7 +729,7 @@ export function AdminReferralTab() {
                             <TableBody>
                               {groupInvites.map((invite) => (
                                 <TableRow key={invite.id}>
-                                  <TableCell className="font-mono font-medium">{invite.code}</TableCell>
+                                  <TableCell className="font-mono font-medium whitespace-nowrap">{invite.code}</TableCell>
                                   <TableCell>{invite.referrer_email}</TableCell>
                                   <TableCell>{invite.referrer_team_name || "-"}</TableCell>
                                   <TableCell>{invite.invited_team_name || "-"}</TableCell>
@@ -850,7 +850,7 @@ export function AdminReferralTab() {
                               <TableBody>
                                 {group.invites.map((invite) => (
                                   <TableRow key={invite.id}>
-                                    <TableCell className="font-mono font-medium">{invite.code}</TableCell>
+                                    <TableCell className="font-mono font-medium whitespace-nowrap">{invite.code}</TableCell>
                                     <TableCell>{invite.referrer_email}</TableCell>
                                     <TableCell>{invite.invited_team_name || "-"}</TableCell>
                                     <TableCell>
