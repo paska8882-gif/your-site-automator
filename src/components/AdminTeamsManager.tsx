@@ -21,7 +21,8 @@ import {
   UserCog,
   ExternalLink,
   Search,
-  Crown
+  Crown,
+  UserPlus
 } from "lucide-react";
 
 interface Admin {
@@ -90,6 +91,16 @@ export const AdminTeamsManager = () => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [assigningOwner, setAssigningOwner] = useState(false);
+  
+  // Add member states
+  const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
+  const [addMemberTeam, setAddMemberTeam] = useState<Team | null>(null);
+  const [allUsers, setAllUsers] = useState<{ user_id: string; display_name: string | null; email?: string }[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [addingMember, setAddingMember] = useState(false);
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [selectedRole, setSelectedRole] = useState<string>("buyer");
 
   const filteredTeams = teams.filter(team => 
     team.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -444,6 +455,69 @@ export const AdminTeamsManager = () => {
     setAssigningOwner(false);
   };
 
+  const openAddMemberDialog = async (team: Team) => {
+    setAddMemberTeam(team);
+    setShowAddMemberDialog(true);
+    setLoadingUsers(true);
+    setSelectedUserId("");
+    setSelectedRole("buyer");
+    setUserSearchQuery("");
+    
+    // Fetch all users from profiles
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("user_id, display_name")
+      .order("display_name", { ascending: true });
+    
+    // Fetch existing team members to exclude them
+    const { data: existingMembers } = await supabase
+      .from("team_members")
+      .select("user_id")
+      .eq("team_id", team.id)
+      .neq("status", "rejected");
+    
+    const existingUserIds = new Set(existingMembers?.map(m => m.user_id) || []);
+    
+    // Filter out users already in the team
+    const availableUsers = (profiles || []).filter(p => !existingUserIds.has(p.user_id));
+    
+    setAllUsers(availableUsers);
+    setLoadingUsers(false);
+  };
+
+  const handleAddMember = async () => {
+    if (!addMemberTeam || !selectedUserId) return;
+    
+    setAddingMember(true);
+    
+    const { error } = await supabase
+      .from("team_members")
+      .insert({
+        team_id: addMemberTeam.id,
+        user_id: selectedUserId,
+        role: selectedRole as "owner" | "team_lead" | "buyer" | "tech_dev",
+        status: "approved" as const,
+        approved_by: user?.id,
+        approved_at: new Date().toISOString()
+      });
+    
+    if (error) {
+      toast({ title: "Помилка", description: "Не вдалося додати члена команди", variant: "destructive" });
+    } else {
+      toast({ title: "Збережено", description: "Члена команди додано" });
+      setShowAddMemberDialog(false);
+      setAddMemberTeam(null);
+      fetchTeams();
+    }
+    
+    setAddingMember(false);
+  };
+
+  const filteredUsers = allUsers.filter(u => 
+    (u.display_name || "").toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+    u.user_id.toLowerCase().includes(userSearchQuery.toLowerCase())
+  );
+
   const totalSales = transactions.reduce((sum, t) => sum + (t.sale_price || 0), 0);
   const totalCosts = transactions.reduce((sum, t) => sum + (t.generation_cost || 0), 0);
 
@@ -500,6 +574,9 @@ export const AdminTeamsManager = () => {
                       </Badge>
                     </div>
                     <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => openAddMemberDialog(team)} title="Додати члена">
+                        <UserPlus className="h-3 w-3" />
+                      </Button>
                       <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => handleViewTeam(team)}>
                         <Eye className="h-3 w-3" />
                       </Button>
@@ -795,6 +872,103 @@ export const AdminTeamsManager = () => {
                 }}
               >
                 Закрити
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Member Dialog */}
+      <Dialog open={showAddMemberDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowAddMemberDialog(false);
+          setAddMemberTeam(null);
+          setAllUsers([]);
+          setSelectedUserId("");
+          setSelectedRole("buyer");
+          setUserSearchQuery("");
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Додати члена до команди: {addMemberTeam?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {loadingUsers ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                  <Input
+                    placeholder="Пошук користувача..."
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    className="h-8 text-xs pl-7"
+                  />
+                </div>
+                
+                <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                  {filteredUsers.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-2 text-xs">
+                      {userSearchQuery ? "Користувачів не знайдено" : "Немає доступних користувачів"}
+                    </p>
+                  ) : (
+                    filteredUsers.map((u) => (
+                      <div 
+                        key={u.user_id} 
+                        className={`p-2 rounded-md border cursor-pointer transition-colors ${
+                          selectedUserId === u.user_id ? "bg-primary/10 border-primary" : "bg-card hover:bg-muted"
+                        }`}
+                        onClick={() => setSelectedUserId(u.user_id)}
+                      >
+                        <span className="text-sm font-medium">{u.display_name || u.user_id.slice(0, 8)}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">Роль</label>
+                  <Select value={selectedRole} onValueChange={setSelectedRole}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="owner" className="text-xs">Owner (Власник)</SelectItem>
+                      <SelectItem value="team_lead" className="text-xs">Team Lead</SelectItem>
+                      <SelectItem value="buyer" className="text-xs">Buyer</SelectItem>
+                      <SelectItem value="tech_dev" className="text-xs">Tech Dev</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+            
+            <div className="flex gap-2 justify-end">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  setShowAddMemberDialog(false);
+                  setAddMemberTeam(null);
+                }}
+                disabled={addingMember}
+              >
+                Скасувати
+              </Button>
+              <Button 
+                size="sm"
+                onClick={handleAddMember}
+                disabled={addingMember || !selectedUserId}
+              >
+                {addingMember ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <UserPlus className="h-3 w-3 mr-1" />}
+                Додати
               </Button>
             </div>
           </div>
