@@ -672,7 +672,13 @@ export function WebsiteGenerator() {
         // Store original prompt and improved prompt separately
         setOriginalPrompt(currentOriginal);
         setImprovedPromptValue(sanitizedImproved);
-        setPrompt(sanitizedImproved);
+        // Don't show improved prompt in textarea - keep the original visible
+        // The improved prompt is used internally for generation but hidden from users
+        // Only admins can see the improved prompt
+        if (isAdmin) {
+          setPrompt(sanitizedImproved);
+        }
+        // Keep original prompt in textarea for regular users
         toast({
           title: "Промпт покращено",
           description: "AI покращив ваш опис сайту. Оригінал збережено для історії.",
@@ -1429,7 +1435,13 @@ export function WebsiteGenerator() {
                 onChange={(e) => {
                   setPrompt(e.target.value);
                   // Reset improved prompt state when user manually changes prompt
-                  if (improvedPromptValue && e.target.value !== improvedPromptValue) {
+                  // For regular users, if they edit the original prompt, reset the improved state
+                  if (improvedPromptValue && !isAdmin) {
+                    // User is editing their original prompt, reset improved state
+                    setOriginalPrompt(null);
+                    setImprovedPromptValue(null);
+                  } else if (improvedPromptValue && isAdmin && e.target.value !== improvedPromptValue) {
+                    // Admin is editing, reset if changed from improved prompt
                     setOriginalPrompt(null);
                     setImprovedPromptValue(null);
                   }
@@ -1441,7 +1453,7 @@ export function WebsiteGenerator() {
               {improvedPromptValue && (
                 <div className="text-xs text-green-600 flex items-center gap-1">
                   <Sparkles className="h-3 w-3" />
-                  Промпт покращено AI. Оригінал збережеться в історії.
+                  Промпт покращено AI{!isAdmin && " (внутрішньо)"}. Оригінал збережеться в історії.
                 </div>
               )}
             <div className="flex items-center justify-between">
