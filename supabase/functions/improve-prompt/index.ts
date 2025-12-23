@@ -152,7 +152,7 @@ serve(async (req) => {
       }
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: "Необхідно поповнити баланс." }),
+          JSON.stringify({ error: "Недостатньо кредитів Lovable AI. Зверніться до адміністратора для поповнення." }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
