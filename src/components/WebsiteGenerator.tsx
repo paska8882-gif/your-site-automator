@@ -655,7 +655,16 @@ export function WebsiteGenerator() {
         if (error.message?.includes('401') || error.message?.includes('JWT')) {
           throw new Error('Сесія застаріла. Перезавантажте сторінку.');
         }
+        // Якщо помилка 402 - показуємо повідомлення про кредити
+        if (error.message?.includes('402')) {
+          throw new Error('Недостатньо кредитів Lovable AI. Зверніться до адміністратора.');
+        }
         throw error;
+      }
+
+      // Check if response contains error (edge function returned error in body)
+      if (data?.error) {
+        throw new Error(data.error);
       }
 
       if (data.improvedPrompt) {
