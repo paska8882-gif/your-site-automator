@@ -191,6 +191,8 @@ export function WebsiteGenerator() {
   
   const [siteName, setSiteName] = useState(draft.siteName || "");
   const [prompt, setPrompt] = useState(draft.prompt || "");
+  const [originalPrompt, setOriginalPrompt] = useState<string | null>(null); // Stores original prompt before improvement
+  const [improvedPromptValue, setImprovedPromptValue] = useState<string | null>(null); // Stores improved prompt
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(draft.selectedLanguages || []);
   const [customLanguage, setCustomLanguage] = useState(draft.customLanguage || "");
@@ -638,6 +640,9 @@ export function WebsiteGenerator() {
         return;
       }
 
+      // Save the original prompt before improving
+      const currentOriginal = originalPrompt || prompt;
+      
       const { data, error } = await supabase.functions.invoke('improve-prompt', {
         body: { prompt },
         headers: {
@@ -654,10 +659,14 @@ export function WebsiteGenerator() {
       }
 
       if (data.improvedPrompt) {
-        setPrompt(data.improvedPrompt);
+        const sanitizedImproved = sanitizeImprovedPrompt(data.improvedPrompt);
+        // Store original prompt and improved prompt separately
+        setOriginalPrompt(currentOriginal);
+        setImprovedPromptValue(sanitizedImproved);
+        setPrompt(sanitizedImproved);
         toast({
           title: "Промпт покращено",
-          description: "AI покращив ваш опис сайту",
+          description: "AI покращив ваш опис сайту. Оригінал збережено для історії.",
         });
       }
     } catch (error: any) {
@@ -966,33 +975,6 @@ export function WebsiteGenerator() {
     setIsSubmitting(true);
 
     try {
-      // Always improve prompt automatically for senior model (no extra charge)
-      let promptToUse = prompt;
-      const usingSeniorModel = selectedAiModels.includes("senior") || selectedAiModels.length === 0;
-      
-      if (usingSeniorModel) {
-        setIsImproving(true);
-        try {
-          const { data: sessionData } = await supabase.auth.getSession();
-          if (sessionData?.session) {
-            const { data, error } = await supabase.functions.invoke('improve-prompt', {
-              body: { prompt },
-              headers: {
-                Authorization: `Bearer ${sessionData.session.access_token}`,
-              },
-            });
-            if (!error && data?.improvedPrompt) {
-              promptToUse = sanitizeImprovedPrompt(data.improvedPrompt);
-            }
-          }
-        } catch (improveError) {
-          console.error("Failed to improve prompt, using original:", improveError);
-          // Continue with original prompt if improvement fails
-        } finally {
-          setIsImproving(false);
-        }
-      }
-
       // Create all generation requests in parallel
       // Combinations: languages × sitesPerLanguage × styles × aiModels × websiteTypes × imageSources
       const stylesToUse = allStyles.length > 0 ? allStyles : [undefined];
@@ -1009,9 +991,11 @@ export function WebsiteGenerator() {
         const currentSeniorMode = model === "senior" ? seniorMode : undefined;
         // For admins, pass selected team ID; for regular users, teamId is undefined (uses their membership)
         const teamIdToUse = isAdmin ? selectedAdminTeamId : undefined;
-        // Pass original prompt and improved prompt separately (improved prompt is internal, user sees original)
-        const improvedPromptToUse = model === "senior" && promptToUse !== prompt ? promptToUse : undefined;
-        const result = await startGeneration(prompt, lang, model, wType, style, siteName, currentSeniorMode, iSource, teamIdToUse, improvedPromptToUse);
+        // Use original prompt for display, improved prompt for generation (if available)
+        const promptForDisplay = originalPrompt || prompt;
+        const promptForGeneration = improvedPromptValue || prompt;
+        // Pass improved prompt only if it was manually improved via the button
+        const result = await startGeneration(promptForDisplay, lang, model, wType, style, siteName, currentSeniorMode, iSource, teamIdToUse, improvedPromptValue || undefined);
         setGenerationProgress(prev => ({ ...prev, completed: prev.completed + 1 }));
         return result;
       };
@@ -1047,6 +1031,8 @@ export function WebsiteGenerator() {
         });
         setSiteName("");
         setPrompt("");
+        setOriginalPrompt(null);
+        setImprovedPromptValue(null);
       } else {
         const firstError = results.find((r) => !r.success)?.error;
         toast({
@@ -1431,17 +1417,50 @@ export function WebsiteGenerator() {
                 ref={promptTextareaRef}
                 placeholder="Сучасний сайт для IT-компанії. Темна тема, мінімалізм. Сторінки: головна, послуги, портфоліо, контакти..."
                 value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
+                onChange={(e) => {
+                  setPrompt(e.target.value);
+                  // Reset improved prompt state when user manually changes prompt
+                  if (improvedPromptValue && e.target.value !== improvedPromptValue) {
+                    setOriginalPrompt(null);
+                    setImprovedPromptValue(null);
+                  }
+                }}
                 className="min-h-[60px] text-sm overflow-hidden"
                 style={{ resize: 'none' }}
                 disabled={isSubmitting || isImproving}
               />
-              <div className="flex items-center justify-end">
+              {improvedPromptValue && (
+                <div className="text-xs text-green-600 flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" />
+                  Промпт покращено AI. Оригінал збережеться в історії.
+                </div>
+              )}
+            <div className="flex items-center justify-between">
+                {/* Improve prompt button - $1 extra */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleImprovePrompt}
+                  disabled={isSubmitting || isImproving || !prompt.trim()}
+                  className="h-7 text-xs px-2"
+                >
+                  {isImproving ? (
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-1 h-3 w-3" />
+                  )}
+                  Покращити промпт (+$1)
+                </Button>
+                
                 {/* Clear button */}
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setPrompt('')}
+                  onClick={() => {
+                    setPrompt('');
+                    setOriginalPrompt(null);
+                    setImprovedPromptValue(null);
+                  }}
                   disabled={isSubmitting || !prompt.trim()}
                   className="h-7 text-xs px-2"
                 >
