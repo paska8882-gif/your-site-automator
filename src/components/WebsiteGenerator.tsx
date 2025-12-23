@@ -672,13 +672,9 @@ export function WebsiteGenerator() {
         // Store original prompt and improved prompt separately
         setOriginalPrompt(currentOriginal);
         setImprovedPromptValue(sanitizedImproved);
-        // Don't show improved prompt in textarea - keep the original visible
-        // The improved prompt is used internally for generation but hidden from users
-        // Only admins can see the improved prompt
-        if (isAdmin) {
-          setPrompt(sanitizedImproved);
-        }
-        // Keep original prompt in textarea for regular users
+        // Don't show improved prompt in textarea - keep the original visible for everyone
+        // The improved prompt is used internally for generation but hidden from all users
+        // Admins can see improved prompt only in generation history
         toast({
           title: "Промпт покращено",
           description: "AI покращив ваш опис сайту. Оригінал збережено для історії.",
