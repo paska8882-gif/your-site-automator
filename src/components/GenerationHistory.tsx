@@ -30,6 +30,7 @@ interface HistoryItem {
   id: string;
   number: number;
   prompt: string;
+  improved_prompt: string | null;
   language: string;
   zip_data: string | null;
   files_data: GeneratedFile[] | null;
@@ -306,6 +307,13 @@ function SingleHistoryItem({
               <span className="text-muted-foreground text-xs">Опис</span>
               <p className="text-sm mt-1 whitespace-pre-wrap">{item.prompt}</p>
             </div>
+            {/* Show improved prompt only for admins */}
+            {isAdmin && item.improved_prompt && (
+              <div className="border-t border-border pt-2 mt-2">
+                <span className="text-muted-foreground text-xs">Покращений промпт (внутрішній)</span>
+                <p className="text-sm mt-1 whitespace-pre-wrap text-muted-foreground">{item.improved_prompt}</p>
+              </div>
+            )}
           </div>
 
           {item.files_data && item.files_data.length > 0 && (
