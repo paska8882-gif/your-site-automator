@@ -1377,6 +1377,7 @@ export function WebsiteGenerator() {
                         <SelectItem value="codex">🤖 Кодувальник Кирил</SelectItem>
                         <SelectItem value="onepage">📄 Одноазка</SelectItem>
                         <SelectItem value="v0">⚡ Вова нуляра</SelectItem>
+                        <SelectItem value="reaktiv">🚀 Реактивний Михайло</SelectItem>
                       </SelectContent>
                     </Select>
                     
