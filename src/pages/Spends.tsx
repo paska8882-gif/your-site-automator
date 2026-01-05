@@ -362,7 +362,7 @@ const Spends = () => {
                                     <div className="space-y-4">
                                       <div className="h-[300px] flex flex-col">
                                         <h4 className="font-semibold text-sm mb-2">Промпт:</h4>
-                                        <div className="flex-1 text-sm text-muted-foreground bg-background p-3 rounded-md border overflow-y-auto">
+                                        <div className="flex-1 text-sm text-muted-foreground bg-background p-3 rounded-md border overflow-y-auto scrollbar-none">
                                           {gen.prompt}
                                         </div>
                                       </div>
