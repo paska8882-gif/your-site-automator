@@ -316,6 +316,47 @@ export type Database = {
           },
         ]
       }
+      generation_spends: {
+        Row: {
+          created_at: string
+          currency: string
+          generation_id: string
+          id: string
+          notes: string | null
+          spend_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          generation_id: string
+          id?: string
+          notes?: string | null
+          spend_amount?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          generation_id?: string
+          id?: string
+          notes?: string | null
+          spend_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generation_spends_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: true
+            referencedRelation: "generation_history"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invite_codes: {
         Row: {
           assigned_role: Database["public"]["Enums"]["team_role"] | null
