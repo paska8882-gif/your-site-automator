@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAdmin } from "@/hooks/useAdmin";
 import { formatDistanceToNow } from "date-fns";
 import { uk } from "date-fns/locale";
 
@@ -25,6 +27,8 @@ interface Notification {
 
 export function NotificationBell() {
   const { user } = useAuth();
+  const { isAdmin } = useAdmin();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
 
@@ -105,8 +109,24 @@ export function NotificationBell() {
         return "⛔";
       case "appeal_pending":
         return "📝";
+      case "member_pending_approval":
+        return "👤";
       default:
         return "🔔";
+    }
+  };
+
+  const handleNotificationClick = async (notification: Notification) => {
+    await markAsRead(notification.id);
+    setOpen(false);
+    
+    // Handle navigation based on notification type
+    if (notification.type === "member_pending_approval" && notification.data) {
+      if (isAdmin) {
+        navigate("/admin?tab=users");
+      } else {
+        navigate("/team");
+      }
     }
   };
 
@@ -152,7 +172,7 @@ export function NotificationBell() {
                   className={`w-full text-left p-3 hover:bg-muted/50 transition-colors ${
                     !notification.read ? "bg-primary/5" : ""
                   }`}
-                  onClick={() => markAsRead(notification.id)}
+                  onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="flex gap-2">
                     <span className="text-lg">
