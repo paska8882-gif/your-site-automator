@@ -367,37 +367,9 @@ const Spends = () => {
                                         </p>
                                       </div>
                                       
-                                      {gen.improved_prompt && (
-                                        <div>
-                                          <h4 className="font-semibold text-sm mb-2">Покращений промпт:</h4>
-                                          <p className="text-sm text-muted-foreground bg-background p-3 rounded-md border">
-                                            {gen.improved_prompt}
-                                          </p>
-                                        </div>
-                                      )}
-
-                                      <div className="grid grid-cols-2 gap-4 text-sm">
-                                        <div>
-                                          <span className="text-muted-foreground">Модель AI:</span>
-                                          <p className="font-medium">{gen.specific_ai_model || gen.ai_model || "junior"}</p>
-                                        </div>
-                                        <div>
-                                          <span className="text-muted-foreground">Завершено:</span>
-                                          <p className="font-medium">
-                                            {gen.completed_at 
-                                              ? format(new Date(gen.completed_at), "dd.MM.yyyy HH:mm")
-                                              : "—"
-                                            }
-                                          </p>
-                                        </div>
-                                        <div>
-                                          <span className="text-muted-foreground">Вартість генерації:</span>
-                                          <p className="font-medium">${gen.generation_cost?.toFixed(2) || "—"}</p>
-                                        </div>
-                                        <div>
-                                          <span className="text-muted-foreground">Ціна продажу:</span>
-                                          <p className="font-medium">${gen.sale_price?.toFixed(2) || "—"}</p>
-                                        </div>
+                                      <div className="text-sm">
+                                        <span className="text-muted-foreground">Вартість сайта:</span>
+                                        <p className="font-medium">${gen.sale_price?.toFixed(2) || "—"}</p>
                                       </div>
                                     </div>
 
