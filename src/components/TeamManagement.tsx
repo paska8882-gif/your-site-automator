@@ -265,12 +265,13 @@ export const TeamManagement = () => {
     
     setChangingRole(true);
 
-    // If changing to owner, demote current owner first
-    if (newRole === "owner") {
+    // If changing someone TO owner, demote current owner to buyer first
+    if (newRole === "owner" && selectedMember.role !== "owner") {
       await supabase
         .from("team_members")
         .update({ role: "buyer" })
         .eq("team_id", selectedTeam)
+        .eq("user_id", user.id)
         .eq("role", "owner");
     }
 
@@ -285,6 +286,11 @@ export const TeamManagement = () => {
       toast({ title: "Збережено", description: `Роль змінено на ${roleLabels[newRole]}` });
       setShowRoleDialog(false);
       fetchTeamData(selectedTeam);
+      
+      // If current user is no longer owner, refresh teams list
+      if (newRole === "owner" && selectedMember.role !== "owner") {
+        fetchMyTeams();
+      }
     }
     setChangingRole(false);
   };
@@ -431,28 +437,34 @@ export const TeamManagement = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {approvedMembers.map(member => (
-                <div key={member.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                  <div className="flex items-center gap-3">
-                    <span className="font-medium">
-                      {member.profile?.display_name || member.user_id.slice(0, 8) + "..."}
-                    </span>
-                    <Badge variant={member.role === "owner" ? "default" : "secondary"}>
-                      {roleLabels[member.role]}
-                    </Badge>
+              {approvedMembers.map(member => {
+                // Owner can change anyone's role except their own (unless making someone else owner)
+                const isCurrentUserOwner = approvedMembers.some(m => m.user_id === user?.id && m.role === "owner");
+                const canChangeRole = isCurrentUserOwner && member.user_id !== user?.id;
+                
+                return (
+                  <div key={member.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <div className="flex items-center gap-3">
+                      <span className="font-medium">
+                        {member.profile?.display_name || member.user_id.slice(0, 8) + "..."}
+                      </span>
+                      <Badge variant={member.role === "owner" ? "default" : "secondary"}>
+                        {roleLabels[member.role]}
+                      </Badge>
+                    </div>
+                    {canChangeRole && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openRoleDialog(member)}
+                      >
+                        <UserCog className="h-4 w-4 mr-1" />
+                        Змінити роль
+                      </Button>
+                    )}
                   </div>
-                  {member.role !== "owner" && member.user_id !== user?.id && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openRoleDialog(member)}
-                    >
-                      <UserCog className="h-4 w-4 mr-1" />
-                      Змінити роль
-                    </Button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
 
@@ -551,9 +563,15 @@ export const TeamManagement = () => {
               </SelectContent>
             </Select>
             
-            {newRole === "owner" && (
+            {newRole === "owner" && selectedMember?.role !== "owner" && (
               <p className="text-xs text-amber-600 bg-amber-500/10 p-2 rounded">
                 Ви передаєте права власника цьому користувачу. Ваша роль буде змінена на Buyer.
+              </p>
+            )}
+            
+            {selectedMember?.role === "owner" && newRole !== "owner" && (
+              <p className="text-xs text-amber-600 bg-amber-500/10 p-2 rounded">
+                Увага: Цей користувач є власником. Якщо змінити його роль, ви станете єдиним власником.
               </p>
             )}
 
