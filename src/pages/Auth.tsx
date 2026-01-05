@@ -83,6 +83,53 @@ export default function Auth() {
     return { valid: !error && !!data };
   };
 
+  const notifyAdminsAndOwners = async (teamId: string, userName: string, userRole: string) => {
+    try {
+      // Get all admins
+      const { data: admins } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .in("role", ["admin", "super_admin"]);
+
+      // Get team owners
+      const { data: owners } = await supabase
+        .from("team_members")
+        .select("user_id")
+        .eq("team_id", teamId)
+        .eq("role", "owner")
+        .eq("status", "approved");
+
+      // Get team name
+      const { data: team } = await supabase
+        .from("teams")
+        .select("name")
+        .eq("id", teamId)
+        .single();
+
+      const teamName = team?.name || "Невідома команда";
+
+      // Combine unique user IDs
+      const userIds = new Set<string>();
+      admins?.forEach(a => userIds.add(a.user_id));
+      owners?.forEach(o => userIds.add(o.user_id));
+
+      // Create notifications for each
+      const notifications = Array.from(userIds).map(userId => ({
+        user_id: userId,
+        type: "member_pending_approval",
+        title: "Новий користувач очікує підтвердження",
+        message: `${userName || "Новий користувач"} (${userRole}) зареєструвався в команді "${teamName}" і очікує підтвердження.`,
+        data: { team_id: teamId, tab: "users" }
+      }));
+
+      if (notifications.length > 0) {
+        await supabase.from("notifications").insert(notifications);
+      }
+    } catch (error) {
+      console.error("Error sending notifications:", error);
+    }
+  };
+
   const registerWithInviteCode = async (code: string, userId: string) => {
     const { data, error } = await supabase.rpc("register_with_invite_code", {
       p_invite_code: code,
@@ -242,9 +289,14 @@ export default function Auth() {
             const isOwner = regResult.role === "owner";
             const isPending = regResult.team_id && !isOwner;
             
+            // Notify admins and team owners about pending approval
+            if (isPending && regResult.team_id) {
+              await notifyAdminsAndOwners(regResult.team_id, displayName, regResult.role || "member");
+            }
+            
             toast({
               title: "Реєстрація успішна",
-              description: isPending 
+              description: isPending
                 ? "Ваш акаунт створено! Очікуйте затвердження від Owner команди." 
                 : "Ваш акаунт створено!",
             });
