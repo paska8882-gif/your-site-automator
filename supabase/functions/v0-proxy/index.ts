@@ -150,11 +150,17 @@ async function runV0Generation(
     
     const files: { path: string; content: string }[] = [];
     
+    // Function to sanitize content - remove null characters that PostgreSQL can't store
+    const sanitizeContent = (str: string): string => {
+      return str.replace(/\u0000/g, '');
+    };
+    
     for (const [path, file] of Object.entries(zipContents.files)) {
       if (!file.dir) {
         try {
           const content = await file.async("string");
-          files.push({ path, content });
+          // Sanitize content to remove null characters
+          files.push({ path, content: sanitizeContent(content) });
         } catch {
           // Binary file, skip
           console.log("[v0-proxy] Skipping binary file:", path);
