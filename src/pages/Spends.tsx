@@ -360,11 +360,11 @@ const Spends = () => {
                                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                     {/* Left side - Details */}
                                     <div className="space-y-4">
-                                      <div>
+                                      <div className="h-[300px] flex flex-col">
                                         <h4 className="font-semibold text-sm mb-2">Промпт:</h4>
-                                        <p className="text-sm text-muted-foreground bg-background p-3 rounded-md border">
+                                        <div className="flex-1 text-sm text-muted-foreground bg-background p-3 rounded-md border overflow-y-auto">
                                           {gen.prompt}
-                                        </p>
+                                        </div>
                                       </div>
                                       
                                       <div className="text-sm">
