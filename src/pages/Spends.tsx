@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, Save, DollarSign, TrendingUp, FileText, ChevronDown, ChevronRight, Eye, Star, ArrowUpDown, Filter, FolderPlus, Trash2, StarOff, FolderOpen } from "lucide-react";
+import { Loader2, Save, DollarSign, TrendingUp, FileText, ChevronDown, ChevronRight, Eye, Star, ArrowUpDown, Filter, FolderPlus, Trash2, StarOff, FolderOpen, ChevronLeft, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { SimplePreview } from "@/components/SimplePreview";
@@ -87,6 +87,10 @@ const Spends = () => {
 
   // Grouping
   const [groupBy, setGroupBy] = useState<GroupBy>("none");
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   const toggleRow = (id: string) => {
     setExpandedRows(prev => {
@@ -498,9 +502,21 @@ const Spends = () => {
   const favorites = filteredAndSortedGenerations.filter(g => g.is_favorite);
   const regularGenerations = filteredAndSortedGenerations.filter(g => !g.is_favorite);
 
-  // Group generations
+  // Pagination logic
+  const totalPages = Math.ceil(regularGenerations.length / itemsPerPage);
+  const paginatedGenerations = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return regularGenerations.slice(startIndex, startIndex + itemsPerPage);
+  }, [regularGenerations, currentPage, itemsPerPage]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterLanguage, filterType, filterModel, searchQuery, activeSetId]);
+
+  // Group generations (use paginated for non-grouped view)
   const groupedGenerations = useMemo(() => {
-    if (groupBy === "none") return { "": regularGenerations };
+    if (groupBy === "none") return { "": paginatedGenerations };
     
     const groups: Record<string, GenerationWithSpend[]> = {};
     regularGenerations.forEach(gen => {
@@ -520,7 +536,7 @@ const Spends = () => {
       groups[key].push(gen);
     });
     return groups;
-  }, [regularGenerations, groupBy]);
+  }, [regularGenerations, paginatedGenerations, groupBy]);
 
   const totalSpend = generations.reduce((sum, g) => sum + (g.spend_amount || 0), 0);
   const avgSpend = generations.length > 0 ? totalSpend / generations.length : 0;
@@ -982,13 +998,104 @@ const Spends = () => {
                 }
               </p>
             ) : groupBy === "none" ? (
-              <div className="overflow-x-auto">
-                <Table>
-                  {renderTableHeader(regularGenerations.map(g => g.id))}
-                  <TableBody>
-                    {regularGenerations.map((gen) => renderTableRow(gen))}
-                  </TableBody>
-                </Table>
+              <div className="space-y-4">
+                <div className="overflow-x-auto">
+                  <Table>
+                    {renderTableHeader(paginatedGenerations.map(g => g.id))}
+                    <TableBody>
+                      {paginatedGenerations.map((gen) => renderTableRow(gen))}
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between border-t pt-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        Показано {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, regularGenerations.length)} з {regularGenerations.length}
+                      </span>
+                      <Select value={itemsPerPage.toString()} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
+                        <SelectTrigger className="w-20 h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="25">25</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                          <SelectItem value="100">100</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="text-sm text-muted-foreground">на сторінці</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(1)}
+                        disabled={currentPage === 1}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronsLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      
+                      <div className="flex items-center gap-1 mx-2">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNum: number;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={currentPage === pageNum ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setCurrentPage(pageNum)}
+                              className="h-8 w-8 p-0"
+                            >
+                              {pageNum}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(totalPages)}
+                        disabled={currentPage === totalPages}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronsRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-6">
