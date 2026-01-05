@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -140,14 +141,63 @@ interface ExternalUploadForm {
   generationCost: number;
 }
 
+// Fetch functions for React Query
+const fetchGenerationsData = async () => {
+  const { data, error } = await supabase
+    .from("generation_history")
+    .select("id, number, prompt, improved_prompt, language, created_at, completed_at, website_type, site_name, status, error_message, ai_model, user_id, team_id, sale_price")
+    .order("created_at", { ascending: false })
+    .limit(500);
+
+  if (error) throw error;
+  
+  const generations = data || [];
+  const userIds = [...new Set(generations.map(item => item.user_id).filter(Boolean))] as string[];
+  const teamIds = [...new Set(generations.map(item => item.team_id).filter(Boolean))] as string[];
+  
+  let profilesMap: Record<string, UserProfile> = {};
+  let rolesMap: UserRoleMap = {};
+  let teamsNameMap: Record<string, string> = {};
+  
+  // Fetch user profiles and roles in parallel
+  if (userIds.length > 0) {
+    const [profilesRes, membershipsRes] = await Promise.all([
+      supabase.from("profiles").select("user_id, display_name").in("user_id", userIds),
+      supabase.from("team_members").select("user_id, role").in("user_id", userIds).eq("status", "approved")
+    ]);
+    
+    (profilesRes.data || []).forEach(profile => {
+      profilesMap[profile.user_id] = profile;
+    });
+    
+    (membershipsRes.data || []).forEach(m => {
+      rolesMap[m.user_id] = { role: m.role };
+    });
+  }
+  
+  // Fetch team names
+  if (teamIds.length > 0) {
+    const { data: teamsData } = await supabase.from("teams").select("id, name").in("id", teamIds);
+    (teamsData || []).forEach(t => {
+      teamsNameMap[t.id] = t.name;
+    });
+  }
+  
+  return { generations, profilesMap, rolesMap, teamsNameMap };
+};
+
+const fetchTeamsData = async () => {
+  const [teamsRes, pricingsRes] = await Promise.all([
+    supabase.from("teams").select("id, name, balance").order("name"),
+    supabase.from("team_pricing").select("team_id, html_price, react_price, generation_cost_junior, generation_cost_senior")
+  ]);
+  return { teams: teamsRes.data || [], pricings: pricingsRes.data || [] };
+};
+
 export const AdminSitesTab = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [history, setHistory] = useState<GenerationItem[]>([]);
-  const [profiles, setProfiles] = useState<Record<string, UserProfile>>({});
-  const [teamsMap, setTeamsMap] = useState<Record<string, string>>({});
-  const [userRoles, setUserRoles] = useState<UserRoleMap>({});
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   
   // Preview dialog state
@@ -162,8 +212,6 @@ export const AdminSitesTab = () => {
   
   // External upload dialog state
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [teams, setTeams] = useState<TeamInfo[]>([]);
-  const [teamPricings, setTeamPricings] = useState<TeamPricing[]>([]);
   const [uploadForm, setUploadForm] = useState<ExternalUploadForm>({
     teamId: "",
     siteName: "",
@@ -190,10 +238,28 @@ export const AdminSitesTab = () => {
   const [userFilter, setUserFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
 
-  useEffect(() => {
-    fetchAllGenerations();
-    fetchTeams();
-  }, []);
+  // React Query for generations data with 5 minute cache
+  const { data: generationsData, isLoading: loading, refetch: refetchGenerations } = useQuery({
+    queryKey: ["admin-generations"],
+    queryFn: fetchGenerationsData,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes cache
+  });
+
+  // React Query for teams data with longer cache
+  const { data: teamsData } = useQuery({
+    queryKey: ["admin-teams"],
+    queryFn: fetchTeamsData,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes cache
+  });
+
+  const history = generationsData?.generations || [];
+  const profiles = generationsData?.profilesMap || {};
+  const userRoles = generationsData?.rolesMap || {};
+  const teamsMap = generationsData?.teamsNameMap || {};
+  const teams = teamsData?.teams || [];
+  const teamPricings = teamsData?.pricings || [];
 
   // Auto-fill prices when team or website type changes
   useEffect(() => {
@@ -207,73 +273,12 @@ export const AdminSitesTab = () => {
     }
   }, [uploadForm.teamId, uploadForm.websiteType, uploadForm.aiModel, teamPricings]);
 
-  const fetchTeams = async () => {
-    const [teamsRes, pricingsRes] = await Promise.all([
-      supabase.from("teams").select("id, name, balance").order("name"),
-      supabase.from("team_pricing").select("team_id, html_price, react_price, generation_cost_junior, generation_cost_senior")
-    ]);
-    setTeams(teamsRes.data || []);
-    setTeamPricings(pricingsRes.data || []);
+  const fetchAllGenerations = () => {
+    refetchGenerations();
   };
 
-  const fetchAllGenerations = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("generation_history")
-      .select("id, number, prompt, improved_prompt, language, created_at, completed_at, website_type, site_name, status, error_message, ai_model, user_id, team_id, sale_price")
-      .order("created_at", { ascending: false })
-      .limit(500);
-
-    if (error) {
-      console.error("Error fetching generations:", error);
-    } else {
-      setHistory(data || []);
-      
-      const userIds = [...new Set((data || []).map(item => item.user_id).filter(Boolean))] as string[];
-      const teamIds = [...new Set((data || []).map(item => item.team_id).filter(Boolean))] as string[];
-      
-      // Fetch user profiles
-      if (userIds.length > 0) {
-        const { data: profilesData } = await supabase
-          .from("profiles")
-          .select("user_id, display_name")
-          .in("user_id", userIds);
-        
-        const profilesMap: Record<string, UserProfile> = {};
-        (profilesData || []).forEach(profile => {
-          profilesMap[profile.user_id] = profile;
-        });
-        setProfiles(profilesMap);
-
-        // Fetch user roles from team_members for role badges
-        const { data: membershipsData } = await supabase
-          .from("team_members")
-          .select("user_id, role")
-          .in("user_id", userIds)
-          .eq("status", "approved");
-
-        const rolesMap: UserRoleMap = {};
-        (membershipsData || []).forEach(m => {
-          rolesMap[m.user_id] = { role: m.role };
-        });
-        setUserRoles(rolesMap);
-      }
-
-      // Fetch team names by team_id from generation_history
-      if (teamIds.length > 0) {
-        const { data: teamsData } = await supabase
-          .from("teams")
-          .select("id, name")
-          .in("id", teamIds);
-
-        const teamsNameMap: Record<string, string> = {};
-        (teamsData || []).forEach(t => {
-          teamsNameMap[t.id] = t.name;
-        });
-        setTeamsMap(teamsNameMap);
-      }
-    }
-    setLoading(false);
+  const fetchTeams = () => {
+    queryClient.invalidateQueries({ queryKey: ["admin-teams"] });
   };
 
   const handleExternalUpload = async () => {
@@ -405,9 +410,19 @@ export const AdminSitesTab = () => {
   };
 
   const handleDownload = async (item: GenerationItem) => {
-    if (!item.zip_data) return;
+    // Fetch zip_data on demand
+    const { data, error } = await supabase
+      .from("generation_history")
+      .select("zip_data")
+      .eq("id", item.id)
+      .single();
+    
+    if (error || !data?.zip_data) {
+      toast.error("Не вдалося завантажити файл");
+      return;
+    }
 
-    const byteCharacters = atob(item.zip_data);
+    const byteCharacters = atob(data.zip_data);
     const byteNumbers = new Array(byteCharacters.length);
     for (let i = 0; i < byteCharacters.length; i++) {
       byteNumbers[i] = byteCharacters.charCodeAt(i);
@@ -429,10 +444,20 @@ export const AdminSitesTab = () => {
     URL.revokeObjectURL(url);
   };
 
-  const handlePreview = (item: GenerationItem) => {
-    if (!item.files_data) return;
+  const handlePreview = async (item: GenerationItem) => {
+    // Fetch files_data on demand
+    const { data, error } = await supabase
+      .from("generation_history")
+      .select("files_data")
+      .eq("id", item.id)
+      .single();
     
-    const filesData = item.files_data as GeneratedFile[];
+    if (error || !data?.files_data) {
+      toast.error("Не вдалося завантажити превью");
+      return;
+    }
+    
+    const filesData = data.files_data as unknown as GeneratedFile[];
     if (filesData && filesData.length > 0) {
       setPreviewFiles(filesData);
       setSelectedPreviewFile(filesData[0]);
@@ -986,7 +1011,7 @@ export const AdminSitesTab = () => {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
-                              {item.status === "completed" && item.files_data && (
+                              {item.status === "completed" && (
                                 <>
                                   <Button
                                     variant="ghost"
@@ -1006,18 +1031,16 @@ export const AdminSitesTab = () => {
                                   >
                                     <Pencil className="h-3.5 w-3.5" />
                                   </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    onClick={() => handleDownload(item)}
+                                    title="Завантажити ZIP"
+                                  >
+                                    <Download className="h-3.5 w-3.5" />
+                                  </Button>
                                 </>
-                              )}
-                              {item.status === "completed" && item.zip_data && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 w-7 p-0"
-                                  onClick={() => handleDownload(item)}
-                                  title="Завантажити ZIP"
-                                >
-                                  <Download className="h-3.5 w-3.5" />
-                                </Button>
                               )}
                             </div>
                           </TableCell>
