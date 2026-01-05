@@ -8,8 +8,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Save, DollarSign, TrendingUp, FileText, ChevronDown, ChevronRight, Eye, Star, ArrowUpDown, Filter } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Loader2, Save, DollarSign, TrendingUp, FileText, ChevronDown, ChevronRight, Eye, Star, ArrowUpDown, Filter, FolderPlus, Trash2, StarOff, FolderOpen } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { SimplePreview } from "@/components/SimplePreview";
@@ -41,6 +43,13 @@ interface GenerationWithSpend {
   is_favorite: boolean;
 }
 
+interface SpendSet {
+  id: string;
+  name: string;
+  generation_ids: string[];
+  created_at: string;
+}
+
 type SortField = "number" | "created_at" | "spend_amount" | "language" | "website_type" | "ai_model";
 type SortDirection = "asc" | "desc";
 type GroupBy = "none" | "language" | "website_type" | "ai_model";
@@ -49,11 +58,22 @@ const Spends = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [generations, setGenerations] = useState<GenerationWithSpend[]>([]);
+  const [spendSets, setSpendSets] = useState<SpendSet[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [togglingFavorite, setTogglingFavorite] = useState<string | null>(null);
   const [editedSpends, setEditedSpends] = useState<Record<string, { amount: string; notes: string }>>({});
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  // Multi-select
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [bulkActioning, setBulkActioning] = useState(false);
+
+  // Sets
+  const [showSaveSetDialog, setShowSaveSetDialog] = useState(false);
+  const [newSetName, setNewSetName] = useState("");
+  const [savingSet, setSavingSet] = useState(false);
+  const [activeSetId, setActiveSetId] = useState<string | null>(null);
 
   // Filters
   const [filterLanguage, setFilterLanguage] = useState<string>("all");
@@ -80,6 +100,36 @@ const Spends = () => {
     });
   };
 
+  const toggleSelectItem = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = (ids: string[]) => {
+    const allSelected = ids.every(id => selectedItems.has(id));
+    if (allSelected) {
+      setSelectedItems(prev => {
+        const newSet = new Set(prev);
+        ids.forEach(id => newSet.delete(id));
+        return newSet;
+      });
+    } else {
+      setSelectedItems(prev => {
+        const newSet = new Set(prev);
+        ids.forEach(id => newSet.add(id));
+        return newSet;
+      });
+    }
+  };
+
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/auth");
@@ -89,6 +139,7 @@ const Spends = () => {
   useEffect(() => {
     if (user) {
       fetchGenerations();
+      fetchSpendSets();
     }
   }, [user]);
 
@@ -151,6 +202,120 @@ const Spends = () => {
     setEditedSpends(initial);
     
     setLoading(false);
+  };
+
+  const fetchSpendSets = async () => {
+    if (!user) return;
+
+    const { data } = await supabase
+      .from("spend_sets")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (data) {
+      setSpendSets(data.map(s => ({
+        ...s,
+        generation_ids: (s.generation_ids as string[]) || []
+      })));
+    }
+  };
+
+  const handleBulkAddToFavorites = async () => {
+    if (!user || selectedItems.size === 0) return;
+    
+    setBulkActioning(true);
+    const ids = Array.from(selectedItems);
+    
+    for (const genId of ids) {
+      const gen = generations.find(g => g.id === genId);
+      if (!gen || gen.is_favorite) continue;
+
+      if (gen.spend_id) {
+        await supabase
+          .from("generation_spends")
+          .update({ is_favorite: true })
+          .eq("id", gen.spend_id);
+      } else {
+        await supabase
+          .from("generation_spends")
+          .insert({ 
+            generation_id: genId, 
+            user_id: user.id, 
+            spend_amount: 0,
+            is_favorite: true 
+          });
+      }
+    }
+
+    toast({ title: "Додано до обраного", description: `${ids.length} елементів` });
+    setSelectedItems(new Set());
+    setBulkActioning(false);
+    fetchGenerations();
+  };
+
+  const handleBulkRemoveFromFavorites = async () => {
+    if (!user || selectedItems.size === 0) return;
+    
+    setBulkActioning(true);
+    const ids = Array.from(selectedItems);
+    
+    for (const genId of ids) {
+      const gen = generations.find(g => g.id === genId);
+      if (!gen || !gen.is_favorite || !gen.spend_id) continue;
+
+      await supabase
+        .from("generation_spends")
+        .update({ is_favorite: false })
+        .eq("id", gen.spend_id);
+    }
+
+    toast({ title: "Видалено з обраного", description: `${ids.length} елементів` });
+    setSelectedItems(new Set());
+    setBulkActioning(false);
+    fetchGenerations();
+  };
+
+  const handleSaveSet = async () => {
+    if (!user || selectedItems.size === 0 || !newSetName.trim()) return;
+    
+    setSavingSet(true);
+    const ids = Array.from(selectedItems);
+
+    const { error } = await supabase
+      .from("spend_sets")
+      .insert({
+        user_id: user.id,
+        name: newSetName.trim(),
+        generation_ids: ids
+      });
+
+    if (error) {
+      toast({ title: "Помилка", description: "Не вдалося зберегти сет", variant: "destructive" });
+    } else {
+      toast({ title: "Сет збережено", description: `"${newSetName}" з ${ids.length} елементами` });
+      setNewSetName("");
+      setShowSaveSetDialog(false);
+      setSelectedItems(new Set());
+      fetchSpendSets();
+    }
+
+    setSavingSet(false);
+  };
+
+  const handleDeleteSet = async (setId: string) => {
+    const { error } = await supabase
+      .from("spend_sets")
+      .delete()
+      .eq("id", setId);
+
+    if (error) {
+      toast({ title: "Помилка", description: "Не вдалося видалити сет", variant: "destructive" });
+    } else {
+      toast({ title: "Сет видалено" });
+      if (activeSetId === setId) setActiveSetId(null);
+      fetchSpendSets();
+    }
   };
 
   const handleToggleFavorite = async (generationId: string, e: React.MouseEvent) => {
@@ -274,6 +439,14 @@ const Spends = () => {
   const filteredAndSortedGenerations = useMemo(() => {
     let result = [...generations];
 
+    // Apply active set filter
+    if (activeSetId) {
+      const activeSet = spendSets.find(s => s.id === activeSetId);
+      if (activeSet) {
+        result = result.filter(g => activeSet.generation_ids.includes(g.id));
+      }
+    }
+
     // Apply filters
     if (filterLanguage !== "all") {
       result = result.filter(g => g.language === filterLanguage);
@@ -319,7 +492,7 @@ const Spends = () => {
     });
 
     return result;
-  }, [generations, filterLanguage, filterType, filterModel, searchQuery, sortField, sortDirection]);
+  }, [generations, filterLanguage, filterType, filterModel, searchQuery, sortField, sortDirection, activeSetId, spendSets]);
 
   // Separate favorites and regular generations
   const favorites = filteredAndSortedGenerations.filter(g => g.is_favorite);
@@ -353,11 +526,28 @@ const Spends = () => {
   const avgSpend = generations.length > 0 ? totalSpend / generations.length : 0;
   const sitesWithSpend = generations.filter(g => g.spend_amount > 0).length;
 
-  const renderTableRow = (gen: GenerationWithSpend, showFavoriteStar = true) => {
+  const renderTableRow = (gen: GenerationWithSpend) => {
     const isExpanded = expandedRows.has(gen.id);
+    const isSelected = selectedItems.has(gen.id);
     return (
       <>
-        <TableRow key={gen.id} className="cursor-pointer hover:bg-muted/50" onClick={() => toggleRow(gen.id)}>
+        <TableRow key={gen.id} className={`cursor-pointer hover:bg-muted/50 ${isSelected ? "bg-primary/10" : ""}`} onClick={() => toggleRow(gen.id)}>
+          <TableCell className="p-2" onClick={(e) => e.stopPropagation()}>
+            <Checkbox 
+              checked={isSelected}
+              onCheckedChange={() => {
+                setSelectedItems(prev => {
+                  const newSet = new Set(prev);
+                  if (newSet.has(gen.id)) {
+                    newSet.delete(gen.id);
+                  } else {
+                    newSet.add(gen.id);
+                  }
+                  return newSet;
+                });
+              }}
+            />
+          </TableCell>
           <TableCell className="p-2">
             <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
               {isExpanded ? (
@@ -367,23 +557,21 @@ const Spends = () => {
               )}
             </Button>
           </TableCell>
-          {showFavoriteStar && (
-            <TableCell className="p-2">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-6 w-6 p-0"
-                onClick={(e) => handleToggleFavorite(gen.id, e)}
-                disabled={togglingFavorite === gen.id}
-              >
-                {togglingFavorite === gen.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Star className={`h-4 w-4 ${gen.is_favorite ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`} />
-                )}
-              </Button>
-            </TableCell>
-          )}
+          <TableCell className="p-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 w-6 p-0"
+              onClick={(e) => handleToggleFavorite(gen.id, e)}
+              disabled={togglingFavorite === gen.id}
+            >
+              {togglingFavorite === gen.id ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Star className={`h-4 w-4 ${gen.is_favorite ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`} />
+              )}
+            </Button>
+          </TableCell>
           <TableCell className="font-mono text-muted-foreground">
             {gen.number}
           </TableCell>
@@ -441,7 +629,7 @@ const Spends = () => {
         </TableRow>
         {isExpanded && (
           <TableRow key={`${gen.id}-expanded`}>
-            <TableCell colSpan={11} className="p-0 bg-muted/30">
+            <TableCell colSpan={12} className="p-0 bg-muted/30">
               <div className="p-4 space-y-4">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div className="space-y-4">
@@ -482,47 +670,63 @@ const Spends = () => {
     );
   };
 
-  const renderTableHeader = (showFavoriteStar = true) => (
-    <TableHeader>
-      <TableRow>
-        <TableHead className="w-10"></TableHead>
-        {showFavoriteStar && <TableHead className="w-10"></TableHead>}
-        <TableHead className="w-16 cursor-pointer" onClick={() => handleSort("number")}>
-          <div className="flex items-center gap-1">
-            # {sortField === "number" && <ArrowUpDown className="h-3 w-3" />}
-          </div>
-        </TableHead>
-        <TableHead>Назва / Промпт</TableHead>
-        <TableHead className="w-24 cursor-pointer" onClick={() => handleSort("language")}>
-          <div className="flex items-center gap-1">
-            Мова {sortField === "language" && <ArrowUpDown className="h-3 w-3" />}
-          </div>
-        </TableHead>
-        <TableHead className="w-24 cursor-pointer" onClick={() => handleSort("website_type")}>
-          <div className="flex items-center gap-1">
-            Тип {sortField === "website_type" && <ArrowUpDown className="h-3 w-3" />}
-          </div>
-        </TableHead>
-        <TableHead className="w-24 cursor-pointer" onClick={() => handleSort("ai_model")}>
-          <div className="flex items-center gap-1">
-            Модель {sortField === "ai_model" && <ArrowUpDown className="h-3 w-3" />}
-          </div>
-        </TableHead>
-        <TableHead className="w-32 cursor-pointer" onClick={() => handleSort("created_at")}>
-          <div className="flex items-center gap-1">
-            Дата {sortField === "created_at" && <ArrowUpDown className="h-3 w-3" />}
-          </div>
-        </TableHead>
-        <TableHead className="w-32 cursor-pointer" onClick={() => handleSort("spend_amount")}>
-          <div className="flex items-center gap-1">
-            Спенд ($) {sortField === "spend_amount" && <ArrowUpDown className="h-3 w-3" />}
-          </div>
-        </TableHead>
-        <TableHead className="w-48">Нотатки</TableHead>
-        <TableHead className="w-20"></TableHead>
-      </TableRow>
-    </TableHeader>
-  );
+  const renderTableHeader = (ids: string[]) => {
+    const allSelected = ids.length > 0 && ids.every(id => selectedItems.has(id));
+    const someSelected = ids.some(id => selectedItems.has(id)) && !allSelected;
+    
+    return (
+      <TableHeader>
+        <TableRow>
+          <TableHead className="w-10">
+            <Checkbox 
+              checked={allSelected}
+              ref={(ref) => {
+                if (ref) {
+                  (ref as HTMLButtonElement & { indeterminate?: boolean }).indeterminate = someSelected;
+                }
+              }}
+              onCheckedChange={() => toggleSelectAll(ids)}
+            />
+          </TableHead>
+          <TableHead className="w-10"></TableHead>
+          <TableHead className="w-10"></TableHead>
+          <TableHead className="w-16 cursor-pointer" onClick={() => handleSort("number")}>
+            <div className="flex items-center gap-1">
+              # {sortField === "number" && <ArrowUpDown className="h-3 w-3" />}
+            </div>
+          </TableHead>
+          <TableHead>Назва / Промпт</TableHead>
+          <TableHead className="w-24 cursor-pointer" onClick={() => handleSort("language")}>
+            <div className="flex items-center gap-1">
+              Мова {sortField === "language" && <ArrowUpDown className="h-3 w-3" />}
+            </div>
+          </TableHead>
+          <TableHead className="w-24 cursor-pointer" onClick={() => handleSort("website_type")}>
+            <div className="flex items-center gap-1">
+              Тип {sortField === "website_type" && <ArrowUpDown className="h-3 w-3" />}
+            </div>
+          </TableHead>
+          <TableHead className="w-24 cursor-pointer" onClick={() => handleSort("ai_model")}>
+            <div className="flex items-center gap-1">
+              Модель {sortField === "ai_model" && <ArrowUpDown className="h-3 w-3" />}
+            </div>
+          </TableHead>
+          <TableHead className="w-32 cursor-pointer" onClick={() => handleSort("created_at")}>
+            <div className="flex items-center gap-1">
+              Дата {sortField === "created_at" && <ArrowUpDown className="h-3 w-3" />}
+            </div>
+          </TableHead>
+          <TableHead className="w-32 cursor-pointer" onClick={() => handleSort("spend_amount")}>
+            <div className="flex items-center gap-1">
+              Спенд ($) {sortField === "spend_amount" && <ArrowUpDown className="h-3 w-3" />}
+            </div>
+          </TableHead>
+          <TableHead className="w-48">Нотатки</TableHead>
+          <TableHead className="w-20"></TableHead>
+        </TableRow>
+      </TableHeader>
+    );
+  };
 
   if (authLoading || loading) {
     return (
@@ -586,6 +790,52 @@ const Spends = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Bulk Actions Bar */}
+        {selectedItems.size > 0 && (
+          <Card className="border-primary">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Вибрано: {selectedItems.size}</span>
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={handleBulkAddToFavorites}
+                    disabled={bulkActioning}
+                  >
+                    {bulkActioning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Star className="h-4 w-4 mr-1" />}
+                    Додати в обрані
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={handleBulkRemoveFromFavorites}
+                    disabled={bulkActioning}
+                  >
+                    {bulkActioning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <StarOff className="h-4 w-4 mr-1" />}
+                    Прибрати з обраних
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="default"
+                    onClick={() => setShowSaveSetDialog(true)}
+                  >
+                    <FolderPlus className="h-4 w-4 mr-1" />
+                    Зберегти як сет
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="ghost"
+                    onClick={() => setSelectedItems(new Set())}
+                  >
+                    Скасувати
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Filters */}
         <Card>
@@ -654,6 +904,48 @@ const Spends = () => {
           </CardContent>
         </Card>
 
+        {/* Saved Sets */}
+        {spendSets.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FolderOpen className="h-5 w-5" />
+                Збережені сети
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant={activeSetId === null ? "default" : "outline"}
+                  onClick={() => setActiveSetId(null)}
+                >
+                  Всі
+                </Button>
+                {spendSets.map(set => (
+                  <div key={set.id} className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant={activeSetId === set.id ? "default" : "outline"}
+                      onClick={() => setActiveSetId(activeSetId === set.id ? null : set.id)}
+                    >
+                      {set.name} ({set.generation_ids.length})
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                      onClick={() => handleDeleteSet(set.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Favorites Table */}
         {favorites.length > 0 && (
           <Card>
@@ -666,9 +958,9 @@ const Spends = () => {
             <CardContent>
               <div className="overflow-x-auto">
                 <Table>
-                  {renderTableHeader(true)}
+                  {renderTableHeader(favorites.map(f => f.id))}
                   <TableBody>
-                    {favorites.map((gen) => renderTableRow(gen, true))}
+                    {favorites.map((gen) => renderTableRow(gen))}
                   </TableBody>
                 </Table>
               </div>
@@ -692,9 +984,9 @@ const Spends = () => {
             ) : groupBy === "none" ? (
               <div className="overflow-x-auto">
                 <Table>
-                  {renderTableHeader(true)}
+                  {renderTableHeader(regularGenerations.map(g => g.id))}
                   <TableBody>
-                    {regularGenerations.map((gen) => renderTableRow(gen, true))}
+                    {regularGenerations.map((gen) => renderTableRow(gen))}
                   </TableBody>
                 </Table>
               </div>
@@ -708,9 +1000,9 @@ const Spends = () => {
                     </h3>
                     <div className="overflow-x-auto">
                       <Table>
-                        {renderTableHeader(true)}
+                        {renderTableHeader(gens.map(g => g.id))}
                         <TableBody>
-                          {gens.map((gen) => renderTableRow(gen, true))}
+                          {gens.map((gen) => renderTableRow(gen))}
                         </TableBody>
                       </Table>
                     </div>
@@ -720,6 +1012,37 @@ const Spends = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Save Set Dialog */}
+        <Dialog open={showSaveSetDialog} onOpenChange={setShowSaveSetDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Зберегти сет</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <Input
+                placeholder="Назва сету..."
+                value={newSetName}
+                onChange={(e) => setNewSetName(e.target.value)}
+              />
+              <p className="text-sm text-muted-foreground mt-2">
+                Буде збережено {selectedItems.size} елементів
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowSaveSetDialog(false)}>
+                Скасувати
+              </Button>
+              <Button 
+                onClick={handleSaveSet} 
+                disabled={savingSet || !newSetName.trim()}
+              >
+                {savingSet ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                Зберегти
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
