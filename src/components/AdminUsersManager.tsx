@@ -22,7 +22,11 @@ import {
   X,
   UserCog,
   KeyRound,
-  Zap
+  Zap,
+  Clock,
+  UserCheck,
+  UserX,
+  Ticket
 } from "lucide-react";
 
 type TeamRole = "owner" | "team_lead" | "buyer" | "tech_dev";
@@ -51,6 +55,17 @@ interface UserWithRoles extends UserProfile {
   teams: TeamMembership[];
 }
 
+interface PendingMember {
+  id: string;
+  user_id: string;
+  team_id: string;
+  team_name: string;
+  display_name: string | null;
+  role: TeamRole;
+  invite_code: string | null;
+  created_at: string;
+}
+
 const roleLabels: Record<TeamRole, string> = {
   owner: "Owner",
   team_lead: "Team Lead",
@@ -62,8 +77,11 @@ export const AdminUsersManager = () => {
   const { toast } = useToast();
   const [users, setUsers] = useState<UserWithRoles[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [pendingMembers, setPendingMembers] = useState<PendingMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
   
   // Assign to team dialog
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
@@ -113,15 +131,52 @@ export const AdminUsersManager = () => {
       .select("id, name")
       .order("name");
 
-    // Fetch all team memberships
+    // Fetch all team memberships (approved)
     const { data: membershipsData } = await supabase
       .from("team_members")
       .select("user_id, team_id, role")
       .eq("status", "approved");
 
+    // Fetch pending team members with invite codes
+    const { data: pendingData } = await supabase
+      .from("team_members")
+      .select("id, user_id, team_id, role, created_at")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+
     const adminUserIds = new Set(adminRoles?.map(r => r.user_id) || []);
     const teamsMap = new Map(teamsData?.map(t => [t.id, t.name]) || []);
+    const profilesMap = new Map(profilesData?.map(p => [p.user_id, p.display_name]) || []);
     
+    // Fetch invite codes for pending members
+    const pendingUserIds = pendingData?.map(p => p.user_id) || [];
+    const pendingTeamIds = pendingData?.map(p => p.team_id) || [];
+    
+    const { data: inviteCodesData } = await supabase
+      .from("invite_codes")
+      .select("used_by, team_id, code")
+      .in("used_by", pendingUserIds.length > 0 ? pendingUserIds : ['00000000-0000-0000-0000-000000000000']);
+
+    // Create map of user+team -> invite code
+    const inviteCodeMap = new Map<string, string>();
+    inviteCodesData?.forEach(ic => {
+      if (ic.used_by && ic.team_id) {
+        inviteCodeMap.set(`${ic.used_by}_${ic.team_id}`, ic.code);
+      }
+    });
+
+    // Build pending members list
+    const pendingMembersList: PendingMember[] = (pendingData || []).map(pm => ({
+      id: pm.id,
+      user_id: pm.user_id,
+      team_id: pm.team_id,
+      team_name: teamsMap.get(pm.team_id) || "Невідома команда",
+      display_name: profilesMap.get(pm.user_id) || null,
+      role: pm.role as TeamRole,
+      invite_code: inviteCodeMap.get(`${pm.user_id}_${pm.team_id}`) || null,
+      created_at: pm.created_at
+    }));
+
     // Group memberships by user
     const userMemberships: Record<string, TeamMembership[]> = {};
     membershipsData?.forEach(m => {
@@ -144,7 +199,63 @@ export const AdminUsersManager = () => {
 
     setUsers(usersWithRoles);
     setTeams(teamsData || []);
+    setPendingMembers(pendingMembersList);
     setLoading(false);
+  };
+
+  const handleApprovePending = async (member: PendingMember) => {
+    setApprovingId(member.id);
+    try {
+      const { error } = await supabase
+        .from("team_members")
+        .update({ 
+          status: "approved",
+          approved_at: new Date().toISOString()
+        })
+        .eq("id", member.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Успішно",
+        description: `${member.display_name || member.user_id.slice(0, 8)} додано до команди ${member.team_name}`
+      });
+      
+      fetchData();
+    } catch (error) {
+      toast({
+        title: "Помилка",
+        description: "Не вдалося схвалити запит",
+        variant: "destructive"
+      });
+    }
+    setApprovingId(null);
+  };
+
+  const handleRejectPending = async (member: PendingMember) => {
+    setRejectingId(member.id);
+    try {
+      const { error } = await supabase
+        .from("team_members")
+        .delete()
+        .eq("id", member.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Успішно",
+        description: `Запит від ${member.display_name || member.user_id.slice(0, 8)} відхилено`
+      });
+      
+      fetchData();
+    } catch (error) {
+      toast({
+        title: "Помилка",
+        description: "Не вдалося відхилити запит",
+        variant: "destructive"
+      });
+    }
+    setRejectingId(null);
   };
 
   const handleAssignToTeam = async () => {
@@ -414,7 +525,8 @@ export const AdminUsersManager = () => {
     total: users.length,
     admins: users.filter(u => u.isAdmin).length,
     withTeam: users.filter(u => u.teams.length > 0).length,
-    blocked: users.filter(u => u.is_blocked).length
+    blocked: users.filter(u => u.is_blocked).length,
+    pending: pendingMembers.length
   };
 
   if (loading) {
@@ -454,6 +566,13 @@ export const AdminUsersManager = () => {
           <span className="text-xs text-muted-foreground">Заблок:</span>
           <span className="text-sm font-bold text-destructive">{stats.blocked}</span>
         </div>
+        {stats.pending > 0 && (
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-orange-500/10 border-orange-500/30">
+            <Clock className="h-3 w-3 text-orange-500" />
+            <span className="text-xs text-muted-foreground">Очікують:</span>
+            <span className="text-sm font-bold text-orange-500">{stats.pending}</span>
+          </div>
+        )}
         <div className="relative ml-auto">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
           <Input
@@ -464,6 +583,107 @@ export const AdminUsersManager = () => {
           />
         </div>
       </div>
+
+      {/* Pending Members Section */}
+      {pendingMembers.length > 0 && (
+        <Card className="border-orange-500/30 bg-orange-500/5">
+          <CardHeader className="py-2 px-3">
+            <CardTitle className="text-xs font-medium flex items-center gap-2">
+              <Clock className="h-4 w-4 text-orange-500" />
+              Очікують схвалення ({pendingMembers.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-3 pb-3">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-[10px] py-1">Користувач</TableHead>
+                    <TableHead className="text-[10px] py-1">Команда</TableHead>
+                    <TableHead className="text-[10px] py-1">Роль</TableHead>
+                    <TableHead className="text-[10px] py-1">Інвайт-код</TableHead>
+                    <TableHead className="text-[10px] py-1">Дата запиту</TableHead>
+                    <TableHead className="text-[10px] py-1 text-right">Дії</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingMembers.map(member => (
+                    <TableRow key={member.id}>
+                      <TableCell className="py-1.5">
+                        <div>
+                          <div className="font-medium text-xs">
+                            {member.display_name || "Без імені"}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {member.user_id.slice(0, 8)}...
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-1.5">
+                        <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                          {member.team_name}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-1.5">
+                        <span className="text-xs">{roleLabels[member.role]}</span>
+                      </TableCell>
+                      <TableCell className="py-1.5">
+                        {member.invite_code ? (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">
+                            <Ticket className="h-2.5 w-2.5 mr-1" />
+                            {member.invite_code}
+                          </Badge>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="py-1.5 text-[10px]">
+                        {new Date(member.created_at).toLocaleDateString("uk-UA")}
+                      </TableCell>
+                      <TableCell className="py-1.5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="h-6 text-[10px] px-1.5 bg-green-600 hover:bg-green-700"
+                            onClick={() => handleApprovePending(member)}
+                            disabled={approvingId === member.id || rejectingId === member.id}
+                          >
+                            {approvingId === member.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <>
+                                <UserCheck className="h-3 w-3 mr-0.5" />
+                                Схвалити
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="h-6 text-[10px] px-1.5"
+                            onClick={() => handleRejectPending(member)}
+                            disabled={approvingId === member.id || rejectingId === member.id}
+                          >
+                            {rejectingId === member.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <>
+                                <UserX className="h-3 w-3 mr-0.5" />
+                                Відхилити
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Users Table */}
       <Card>
