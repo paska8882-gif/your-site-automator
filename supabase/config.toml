@@ -18,6 +18,10 @@ verify_jwt = false
 verify_jwt = true
 max_duration_seconds = 600
 
+[functions.v0-proxy]
+verify_jwt = true
+max_duration_seconds = 600
+
 [functions.cleanup-stale-generations]
 verify_jwt = false
 

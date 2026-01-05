@@ -19,7 +19,7 @@ export interface GenerationResult {
 
 export type AiModel = "junior" | "senior";
 export type WebsiteType = "html" | "react";
-export type SeniorMode = "codex" | "onepage" | "v0" | undefined;
+export type SeniorMode = "codex" | "onepage" | "v0" | "reaktiv" | undefined;
 export type ImageSource = "basic" | "ai";
 
 // Layout styles available for selection
@@ -65,6 +65,11 @@ export async function startGeneration(
   // Если выбран режим Codex для Senior AI - обращаемся к внешнему вебхуку
   if (aiModel === "senior" && seniorMode === "codex") {
     return startCodexGeneration(prompt, language, websiteType, layoutStyle, siteName, teamId);
+  }
+
+  // Если выбран режим Реактивний Михайло - используем v0.dev API
+  if (aiModel === "senior" && seniorMode === "reaktiv") {
+    return startV0Generation(prompt, language, websiteType, layoutStyle, siteName, teamId);
   }
 
   const functionName = websiteType === "react" ? "generate-react-website" : "generate-website";
@@ -265,6 +270,177 @@ async function startCodexGeneration(
 
     // Success — generation started in background
     // codex-proxy will update the record when finished
+    return {
+      success: true,
+      historyId,
+    };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Unknown error";
+
+    // Refund balance on error
+    if (teamId && salePrice > 0) {
+      try {
+        const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+        if (team) {
+          await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+        }
+      } catch {
+        // ignore refund error
+      }
+    }
+
+    if (historyId) {
+      try {
+        await supabase
+          .from("generation_history")
+          .update({ status: "failed", error_message: msg, sale_price: 0 })
+          .eq("id", historyId);
+      } catch {
+        // ignore
+      }
+      return { success: false, error: msg, historyId };
+    }
+
+    return { success: false, error: msg };
+  }
+}
+
+// Генерация через v0.dev API (Реактивний Михайло)
+async function startV0Generation(
+  prompt: string,
+  language?: string,
+  websiteType?: WebsiteType,
+  layoutStyle?: string,
+  siteName?: string,
+  overrideTeamId?: string
+): Promise<GenerationResult> {
+  let historyId: string | null = null;
+  let salePrice = 0;
+  let teamId: string | null = overrideTeamId || null;
+
+  try {
+    // Try to get fresh token first
+    let accessToken = await getFreshAccessToken();
+    
+    if (!accessToken) {
+      return { success: false, error: "Необхідна авторизація. Будь ласка, увійдіть знову." };
+    }
+    
+    const { data: { session } } = await supabase.auth.getSession();
+
+    // If no override teamId, get user's team from membership
+    if (!teamId) {
+      const { data: membership } = await supabase
+        .from("team_members")
+        .select("team_id")
+        .eq("user_id", session.user.id)
+        .eq("status", "approved")
+        .single();
+
+      if (membership?.team_id) {
+        teamId = membership.team_id;
+      }
+    }
+
+    if (teamId) {
+      // Get team pricing
+      const { data: pricing } = await supabase
+        .from("team_pricing")
+        .select("external_price")
+        .eq("team_id", teamId)
+        .single();
+
+      salePrice = pricing?.external_price ?? 7; // Default $7 for external
+
+      // Get team balance and check credit limit
+      const { data: team } = await supabase
+        .from("teams")
+        .select("balance, credit_limit")
+        .eq("id", teamId)
+        .single();
+
+      if (team) {
+        const currentBalance = team.balance || 0;
+        const creditLimit = team.credit_limit || 0;
+        const newBalance = currentBalance - salePrice;
+
+        // Check if new balance would exceed credit limit
+        if (newBalance < -creditLimit) {
+          return { 
+            success: false, 
+            error: `Перевищено кредитний ліміт. Поточний баланс: $${currentBalance.toFixed(2)}, вартість: $${salePrice}, ліміт: $${creditLimit}. Поповніть баланс для продовження.` 
+          };
+        }
+
+        await supabase.from("teams").update({ balance: newBalance }).eq("id", teamId);
+      }
+    }
+
+    // 1. Create generation_history record with pending status AND team_id
+    const { data: historyRecord, error: insertError } = await supabase
+      .from("generation_history")
+      .insert({
+        user_id: session.user.id,
+        team_id: teamId || null,
+        prompt,
+        language: language || "en",
+        status: "pending",
+        site_name: siteName,
+        website_type: websiteType || "react", // v0.dev generates React
+        ai_model: "senior",
+        specific_ai_model: "v0-reaktiv",
+        generation_cost: 1, // Fixed cost $1 for external generations
+        sale_price: salePrice,
+      })
+      .select("id")
+      .single();
+
+    if (insertError || !historyRecord) {
+      console.error("Failed to create history record:", insertError);
+      // Refund if we already deducted
+      if (teamId && salePrice > 0) {
+        const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+        if (team) {
+          await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+        }
+      }
+      return { success: false, error: "Failed to create generation record" };
+    }
+
+    historyId = historyRecord.id;
+
+    // 2. Update status to generating
+    await supabase.from("generation_history").update({ status: "generating" }).eq("id", historyId);
+
+    // 3. Вызываем backend-функцию v0-proxy (fire-and-forget)
+    const { error: invokeError } = await supabase.functions.invoke("v0-proxy", {
+      body: { historyId },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (invokeError) {
+      const finalMsg = (invokeError.message || "Failed to start generation").trim().slice(0, 500);
+
+      // Refund balance
+      if (teamId && salePrice > 0) {
+        const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+        if (team) {
+          await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+        }
+      }
+
+      await supabase
+        .from("generation_history")
+        .update({ status: "failed", error_message: finalMsg, sale_price: 0 })
+        .eq("id", historyId);
+
+      return { success: false, error: finalMsg, historyId };
+    }
+
+    // Success — generation started in background
+    // v0-proxy will update the record when finished
     return {
       success: true,
       historyId,
