@@ -312,33 +312,60 @@ Import and render CookieBanner component at the end of App.js, before closing </
 
 **📞 PHONE NUMBERS - MANDATORY REQUIREMENTS:**
 All phone numbers MUST be:
-1. **REALISTIC for the specified country** - Use proper country code and format:
-   - USA/Canada: +1 (555) 123-4567 or +1 555-123-4567
-   - UK: +44 20 7946 0958 or +44 7911 123456
-   - Germany: +49 30 12345678 or +49 151 12345678
-   - France: +33 1 23 45 67 89 or +33 6 12 34 56 78
-   - Italy: +39 02 1234 5678 or +39 333 123 4567
-   - Spain: +34 91 123 45 67 or +34 612 345 678
-   - Poland: +48 22 123 45 67 or +48 512 345 678
-   - Netherlands: +31 20 123 4567 or +31 6 12345678
-   - Ukraine: +380 44 123 4567 or +380 67 123 4567
-   - Australia: +61 2 1234 5678 or +61 412 345 678
-   - Switzerland: +41 44 123 45 67 or +41 79 123 45 67
-   - Austria: +43 1 234 56 78 or +43 664 123 4567
-   - Belgium: +32 2 123 45 67 or +32 470 12 34 56
-   - Portugal: +351 21 123 4567 or +351 912 345 678
-   - Czech Republic: +420 221 234 567 or +420 602 123 456
-   - Sweden: +46 8 123 456 78 or +46 70 123 45 67
-   - Norway: +47 22 12 34 56 or +47 912 34 567
-   - Denmark: +45 32 12 34 56 or +45 20 12 34 56
+1. **REALISTIC and RANDOM for the specified country** - Generate a unique, realistic phone number using proper country code and format. Pick random digits that look natural:
+   - USA/Canada: +1 (XXX) XXX-XXXX - e.g., +1 (347) 892-4156, +1 (415) 637-8294
+   - UK: +44 XX XXXX XXXX - e.g., +44 20 7839 5471, +44 7842 156 923
+   - Germany: +49 XX XXXXXXXX - e.g., +49 30 25847631, +49 176 48293651
+   - France: +33 X XX XX XX XX - e.g., +33 1 42 86 57 34, +33 6 78 42 91 53
+   - Italy: +39 XX XXXX XXXX - e.g., +39 02 4867 2391, +39 347 892 4156
+   - Spain: +34 XXX XXX XXX - e.g., +34 91 847 2563, +34 628 471 935
+   - Poland: +48 XX XXX XX XX - e.g., +48 22 847 63 91, +48 512 847 293
+   - Netherlands: +31 XX XXX XXXX - e.g., +31 20 847 3926, +31 6 48271935
+   - Ukraine: +380 XX XXX XXXX - e.g., +380 44 892 4731, +380 67 482 9135
+   - Australia: +61 X XXXX XXXX - e.g., +61 2 8471 2936, +61 412 847 293
+   - Switzerland: +41 XX XXX XX XX - e.g., +41 44 847 29 36, +41 79 482 71 93
+   - Austria: +43 X XXX XX XX - e.g., +43 1 847 29 36, +43 664 847 2931
+   - Belgium: +32 X XXX XX XX - e.g., +32 2 847 29 36, +32 470 84 72 93
+   - Portugal: +351 XX XXX XXXX - e.g., +351 21 847 2936, +351 912 847 293
+   - Czech Republic: +420 XXX XXX XXX - e.g., +420 221 847 293, +420 602 847 291
+   - Sweden: +46 X XXX XXX XX - e.g., +46 8 847 293 64, +46 70 847 29 36
+   - Norway: +47 XX XX XX XX - e.g., +47 22 84 72 93, +47 912 84 729
+   - Denmark: +45 XX XX XX XX - e.g., +45 32 84 72 93, +45 20 84 72 93
    
 2. **CLICKABLE with tel: links** - ALWAYS wrap phone numbers in anchor tags:
    <a href="tel:+14155551234">+1 (415) 555-1234</a>
 
-3. **NEVER use fake numbers like 1234567, 0000000, or 123-456-7890**
-4. **Avoid obvious placeholders** like 555, repeated digits (1111), or sequences (1234)
+3. **NEVER use obviously fake numbers** like 1234567, 0000000, 123-456-7890, or all same digits
+4. **NEVER use placeholder patterns** like 555, 1111, 2222, 1234, 5678 or any repeated/sequential digits
+5. **ALWAYS generate RANDOM, REALISTIC digits** that could be real phone numbers
+6. **Match the country/geo of the website** - If the site is for Germany, use German phone format
 
-5. **Match the country/language of the website** - If the site is for Germany, use German phone format
+**🏠 ADDRESSES - MANDATORY REQUIREMENTS:**
+All physical addresses MUST be:
+1. **REALISTIC and from the specified country/city** - Use real street names, real neighborhoods, real postal codes:
+   - USA: 847 Madison Avenue, New York, NY 10065 / 2847 Sunset Boulevard, Los Angeles, CA 90028
+   - UK: 47 King's Road, London SW3 4ND / 128 Princes Street, Edinburgh EH2 4AD
+   - Germany: Friedrichstraße 147, 10117 Berlin / Maximilianstraße 28, 80539 München
+   - France: 47 Rue du Faubourg Saint-Honoré, 75008 Paris / 28 Cours Mirabeau, 13100 Aix-en-Provence
+   - Italy: Via del Corso 147, 00186 Roma / Via Montenapoleone 28, 20121 Milano
+   - Spain: Calle Serrano 47, 28001 Madrid / Passeig de Gràcia 28, 08007 Barcelona
+   - Poland: ul. Nowy Świat 47, 00-042 Warszawa / ul. Floriańska 28, 31-021 Kraków
+   - Netherlands: Herengracht 147, 1015 BH Amsterdam / Coolsingel 47, 3012 AA Rotterdam
+   - Ukraine: вул. Хрещатик 47, Київ 01001 / вул. Дерибасівська 28, Одеса 65026
+   - Australia: 47 Collins Street, Melbourne VIC 3000 / 128 Pitt Street, Sydney NSW 2000
+   - Switzerland: Bahnhofstrasse 47, 8001 Zürich / Rue du Rhône 28, 1204 Genève
+   - Austria: Kärntner Straße 47, 1010 Wien / Getreidegasse 28, 5020 Salzburg
+   - Belgium: Avenue Louise 147, 1050 Bruxelles / Meir 47, 2000 Antwerpen
+   - Portugal: Avenida da Liberdade 147, 1250-096 Lisboa / Rua de Santa Catarina 28, 4000-442 Porto
+   - Czech Republic: Václavské náměstí 47, 110 00 Praha 1 / Masarykova 28, 602 00 Brno
+   - Sweden: Kungsgatan 47, 111 56 Stockholm / Avenyn 28, 411 36 Göteborg
+   - Norway: Karl Johans gate 47, 0162 Oslo / Bryggen 28, 5003 Bergen
+   - Denmark: Strøget 47, 1160 København / Vestergade 28, 8000 Aarhus
+
+2. **Use REAL street names** from the specified city - research or use well-known streets
+3. **Include proper postal/ZIP codes** that match the city format
+4. **NEVER use fake addresses** like "123 Main Street" or "456 Example Ave"
+5. **Match the country/geo of the website** - If site is for Berlin, use a real Berlin address
 
 **🗺️ GOOGLE MAPS - MANDATORY REQUIREMENTS FOR CONTACT PAGE:**
 Every contact page MUST include a WORKING, PROPERLY DISPLAYED Google Map. This is NON-NEGOTIABLE.
