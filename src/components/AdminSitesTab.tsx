@@ -53,8 +53,8 @@ interface GenerationItem {
   language: string;
   created_at: string;
   completed_at: string | null;
-  zip_data: string | null;
-  files_data: unknown;
+  zip_data?: string | null;
+  files_data?: unknown;
   website_type: string | null;
   site_name: string | null;
   status: string;
@@ -220,8 +220,9 @@ export const AdminSitesTab = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("generation_history")
-      .select("*")
-      .order("created_at", { ascending: false });
+      .select("id, number, prompt, improved_prompt, language, created_at, completed_at, website_type, site_name, status, error_message, ai_model, user_id, team_id, sale_price")
+      .order("created_at", { ascending: false })
+      .limit(500);
 
     if (error) {
       console.error("Error fetching generations:", error);
