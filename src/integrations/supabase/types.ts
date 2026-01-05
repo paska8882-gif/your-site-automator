@@ -322,6 +322,7 @@ export type Database = {
           currency: string
           generation_id: string
           id: string
+          is_favorite: boolean
           notes: string | null
           spend_amount: number
           updated_at: string
@@ -332,6 +333,7 @@ export type Database = {
           currency?: string
           generation_id: string
           id?: string
+          is_favorite?: boolean
           notes?: string | null
           spend_amount?: number
           updated_at?: string
@@ -342,6 +344,7 @@ export type Database = {
           currency?: string
           generation_id?: string
           id?: string
+          is_favorite?: boolean
           notes?: string | null
           spend_amount?: number
           updated_at?: string
