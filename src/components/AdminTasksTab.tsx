@@ -48,16 +48,16 @@ interface Team {
 }
 
 const statusConfig = {
-  todo: { label: "До виконання", color: "bg-gradient-to-r from-slate-600 to-slate-700 text-white border-slate-800 shadow-slate-900/20" },
-  in_progress: { label: "В процесі", color: "bg-gradient-to-r from-blue-700 to-blue-900 text-white border-blue-950 shadow-blue-900/30" },
-  done: { label: "Виконано", color: "bg-gradient-to-r from-emerald-600 to-emerald-800 text-white border-emerald-900 shadow-emerald-900/30" },
-  problematic: { label: "Проблемні", color: "bg-gradient-to-r from-red-600 to-red-800 text-white border-red-900 shadow-red-900/30" },
+  todo: { label: "До виконання", color: "bg-gradient-to-r from-slate-500 to-slate-600 text-white border-slate-700 shadow-lg" },
+  in_progress: { label: "В процесі", color: "bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-700 shadow-lg" },
+  done: { label: "Виконано", color: "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-emerald-700 shadow-lg" },
+  problematic: { label: "Проблемні", color: "bg-gradient-to-r from-red-500 to-red-600 text-white border-red-700 shadow-lg" },
 };
 
 const priorityConfig = {
-  low: { label: "Низький", color: "text-slate-500", bgColor: "bg-slate-100 dark:bg-slate-800", icon: "border-l-slate-400" },
-  medium: { label: "Середній", color: "text-amber-500", bgColor: "bg-amber-100 dark:bg-amber-900/30", icon: "border-l-amber-500" },
-  high: { label: "Високий", color: "text-red-500", bgColor: "bg-red-100 dark:bg-red-900/30", icon: "border-l-red-500" },
+  low: { label: "Низький", color: "text-slate-300", bgColor: "bg-slate-600/50", icon: "border-l-slate-400" },
+  medium: { label: "Середній", color: "text-amber-300", bgColor: "bg-amber-600/50", icon: "border-l-amber-400" },
+  high: { label: "Високий", color: "text-red-300", bgColor: "bg-red-600/50", icon: "border-l-red-400" },
 };
 
 export const AdminTasksTab = () => {
@@ -380,13 +380,13 @@ export const AdminTasksTab = () => {
   const getCardBackground = (status: "todo" | "in_progress" | "done" | "problematic") => {
     switch (status) {
       case "todo":
-        return "bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 hover:from-slate-200 hover:to-slate-300 dark:hover:from-slate-700 dark:hover:to-slate-800";
+        return "bg-slate-800/60 hover:bg-slate-700/70";
       case "in_progress":
-        return "bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-950 hover:from-blue-200 hover:to-blue-300 dark:hover:from-blue-800 dark:hover:to-blue-900";
+        return "bg-blue-900/60 hover:bg-blue-800/70";
       case "done":
-        return "bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900 dark:to-emerald-950 hover:from-emerald-200 hover:to-emerald-300 dark:hover:from-emerald-800 dark:hover:to-emerald-900";
+        return "bg-emerald-900/60 hover:bg-emerald-800/70";
       case "problematic":
-        return "bg-gradient-to-br from-red-100 to-red-200 dark:from-red-900 dark:to-red-950 hover:from-red-200 hover:to-red-300 dark:hover:from-red-800 dark:hover:to-red-900";
+        return "bg-red-900/60 hover:bg-red-800/70";
     }
   };
 
