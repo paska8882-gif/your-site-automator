@@ -83,6 +83,12 @@ export const AdminUsersManager = () => {
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   
+  // Approve pending dialog
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [pendingToApprove, setPendingToApprove] = useState<PendingMember | null>(null);
+  const [approveTeam, setApproveTeam] = useState<string>("");
+  const [approveRole, setApproveRole] = useState<TeamRole>("buyer");
+  
   // Assign to team dialog
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithRoles | null>(null);
@@ -203,24 +209,45 @@ export const AdminUsersManager = () => {
     setLoading(false);
   };
 
-  const handleApprovePending = async (member: PendingMember) => {
-    setApprovingId(member.id);
+  const openApproveDialog = (member: PendingMember) => {
+    setPendingToApprove(member);
+    setApproveTeam(member.team_id);
+    setApproveRole(member.role);
+    setApproveDialogOpen(true);
+  };
+
+  const handleApprovePending = async () => {
+    if (!pendingToApprove) return;
+    
+    setApprovingId(pendingToApprove.id);
     try {
+      // If team changed, need to update team_id as well
+      const updateData: any = { 
+        status: "approved",
+        approved_at: new Date().toISOString(),
+        role: approveRole
+      };
+      
+      if (approveTeam !== pendingToApprove.team_id) {
+        updateData.team_id = approveTeam;
+      }
+      
       const { error } = await supabase
         .from("team_members")
-        .update({ 
-          status: "approved",
-          approved_at: new Date().toISOString()
-        })
-        .eq("id", member.id);
+        .update(updateData)
+        .eq("id", pendingToApprove.id);
 
       if (error) throw error;
 
+      const teamName = teams.find(t => t.id === approveTeam)?.name || "команди";
+      
       toast({
         title: "Успішно",
-        description: `${member.display_name || member.user_id.slice(0, 8)} додано до команди ${member.team_name}`
+        description: `${pendingToApprove.display_name || pendingToApprove.user_id.slice(0, 8)} додано до ${teamName} як ${roleLabels[approveRole]}`
       });
       
+      setApproveDialogOpen(false);
+      setPendingToApprove(null);
       fetchData();
     } catch (error) {
       toast({
@@ -646,17 +673,11 @@ export const AdminUsersManager = () => {
                             variant="default"
                             size="sm"
                             className="h-6 text-[10px] px-1.5 bg-green-600 hover:bg-green-700"
-                            onClick={() => handleApprovePending(member)}
+                            onClick={() => openApproveDialog(member)}
                             disabled={approvingId === member.id || rejectingId === member.id}
                           >
-                            {approvingId === member.id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <>
-                                <UserCheck className="h-3 w-3 mr-0.5" />
-                                Схвалити
-                              </>
-                            )}
+                            <UserCheck className="h-3 w-3 mr-0.5" />
+                            Схвалити
                           </Button>
                           <Button
                             variant="destructive"
@@ -959,6 +980,69 @@ export const AdminUsersManager = () => {
               {selectedUser?.teams.find(t => t.team_id === selectedTeam) 
                 ? "Оновити роль" 
                 : "Призначити"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approve Pending Dialog */}
+      <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Схвалити запит: {pendingToApprove?.display_name || pendingToApprove?.user_id.slice(0, 8)}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {pendingToApprove?.invite_code && (
+              <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                <Ticket className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">Інвайт-код: <span className="font-mono font-medium">{pendingToApprove.invite_code}</span></span>
+              </div>
+            )}
+            <div>
+              <label className="text-sm font-medium">Команда</label>
+              <Select value={approveTeam} onValueChange={setApproveTeam}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Виберіть команду" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teams.map(team => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.name}
+                      {team.id === pendingToApprove?.team_id && (
+                        <span className="ml-2 text-muted-foreground">(оригінал)</span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Роль</label>
+              <Select value={approveRole} onValueChange={(v) => setApproveRole(v as TeamRole)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="owner">Owner</SelectItem>
+                  <SelectItem value="team_lead">Team Lead</SelectItem>
+                  <SelectItem value="buyer">Buyer</SelectItem>
+                  <SelectItem value="tech_dev">Tech Dev</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button 
+              onClick={handleApprovePending} 
+              disabled={!approveTeam || approvingId === pendingToApprove?.id}
+              className="w-full bg-green-600 hover:bg-green-700"
+            >
+              {approvingId === pendingToApprove?.id ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <UserCheck className="h-4 w-4 mr-2" />
+              )}
+              Схвалити
             </Button>
           </div>
         </DialogContent>
