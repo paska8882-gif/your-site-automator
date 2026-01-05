@@ -40,8 +40,8 @@ CONTENT:
 - key offerings: <bullets>
 - primary CTAs: <bullets>
 CONTACT:
-- phone: <required format + must be clickable tel:>
-- email: <if present>
+- phone: <required format + must be clickable tel: link>
+- email: <if present + must be clickable mailto: link>
 - address: <if present>
 `.trim();
 
@@ -303,6 +303,61 @@ All phone numbers MUST be:
 
 5. **Match the country/language of the website** - If the site is for Germany, use German phone format
 
+**📧 EMAIL ADDRESSES - MANDATORY CLICKABLE LINKS:**
+All email addresses MUST be clickable with mailto: links:
+1. **ALWAYS wrap emails in anchor tags:**
+   <a href="mailto:info@company.com">info@company.com</a>
+   <a href="mailto:support@company.com">support@company.com</a>
+
+2. **Use realistic business emails** matching the company name/domain
+3. **NEVER display plain text emails** - they MUST be clickable
+
+**🙏 THANK YOU PAGE - MANDATORY FOR ALL WEBSITES:**
+Every website MUST include a thank-you.html page that users see after submitting ANY form:
+
+1. **Create thank-you.html** with:
+   - Same header/navigation as other pages
+   - Hero section with success message
+   - Thank you heading (in site language):
+     - EN: "Thank You!", "We've Received Your Message"
+     - DE: "Vielen Dank!", "Wir haben Ihre Nachricht erhalten"
+     - UK: "Дякуємо!", "Ми отримали ваше повідомлення"
+     - FR: "Merci!", "Nous avons reçu votre message"
+     - PL: "Dziękujemy!", "Otrzymaliśmy Twoją wiadomość"
+   - Friendly message explaining next steps
+   - Button to return to homepage: <a href="index.html">Return to Home</a>
+   - Same footer as other pages
+
+2. **ALL forms MUST redirect to thank-you.html after submission:**
+   - Contact forms
+   - Newsletter signup forms
+   - Callback request forms
+   - Any other forms
+
+3. **Form submission handler (include in forms):**
+\`\`\`html
+<form action="thank-you.html" method="GET" onsubmit="handleFormSubmit(event)">
+  <!-- form fields -->
+  <button type="submit">Submit</button>
+</form>
+
+<script>
+function handleFormSubmit(event) {
+  event.preventDefault();
+  // Here you would normally send data to server
+  // For static site, redirect to thank you page
+  window.location.href = 'thank-you.html';
+}
+</script>
+\`\`\`
+
+4. **Thank you page content requirements:**
+   - Confirmation icon or checkmark
+   - Clear success message
+   - Information about response time (e.g., "We'll respond within 24 hours")
+   - Contact info for urgent matters
+   - Link back to homepage
+
 **🗺️ GOOGLE MAPS - MANDATORY REQUIREMENTS FOR CONTACT PAGE:**
 Every contact page MUST include a WORKING, PROPERLY DISPLAYED Google Map. This is NON-NEGOTIABLE.
 
@@ -453,6 +508,49 @@ Each main page MUST include AT LEAST these sections (in order):
 - Hover/focus states
 - Form styling
 - Active navigation link styling
+- Thank you page styling (success icon, centered content)
+
+**THANK YOU PAGE CSS (MANDATORY):**
+\`\`\`css
+.thank-you-section {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 80px 20px;
+}
+
+.thank-you-icon {
+  width: 80px;
+  height: 80px;
+  background: var(--primary-color);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 30px;
+}
+
+.thank-you-icon svg {
+  width: 40px;
+  height: 40px;
+  color: white;
+}
+
+.thank-you-section h1 {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  margin-bottom: 20px;
+}
+
+.thank-you-section p {
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  max-width: 600px;
+  margin-bottom: 30px;
+}
+\`\`\`
 
 `.trim();
 
