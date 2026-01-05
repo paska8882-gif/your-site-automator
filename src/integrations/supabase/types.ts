@@ -695,6 +695,33 @@ export type Database = {
         }
         Relationships: []
       }
+      spend_sets: {
+        Row: {
+          created_at: string
+          generation_ids: Json
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          generation_ids?: Json
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          generation_ids?: Json
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       support_conversations: {
         Row: {
           created_at: string
