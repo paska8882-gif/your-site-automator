@@ -81,6 +81,35 @@ VERIFICATION CHECKLIST:
 ✓ Site deploys successfully to Netlify`;
 }
 
+// Helper function for fetch with retry logic
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries: number = 3,
+  delayMs: number = 2000
+): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[v0-proxy] Fetch attempt ${attempt}/${maxRetries} for ${url.substring(0, 50)}...`);
+      const response = await fetch(url, options);
+      return response;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.error(`[v0-proxy] Attempt ${attempt} failed:`, lastError.message);
+      
+      if (attempt < maxRetries) {
+        console.log(`[v0-proxy] Waiting ${delayMs}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        delayMs *= 1.5; // Exponential backoff
+      }
+    }
+  }
+  
+  throw lastError || new Error("All fetch attempts failed");
+}
+
 async function runV0Generation(
   supabase: SupabaseClient,
   historyId: string,
@@ -92,20 +121,25 @@ async function runV0Generation(
   try {
     const finalPrompt = buildFinalPrompt(prompt);
     
-    // Step 1: Create a new chat on v0.dev
+    // Step 1: Create a new chat on v0.dev with retry
     console.log("[v0-proxy] Creating new chat on v0.dev...");
-    const createResponse = await fetch("https://api.v0.dev/v1/chats", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${V0_API_KEY}`,
-        "Content-Type": "application/json",
+    const createResponse = await fetchWithRetry(
+      "https://api.v0.dev/v1/chats",
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${V0_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: finalPrompt,
+          system: V0_SYSTEM_INSTRUCTION,
+          responseMode: "sync",
+        }),
       },
-      body: JSON.stringify({
-        message: finalPrompt,
-        system: V0_SYSTEM_INSTRUCTION,
-        responseMode: "sync",
-      }),
-    });
+      3,
+      2000
+    );
 
     if (!createResponse.ok) {
       const errorText = await createResponse.text();
@@ -123,17 +157,22 @@ async function runV0Generation(
       throw new Error("Missing chatId or versionId from v0.dev response");
     }
 
-    // Step 2: Download the generated ZIP file
+    // Step 2: Download the generated ZIP file with retry
     console.log("[v0-proxy] Downloading ZIP from v0.dev...");
     const downloadUrl = `https://api.v0.dev/v1/chats/${chatId}/versions/${versionId}/download?format=zip&includeDefaultFiles=true`;
     
-    const downloadResponse = await fetch(downloadUrl, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${V0_API_KEY}`,
+    const downloadResponse = await fetchWithRetry(
+      downloadUrl,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${V0_API_KEY}`,
         "Content-Type": "application/json",
       },
-    });
+    },
+    3,
+    2000
+  );
 
     if (!downloadResponse.ok) {
       const errorText = await downloadResponse.text();
