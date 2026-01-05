@@ -124,9 +124,7 @@ export function AppSidebar() {
               <span className="font-semibold text-sm tracking-tight truncate text-sidebar-foreground">
                 DRAGON<span className="text-sidebar-muted">WHITE</span>
               </span>
-              <span className="text-[10px] text-sidebar-muted">
-                {theme === 'light' ? '☀️ Світла' : theme === 'dark' ? '🌙 Темна' : '🌊 Синя'}
-              </span>
+              <span className="text-[10px] text-sidebar-muted">AI Generator</span>
             </div>
           )}
         </div>
