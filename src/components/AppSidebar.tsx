@@ -37,7 +37,8 @@ import {
   CreditCard,
   Gift,
   ClipboardList,
-  Gauge
+  Gauge,
+  TrendingUp
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -51,6 +52,7 @@ import { SupportChat } from "./SupportChat";
 const mainNavItems = [
   { title: "Генератор", url: "/", icon: Sparkles },
   { title: "Історія", url: "/history", icon: History },
+  { title: "Спенди", url: "/spends", icon: TrendingUp },
   { title: "Баланс", url: "/balance", icon: Wallet },
   { title: "Команда", url: "/team", icon: Users },
 ];

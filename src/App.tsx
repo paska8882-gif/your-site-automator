@@ -15,6 +15,7 @@ import Team from "./pages/Team";
 import History from "./pages/History";
 import Balance from "./pages/Balance";
 import Dashboard from "./pages/Dashboard";
+import Spends from "./pages/Spends";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
               <Route path="/team" element={<Team />} />
               <Route path="/history" element={<History />} />
               <Route path="/balance" element={<Balance />} />
+              <Route path="/spends" element={<Spends />} />
               <Route path="/dashboard" element={<Dashboard />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
