@@ -8,20 +8,33 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Save, DollarSign, TrendingUp, FileText } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Loader2, Save, DollarSign, TrendingUp, FileText, ChevronDown, ChevronRight, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { SimplePreview } from "@/components/SimplePreview";
+
+interface GeneratedFile {
+  path: string;
+  content: string;
+}
 
 interface GenerationWithSpend {
   id: string;
   number: number;
   prompt: string;
+  improved_prompt: string | null;
   site_name: string | null;
   language: string;
   website_type: string | null;
   ai_model: string | null;
+  specific_ai_model: string | null;
   created_at: string;
+  completed_at: string | null;
   status: string;
+  files_data: GeneratedFile[] | null;
+  generation_cost: number | null;
+  sale_price: number | null;
   spend_id: string | null;
   spend_amount: number;
   spend_notes: string | null;
@@ -34,6 +47,19 @@ const Spends = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [editedSpends, setEditedSpends] = useState<Record<string, { amount: string; notes: string }>>({});
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  const toggleRow = (id: string) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -52,7 +78,7 @@ const Spends = () => {
 
     const { data: genData, error: genError } = await supabase
       .from("generation_history")
-      .select("id, number, prompt, site_name, language, website_type, ai_model, created_at, status")
+      .select("id, number, prompt, improved_prompt, site_name, language, website_type, ai_model, specific_ai_model, created_at, completed_at, status, files_data, generation_cost, sale_price")
       .eq("user_id", user.id)
       .eq("status", "completed")
       .order("created_at", { ascending: false });
@@ -82,6 +108,7 @@ const Spends = () => {
 
     const combined: GenerationWithSpend[] = (genData || []).map(g => ({
       ...g,
+      files_data: (Array.isArray(g.files_data) ? g.files_data as unknown as GeneratedFile[] : null),
       spend_id: spendsMap[g.id]?.id || null,
       spend_amount: spendsMap[g.id]?.spend_amount || 0,
       spend_notes: spendsMap[g.id]?.notes || null,
@@ -244,6 +271,7 @@ const Spends = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10"></TableHead>
                       <TableHead className="w-16">#</TableHead>
                       <TableHead>Назва / Промпт</TableHead>
                       <TableHead className="w-24">Мова</TableHead>
@@ -256,64 +284,147 @@ const Spends = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {generations.map((gen) => (
-                      <TableRow key={gen.id}>
-                        <TableCell className="font-mono text-muted-foreground">
-                          {gen.number}
-                        </TableCell>
-                        <TableCell className="max-w-[200px]">
-                          <p className="font-medium truncate">
-                            {gen.site_name || gen.prompt.slice(0, 50) + (gen.prompt.length > 50 ? "..." : "")}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{gen.language}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{gen.website_type || "html"}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={gen.ai_model === "senior" ? "default" : "outline"}>
-                            {gen.ai_model || "junior"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">
-                          {format(new Date(gen.created_at), "dd.MM.yyyy")}
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={editedSpends[gen.id]?.amount || "0"}
-                            onChange={(e) => handleAmountChange(gen.id, e.target.value)}
-                            className="w-24"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="text"
-                            placeholder="Нотатки..."
-                            value={editedSpends[gen.id]?.notes || ""}
-                            onChange={(e) => handleNotesChange(gen.id, e.target.value)}
-                            className="w-40"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            size="sm"
-                            onClick={() => handleSaveSpend(gen.id)}
-                            disabled={saving === gen.id}
-                          >
-                            {saving === gen.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Save className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {generations.map((gen) => {
+                      const isExpanded = expandedRows.has(gen.id);
+                      return (
+                        <>
+                          <TableRow key={gen.id} className="cursor-pointer hover:bg-muted/50" onClick={() => toggleRow(gen.id)}>
+                            <TableCell className="p-2">
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TableCell>
+                            <TableCell className="font-mono text-muted-foreground">
+                              {gen.number}
+                            </TableCell>
+                            <TableCell className="max-w-[200px]">
+                              <p className="font-medium truncate">
+                                {gen.site_name || gen.prompt.slice(0, 50) + (gen.prompt.length > 50 ? "..." : "")}
+                              </p>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{gen.language}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">{gen.website_type || "html"}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={gen.ai_model === "senior" ? "default" : "outline"}>
+                                {gen.ai_model || "junior"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {format(new Date(gen.created_at), "dd.MM.yyyy")}
+                            </TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={editedSpends[gen.id]?.amount || "0"}
+                                onChange={(e) => handleAmountChange(gen.id, e.target.value)}
+                                className="w-24"
+                              />
+                            </TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <Input
+                                type="text"
+                                placeholder="Нотатки..."
+                                value={editedSpends[gen.id]?.notes || ""}
+                                onChange={(e) => handleNotesChange(gen.id, e.target.value)}
+                                className="w-40"
+                              />
+                            </TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                size="sm"
+                                onClick={() => handleSaveSpend(gen.id)}
+                                disabled={saving === gen.id}
+                              >
+                                {saving === gen.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Save className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                          {isExpanded && (
+                            <TableRow key={`${gen.id}-expanded`}>
+                              <TableCell colSpan={10} className="p-0 bg-muted/30">
+                                <div className="p-4 space-y-4">
+                                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                    {/* Left side - Details */}
+                                    <div className="space-y-4">
+                                      <div>
+                                        <h4 className="font-semibold text-sm mb-2">Промпт:</h4>
+                                        <p className="text-sm text-muted-foreground bg-background p-3 rounded-md border">
+                                          {gen.prompt}
+                                        </p>
+                                      </div>
+                                      
+                                      {gen.improved_prompt && (
+                                        <div>
+                                          <h4 className="font-semibold text-sm mb-2">Покращений промпт:</h4>
+                                          <p className="text-sm text-muted-foreground bg-background p-3 rounded-md border">
+                                            {gen.improved_prompt}
+                                          </p>
+                                        </div>
+                                      )}
+
+                                      <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                          <span className="text-muted-foreground">Модель AI:</span>
+                                          <p className="font-medium">{gen.specific_ai_model || gen.ai_model || "junior"}</p>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Завершено:</span>
+                                          <p className="font-medium">
+                                            {gen.completed_at 
+                                              ? format(new Date(gen.completed_at), "dd.MM.yyyy HH:mm")
+                                              : "—"
+                                            }
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Вартість генерації:</span>
+                                          <p className="font-medium">${gen.generation_cost?.toFixed(2) || "—"}</p>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Ціна продажу:</span>
+                                          <p className="font-medium">${gen.sale_price?.toFixed(2) || "—"}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Right side - Preview */}
+                                    <div>
+                                      <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                                        <Eye className="h-4 w-4" />
+                                        Превʼю сайту:
+                                      </h4>
+                                      {gen.files_data && gen.files_data.length > 0 ? (
+                                        <div className="border rounded-lg overflow-hidden bg-white h-[300px]">
+                                          <SimplePreview files={gen.files_data} websiteType={gen.website_type || "html"} />
+                                        </div>
+                                      ) : (
+                                        <div className="border rounded-lg h-[300px] flex items-center justify-center text-muted-foreground">
+                                          Немає файлів для превʼю
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
