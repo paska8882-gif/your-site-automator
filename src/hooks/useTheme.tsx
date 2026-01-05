@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
-type Theme = "light" | "dark";
+type Theme = "light" | "dark" | "dark-blue";
+
+const themeOrder: Theme[] = ["light", "dark", "dark-blue"];
 
 interface ThemeContextType {
   theme: Theme;
@@ -13,21 +15,29 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     const stored = localStorage.getItem("theme");
-    return (stored as Theme) || "dark";
+    if (stored === "light" || stored === "dark" || stored === "dark-blue") {
+      return stored;
+    }
+    return "dark-blue";
   });
 
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
+    // Remove all theme classes
+    root.classList.remove("light", "dark", "dark-blue");
+    // Add current theme class
+    if (theme !== "light") {
+      root.classList.add(theme);
     }
     localStorage.setItem("theme", theme);
   }, [theme]);
 
   const toggleTheme = () => {
-    setThemeState((prev) => (prev === "dark" ? "light" : "dark"));
+    setThemeState((prev) => {
+      const currentIndex = themeOrder.indexOf(prev);
+      const nextIndex = (currentIndex + 1) % themeOrder.length;
+      return themeOrder[nextIndex];
+    });
   };
 
   const setTheme = (newTheme: Theme) => {

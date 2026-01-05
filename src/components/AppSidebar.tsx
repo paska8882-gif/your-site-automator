@@ -110,6 +110,7 @@ export function AppSidebar() {
           <button
             onClick={toggleTheme}
             className="relative group cursor-pointer"
+            title={`Тема: ${theme === 'light' ? 'Світла' : theme === 'dark' ? 'Темна' : 'Синя'}`}
           >
             {/* Glow effect */}
             <div className="absolute inset-0 rounded-lg blur-md animate-pulse opacity-30 pointer-events-none bg-sidebar-primary" />
@@ -123,7 +124,9 @@ export function AppSidebar() {
               <span className="font-semibold text-sm tracking-tight truncate text-sidebar-foreground">
                 DRAGON<span className="text-sidebar-muted">WHITE</span>
               </span>
-              <span className="text-[10px] text-sidebar-muted">AI Generator</span>
+              <span className="text-[10px] text-sidebar-muted">
+                {theme === 'light' ? '☀️ Світла' : theme === 'dark' ? '🌙 Темна' : '🌊 Синя'}
+              </span>
             </div>
           )}
         </div>
