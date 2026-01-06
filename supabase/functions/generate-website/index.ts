@@ -690,6 +690,32 @@ url('https://picsum.photos/1920/1080?random=1')
 
 **IMPORTANT:** Use DIFFERENT random= numbers for each image (random=1, random=2, random=3, etc.) so images are unique!
 **Alt text MUST be in the same language as the website content!**
+
+**🏢 BRAND LOGOS - USE REAL LOGOS, NOT PLACEHOLDERS:**
+For partner logos, client logos, certification badges, or any brand logos - ALWAYS use real logos from CDN services:
+
+**Logo CDN Sources (use these URLs):**
+- https://logo.clearbit.com/[company-domain] - e.g., https://logo.clearbit.com/google.com
+- https://cdn.brandfetch.io/[company-domain]/w/400/h/400 - e.g., https://cdn.brandfetch.io/apple.com/w/400/h/400
+
+**Industry-Specific Logo Examples:**
+- Tech/Software: google.com, microsoft.com, aws.amazon.com, github.com, stripe.com, slack.com
+- E-commerce/Payments: visa.com, mastercard.com, paypal.com, shopify.com, amazon.com
+- Shipping/Logistics: dhl.com, fedex.com, ups.com, dpd.com
+- Cloud/Hosting: cloudflare.com, digitalocean.com, heroku.com, vercel.com
+- Certifications: iso.org, tuv.com, bsigroup.com
+- Social: facebook.com, instagram.com, twitter.com, linkedin.com, youtube.com
+
+**Usage in HTML:**
+<img src="https://logo.clearbit.com/stripe.com" alt="Stripe" class="partner-logo" loading="lazy">
+<img src="https://logo.clearbit.com/visa.com" alt="Visa" class="payment-logo" loading="lazy">
+
+**RULES:**
+- NEVER use placeholder logos or generic icons for brand logos
+- Choose logos that make sense for the website's industry
+- Use 4-8 partner/client logos in "Partners" or "Trusted By" sections
+- Include relevant payment logos on e-commerce sites
+- Add certification logos for professional services
 `.trim();
 
 // Pexels API helper function
