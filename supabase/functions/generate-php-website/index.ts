@@ -983,7 +983,7 @@ Generate COMPLETE files with full HTML, CSS, and PHP code.
 Use proper PHP includes on every page.`,
         },
       ],
-      max_tokens: 32000,
+      max_tokens: 16000,
       temperature: 0.6,
     }),
   });
