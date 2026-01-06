@@ -178,7 +178,7 @@ function SingleHistoryItem({
                 </span>
               )}
               <Badge variant="outline" className="text-xs px-1.5 py-0 h-5">
-                {item.website_type === "react" ? "React" : "HTML"}
+                {item.website_type === "react" ? "React" : item.website_type === "php" ? "PHP" : "HTML"}
               </Badge>
               {item.status === "completed" && (() => {
                 const duration = getGenerationDuration(item.created_at, item.completed_at);
