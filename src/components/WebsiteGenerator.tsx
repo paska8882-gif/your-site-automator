@@ -195,6 +195,8 @@ interface GeneratorDraft {
   prompt: string;
   selectedLanguages: string[];
   selectedGeo: string;
+  customGeo: string;
+  isOtherGeoSelected: boolean;
   customLanguage: string;
   isOtherSelected: boolean;
   selectedStyles: string[];
@@ -242,6 +244,8 @@ export function WebsiteGenerator() {
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(draft.selectedLanguages || []);
   const [selectedGeo, setSelectedGeo] = useState(draft.selectedGeo || "");
+  const [customGeo, setCustomGeo] = useState(draft.customGeo || "");
+  const [isOtherGeoSelected, setIsOtherGeoSelected] = useState(draft.isOtherGeoSelected || false);
   const [customLanguage, setCustomLanguage] = useState(draft.customLanguage || "");
   const [isOtherSelected, setIsOtherSelected] = useState(draft.isOtherSelected || false);
   const [selectedStyles, setSelectedStyles] = useState<string[]>(draft.selectedStyles || []);
@@ -298,6 +302,8 @@ export function WebsiteGenerator() {
       prompt,
       selectedLanguages,
       selectedGeo,
+      customGeo,
+      isOtherGeoSelected,
       customLanguage,
       isOtherSelected,
       selectedStyles,
@@ -311,7 +317,8 @@ export function WebsiteGenerator() {
       adminGenerationMode,
     });
   }, [
-    siteName, prompt, selectedLanguages, selectedGeo, customLanguage, isOtherSelected,
+    siteName, prompt, selectedLanguages, selectedGeo, customGeo, isOtherGeoSelected,
+    customLanguage, isOtherSelected,
     selectedStyles, customStyle, isOtherStyleSelected, sitesPerLanguage,
     selectedAiModels, selectedWebsiteTypes, selectedImageSources,
     seniorMode, adminGenerationMode
@@ -528,6 +535,8 @@ export function WebsiteGenerator() {
   const clearAllParameters = () => {
     setSelectedLanguages([]);
     setSelectedGeo("");
+    setCustomGeo("");
+    setIsOtherGeoSelected(false);
     setCustomLanguage("");
     setIsOtherSelected(false);
     setSelectedStyles([]);
@@ -1054,8 +1063,10 @@ export function WebsiteGenerator() {
         // Use original prompt for display, improved prompt for generation (if available)
         const promptForDisplay = originalPrompt || prompt;
         const promptForGeneration = improvedPromptValue || prompt;
-        // Pass geo only if selected (not empty or "none")
-        const geoToUse = selectedGeo && selectedGeo !== "none" ? selectedGeo : undefined;
+        // Pass geo: custom geo if "other" selected, otherwise selected geo (if not empty or "none")
+        const geoToUse = isOtherGeoSelected && customGeo 
+          ? customGeo 
+          : (selectedGeo && selectedGeo !== "none" ? selectedGeo : undefined);
         // Pass improved prompt only if it was manually improved via the button
         const result = await startGeneration(promptForDisplay, lang, model, wType, style, siteName, currentSeniorMode, iSource, teamIdToUse, improvedPromptValue || undefined, geoToUse);
         setGenerationProgress(prev => ({ ...prev, completed: prev.completed + 1 }));
@@ -1685,23 +1696,62 @@ export function WebsiteGenerator() {
               {/* Geo Select */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Гео</Label>
-                <Select 
-                  value={selectedGeo || "none"} 
-                  onValueChange={(v) => setSelectedGeo(v === "none" ? "" : v)} 
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger className="w-full h-8 text-xs">
-                    <MapPin className="h-3.5 w-3.5 mr-1" />
-                    <SelectValue placeholder="Не вибрано" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {geoOptions.map((geo) => (
-                      <SelectItem key={geo.value || "none"} value={geo.value || "none"}>
-                        {geo.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between h-8 text-xs" disabled={isSubmitting}>
+                      <div className="flex items-center">
+                        <MapPin className="h-3.5 w-3.5 mr-1" />
+                        <span className="truncate">
+                          {isOtherGeoSelected && customGeo 
+                            ? customGeo 
+                            : selectedGeo 
+                              ? geoOptions.find(g => g.value === selectedGeo)?.label || selectedGeo
+                              : "Не вибрано"}
+                        </span>
+                      </div>
+                      <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-2 max-h-64 overflow-y-auto" align="start">
+                    <div className="space-y-1">
+                      {geoOptions.map((geo) => (
+                        <label key={geo.value || "none"} className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
+                          <Checkbox
+                            checked={!isOtherGeoSelected && selectedGeo === geo.value}
+                            onCheckedChange={() => {
+                              setSelectedGeo(geo.value);
+                              setIsOtherGeoSelected(false);
+                              setCustomGeo("");
+                            }}
+                          />
+                          <span className="text-xs">{geo.label}</span>
+                        </label>
+                      ))}
+                      <div className="border-t my-1 pt-1">
+                        <label className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
+                          <Checkbox
+                            checked={isOtherGeoSelected}
+                            onCheckedChange={(checked) => {
+                              setIsOtherGeoSelected(!!checked);
+                              if (checked) {
+                                setSelectedGeo("");
+                              }
+                            }}
+                          />
+                          <span className="text-xs">Інше</span>
+                        </label>
+                        {isOtherGeoSelected && (
+                          <Input
+                            placeholder="Введіть своє гео..."
+                            value={customGeo}
+                            onChange={(e) => setCustomGeo(e.target.value)}
+                            className="mt-1 h-7 text-xs"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* Quantity */}
