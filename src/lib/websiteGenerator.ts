@@ -111,16 +111,20 @@ export async function startGeneration(
   improvedPrompt?: string, // AI-improved prompt (commercial secret)
   geo?: string // Target country/region for the website
 ): Promise<GenerationResult> {
-  // Если выбран режим Codex для Senior AI - обращаемся к внешнему вебхуку
-  if (aiModel === "senior" && seniorMode === "codex") {
+  // IMPORTANT: seniorMode (codex/reaktiv) only applies to React websites
+  // HTML and PHP websites always use their dedicated generation functions
+  
+  // Если выбран режим Codex для Senior AI и тип сайта React - обращаемся к внешнему вебхуку
+  if (aiModel === "senior" && seniorMode === "codex" && websiteType === "react") {
     return startCodexGeneration(prompt, language, websiteType, layoutStyle, siteName, teamId, geo);
   }
 
-  // Если выбран режим Реактивний Михайло - используем v0.dev API
-  if (aiModel === "senior" && seniorMode === "reaktiv") {
+  // Если выбран режим Реактивний Михайло и тип сайта React - используем v0.dev API
+  if (aiModel === "senior" && seniorMode === "reaktiv" && websiteType === "react") {
     return startV0Generation(prompt, language, websiteType, layoutStyle, siteName, teamId, geo);
   }
 
+  // For HTML/PHP or React without special senior mode - use appropriate function
   const functionName = websiteType === "react" 
     ? "generate-react-website" 
     : websiteType === "php" 
