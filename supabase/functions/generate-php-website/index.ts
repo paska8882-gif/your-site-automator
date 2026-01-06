@@ -161,11 +161,32 @@ const LAYOUT_VARIATIONS = [
 
 const PHP_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE PHP WEBSITE WITH PROPER PHP STRUCTURE AND WORKING NAVIGATION
 
+**⚠️ MANDATORY MULTI-PAGE REQUIREMENT - NON-NEGOTIABLE:**
+You MUST create a MINIMUM of 6 SEPARATE PHP PAGE FILES. This is ABSOLUTELY REQUIRED:
+
+REQUIRED PAGES (ALL MANDATORY):
+1. index.php - Homepage with hero, features, about preview, services preview, testimonials, CTA
+2. about.php - About Us page with company history, mission, vision, team section, values
+3. services.php - Services/Products page with detailed service descriptions, benefits, process
+4. contact.php - Contact page with form, map placeholder, contact info, working hours
+5. thank-you.php - Thank you page after form submission
+6. privacy.php - Privacy policy page with full legal text
+
+OPTIONAL ADDITIONAL PAGES (add 1-3 based on business type):
+- portfolio.php - For creative/agency businesses
+- team.php - Team members page
+- faq.php - Frequently asked questions
+- pricing.php - Pricing/packages (use "Contact for quote" instead of prices)
+- blog.php - Blog listing page
+- gallery.php - Photo gallery page
+
+**FAILURE TO CREATE ALL 6 MANDATORY PAGES = INVALID OUTPUT**
+
 **🖥️ PHP STRUCTURE - ABSOLUTELY CRITICAL:**
 This is a PHP website. You MUST:
 1. Use .php file extensions for ALL pages (index.php, about.php, services.php, contact.php, etc.)
 2. Create reusable PHP includes for header, footer, and navigation:
-   - includes/header.php - Contains <!DOCTYPE html>, <head>, navigation
+   - includes/header.php - Contains <!DOCTYPE html>, <head>, navigation with links to ALL pages
    - includes/footer.php - Contains footer content and closing </body></html>
    - includes/config.php - Contains site configuration variables
 3. Use PHP includes on every page:
@@ -184,24 +205,24 @@ This is a PHP website. You MUST:
 - Include error handling and validation
 - DO NOT use deprecated functions
 
-**EXAMPLE PHP FILE STRUCTURE:**
+**MANDATORY FILE STRUCTURE (MINIMUM):**
 \`\`\`
 includes/
-  config.php      - Site configuration
-  header.php      - Header template
-  footer.php      - Footer template
-  functions.php   - Helper functions
-index.php         - Homepage
-about.php         - About page
-services.php      - Services page
-contact.php       - Contact page with form
-form-handler.php  - Form processing
-thank-you.php     - Thank you page
-privacy.php       - Privacy policy
+  config.php      - Site configuration (REQUIRED)
+  header.php      - Header template with nav to ALL pages (REQUIRED)
+  footer.php      - Footer template (REQUIRED)
+  functions.php   - Helper functions (REQUIRED)
+index.php         - Homepage (REQUIRED)
+about.php         - About page (REQUIRED)
+services.php      - Services page (REQUIRED)
+contact.php       - Contact page with form (REQUIRED)
+form-handler.php  - Form processing (REQUIRED)
+thank-you.php     - Thank you page (REQUIRED)
+privacy.php       - Privacy policy (REQUIRED)
 css/
-  style.css       - Main stylesheet
+  style.css       - Main stylesheet (REQUIRED)
 js/
-  script.js       - JavaScript functionality
+  script.js       - JavaScript functionality (REQUIRED)
 \`\`\`
 
 **EXAMPLE config.php:**
@@ -219,7 +240,7 @@ ini_set('display_errors', 1);
 ?>
 \`\`\`
 
-**EXAMPLE header.php:**
+**EXAMPLE header.php (MUST include ALL page links):**
 \`\`\`php
 <?php require_once 'config.php'; ?>
 <!DOCTYPE html>
@@ -233,8 +254,8 @@ ini_set('display_errors', 1);
 <body>
     <header>
         <nav>
-            <a href="index.php"><?php echo SITE_NAME; ?></a>
-            <ul>
+            <a href="index.php" class="logo"><?php echo SITE_NAME; ?></a>
+            <ul class="nav-links">
                 <li><a href="index.php">Home</a></li>
                 <li><a href="about.php">About</a></li>
                 <li><a href="services.php">Services</a></li>
@@ -250,6 +271,13 @@ ini_set('display_errors', 1);
     </main>
     <footer>
         <div class="footer-content">
+            <div class="footer-links">
+                <a href="index.php">Home</a>
+                <a href="about.php">About</a>
+                <a href="services.php">Services</a>
+                <a href="contact.php">Contact</a>
+                <a href="privacy.php">Privacy Policy</a>
+            </div>
             <p>&copy; <?php echo date('Y'); ?> <?php echo SITE_NAME; ?>. All rights reserved.</p>
             <p>
                 <a href="tel:<?php echo SITE_PHONE; ?>"><?php echo SITE_PHONE; ?></a> |
@@ -281,12 +309,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($message)) $errors[] = 'Message is required';
     
     if (empty($errors)) {
-        // Here you would typically send an email or save to database
-        // For this example, we redirect to thank you page
         header('Location: thank-you.php');
         exit;
     } else {
-        // Store errors in session and redirect back
         session_start();
         $_SESSION['form_errors'] = $errors;
         $_SESSION['form_data'] = $_POST;
@@ -299,6 +324,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 \`\`\`
+
+**PAGE CONTENT REQUIREMENTS:**
+Each page MUST have UNIQUE, SUBSTANTIAL content:
+- index.php: Hero section, 3+ feature blocks, about preview, services preview, testimonials, CTA (minimum 500 words)
+- about.php: Company story, mission/vision, team section, values (minimum 400 words)
+- services.php: 3-6 detailed service descriptions with benefits (minimum 400 words)
+- contact.php: Contact form, address, phone, email, working hours, map placeholder (minimum 200 words)
+- thank-you.php: Confirmation message, next steps, links back to site (minimum 100 words)
+- privacy.php: Full privacy policy text (minimum 300 words)
 
 **🌍 LANGUAGE COMPLIANCE - ABSOLUTELY MANDATORY:**
 The website MUST be generated in the EXACT language specified in the request. This is NON-NEGOTIABLE:
@@ -336,7 +370,7 @@ The website MUST be generated in the EXACT language specified in the request. Th
 **DESIGN PHILOSOPHY - 10X BETTER UI:**
 - Start with FUNCTIONAL and BEAUTIFUL base UI
 - Use advanced CSS patterns - CSS Grid, Flexbox, custom properties
-- Modern responsive design
+- Modern responsive design with mobile menu
 - Professional color schemes
 
 **🍪 MANDATORY COOKIE SYSTEM:**
@@ -361,8 +395,8 @@ All email addresses MUST be clickable with mailto: links.
 Every website MUST include a thank-you.php page that users see after submitting forms.
 
 **CONTENT LENGTH:**
-- Each page must have SUBSTANTIAL, professional content
-- Minimum 1500 words total across all pages
+- Total website content: Minimum 2000 words across all pages
+- Each main page (index, about, services): Minimum 400 words each
 - Rich, detailed descriptions for all sections
 
 **OUTPUT FORMAT:**
@@ -372,6 +406,7 @@ content here
 --- END FILE ---
 
 NEVER add explanations outside file blocks. Generate COMPLETE files with full content.
+REMEMBER: MINIMUM 6 SEPARATE PHP PAGE FILES ARE REQUIRED!
 `.trim();
 
 const IMAGE_STRATEGY_BASIC = `
