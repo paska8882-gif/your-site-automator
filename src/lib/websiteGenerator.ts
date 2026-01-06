@@ -275,6 +275,7 @@ async function startCodexGeneration(
         specific_ai_model: "codex-external",
         generation_cost: 1, // Fixed cost $1 for external generations
         sale_price: salePrice,
+        geo: geo || null,
       })
       .select("id")
       .single();
@@ -451,6 +452,7 @@ async function startV0Generation(
         specific_ai_model: "v0-reaktiv",
         generation_cost: 1, // Fixed cost $1 for external generations
         sale_price: salePrice,
+        geo: geo || null,
       })
       .select("id")
       .single();
