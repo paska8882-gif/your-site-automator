@@ -39,12 +39,14 @@ export const LAYOUT_STYLES = [
 // Geo code to country name mapping
 const GEO_NAMES: Record<string, string> = {
   uk: "United Kingdom",
+  be: "Belgium",
   bg: "Bulgaria",
   cz: "Czech Republic",
   de: "Germany",
   es: "Spain",
   fr: "France",
   hu: "Hungary",
+  ie: "Ireland",
   it: "Italy",
   pl: "Poland",
   pt: "Portugal",
