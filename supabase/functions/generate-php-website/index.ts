@@ -168,7 +168,7 @@ REQUIRED PAGES (ALL MANDATORY):
 1. index.php - Homepage with hero, features, about preview, services preview, testimonials, CTA
 2. about.php - About Us page with company history, mission, vision, team section, values
 3. services.php - Services/Products page with detailed service descriptions, benefits, process
-4. contact.php - Contact page with form, map placeholder, contact info, working hours
+4. contact.php - Contact page with WORKING form, map placeholder, contact info, working hours
 5. thank-you.php - Thank you page after form submission
 6. privacy.php - Privacy policy page with full legal text
 
@@ -196,6 +196,26 @@ This is a PHP website. You MUST:
 4. Create a proper contact form handler (form-handler.php) that processes POST data
 5. Use PHP variables for site-wide settings (site name, email, phone)
 
+**⚠️ CRITICAL PHP INCLUDE PATHS - MUST FOLLOW EXACTLY:**
+- ALWAYS use simple relative paths: include 'includes/header.php';
+- NEVER use ./ prefix: NOT include './includes/header.php';
+- NEVER use absolute paths: NOT include '/includes/header.php';
+- NEVER use dirname(__FILE__): NOT include dirname(__FILE__) . '/includes/header.php';
+
+**CORRECT INCLUDE SYNTAX (USE THIS EXACTLY):**
+\`\`\`php
+<?php include 'includes/header.php'; ?>
+<!-- page content here -->
+<?php include 'includes/footer.php'; ?>
+\`\`\`
+
+**WRONG (NEVER DO THIS):**
+\`\`\`php
+<?php include './includes/header.php'; ?> // WRONG - no ./
+<?php include_once __DIR__ . '/includes/header.php'; ?> // WRONG - no __DIR__
+<?php require_once dirname(__FILE__).'/includes/header.php'; ?> // WRONG
+\`\`\`
+
 **PHP CODE REQUIREMENTS:**
 - All PHP code MUST be valid and syntactically correct
 - Use proper PHP opening tags: <?php
@@ -211,7 +231,6 @@ includes/
   config.php      - Site configuration (REQUIRED)
   header.php      - Header template with nav to ALL pages (REQUIRED)
   footer.php      - Footer template (REQUIRED)
-  functions.php   - Helper functions (REQUIRED)
 index.php         - Homepage (REQUIRED)
 about.php         - About page (REQUIRED)
 services.php      - Services page (REQUIRED)
@@ -233,10 +252,6 @@ define('SITE_NAME', 'Company Name');
 define('SITE_EMAIL', 'info@company.com');
 define('SITE_PHONE', '+1 (555) 123-4567');
 define('SITE_ADDRESS', '123 Main Street, City, Country');
-
-// Error reporting (disable in production)
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
 ?>
 \`\`\`
 
@@ -253,7 +268,7 @@ ini_set('display_errors', 1);
 </head>
 <body>
     <header>
-        <nav>
+        <nav class="navbar">
             <a href="index.php" class="logo"><?php echo SITE_NAME; ?></a>
             <ul class="nav-links">
                 <li><a href="index.php">Home</a></li>
@@ -261,6 +276,7 @@ ini_set('display_errors', 1);
                 <li><a href="services.php">Services</a></li>
                 <li><a href="contact.php">Contact</a></li>
             </ul>
+            <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
         </nav>
     </header>
     <main>
@@ -290,39 +306,221 @@ ini_set('display_errors', 1);
 </html>
 \`\`\`
 
-**EXAMPLE form-handler.php:**
+**⚠️ CONTACT PAGE - CRITICAL REQUIREMENTS (contact.php):**
+The contact page MUST have a FULLY FUNCTIONAL form. This is NON-NEGOTIABLE:
+
 \`\`\`php
 <?php
-require_once 'includes/config.php';
+$page_title = 'Contact Us';
+include 'includes/header.php';
+?>
 
+<section class="contact-hero">
+    <h1>Contact Us</h1>
+    <p>Get in touch with our team</p>
+</section>
+
+<section class="contact-section">
+    <div class="contact-container">
+        <div class="contact-info">
+            <h2>Get In Touch</h2>
+            <div class="info-item">
+                <span class="icon">📍</span>
+                <p><?php echo SITE_ADDRESS; ?></p>
+            </div>
+            <div class="info-item">
+                <span class="icon">📞</span>
+                <p><a href="tel:<?php echo SITE_PHONE; ?>"><?php echo SITE_PHONE; ?></a></p>
+            </div>
+            <div class="info-item">
+                <span class="icon">✉️</span>
+                <p><a href="mailto:<?php echo SITE_EMAIL; ?>"><?php echo SITE_EMAIL; ?></a></p>
+            </div>
+            <div class="working-hours">
+                <h3>Working Hours</h3>
+                <p>Monday - Friday: 9:00 AM - 6:00 PM</p>
+                <p>Saturday: 10:00 AM - 4:00 PM</p>
+                <p>Sunday: Closed</p>
+            </div>
+        </div>
+        
+        <div class="contact-form-wrapper">
+            <h2>Send Us a Message</h2>
+            <form action="form-handler.php" method="POST" class="contact-form">
+                <div class="form-group">
+                    <label for="name">Full Name *</label>
+                    <input type="text" id="name" name="name" required placeholder="Your Name">
+                </div>
+                <div class="form-group">
+                    <label for="email">Email Address *</label>
+                    <input type="email" id="email" name="email" required placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="tel" id="phone" name="phone" placeholder="+1 (555) 000-0000">
+                </div>
+                <div class="form-group">
+                    <label for="subject">Subject *</label>
+                    <input type="text" id="subject" name="subject" required placeholder="How can we help?">
+                </div>
+                <div class="form-group">
+                    <label for="message">Message *</label>
+                    <textarea id="message" name="message" rows="5" required placeholder="Your message..."></textarea>
+                </div>
+                <button type="submit" class="submit-btn">Send Message</button>
+            </form>
+        </div>
+    </div>
+</section>
+
+<?php include 'includes/footer.php'; ?>
+\`\`\`
+
+**EXAMPLE form-handler.php (MUST WORK):**
+\`\`\`php
+<?php
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Sanitize input
     $name = htmlspecialchars(trim($_POST['name'] ?? ''));
     $email = filter_var($_POST['email'] ?? '', FILTER_SANITIZE_EMAIL);
     $phone = htmlspecialchars(trim($_POST['phone'] ?? ''));
+    $subject = htmlspecialchars(trim($_POST['subject'] ?? ''));
     $message = htmlspecialchars(trim($_POST['message'] ?? ''));
     
     // Validate required fields
-    $errors = [];
-    if (empty($name)) $errors[] = 'Name is required';
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Valid email is required';
-    if (empty($message)) $errors[] = 'Message is required';
-    
-    if (empty($errors)) {
+    if (!empty($name) && filter_var($email, FILTER_VALIDATE_EMAIL) && !empty($message)) {
+        // Form is valid - redirect to thank you page
         header('Location: thank-you.php');
         exit;
     } else {
-        session_start();
-        $_SESSION['form_errors'] = $errors;
-        $_SESSION['form_data'] = $_POST;
-        header('Location: contact.php');
+        // Validation failed - redirect back with error
+        header('Location: contact.php?error=1');
         exit;
     }
 } else {
+    // Not a POST request
     header('Location: contact.php');
     exit;
 }
 ?>
+\`\`\`
+
+**CONTACT FORM CSS (MANDATORY in style.css):**
+\`\`\`css
+.contact-section {
+    padding: 80px 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.contact-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+}
+
+@media (max-width: 768px) {
+    .contact-container {
+        grid-template-columns: 1fr;
+        gap: 40px;
+    }
+}
+
+.contact-info {
+    padding: 40px;
+    background: var(--bg-secondary, #f8f9fa);
+    border-radius: 12px;
+}
+
+.info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.info-item .icon {
+    font-size: 1.5rem;
+}
+
+.contact-form-wrapper {
+    padding: 40px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.contact-form .form-group {
+    margin-bottom: 20px;
+}
+
+.contact-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.contact-form input,
+.contact-form textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s;
+}
+
+.contact-form input:focus,
+.contact-form textarea:focus {
+    outline: none;
+    border-color: var(--primary-color, #007bff);
+}
+
+.submit-btn {
+    width: 100%;
+    padding: 16px 32px;
+    background: var(--primary-color, #007bff);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.submit-btn:hover {
+    background: var(--primary-dark, #0056b3);
+}
+\`\`\`
+
+**📸 IMAGE REQUIREMENTS - CRITICAL:**
+1. ALL images MUST use valid URLs that will load correctly
+2. Use Pexels URLs provided in the image strategy OR Picsum placeholder images
+3. NEVER use broken or local file paths for images
+4. EVERY image MUST have loading="lazy" attribute
+5. EVERY image MUST have descriptive alt text
+
+**CORRECT IMAGE USAGE:**
+\`\`\`html
+<img src="https://picsum.photos/800/600?random=1" alt="Description" loading="lazy">
+<img src="https://images.pexels.com/photos/XXX/pexels-photo-XXX.jpeg" alt="Description" loading="lazy">
+\`\`\`
+
+**WRONG (NEVER DO):**
+\`\`\`html
+<img src="images/hero.jpg"> <!-- WRONG - local path won't work -->
+<img src="/assets/image.png"> <!-- WRONG - absolute local path -->
+<img src="hero-bg.jpg"> <!-- WRONG - local file -->
+\`\`\`
+
+**CSS BACKGROUND IMAGES:**
+\`\`\`css
+.hero {
+    background-image: url('https://picsum.photos/1920/1080?random=hero');
+    background-size: cover;
+    background-position: center;
+}
 \`\`\`
 
 **PAGE CONTENT REQUIREMENTS:**
@@ -426,50 +624,6 @@ Every PHP website MUST include a disclaimer section adapted to the website's the
    - Adapt terminology to the specific industry (e.g., "financial advice" for finance, "medical advice" for health, "legal advice" for law, etc.)
    - Always include: not professional advice, consult qualified experts, involves risk, we don't sell [relevant products]
 
-**DISCLAIMER PHP TEMPLATE (include in footer.php):**
-\`\`\`php
-<div class="disclaimer-section">
-  <p><strong>Important Notice (Disclaimer) regarding Google Ads compliance:</strong> [ADAPTED DISCLAIMER TEXT FOR SITE THEME AND LANGUAGE]</p>
-</div>
-\`\`\`
-
-**DISCLAIMER STYLING - ADAPT TO SITE DESIGN:**
-Style the disclaimer to match the overall website aesthetic. Examples:
-- Dark site: use a slightly lighter block or border accent
-- Light site: use a muted background or accent border
-- Colorful site: use the site's accent/secondary color
-- Minimal site: use subtle borders and typography emphasis
-
-\`\`\`css
-/* Example - adapt colors to match site palette */
-.disclaimer-section {
-  background-color: var(--site-accent-muted, rgba(0,0,0,0.05)); /* or use site's secondary color */
-  color: inherit;
-  padding: 20px 30px;
-  margin: 30px auto 0 auto;
-  max-width: 1200px;
-  border-radius: 8px;
-  text-align: center;
-  font-size: 14px;
-  line-height: 1.6;
-  border: 1px solid var(--site-border-color, rgba(0,0,0,0.1));
-}
-.disclaimer-section strong {
-  display: block;
-  margin-bottom: 8px;
-}
-\`\`\`
-
-**LANGUAGE EXAMPLES (ADAPT TO SITE THEME):**
-- EN (Finance theme): "Important Notice (Disclaimer): The content of this website is intended solely for general information and financial education. It does not constitute investment, tax, or legal advice and cannot replace individual consultations with qualified experts. Any investments involve risk. We do not sell financial products."
-- EN (Health theme): "Important Notice (Disclaimer): The content of this website is intended solely for general information and health education. It does not constitute medical advice and cannot replace individual consultations with qualified healthcare professionals. Always consult a doctor before making health decisions. We do not sell medications."
-- EN (Education/Courses): "Important Notice (Disclaimer): The content of this website and our courses is intended solely for general information and educational purposes. It does not constitute professional advice and cannot replace individual consultations with qualified experts. We do not guarantee specific results."
-- DE (Finance): "Wichtiger Hinweis (Haftungsausschluss): Der Inhalt dieser Website dient ausschließlich der allgemeinen Information und Finanzbildung. Er stellt keine Anlage-, Steuer- oder Rechtsberatung dar und kann individuelle Beratungen durch qualifizierte Experten nicht ersetzen. Jede Investition ist mit Risiken verbunden. Wir verkaufen keine Finanzprodukte."
-- RU (Finance): "Важное уведомление (отказ от ответственности): Контент этого веб-сайта предназначен исключительно для общего ознакомления и финансового образования. Он не является инвестиционной, налоговой или юридической консультацией и не может заменить индивидуальные консультации квалифицированных экспертов. Любые инвестиции сопряжены с риском. Мы не продаем финансовые продукты."
-- UK (Finance): "Важливе повідомлення (відмова від відповідальності): Контент цього веб-сайту призначений виключно для загального ознайомлення та фінансової освіти. Він не є інвестиційною, податковою чи юридичною консультацією і не може замінити індивідуальні консультації кваліфікованих експертів. Будь-які інвестиції пов'язані з ризиком. Ми не продаємо фінансові продукти."
-
-**THIS IS NOT OPTIONAL - EVERY GENERATED PHP WEBSITE MUST HAVE THE DISCLAIMER ADAPTED TO ITS THEME AND DESIGN!**
-
 **📞 PHONE NUMBERS - MANDATORY REQUIREMENTS:**
 All phone numbers MUST be:
 1. REALISTIC and RANDOM for the specified country
@@ -485,111 +639,13 @@ All email addresses MUST be clickable with mailto: links.
 Every PHP website MUST include a thank-you.php page that users see after submitting ANY form:
 
 1. **Create thank-you.php** with:
-   - Same header/navigation as other pages (include header.php)
+   - Same header/navigation as other pages (include 'includes/header.php')
    - Hero section with success checkmark icon
-   - Thank you heading (in site language):
-     - EN: "Thank You!", "We've Received Your Message"
-     - DE: "Vielen Dank!", "Wir haben Ihre Nachricht erhalten"
-     - UK: "Дякуємо!", "Ми отримали ваше повідомлення"
-     - FR: "Merci!", "Nous avons reçu votre message"
-     - PL: "Dziękujemy!", "Otrzymaliśmy Twoją wiadomość"
-     - ES: "¡Gracias!", "Hemos recibido tu mensaje"
-     - IT: "Grazie!", "Abbiamo ricevuto il tuo messaggio"
-   - Friendly message explaining next steps (e.g., "We'll respond within 24 hours")
+   - Thank you heading (in site language)
+   - Friendly message explaining next steps
    - Contact info for urgent matters
    - Button to return to homepage: <a href="index.php">Return to Home</a>
-   - Same footer as other pages (include footer.php)
-
-2. **Form handler (form-handler.php) MUST redirect to thank-you.php:**
-\`\`\`php
-<?php
-// form-handler.php
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Process form data here
-    $name = htmlspecialchars($_POST['name'] ?? '');
-    $email = htmlspecialchars($_POST['email'] ?? '');
-    $message = htmlspecialchars($_POST['message'] ?? '');
-    
-    // Here you would normally send email or save to database
-    
-    // Redirect to thank you page
-    header("Location: thank-you.php");
-    exit();
-}
-?>
-\`\`\`
-
-3. **Contact form action MUST point to form-handler.php:**
-\`\`\`php
-<form action="form-handler.php" method="POST">
-    <input type="text" name="name" required>
-    <input type="email" name="email" required>
-    <textarea name="message" required></textarea>
-    <button type="submit">Submit</button>
-</form>
-\`\`\`
-
-4. **Thank you page content requirements:**
-   - Large success icon (checkmark in circle)
-   - Clear success message heading
-   - Subtext about response time
-   - Contact info for urgent matters
-   - Prominent button to return to homepage
-
-5. **THANK YOU PAGE CSS (MANDATORY in css/style.css):**
-\`\`\`css
-.thank-you-section {
-  min-height: 70vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 80px 20px;
-}
-
-.thank-you-icon {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: var(--primary-color, #10b981);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 40px;
-}
-
-.thank-you-icon svg {
-  width: 60px;
-  height: 60px;
-  stroke: white;
-  stroke-width: 3;
-}
-
-.thank-you-title {
-  font-size: 3rem;
-  margin-bottom: 20px;
-}
-
-.thank-you-message {
-  font-size: 1.25rem;
-  color: var(--text-muted);
-  max-width: 600px;
-  margin-bottom: 40px;
-}
-
-.thank-you-button {
-  display: inline-block;
-  padding: 16px 40px;
-  background: var(--primary-color);
-  color: white;
-  text-decoration: none;
-  border-radius: 8px;
-  font-weight: 600;
-}
-\`\`\`
-
-**THIS IS NOT OPTIONAL - EVERY GENERATED PHP WEBSITE MUST HAVE A THANK YOU PAGE!**
+   - Same footer as other pages (include 'includes/footer.php')
 
 **CONTENT LENGTH:**
 - Total website content: Minimum 2000 words across all pages
