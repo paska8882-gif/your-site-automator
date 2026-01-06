@@ -1550,7 +1550,39 @@ serve(async (req) => {
       };
       const countryName = geoNames[geo];
       if (countryName) {
-        promptForGeneration = `${prompt}\n\n[TARGET COUNTRY: ${countryName}. The website is specifically designed for the ${countryName} market. Use local phone number formats, address formats, currency, and cultural preferences appropriate for ${countryName}.]`;
+        promptForGeneration = `${prompt}\n\n[TARGET COUNTRY: ${countryName}]
+CRITICAL GEO REQUIREMENTS - ALL CONTENT MUST BE LOCALIZED FOR ${countryName.toUpperCase()}:
+
+1. **PHYSICAL ADDRESS**: Generate a REALISTIC address from ${countryName}:
+   - Use REAL street names that exist in ${countryName}
+   - Use correct postal/ZIP code format for ${countryName}
+   - Use a major city from ${countryName}
+   - Example addresses by country:
+     * Germany: Friedrichstraße 147, 10117 Berlin
+     * Poland: ul. Nowy Świat 47, 00-042 Warszawa
+     * Spain: Calle Serrano 47, 28001 Madrid
+     * France: 47 Rue du Faubourg Saint-Honoré, 75008 Paris
+     * Italy: Via del Corso 147, 00186 Roma
+     * UK: 47 King's Road, London SW3 4ND
+     * USA: 847 Madison Avenue, New York, NY 10065
+     * Netherlands: Herengracht 147, 1015 BH Amsterdam
+     * Czech Republic: Václavské náměstí 47, 110 00 Praha 1
+     * Portugal: Avenida da Liberdade 147, 1250-096 Lisboa
+
+2. **PHONE NUMBER**: Use ${countryName} phone format with correct country code:
+   - Germany: +49 30 XXXXXXXX
+   - Poland: +48 XX XXX XX XX
+   - Spain: +34 XXX XXX XXX
+   - France: +33 X XX XX XX XX
+   - Italy: +39 XX XXXX XXXX
+   - UK: +44 XX XXXX XXXX
+   - USA: +1 (XXX) XXX-XXXX
+   - Netherlands: +31 XX XXX XXXX
+   - Czech Republic: +420 XXX XXX XXX
+
+3. **BUSINESS CONTEXT**: All content should feel native to ${countryName} market
+4. **DO NOT** use addresses or phone numbers from other countries
+5. The address MUST appear in the contact section and footer`;
       }
     }
     
