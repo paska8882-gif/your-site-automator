@@ -1451,8 +1451,8 @@ export function WebsiteGenerator() {
                     </Select>
                     
                     <Select 
-                      value={selectedGeo} 
-                      onValueChange={setSelectedGeo} 
+                      value={selectedGeo || "none"} 
+                      onValueChange={(v) => setSelectedGeo(v === "none" ? "" : v)} 
                       disabled={isSubmitting}
                     >
                       <SelectTrigger className="w-[130px] h-8 text-xs">
