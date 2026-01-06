@@ -127,6 +127,7 @@ function getLanguageLabel(langCode: string): string {
 const GEO_LABELS: Record<string, string> = {
   uk: "Великобританія",
   bg: "Болгарія",
+  ca: "Канада",
   cz: "Чехія",
   de: "Німеччина",
   es: "Іспанія",

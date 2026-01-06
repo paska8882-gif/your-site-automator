@@ -136,6 +136,7 @@ const geoOptions = [
   { value: "ie", label: "Ірландія" },
   { value: "es", label: "Іспанія" },
   { value: "it", label: "Італія" },
+  { value: "ca", label: "Канада" },
   { value: "lv", label: "Латвія" },
   { value: "lt", label: "Литва" },
   { value: "nl", label: "Нідерланди" },
