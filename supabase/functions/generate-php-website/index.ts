@@ -960,11 +960,31 @@ async function runGeneration({
         },
         {
           role: "user",
-          content: `Create a complete PHP website based on this brief:\n\n${refinedPrompt}\n\nGenerate ALL files with COMPLETE content. Use proper PHP includes structure.`,
+          content: `Create a COMPLETE, FULLY FUNCTIONAL multi-page PHP website based on this brief:
+
+${refinedPrompt}
+
+CRITICAL GENERATION CHECKLIST - YOU MUST INCLUDE ALL:
+✅ includes/config.php - Site constants (SITE_NAME, SITE_EMAIL, SITE_PHONE, SITE_ADDRESS)
+✅ includes/header.php - Full HTML head, navigation with links to ALL pages
+✅ includes/footer.php - Footer with disclaimer, copyright, links
+✅ index.php - Homepage with hero, features, services preview, testimonials, CTA (FULL CONTENT)
+✅ about.php - About page with mission, team, values (FULL CONTENT)
+✅ services.php - Services/Products page with detailed descriptions (FULL CONTENT)
+✅ contact.php - Contact form with method="POST" action="form-handler.php"
+✅ form-handler.php - Form processor that redirects to thank-you.php
+✅ thank-you.php - Thank you page after form submission
+✅ privacy.php - Privacy policy page
+✅ css/style.css - Complete CSS with responsive design, mobile menu
+✅ js/script.js - JavaScript for mobile menu, interactions
+
+Each page MUST have SUBSTANTIAL, UNIQUE content (not placeholders).
+Generate COMPLETE files with full HTML, CSS, and PHP code.
+Use proper PHP includes on every page.`,
         },
       ],
-      max_tokens: 16000,
-      temperature: 0.7,
+      max_tokens: 32000,
+      temperature: 0.6,
     }),
   });
 
