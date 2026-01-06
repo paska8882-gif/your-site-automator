@@ -416,7 +416,11 @@ Every PHP website MUST include a disclaimer section adapted to the website's the
 
 **DISCLAIMER REQUIREMENTS:**
 1. Add the disclaimer in includes/footer.php, ABOVE the copyright section
-2. The disclaimer MUST be styled as a prominent colored block (dark red/maroon background with lighter text)
+2. The disclaimer MUST be styled to MATCH THE WEBSITE'S DESIGN STYLE:
+   - Use colors that complement the site's color palette (can be accent color, muted tone, or contrasting block)
+   - Match the typography and spacing of the site
+   - Make it visible but harmonious with overall design
+   - Can use borders, subtle backgrounds, or other styling that fits the site aesthetic
 3. The disclaimer text MUST be ADAPTED to match the website's theme/industry:
    - Keep the core meaning: "content is for general information/education only, not professional advice"
    - Adapt terminology to the specific industry (e.g., "financial advice" for finance, "medical advice" for health, "legal advice" for law, etc.)
@@ -429,11 +433,18 @@ Every PHP website MUST include a disclaimer section adapted to the website's the
 </div>
 \`\`\`
 
-**DISCLAIMER CSS STYLING (MUST INCLUDE IN style.css):**
+**DISCLAIMER STYLING - ADAPT TO SITE DESIGN:**
+Style the disclaimer to match the overall website aesthetic. Examples:
+- Dark site: use a slightly lighter block or border accent
+- Light site: use a muted background or accent border
+- Colorful site: use the site's accent/secondary color
+- Minimal site: use subtle borders and typography emphasis
+
 \`\`\`css
+/* Example - adapt colors to match site palette */
 .disclaimer-section {
-  background-color: #8B2635; /* Dark red/maroon */
-  color: #ffffff;
+  background-color: var(--site-accent-muted, rgba(0,0,0,0.05)); /* or use site's secondary color */
+  color: inherit;
   padding: 20px 30px;
   margin: 30px auto 0 auto;
   max-width: 1200px;
@@ -441,6 +452,7 @@ Every PHP website MUST include a disclaimer section adapted to the website's the
   text-align: center;
   font-size: 14px;
   line-height: 1.6;
+  border: 1px solid var(--site-border-color, rgba(0,0,0,0.1));
 }
 .disclaimer-section strong {
   display: block;
@@ -451,11 +463,12 @@ Every PHP website MUST include a disclaimer section adapted to the website's the
 **LANGUAGE EXAMPLES (ADAPT TO SITE THEME):**
 - EN (Finance theme): "Important Notice (Disclaimer): The content of this website is intended solely for general information and financial education. It does not constitute investment, tax, or legal advice and cannot replace individual consultations with qualified experts. Any investments involve risk. We do not sell financial products."
 - EN (Health theme): "Important Notice (Disclaimer): The content of this website is intended solely for general information and health education. It does not constitute medical advice and cannot replace individual consultations with qualified healthcare professionals. Always consult a doctor before making health decisions. We do not sell medications."
+- EN (Education/Courses): "Important Notice (Disclaimer): The content of this website and our courses is intended solely for general information and educational purposes. It does not constitute professional advice and cannot replace individual consultations with qualified experts. We do not guarantee specific results."
 - DE (Finance): "Wichtiger Hinweis (Haftungsausschluss): Der Inhalt dieser Website dient ausschließlich der allgemeinen Information und Finanzbildung. Er stellt keine Anlage-, Steuer- oder Rechtsberatung dar und kann individuelle Beratungen durch qualifizierte Experten nicht ersetzen. Jede Investition ist mit Risiken verbunden. Wir verkaufen keine Finanzprodukte."
 - RU (Finance): "Важное уведомление (отказ от ответственности): Контент этого веб-сайта предназначен исключительно для общего ознакомления и финансового образования. Он не является инвестиционной, налоговой или юридической консультацией и не может заменить индивидуальные консультации квалифицированных экспертов. Любые инвестиции сопряжены с риском. Мы не продаем финансовые продукты."
 - UK (Finance): "Важливе повідомлення (відмова від відповідальності): Контент цього веб-сайту призначений виключно для загального ознайомлення та фінансової освіти. Він не є інвестиційною, податковою чи юридичною консультацією і не може замінити індивідуальні консультації кваліфікованих експертів. Будь-які інвестиції пов'язані з ризиком. Ми не продаємо фінансові продукти."
 
-**THIS IS NOT OPTIONAL - EVERY GENERATED PHP WEBSITE MUST HAVE THE DISCLAIMER ADAPTED TO ITS THEME!**
+**THIS IS NOT OPTIONAL - EVERY GENERATED PHP WEBSITE MUST HAVE THE DISCLAIMER ADAPTED TO ITS THEME AND DESIGN!**
 
 **📞 PHONE NUMBERS - MANDATORY REQUIREMENTS:**
 All phone numbers MUST be:
