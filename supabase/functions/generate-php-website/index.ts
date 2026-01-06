@@ -989,65 +989,96 @@ async function runGeneration({
     return { success: false, error: "Failed to parse generated files" };
   }
 
+  // Post-processing helpers to make output more reliable
+  const normalizePaths = (files: GeneratedFile[]) =>
+    files.map((f) => ({ ...f, path: f.path.replace(/^\/+/, "").trim() }));
+
+  // Ensure contact form flow works (contact.php -> form-handler.php -> thank-you.php)
+  const ensureContactFlow = (files: GeneratedFile[]): GeneratedFile[] => {
+    const next = [...files];
+
+    const findIndex = (path: string) => next.findIndex((f) => f.path === path);
+    const upsert = (path: string, content: string) => {
+      const idx = findIndex(path);
+      if (idx >= 0) next[idx] = { path, content };
+      else next.push({ path, content });
+    };
+
+    const contactIdx = findIndex("contact.php");
+    if (contactIdx >= 0) {
+      let c = next[contactIdx].content;
+
+      if (/<form\b/i.test(c)) {
+        // enforce method="POST"
+        if (!/method\s*=\s*"post"/i.test(c)) {
+          if (/method\s*=\s*"[^"]*"/i.test(c)) c = c.replace(/method\s*=\s*"[^"]*"/i, 'method="POST"');
+          else c = c.replace(/<form\b/i, '<form method="POST"');
+        }
+
+        // enforce action="form-handler.php"
+        if (!/action\s*=\s*"form-handler\.php"/i.test(c)) {
+          if (/action\s*=\s*"[^"]*"/i.test(c)) c = c.replace(/action\s*=\s*"[^"]*"/i, 'action="form-handler.php"');
+          else c = c.replace(/<form\b/i, '<form action="form-handler.php"');
+        }
+      }
+
+      next[contactIdx] = { ...next[contactIdx], content: c };
+    }
+
+    // Ensure handler exists and redirects reliably
+    if (findIndex("form-handler.php") === -1) {
+      upsert(
+        "form-handler.php",
+        `<?php\nif ($_SERVER['REQUEST_METHOD'] === 'POST') {\n  $name = htmlspecialchars(trim($_POST['name'] ?? ''));\n  $email = filter_var($_POST['email'] ?? '', FILTER_SANITIZE_EMAIL);\n  $phone = htmlspecialchars(trim($_POST['phone'] ?? ''));\n  $subject = htmlspecialchars(trim($_POST['subject'] ?? ''));\n  $message = htmlspecialchars(trim($_POST['message'] ?? ''));\n\n  $isValid = !empty($name) && filter_var($email, FILTER_VALIDATE_EMAIL) && !empty($subject) && !empty($message);\n\n  if ($isValid) {\n    header('Location: thank-you.php');\n    exit;\n  }\n\n  header('Location: contact.php?error=1');\n  exit;\n}\n\nheader('Location: contact.php');\nexit;\n?>`
+      );
+    }
+
+    // Ensure thank-you exists (some generations forget it)
+    if (findIndex("thank-you.php") === -1) {
+      upsert(
+        "thank-you.php",
+        `<?php\n$page_title = 'Thank You';\ninclude 'includes/header.php';\n?>\n\n<section class="page-hero">\n  <div class="container">\n    <h1>Thank you!</h1>\n    <p>Your message has been received. We'll get back to you shortly.</p>\n    <a class="btn" href="index.php">Back to Home</a>\n  </div>\n</section>\n\n<?php include 'includes/footer.php'; ?>`
+      );
+    }
+
+    return next;
+  };
+
   // Ensure cookie banner exists
   const ensureCookieBanner = (files: GeneratedFile[]): GeneratedFile[] => {
-    const hasCookieJs = files.some(f => f.path.includes('cookie'));
-    
+    const hasCookieJs = files.some((f) => f.path.includes("cookie"));
+
     if (!hasCookieJs) {
       files.push({
         path: "js/cookie-banner.js",
-        content: `// Cookie Consent Banner
-document.addEventListener('DOMContentLoaded', function() {
-  const cookieConsent = localStorage.getItem('cookieConsent');
-  if (!cookieConsent) {
-    showCookieBanner();
-  }
-});
-
-function showCookieBanner() {
-  const banner = document.createElement('div');
-  banner.id = 'cookie-banner';
-  banner.innerHTML = \`
-    <div style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.9); color: white; padding: 1rem; z-index: 9999; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-      <p style="margin: 0; flex: 1;">We use cookies to enhance your experience. By continuing to visit this site you agree to our use of cookies.</p>
-      <div style="display: flex; gap: 0.5rem;">
-        <button onclick="acceptCookies()" style="background: #4CAF50; color: white; border: none; padding: 0.5rem 1rem; cursor: pointer; border-radius: 4px;">Accept</button>
-        <button onclick="declineCookies()" style="background: #666; color: white; border: none; padding: 0.5rem 1rem; cursor: pointer; border-radius: 4px;">Decline</button>
-      </div>
-    </div>
-  \`;
-  document.body.appendChild(banner);
-}
-
-function acceptCookies() {
-  localStorage.setItem('cookieConsent', 'accepted');
-  document.getElementById('cookie-banner')?.remove();
-}
-
-function declineCookies() {
-  localStorage.setItem('cookieConsent', 'declined');
-  document.getElementById('cookie-banner')?.remove();
-}
-`
+        content: `// Cookie Consent Banner\ndocument.addEventListener('DOMContentLoaded', function() {\n  const cookieConsent = localStorage.getItem('cookieConsent');\n  if (!cookieConsent) {\n    showCookieBanner();\n  }\n});\n\nfunction showCookieBanner() {\n  const banner = document.createElement('div');\n  banner.id = 'cookie-banner';\n  banner.innerHTML = \`\n    <div style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.9); color: white; padding: 1rem; z-index: 9999; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">\n      <p style="margin: 0; flex: 1;">We use cookies to enhance your experience. By continuing to visit this site you agree to our use of cookies.</p>\n      <div style="display: flex; gap: 0.5rem;">\n        <button onclick="acceptCookies()" style="background: #4CAF50; color: white; border: none; padding: 0.5rem 1rem; cursor: pointer; border-radius: 4px;">Accept</button>\n        <button onclick="declineCookies()" style="background: #666; color: white; border: none; padding: 0.5rem 1rem; cursor: pointer; border-radius: 4px;">Decline</button>\n      </div>\n    </div>\n  \`;\n  document.body.appendChild(banner);\n}\n\nfunction acceptCookies() {\n  localStorage.setItem('cookieConsent', 'accepted');\n  document.getElementById('cookie-banner')?.remove();\n}\n\nfunction declineCookies() {\n  localStorage.setItem('cookieConsent', 'declined');\n  document.getElementById('cookie-banner')?.remove();\n}\n`,
       });
     }
 
     // Ensure all PHP files include cookie banner script
-    return files.map(file => {
-      if (!file.path.endsWith('.php')) return file;
-      
+    return files.map((file) => {
+      if (!file.path.endsWith(".php")) return file;
+
       let content = file.content;
-      const hasCookieScript = content.includes('cookie-banner.js') || content.includes('cookie-banner') || content.includes('cookieConsent');
-      
-      if (!hasCookieScript && content.includes('</body>')) {
-        content = content.replace('</body>', '  <script src="js/cookie-banner.js"></script>\n</body>');
+      const hasCookieScript =
+        content.includes("cookie-banner.js") ||
+        content.includes("cookie-banner") ||
+        content.includes("cookieConsent");
+
+      if (!hasCookieScript && content.includes("</body>")) {
+        content = content.replace(
+          "</body>",
+          '  <script src="js/cookie-banner.js"></script>\n</body>'
+        );
       }
-      
+
       return { ...file, content };
     });
   };
 
-  const finalFiles = ensureCookieBanner(files);
+  const normalized = normalizePaths(files);
+  const withContact = ensureContactFlow(normalized);
+  const finalFiles = ensureCookieBanner(withContact);
   console.log(`Final files count: ${finalFiles.length}`);
 
   return {
