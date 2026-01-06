@@ -155,6 +155,8 @@ const geoOptions = [
   { value: "in", label: "Індія" },
   { value: "ae", label: "ОАЕ" },
   { value: "us", label: "США" },
+  { value: "ie", label: "Ірландія" },
+  { value: "be", label: "Бельгія" },
 ];
 
 // Play notification sound using Web Audio API
