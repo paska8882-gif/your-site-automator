@@ -866,7 +866,7 @@ export function WebsiteGenerator() {
       for (const is of imageSourcesToUse) {
         const basePrice = wt === "react" ? reactPrice : htmlPrice;
         const pricePerSite = basePrice + (is === "ai" ? 2 : 0);
-        const count = allLanguages.length * sitesPerLanguage * styleCount * aiModelCount;
+        const count = siteNamesCount * allLanguages.length * sitesPerLanguage * styleCount * aiModelCount;
         total += count * pricePerSite;
       }
     }
@@ -889,7 +889,7 @@ export function WebsiteGenerator() {
           const basePrice = wt === "react" ? reactPrice : htmlPrice;
           const aiPhotoExtra = is === "ai" ? 2 : 0;
           const pricePerSite = basePrice + aiPhotoExtra;
-          const count = allLanguages.length * sitesPerLanguage * styleCount;
+          const count = siteNamesCount * allLanguages.length * sitesPerLanguage * styleCount;
           
           breakdown.push({
             websiteType: wt,
