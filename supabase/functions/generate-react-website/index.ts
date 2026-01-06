@@ -1444,10 +1444,26 @@ serve(async (req) => {
 
     console.log("Authenticated request from user:", user.id);
 
-    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId } = await req.json();
+    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo } = await req.json();
 
-    // Use the improved prompt for generation if provided, otherwise use the original prompt
-    const promptForGeneration = prompt;
+    // Build prompt with geo context if provided
+    let promptForGeneration = prompt;
+    if (geo && geo !== "none") {
+      const geoNames: Record<string, string> = {
+        uk: "United Kingdom", bg: "Bulgaria", cz: "Czech Republic", de: "Germany",
+        es: "Spain", fr: "France", hu: "Hungary", it: "Italy", pl: "Poland",
+        pt: "Portugal", ro: "Romania", tr: "Turkey", nl: "Netherlands", ru: "Russia",
+        jp: "Japan", ua: "Ukraine", hr: "Croatia", dk: "Denmark", ee: "Estonia",
+        fi: "Finland", gr: "Greece", lv: "Latvia", lt: "Lithuania", sk: "Slovakia",
+        si: "Slovenia", se: "Sweden", vn: "Vietnam", th: "Thailand", id: "Indonesia",
+        in: "India", ae: "United Arab Emirates", us: "United States"
+      };
+      const countryName = geoNames[geo];
+      if (countryName) {
+        promptForGeneration = `${prompt}\n\n[TARGET COUNTRY: ${countryName}. The website is specifically designed for the ${countryName} market. Use local phone number formats, address formats, currency, and cultural preferences appropriate for ${countryName}.]`;
+      }
+    }
+    
     // Store the original prompt (what user submitted) and improved prompt separately
     const promptToSave = originalPrompt || prompt;
     const improvedPromptToSave = improvedPrompt || null;

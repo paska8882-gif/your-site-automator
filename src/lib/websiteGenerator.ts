@@ -36,6 +36,51 @@ export const LAYOUT_STYLES = [
   { id: "portfolio", name: "Креативне портфоліо" },
 ];
 
+// Geo code to country name mapping
+const GEO_NAMES: Record<string, string> = {
+  uk: "United Kingdom",
+  bg: "Bulgaria",
+  cz: "Czech Republic",
+  de: "Germany",
+  es: "Spain",
+  fr: "France",
+  hu: "Hungary",
+  it: "Italy",
+  pl: "Poland",
+  pt: "Portugal",
+  ro: "Romania",
+  tr: "Turkey",
+  nl: "Netherlands",
+  ru: "Russia",
+  jp: "Japan",
+  ua: "Ukraine",
+  hr: "Croatia",
+  dk: "Denmark",
+  ee: "Estonia",
+  fi: "Finland",
+  gr: "Greece",
+  lv: "Latvia",
+  lt: "Lithuania",
+  sk: "Slovakia",
+  si: "Slovenia",
+  se: "Sweden",
+  vn: "Vietnam",
+  th: "Thailand",
+  id: "Indonesia",
+  in: "India",
+  ae: "United Arab Emirates",
+  us: "United States",
+};
+
+// Helper to append geo context to prompt
+function appendGeoToPrompt(prompt: string, geo?: string): string {
+  if (!geo || geo === "none" || !GEO_NAMES[geo]) {
+    return prompt;
+  }
+  const countryName = GEO_NAMES[geo];
+  return `${prompt}\n\n[TARGET COUNTRY: ${countryName}. The website is specifically designed for the ${countryName} market. Use local phone number formats, address formats, currency, and cultural preferences appropriate for ${countryName}.]`;
+}
+
 // Helper to get fresh access token (refresh if needed)
 async function getFreshAccessToken(): Promise<string | null> {
   // First try to refresh the session
@@ -60,16 +105,17 @@ export async function startGeneration(
   seniorMode?: SeniorMode,
   imageSource: ImageSource = "basic",
   teamId?: string, // Optional team ID for admin generation
-  improvedPrompt?: string // AI-improved prompt (commercial secret)
+  improvedPrompt?: string, // AI-improved prompt (commercial secret)
+  geo?: string // Target country/region for the website
 ): Promise<GenerationResult> {
   // Если выбран режим Codex для Senior AI - обращаемся к внешнему вебхуку
   if (aiModel === "senior" && seniorMode === "codex") {
-    return startCodexGeneration(prompt, language, websiteType, layoutStyle, siteName, teamId);
+    return startCodexGeneration(prompt, language, websiteType, layoutStyle, siteName, teamId, geo);
   }
 
   // Если выбран режим Реактивний Михайло - используем v0.dev API
   if (aiModel === "senior" && seniorMode === "reaktiv") {
-    return startV0Generation(prompt, language, websiteType, layoutStyle, siteName, teamId);
+    return startV0Generation(prompt, language, websiteType, layoutStyle, siteName, teamId, geo);
   }
 
   const functionName = websiteType === "react" ? "generate-react-website" : "generate-website";
@@ -86,7 +132,7 @@ export async function startGeneration(
         prompt: improvedPrompt || prompt,
         originalPrompt: prompt,
         improvedPrompt: improvedPrompt || null,
-        language, aiModel, layoutStyle, siteName, seniorMode, imageSource, teamId 
+        language, aiModel, layoutStyle, siteName, seniorMode, imageSource, teamId, geo 
       }),
     });
   };
@@ -140,7 +186,8 @@ async function startCodexGeneration(
   websiteType?: WebsiteType,
   layoutStyle?: string,
   siteName?: string,
-  overrideTeamId?: string
+  overrideTeamId?: string,
+  geo?: string
 ): Promise<GenerationResult> {
   let historyId: string | null = null;
   let salePrice = 0;
@@ -205,12 +252,15 @@ async function startCodexGeneration(
     }
 
     // 1. Create generation_history record with pending status AND team_id
+    // Append geo context to prompt if provided
+    const promptWithGeo = appendGeoToPrompt(prompt, geo);
+    
     const { data: historyRecord, error: insertError } = await supabase
       .from("generation_history")
       .insert({
         user_id: session.user.id,
         team_id: teamId || null,
-        prompt,
+        prompt: promptWithGeo,
         language: language || "en",
         status: "pending",
         site_name: siteName,
@@ -312,7 +362,8 @@ async function startV0Generation(
   websiteType?: WebsiteType,
   layoutStyle?: string,
   siteName?: string,
-  overrideTeamId?: string
+  overrideTeamId?: string,
+  geo?: string
 ): Promise<GenerationResult> {
   let historyId: string | null = null;
   let salePrice = 0;
@@ -377,12 +428,15 @@ async function startV0Generation(
     }
 
     // 1. Create generation_history record with pending status AND team_id
+    // Append geo context to prompt if provided
+    const promptWithGeo = appendGeoToPrompt(prompt, geo);
+    
     const { data: historyRecord, error: insertError } = await supabase
       .from("generation_history")
       .insert({
         user_id: session.user.id,
         team_id: teamId || null,
-        prompt,
+        prompt: promptWithGeo,
         language: language || "en",
         status: "pending",
         site_name: siteName,

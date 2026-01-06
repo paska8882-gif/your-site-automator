@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Hash, Palette, ChevronDown, AlertTriangle, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp, Filter, Newspaper } from "lucide-react";
+import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Hash, Palette, ChevronDown, AlertTriangle, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp, Filter, Newspaper, MapPin } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { startGeneration, AiModel, WebsiteType, SeniorMode, ImageSource, LAYOUT_STYLES } from "@/lib/websiteGenerator";
@@ -110,6 +110,51 @@ const languages = [
   { value: "lv", label: "Latviešu" },
   { value: "et", label: "Eesti" },
   { value: "kk", label: "Қазақша" },
+  { value: "ja", label: "日本語" },
+  { value: "ru", label: "Русский" },
+  { value: "tr", label: "Türkçe" },
+  { value: "vi", label: "Tiếng Việt" },
+  { value: "th", label: "ไทย" },
+  { value: "id", label: "Bahasa Indonesia" },
+  { value: "hi", label: "हिन्दी" },
+  { value: "ar", label: "العربية" },
+];
+
+// Countries/Geo list
+const geoOptions = [
+  { value: "", label: "Не вибрано" },
+  { value: "uk", label: "Великобританія" },
+  { value: "bg", label: "Болгарія" },
+  { value: "cz", label: "Чехія" },
+  { value: "de", label: "Німеччина" },
+  { value: "es", label: "Іспанія" },
+  { value: "fr", label: "Франція" },
+  { value: "hu", label: "Угорщина" },
+  { value: "it", label: "Італія" },
+  { value: "pl", label: "Польща" },
+  { value: "pt", label: "Португалія" },
+  { value: "ro", label: "Румунія" },
+  { value: "tr", label: "Туреччина" },
+  { value: "nl", label: "Нідерланди" },
+  { value: "ru", label: "Росія" },
+  { value: "jp", label: "Японія" },
+  { value: "ua", label: "Україна" },
+  { value: "hr", label: "Хорватія" },
+  { value: "dk", label: "Данія" },
+  { value: "ee", label: "Естонія" },
+  { value: "fi", label: "Фінляндія" },
+  { value: "gr", label: "Греція" },
+  { value: "lv", label: "Латвія" },
+  { value: "lt", label: "Литва" },
+  { value: "sk", label: "Словаччина" },
+  { value: "si", label: "Словенія" },
+  { value: "se", label: "Швеція" },
+  { value: "vn", label: "В'єтнам" },
+  { value: "th", label: "Таїланд" },
+  { value: "id", label: "Індонезія" },
+  { value: "in", label: "Індія" },
+  { value: "ae", label: "ОАЕ" },
+  { value: "us", label: "США" },
 ];
 
 // Play notification sound using Web Audio API
@@ -149,6 +194,7 @@ interface GeneratorDraft {
   siteName: string;
   prompt: string;
   selectedLanguages: string[];
+  selectedGeo: string;
   customLanguage: string;
   isOtherSelected: boolean;
   selectedStyles: string[];
@@ -195,6 +241,7 @@ export function WebsiteGenerator() {
   const [improvedPromptValue, setImprovedPromptValue] = useState<string | null>(null); // Stores improved prompt
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(draft.selectedLanguages || []);
+  const [selectedGeo, setSelectedGeo] = useState(draft.selectedGeo || "");
   const [customLanguage, setCustomLanguage] = useState(draft.customLanguage || "");
   const [isOtherSelected, setIsOtherSelected] = useState(draft.isOtherSelected || false);
   const [selectedStyles, setSelectedStyles] = useState<string[]>(draft.selectedStyles || []);
@@ -250,6 +297,7 @@ export function WebsiteGenerator() {
       siteName,
       prompt,
       selectedLanguages,
+      selectedGeo,
       customLanguage,
       isOtherSelected,
       selectedStyles,
@@ -263,7 +311,7 @@ export function WebsiteGenerator() {
       adminGenerationMode,
     });
   }, [
-    siteName, prompt, selectedLanguages, customLanguage, isOtherSelected,
+    siteName, prompt, selectedLanguages, selectedGeo, customLanguage, isOtherSelected,
     selectedStyles, customStyle, isOtherStyleSelected, sitesPerLanguage,
     selectedAiModels, selectedWebsiteTypes, selectedImageSources,
     seniorMode, adminGenerationMode
@@ -479,6 +527,7 @@ export function WebsiteGenerator() {
 
   const clearAllParameters = () => {
     setSelectedLanguages([]);
+    setSelectedGeo("");
     setCustomLanguage("");
     setIsOtherSelected(false);
     setSelectedStyles([]);
@@ -1005,8 +1054,10 @@ export function WebsiteGenerator() {
         // Use original prompt for display, improved prompt for generation (if available)
         const promptForDisplay = originalPrompt || prompt;
         const promptForGeneration = improvedPromptValue || prompt;
+        // Pass geo only if selected (not empty or "none")
+        const geoToUse = selectedGeo && selectedGeo !== "none" ? selectedGeo : undefined;
         // Pass improved prompt only if it was manually improved via the button
-        const result = await startGeneration(promptForDisplay, lang, model, wType, style, siteName, currentSeniorMode, iSource, teamIdToUse, improvedPromptValue || undefined);
+        const result = await startGeneration(promptForDisplay, lang, model, wType, style, siteName, currentSeniorMode, iSource, teamIdToUse, improvedPromptValue || undefined, geoToUse);
         setGenerationProgress(prev => ({ ...prev, completed: prev.completed + 1 }));
         return result;
       };
@@ -1394,6 +1445,24 @@ export function WebsiteGenerator() {
                         {languages.map((lang) => (
                           <SelectItem key={lang.value} value={lang.value}>
                             {lang.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    <Select 
+                      value={selectedGeo} 
+                      onValueChange={setSelectedGeo} 
+                      disabled={isSubmitting}
+                    >
+                      <SelectTrigger className="w-[130px] h-8 text-xs">
+                        <MapPin className="h-3.5 w-3.5 mr-1" />
+                        <SelectValue placeholder="Гео..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {geoOptions.map((geo) => (
+                          <SelectItem key={geo.value || "none"} value={geo.value || "none"}>
+                            {geo.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
