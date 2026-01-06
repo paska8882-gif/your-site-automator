@@ -10,75 +10,150 @@ const corsHeaders = {
 declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
 
 // System prompt for v0.dev generation
-const V0_SYSTEM_INSTRUCTION = `Create fully functional website ready for Netlify deployment. MUST include: 
-1. netlify.toml with correct build settings
-2. next.config.mjs with output: 'export' and trailingSlash: true
-3. All required legal pages (Privacy, Terms, FAQ)
-4. Cookie consent banner on all pages
-5. Pexels.com images only (NO Unsplash)
-6. TypeScript + Tailwind CSS + Next.js 14+
-7. Fully responsive and optimized for production`;
+const V0_SYSTEM_INSTRUCTION = `You are creating a STATIC Next.js website for Netlify deployment. 
+
+CRITICAL: This MUST be a STATIC EXPORT site. No server-side features allowed.
+
+MANDATORY next.config.mjs content:
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'export',
+  trailingSlash: true,
+  images: { unoptimized: true },
+};
+export default nextConfig;
+
+MANDATORY netlify.toml content:
+[build]
+command = "npm run build"
+publish = "out"
+
+Include: Privacy Policy, Terms of Service, FAQ pages, Cookie consent banner.
+Use ONLY Pexels.com images. TypeScript + Tailwind CSS + Next.js 14+.`;
 
 // Enhanced prompt with Netlify requirements
 function buildFinalPrompt(prompt: string): string {
   return `${prompt}
 
-CRITICAL NETLIFY DEPLOYMENT REQUIREMENTS (MUST INCLUDE):
+CRITICAL STATIC EXPORT REQUIREMENTS FOR NETLIFY:
 
-1. MANDATORY FILES:
-   • netlify.toml file at root with EXACT content:
-     [build]
-     command = "npm run build"
-     publish = "out"
-     
-     [build.environment]
-     NODE_VERSION = "20.9.0"
-     
-     [[redirects]]
-     from = "/*"
-     to = "/index.html"
-     status = 200
+The site MUST be configured for static export. Follow these exact specifications:
 
-   • next.config.mjs with EXACT configuration:
-     output: 'export'
-     trailingSlash: true
-     distDir: 'out'
-     images.unoptimized: true
+1. next.config.mjs - USE THIS EXACT CONTENT:
+\`\`\`javascript
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'export',
+  trailingSlash: true,
+  images: { unoptimized: true },
+};
+export default nextConfig;
+\`\`\`
 
-   • package.json MUST include:
-     "scripts": { "build": "next build" }
-     "engines": { "node": ">=20.9.0" }
+2. netlify.toml - USE THIS EXACT CONTENT:
+\`\`\`toml
+[build]
+command = "npm run build"
+publish = "out"
+\`\`\`
 
-2. REQUIRED LEGAL PAGES (ALL must exist and work):
-   • Privacy Policy page (/privacy) - full legal text
-   • Terms of Service page (/terms) - complete terms
-   • FAQ page (/faq) - relevant questions/answers
-   • Cookie consent banner on EVERY page
+3. package.json scripts MUST include:
+   "build": "next build"
 
-3. IMAGE REQUIREMENTS:
-   • Use ONLY Pexels.com images (NO Unsplash)
-   • 2-3 relevant images per page matching content
-   • Optimize for web (appropriate sizes)
+4. DO NOT use:
+   - getServerSideProps
+   - API routes (/app/api or /pages/api)
+   - Server components with 'use server'
+   - Dynamic routes without generateStaticParams
+   - next/headers or cookies()
+   - Any server-only features
 
-4. TECHNICAL SPECIFICATIONS:
-   • Next.js 14+ with static export
-   • TypeScript for type safety
-   • Tailwind CSS for styling
-   • React 18+ components
-   • Fully responsive design
+5. Required pages: /privacy, /terms, /faq
+6. Cookie consent banner on all pages
+7. Images: ONLY from Pexels.com
+8. Responsive design with Tailwind CSS`;
+}
 
-5. SEO & METADATA:
-   • Proper meta tags on all pages
-   • Open Graph tags for social sharing
-   • robots.txt and sitemap.xml
-   • Canonical URLs
+// Correct configuration files to ensure Netlify deployment works
+const CORRECT_NEXT_CONFIG = `/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'export',
+  trailingSlash: true,
+  images: { unoptimized: true },
+};
 
-VERIFICATION CHECKLIST:
-✓ netlify.toml exists and is correct
-✓ next.config.mjs has output: 'export' and trailingSlash: true
-✓ All pages work with trailing slashes
-✓ No build errors in Next.js
-✓ Site deploys successfully to Netlify`;
+export default nextConfig;
+`;
+
+const CORRECT_NETLIFY_TOML = `[build]
+command = "npm run build"
+publish = "out"
+`;
+
+// Function to fix generated files for Netlify compatibility
+function fixFilesForNetlify(files: { path: string; content: string }[]): { path: string; content: string }[] {
+  const fixedFiles = [...files];
+  let hasNextConfig = false;
+  let hasNetlifyToml = false;
+  
+  for (let i = 0; i < fixedFiles.length; i++) {
+    const file = fixedFiles[i];
+    
+    // Fix next.config.mjs or next.config.js
+    if (file.path === 'next.config.mjs' || file.path === 'next.config.js') {
+      hasNextConfig = true;
+      // Check if it has proper static export config
+      if (!file.content.includes("output: 'export'") && !file.content.includes('output: "export"')) {
+        console.log('[v0-proxy] Fixing next.config - adding static export');
+        fixedFiles[i] = { path: 'next.config.mjs', content: CORRECT_NEXT_CONFIG };
+      }
+    }
+    
+    // Fix netlify.toml
+    if (file.path === 'netlify.toml') {
+      hasNetlifyToml = true;
+      // Check if it has correct publish directory
+      if (!file.content.includes('publish = "out"')) {
+        console.log('[v0-proxy] Fixing netlify.toml - setting correct publish dir');
+        fixedFiles[i] = { path: 'netlify.toml', content: CORRECT_NETLIFY_TOML };
+      }
+    }
+    
+    // Fix package.json to ensure correct build script
+    if (file.path === 'package.json') {
+      try {
+        const pkg = JSON.parse(file.content);
+        let modified = false;
+        
+        // Ensure build script exists
+        if (!pkg.scripts) pkg.scripts = {};
+        if (!pkg.scripts.build || pkg.scripts.build !== 'next build') {
+          pkg.scripts.build = 'next build';
+          modified = true;
+        }
+        
+        if (modified) {
+          console.log('[v0-proxy] Fixing package.json - updating build script');
+          fixedFiles[i] = { path: 'package.json', content: JSON.stringify(pkg, null, 2) };
+        }
+      } catch (e) {
+        console.log('[v0-proxy] Could not parse package.json:', e);
+      }
+    }
+  }
+  
+  // Add missing required files
+  if (!hasNextConfig) {
+    console.log('[v0-proxy] Adding missing next.config.mjs');
+    fixedFiles.push({ path: 'next.config.mjs', content: CORRECT_NEXT_CONFIG });
+  }
+  
+  if (!hasNetlifyToml) {
+    console.log('[v0-proxy] Adding missing netlify.toml');
+    fixedFiles.push({ path: 'netlify.toml', content: CORRECT_NETLIFY_TOML });
+  }
+  
+  return fixedFiles;
 }
 
 // Helper function for fetch with retry logic
@@ -209,21 +284,25 @@ async function runV0Generation(
     
     console.log("[v0-proxy] Extracted files:", files.length);
 
-    // Step 4: Create new ZIP with extracted files
+    // Step 4: Fix files for Netlify compatibility
+    const fixedFiles = fixFilesForNetlify(files);
+    console.log("[v0-proxy] Fixed files count:", fixedFiles.length);
+
+    // Step 5: Create new ZIP with fixed files
     const outputZip = new JSZip();
-    for (const f of files) {
+    for (const f of fixedFiles) {
       outputZip.file(f.path, f.content);
     }
     const zipBase64 = await outputZip.generateAsync({ type: "base64" });
 
-    // Step 5: Update generation_history
+    // Step 6: Update generation_history
     const { error: updateError } = await supabase
       .from("generation_history")
       .update({
         status: "completed",
         completed_at: new Date().toISOString(),
         zip_data: zipBase64,
-        files_data: files,
+        files_data: fixedFiles,
         specific_ai_model: "v0-reaktiv",
       })
       .eq("id", historyId);
