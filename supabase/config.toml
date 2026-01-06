@@ -8,6 +8,10 @@ max_duration_seconds = 600
 verify_jwt = true
 max_duration_seconds = 600
 
+[functions.generate-php-website]
+verify_jwt = true
+max_duration_seconds = 600
+
 [functions.edit-website]
 verify_jwt = true
 
