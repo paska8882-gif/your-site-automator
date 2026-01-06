@@ -82,6 +82,47 @@ function getGenerationDuration(createdAt: string, completedAt: string | null): {
   return { text, colorClass };
 }
 
+// Language code to label mapping
+const LANGUAGE_LABELS: Record<string, string> = {
+  uk: "Українська",
+  en: "English",
+  de: "Deutsch",
+  fr: "Français",
+  es: "Español",
+  it: "Italiano",
+  pl: "Polski",
+  pt: "Português",
+  nl: "Nederlands",
+  cs: "Čeština",
+  sk: "Slovenčina",
+  hu: "Magyar",
+  ro: "Română",
+  bg: "Български",
+  el: "Ελληνικά",
+  sv: "Svenska",
+  da: "Dansk",
+  fi: "Suomi",
+  no: "Norsk",
+  hr: "Hrvatski",
+  sl: "Slovenščina",
+  lt: "Lietuvių",
+  lv: "Latviešu",
+  et: "Eesti",
+  kk: "Қазақша",
+  ja: "日本語",
+  ru: "Русский",
+  tr: "Türkçe",
+  vi: "Tiếng Việt",
+  th: "ไทย",
+  id: "Bahasa Indonesia",
+  hi: "हिन्दी",
+  ar: "العربية",
+};
+
+function getLanguageLabel(langCode: string): string {
+  return LANGUAGE_LABELS[langCode] || langCode;
+}
+
 // Geo code to label mapping
 const GEO_LABELS: Record<string, string> = {
   uk: "Великобританія",
@@ -333,7 +374,7 @@ function SingleHistoryItem({
               </div>
               <div>
                 <span className="text-muted-foreground text-xs">Мова</span>
-                <p className="font-medium">{item.language}</p>
+                <p className="font-medium">{getLanguageLabel(item.language)}</p>
               </div>
               <div>
                 <span className="text-muted-foreground text-xs">Гео</span>
