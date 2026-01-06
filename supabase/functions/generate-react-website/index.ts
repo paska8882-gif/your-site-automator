@@ -534,6 +534,134 @@ Every contact page MUST include a WORKING, PROPERLY DISPLAYED Google Map. This i
 - Never omit the map from contact page
 - Never use coordinates that don't match the business location
 
+**🙏 THANK YOU PAGE - MANDATORY FOR ALL WEBSITES:**
+Every React website MUST include a ThankYou.js page that users see after submitting ANY form:
+
+1. **Create src/pages/ThankYou.js** with:
+   - Same layout as other pages (uses Header/Footer)
+   - Hero section with success checkmark icon (use CSS-styled checkmark or SVG)
+   - Thank you heading (in site language):
+     - EN: "Thank You!", "We've Received Your Message"
+     - DE: "Vielen Dank!", "Wir haben Ihre Nachricht erhalten"
+     - UK: "Дякуємо!", "Ми отримали ваше повідомлення"
+     - FR: "Merci!", "Nous avons reçu votre message"
+     - PL: "Dziękujemy!", "Otrzymaliśmy Twoją wiadomość"
+     - ES: "¡Gracias!", "Hemos recibido tu mensaje"
+     - IT: "Grazie!", "Abbiamo ricevuto il tuo messaggio"
+   - Friendly message explaining next steps (e.g., "We'll respond within 24 hours")
+   - Contact info for urgent matters
+   - Button to return to homepage using React Router: <Link to="/">Return to Home</Link>
+
+2. **Add route in App.js:**
+   <Route path="/thank-you" element={<ThankYou />} />
+   Don't forget to import: import ThankYou from './pages/ThankYou';
+
+3. **ALL forms MUST redirect to /thank-you after submission:**
+   - Contact forms
+   - Newsletter signup forms
+   - Callback request forms
+   - Any other forms
+
+4. **Form submission handler in Contact.js (and any other form components):**
+\`\`\`jsx
+import { useNavigate } from 'react-router-dom';
+
+function Contact() {
+  const navigate = useNavigate();
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // Here you would normally send data to server
+    // For static site, redirect to thank you page
+    navigate('/thank-you');
+  };
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* form fields */}
+      <button type="submit">Submit</button>
+    </form>
+  );
+}
+\`\`\`
+
+5. **Thank you page content requirements:**
+   - Large success icon (checkmark in circle)
+   - Clear success message heading
+   - Subtext about response time
+   - Contact info for urgent matters
+   - Prominent button to return to homepage
+   - Consistent styling with rest of site
+
+6. **THANK YOU PAGE CSS (MANDATORY IN global.css):**
+\`\`\`css
+.thank-you-section {
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 80px 20px;
+}
+
+.thank-you-icon {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: var(--primary-color, #10b981);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 40px;
+  animation: scaleIn 0.5s ease-out;
+}
+
+.thank-you-icon svg {
+  width: 60px;
+  height: 60px;
+  stroke: white;
+  stroke-width: 3;
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.thank-you-title {
+  font-size: 3rem;
+  margin-bottom: 20px;
+  color: var(--heading-color);
+}
+
+.thank-you-message {
+  font-size: 1.25rem;
+  color: var(--text-muted);
+  max-width: 600px;
+  margin-bottom: 40px;
+  line-height: 1.8;
+}
+
+.thank-you-button {
+  display: inline-block;
+  padding: 16px 40px;
+  background: var(--primary-color);
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.thank-you-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+\`\`\`
+
+**THIS IS NOT OPTIONAL - EVERY GENERATED REACT WEBSITE MUST HAVE A THANK YOU PAGE!**
+
 **VISUAL EXCELLENCE GUIDELINES:**
 - Whitespace is king - Generous spacing (1.5x standard)
 - Clean typography system - Hierarchy: H1 > H2 > H3 > Body > Small
@@ -556,6 +684,7 @@ Every contact page MUST include a WORKING, PROPERLY DISPLAYED Google Map. This i
 - Footer with multi-column layout
 - Cookie banner styling (position: fixed; bottom: 0)
 - Map container styling with responsive design
+- Thank you page styling (success icon, centered content)
 - Mobile responsive breakpoints
 - Hover/focus states
 - Form styling
@@ -884,7 +1013,10 @@ img { max-width: 100%; height: auto; display: block; }
 [Team photos, company info with images]
 
 <!-- FILE: src/pages/Contact.js -->
-[Contact form, info section]
+[Contact form with redirect to /thank-you on submit, info section]
+
+<!-- FILE: src/pages/ThankYou.js -->
+[Success icon, thank you message, button to return home]
 
 <!-- FILE: src/pages/Terms.js -->
 <!-- FILE: src/pages/Privacy.js -->
