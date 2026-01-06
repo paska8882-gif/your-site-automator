@@ -817,10 +817,8 @@ export function WebsiteGenerator() {
     setSelectedWebsiteTypes([type]);
   };
 
-  const toggleImageSource = (source: ImageSource) => {
-    setSelectedImageSources(prev => 
-      prev.includes(source) ? prev.filter(s => s !== source) : [...prev, source]
-    );
+  const selectImageSource = (source: ImageSource) => {
+    setSelectedImageSources([source]);
   };
 
   // Calculate total generations: languages × sites × styles × aiModels × websiteTypes × imageSources
@@ -1847,43 +1845,32 @@ export function WebsiteGenerator() {
                 </Select>
               </div>
 
-              {/* Image Source Multi-Select */}
+              {/* Image Source Select */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Підбір фото</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between h-8 text-xs" disabled={isSubmitting}>
-                      <span className="truncate">
-                        {selectedImageSources.length === 0 
-                          ? "Оберіть" 
-                          : selectedImageSources.length === 1 
-                            ? (selectedImageSources[0] === "basic" ? "Базовий" : "AI")
-                            : `${selectedImageSources.length} вар.`}
-                      </span>
-                      <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-48 p-2" align="start">
-                    <div className="space-y-1">
-                      <label className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
-                        <Checkbox
-                          checked={selectedImageSources.includes("basic")}
-                          onCheckedChange={() => toggleImageSource("basic")}
-                        />
+                <Select 
+                  value={selectedImageSources[0] || "basic"} 
+                  onValueChange={(value) => selectImageSource(value as ImageSource)}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Оберіть" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="basic">
+                      <div className="flex items-center gap-2">
                         <Image className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm">Базовий</span>
-                      </label>
-                      <label className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
-                        <Checkbox
-                          checked={selectedImageSources.includes("ai")}
-                          onCheckedChange={() => toggleImageSource("ai")}
-                        />
+                        <span>Базовий</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="ai">
+                      <div className="flex items-center gap-2">
                         <Sparkles className="h-4 w-4 text-violet-500" />
-                        <span className="text-sm">AI пошук (+$2)</span>
-                      </label>
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                        <span>AI пошук (+$2)</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
