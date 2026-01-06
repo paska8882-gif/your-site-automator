@@ -9,12 +9,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File, AlertTriangle, Upload, X, Layers, Filter, CalendarDays } from "lucide-react";
+import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File, AlertTriangle, Upload, X, Layers, Filter, CalendarDays, MonitorPlay } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { FilePreview } from "./FilePreview";
+import { PhpPreviewDialog } from "./PhpPreviewDialog";
 import { GeneratedFile } from "@/lib/websiteGenerator";
 
 function getFileIcon(path: string) {
@@ -187,6 +188,7 @@ interface SingleHistoryItemProps {
   onEdit: (id: string) => void;
   onUsePrompt?: (siteName: string, prompt: string) => void;
   onAppeal: (item: HistoryItem) => void;
+  onPhpPreview?: (item: HistoryItem) => void;
   onSelectFile: (file: GeneratedFile) => void;
   onViewModeChange: (mode: "preview" | "code") => void;
   getAppeal: (itemId: string) => Appeal | undefined;
@@ -208,6 +210,7 @@ function SingleHistoryItem({
   onEdit,
   onUsePrompt,
   onAppeal,
+  onPhpPreview,
   onSelectFile,
   onViewModeChange,
   getAppeal,
@@ -312,6 +315,21 @@ function SingleHistoryItem({
                       title="Редагувати"
                     >
                       <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {/* PHP Preview button */}
+                  {item.website_type === "php" && item.files_data && onPhpPreview && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPhpPreview(item);
+                      }}
+                      title="PHP Превью"
+                    >
+                      <MonitorPlay className="h-4 w-4" />
                     </Button>
                   )}
                   <Button
@@ -548,6 +566,10 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
   const [appealScreenshots, setAppealScreenshots] = useState<File[]>([]);
   const [appealScreenshotPreviews, setAppealScreenshotPreviews] = useState<string[]>([]);
   const [submittingAppeal, setSubmittingAppeal] = useState(false);
+
+  // PHP Preview dialog
+  const [phpPreviewOpen, setPhpPreviewOpen] = useState(false);
+  const [phpPreviewItem, setPhpPreviewItem] = useState<HistoryItem | null>(null);
 
   const fetchHistory = async () => {
     setIsLoading(true);
@@ -1404,6 +1426,10 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
                           onEdit={(id) => navigate(`/edit/${id}`)}
                           onUsePrompt={onUsePrompt}
                           onAppeal={openAppealDialog}
+                          onPhpPreview={(item) => {
+                            setPhpPreviewItem(item);
+                            setPhpPreviewOpen(true);
+                          }}
                           onSelectFile={setSelectedFile}
                           onViewModeChange={setViewMode}
                           getAppeal={getAppealForItem}
@@ -1434,6 +1460,10 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
                   onEdit={(id) => navigate(`/edit/${id}`)}
                   onUsePrompt={onUsePrompt}
                   onAppeal={openAppealDialog}
+                  onPhpPreview={(item) => {
+                    setPhpPreviewItem(item);
+                    setPhpPreviewOpen(true);
+                  }}
                   onSelectFile={setSelectedFile}
                   onViewModeChange={setViewMode}
                   getAppeal={getAppealForItem}
@@ -1532,6 +1562,14 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
           )}
         </DialogContent>
       </Dialog>
+
+      {/* PHP Preview Dialog */}
+      <PhpPreviewDialog
+        open={phpPreviewOpen}
+        onOpenChange={setPhpPreviewOpen}
+        files={phpPreviewItem?.files_data || []}
+        siteName={phpPreviewItem?.site_name || undefined}
+      />
     </Card>
   );
 }
