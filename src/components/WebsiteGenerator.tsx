@@ -1560,8 +1560,8 @@ export function WebsiteGenerator() {
             {/* Standard Mode Options - show for non-admins OR when admin selects standard mode */}
             {(!isAdmin || adminGenerationMode === "standard") && (
               <>
-            {/* Compact row: Language, Style, Quantity */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {/* Compact row: Language, Style, Geo, Quantity */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
               {/* Language Multi-Select Dropdown */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Мова</Label>
@@ -1680,6 +1680,28 @@ export function WebsiteGenerator() {
                     )}
                   </PopoverContent>
                 </Popover>
+              </div>
+
+              {/* Geo Select */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Гео</Label>
+                <Select 
+                  value={selectedGeo || "none"} 
+                  onValueChange={(v) => setSelectedGeo(v === "none" ? "" : v)} 
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="w-full h-8 text-xs">
+                    <MapPin className="h-3.5 w-3.5 mr-1" />
+                    <SelectValue placeholder="Не вибрано" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {geoOptions.map((geo) => (
+                      <SelectItem key={geo.value || "none"} value={geo.value || "none"}>
+                        {geo.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Quantity */}
