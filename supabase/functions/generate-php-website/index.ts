@@ -1440,19 +1440,79 @@ CRITICAL GEO REQUIREMENTS - ALL CONTENT MUST BE LOCALIZED FOR ${countryName.toUp
 
     console.log("Created PHP history entry:", historyEntry.id);
 
-    // Start background generation
-    EdgeRuntime.waitUntil(
-      runBackgroundGeneration(historyEntry.id, user.id, prompt, language, aiModel, layoutStyle, imageSource, teamId, salePrice)
-    );
+    // Run generation synchronously so the client immediately receives files
+    // (UI expects files in the response; background-only runs result in “empty” output)
+    const result = await runGeneration({
+      prompt,
+      language,
+      aiModel,
+      layoutStyle,
+      imageSource,
+    });
+
+    if (!result.success || !result.files) {
+      // Mark failed + refund (if deducted)
+      await supabase
+        .from("generation_history")
+        .update({
+          status: "failed",
+          error_message: result.error || "PHP generation failed",
+          sale_price: 0,
+        })
+        .eq("id", historyEntry.id);
+
+      if (teamId && salePrice > 0) {
+        const { data: team } = await supabase
+          .from("teams")
+          .select("balance")
+          .eq("id", teamId)
+          .single();
+        if (team) {
+          await supabase
+            .from("teams")
+            .update({ balance: (team.balance || 0) + salePrice })
+            .eq("id", teamId);
+        }
+      }
+
+      return new Response(JSON.stringify({ success: false, error: result.error || "PHP generation failed" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Save completed result into history for later downloads
+    try {
+      const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");
+      const zip = new JSZip();
+      for (const file of result.files) {
+        zip.file(file.path, file.content);
+      }
+      const zipBase64 = await zip.generateAsync({ type: "base64" });
+
+      await supabase
+        .from("generation_history")
+        .update({
+          status: "completed",
+          files_data: result.files,
+          zip_data: zipBase64,
+          error_message: null,
+        })
+        .eq("id", historyEntry.id);
+    } catch (e) {
+      console.warn("Failed to persist zip/files_data for PHP generation:", e);
+      // Still return files to client even if persistence fails
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
         historyId: historyEntry.id,
-        message: "PHP generation started in background",
+        files: result.files,
+        refinedPrompt: result.refinedPrompt,
       }),
       {
-        status: 202,
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
