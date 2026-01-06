@@ -1991,6 +1991,10 @@ export function WebsiteGenerator() {
 
                   setIsSubmitting(true);
                   const externalLanguage = selectedLanguages[0] || "uk";
+                  // Determine geo value to pass
+                  const geoToUse = isOtherGeoSelected && customGeo 
+                    ? customGeo 
+                    : (selectedGeo && selectedGeo !== "none" ? selectedGeo : undefined);
                   try {
                     // Generate for each site name
                     for (const name of siteNames) {
@@ -2003,7 +2007,9 @@ export function WebsiteGenerator() {
                         name,
                         seniorMode,
                         "basic",
-                        selectedAdminTeamId || undefined
+                        selectedAdminTeamId || undefined,
+                        undefined, // improvedPrompt
+                        geoToUse // geo
                       );
                     }
                     toast({
