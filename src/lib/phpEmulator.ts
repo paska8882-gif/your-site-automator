@@ -65,10 +65,11 @@ function findFile(files: GeneratedFile[], relativePath: string, currentDir: stri
 function processIncludes(content: string, ctx: PhpEmulatorContext, depth = 0): string {
   if (depth > 10) return content; // Prevent infinite recursion
   
-  // Match include/require/include_once/require_once
-  const includeRegex = /(<\?php\s*)?(include|require|include_once|require_once)\s*['"]([^'"]+)['"]\s*;?\s*(\?>)?/g;
+  // Match include/require/include_once/require_once anywhere in the file (even inside larger PHP blocks)
+  // Example: $page_title = 'Home'; include 'includes/header.php';
+  const includeRegex = /(include|require|include_once|require_once)\s*['"]([^'\"]+)['"]\s*;?/g;
   
-  return content.replace(includeRegex, (_, phpOpen, type, path) => {
+  return content.replace(includeRegex, (_, type, path) => {
     const currentDir = ctx.currentPath.includes("/") 
       ? ctx.currentPath.substring(0, ctx.currentPath.lastIndexOf("/")) 
       : "";
