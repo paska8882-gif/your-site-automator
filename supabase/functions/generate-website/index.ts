@@ -266,12 +266,40 @@ function declineCookies() {
 
 **THIS IS NOT OPTIONAL - EVERY GENERATED WEBSITE MUST HAVE WORKING COOKIE CONSENT!**
 
-**PRICING PROHIBITION (CRITICAL):**
-- NEVER include any prices, costs, or monetary figures anywhere on the site
-- NEVER use currency symbols with numbers ($99, €50, £100, ₴500, etc.)
-- NEVER create pricing tables, rate cards, or cost comparisons
-- NEVER mention specific price ranges or "starting from" prices
-- ALWAYS replace price references with: "Contact us", "Request a quote", "Get pricing", "Custom pricing available"
+**🚫 NUMBERS PROHIBITION - ABSOLUTELY CRITICAL, NON-NEGOTIABLE:**
+NEVER include ANY numerical data anywhere on the website. This is a STRICT requirement:
+
+**FORBIDDEN (NEVER USE):**
+- Prices, costs, monetary figures ($99, €50, £100, ₴500, etc.)
+- Statistics, percentages (95%, 100+, 50% off, etc.)
+- Years of experience ("10 years", "Since 2010", etc.)
+- Client/project counts ("500+ clients", "1000 projects", etc.)
+- Team size numbers ("50 experts", "Team of 20", etc.)
+- Ratings and scores ("4.9/5", "5 stars", etc.)
+- Time frames with numbers ("24/7", "in 48 hours", etc.)
+- Numerical guarantees ("100% satisfaction", "30-day guarantee", etc.)
+- Square meters, distances, capacities
+- Any forecasts, projections, or numerical predictions
+- Countdown timers or numerical deadlines
+
+**ALLOWED ALTERNATIVES (USE THESE INSTEAD):**
+- "Contact us for pricing" instead of prices
+- "Years of experience" instead of "10 years"
+- "Hundreds of satisfied clients" instead of "500+ clients"
+- "Our expert team" instead of "Team of 50"
+- "Top-rated service" instead of "4.9/5 rating"
+- "Fast delivery" instead of "in 24 hours"
+- "Satisfaction guaranteed" instead of "100% guarantee"
+- "Always available" instead of "24/7"
+- "Request a quote" instead of any price
+- "Proven track record" instead of statistics
+
+**THE ONLY ALLOWED NUMBERS:**
+- Phone numbers (required for contact)
+- Postal codes in addresses (required for location)
+- Years in copyright footer (e.g., "© 2024")
+
+**THIS RULE IS NON-NEGOTIABLE - ANY NUMERICAL DATA OTHER THAN CONTACT INFO WILL MAKE THE WEBSITE INVALID!**
 
 **📞 PHONE NUMBERS - MANDATORY REQUIREMENTS:**
 All phone numbers MUST be:
