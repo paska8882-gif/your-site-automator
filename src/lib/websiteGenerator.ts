@@ -41,6 +41,7 @@ const GEO_NAMES: Record<string, string> = {
   uk: "United Kingdom",
   be: "Belgium",
   bg: "Bulgaria",
+  ca: "Canada",
   cz: "Czech Republic",
   de: "Germany",
   es: "Spain",
