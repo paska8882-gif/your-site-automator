@@ -481,8 +481,115 @@ All physical addresses MUST be realistic and from the specified country/city.
 **📧 EMAIL ADDRESSES - MANDATORY CLICKABLE LINKS:**
 All email addresses MUST be clickable with mailto: links.
 
-**🙏 THANK YOU PAGE - MANDATORY:**
-Every website MUST include a thank-you.php page that users see after submitting forms.
+**🙏 THANK YOU PAGE - MANDATORY FOR ALL WEBSITES:**
+Every PHP website MUST include a thank-you.php page that users see after submitting ANY form:
+
+1. **Create thank-you.php** with:
+   - Same header/navigation as other pages (include header.php)
+   - Hero section with success checkmark icon
+   - Thank you heading (in site language):
+     - EN: "Thank You!", "We've Received Your Message"
+     - DE: "Vielen Dank!", "Wir haben Ihre Nachricht erhalten"
+     - UK: "Дякуємо!", "Ми отримали ваше повідомлення"
+     - FR: "Merci!", "Nous avons reçu votre message"
+     - PL: "Dziękujemy!", "Otrzymaliśmy Twoją wiadomość"
+     - ES: "¡Gracias!", "Hemos recibido tu mensaje"
+     - IT: "Grazie!", "Abbiamo ricevuto il tuo messaggio"
+   - Friendly message explaining next steps (e.g., "We'll respond within 24 hours")
+   - Contact info for urgent matters
+   - Button to return to homepage: <a href="index.php">Return to Home</a>
+   - Same footer as other pages (include footer.php)
+
+2. **Form handler (form-handler.php) MUST redirect to thank-you.php:**
+\`\`\`php
+<?php
+// form-handler.php
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // Process form data here
+    $name = htmlspecialchars($_POST['name'] ?? '');
+    $email = htmlspecialchars($_POST['email'] ?? '');
+    $message = htmlspecialchars($_POST['message'] ?? '');
+    
+    // Here you would normally send email or save to database
+    
+    // Redirect to thank you page
+    header("Location: thank-you.php");
+    exit();
+}
+?>
+\`\`\`
+
+3. **Contact form action MUST point to form-handler.php:**
+\`\`\`php
+<form action="form-handler.php" method="POST">
+    <input type="text" name="name" required>
+    <input type="email" name="email" required>
+    <textarea name="message" required></textarea>
+    <button type="submit">Submit</button>
+</form>
+\`\`\`
+
+4. **Thank you page content requirements:**
+   - Large success icon (checkmark in circle)
+   - Clear success message heading
+   - Subtext about response time
+   - Contact info for urgent matters
+   - Prominent button to return to homepage
+
+5. **THANK YOU PAGE CSS (MANDATORY in css/style.css):**
+\`\`\`css
+.thank-you-section {
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 80px 20px;
+}
+
+.thank-you-icon {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: var(--primary-color, #10b981);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 40px;
+}
+
+.thank-you-icon svg {
+  width: 60px;
+  height: 60px;
+  stroke: white;
+  stroke-width: 3;
+}
+
+.thank-you-title {
+  font-size: 3rem;
+  margin-bottom: 20px;
+}
+
+.thank-you-message {
+  font-size: 1.25rem;
+  color: var(--text-muted);
+  max-width: 600px;
+  margin-bottom: 40px;
+}
+
+.thank-you-button {
+  display: inline-block;
+  padding: 16px 40px;
+  background: var(--primary-color);
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+}
+\`\`\`
+
+**THIS IS NOT OPTIONAL - EVERY GENERATED PHP WEBSITE MUST HAVE A THANK YOU PAGE!**
 
 **CONTENT LENGTH:**
 - Total website content: Minimum 2000 words across all pages
