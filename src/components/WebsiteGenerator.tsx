@@ -813,10 +813,8 @@ export function WebsiteGenerator() {
     );
   };
 
-  const toggleWebsiteType = (type: WebsiteType) => {
-    setSelectedWebsiteTypes(prev => 
-      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
-    );
+  const selectWebsiteType = (type: WebsiteType) => {
+    setSelectedWebsiteTypes([type]);
   };
 
   const toggleImageSource = (source: ImageSource) => {
@@ -1818,48 +1816,35 @@ export function WebsiteGenerator() {
               {/* Website Type Multi-Select */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Тип сайту</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between h-8 text-xs" disabled={isSubmitting}>
-                      <span className="truncate">
-                        {selectedWebsiteTypes.length === 0 
-                          ? "Оберіть" 
-                          : selectedWebsiteTypes.length === 1 
-                            ? (selectedWebsiteTypes[0] === "html" ? "HTML" : selectedWebsiteTypes[0] === "react" ? "React" : "PHP")
-                            : `${selectedWebsiteTypes.length} типи`}
-                      </span>
-                      <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-48 p-2" align="start">
-                    <div className="space-y-1">
-                      <label className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
-                        <Checkbox
-                          checked={selectedWebsiteTypes.includes("html")}
-                          onCheckedChange={() => toggleWebsiteType("html")}
-                        />
+                <Select 
+                  value={selectedWebsiteTypes[0] || "html"} 
+                  onValueChange={(value) => selectWebsiteType(value as WebsiteType)}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Оберіть тип" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="html">
+                      <div className="flex items-center gap-2">
                         <Globe className="h-4 w-4 text-green-500" />
-                        <span className="text-sm">HTML/CSS</span>
-                      </label>
-                      <label className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
-                        <Checkbox
-                          checked={selectedWebsiteTypes.includes("react")}
-                          onCheckedChange={() => toggleWebsiteType("react")}
-                        />
+                        <span>HTML/CSS</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="react">
+                      <div className="flex items-center gap-2">
                         <Layers className="h-4 w-4 text-cyan-500" />
-                        <span className="text-sm">React</span>
-                      </label>
-                      <label className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
-                        <Checkbox
-                          checked={selectedWebsiteTypes.includes("php")}
-                          onCheckedChange={() => toggleWebsiteType("php")}
-                        />
+                        <span>React</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="php">
+                      <div className="flex items-center gap-2">
                         <FileCode2 className="h-4 w-4 text-indigo-500" />
-                        <span className="text-sm">PHP</span>
-                      </label>
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                        <span>PHP</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Image Source Multi-Select */}
