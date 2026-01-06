@@ -43,6 +43,7 @@ interface HistoryItem {
   site_name: string | null;
   sale_price: number | null;
   image_source: string | null;
+  geo: string | null;
 }
 
 // Helper function to calculate and format generation duration
@@ -80,6 +81,46 @@ function getGenerationDuration(createdAt: string, completedAt: string | null): {
   }
   
   return { text, colorClass };
+}
+
+// Geo code to label mapping
+const GEO_LABELS: Record<string, string> = {
+  uk: "Великобританія",
+  bg: "Болгарія",
+  cz: "Чехія",
+  de: "Німеччина",
+  es: "Іспанія",
+  fr: "Франція",
+  hu: "Угорщина",
+  it: "Італія",
+  pl: "Польща",
+  pt: "Португалія",
+  ro: "Румунія",
+  tr: "Туреччина",
+  nl: "Нідерланди",
+  ru: "Росія",
+  jp: "Японія",
+  ua: "Україна",
+  hr: "Хорватія",
+  dk: "Данія",
+  ee: "Естонія",
+  fi: "Фінляндія",
+  gr: "Греція",
+  lv: "Латвія",
+  lt: "Литва",
+  sk: "Словаччина",
+  si: "Словенія",
+  se: "Швеція",
+  vn: "В'єтнам",
+  th: "Таїланд",
+  id: "Індонезія",
+  in: "Індія",
+  ae: "ОАЕ",
+  us: "США",
+};
+
+function getGeoLabel(geoCode: string): string {
+  return GEO_LABELS[geoCode] || geoCode.toUpperCase();
 }
 
 interface Appeal {
@@ -180,6 +221,11 @@ function SingleHistoryItem({
               <Badge variant="outline" className="text-xs px-1.5 py-0 h-5">
                 {item.website_type === "react" ? "React" : item.website_type === "php" ? "PHP" : "HTML"}
               </Badge>
+              {item.geo && (
+                <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5">
+                  {getGeoLabel(item.geo)}
+                </Badge>
+              )}
               {item.status === "completed" && (() => {
                 const duration = getGenerationDuration(item.created_at, item.completed_at);
                 if (duration) {
@@ -281,7 +327,7 @@ function SingleHistoryItem({
         <CollapsibleContent>
           {/* Детальна інформація */}
           <div className="border-t px-4 py-3 space-y-3 bg-muted/20">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
               <div>
                 <span className="text-muted-foreground text-xs">AI модель</span>
                 <p className="font-medium">{item.ai_model === "senior" ? "Senior" : "Junior"}</p>
@@ -289,6 +335,10 @@ function SingleHistoryItem({
               <div>
                 <span className="text-muted-foreground text-xs">Мова</span>
                 <p className="font-medium">{item.language}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Гео</span>
+                <p className="font-medium">{item.geo ? getGeoLabel(item.geo) : "—"}</p>
               </div>
               <div>
                 <span className="text-muted-foreground text-xs">Фото</span>

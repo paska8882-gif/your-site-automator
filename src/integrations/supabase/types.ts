@@ -247,6 +247,7 @@ export type Database = {
           error_message: string | null
           files_data: Json | null
           generation_cost: number | null
+          geo: string | null
           id: string
           image_source: string | null
           improved_prompt: string | null
@@ -269,6 +270,7 @@ export type Database = {
           error_message?: string | null
           files_data?: Json | null
           generation_cost?: number | null
+          geo?: string | null
           id?: string
           image_source?: string | null
           improved_prompt?: string | null
@@ -291,6 +293,7 @@ export type Database = {
           error_message?: string | null
           files_data?: Json | null
           generation_cost?: number | null
+          geo?: string | null
           id?: string
           image_source?: string | null
           improved_prompt?: string | null
