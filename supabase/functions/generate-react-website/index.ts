@@ -336,6 +336,56 @@ NEVER include ANY numerical data anywhere on the website. This is a STRICT requi
 - Postal codes in addresses (required for location)
 - Years in copyright footer (e.g., "© 2024")
 
+**⚠️ MANDATORY DISCLAIMER - ABSOLUTELY CRITICAL, NON-NEGOTIABLE:**
+Every React website MUST include a disclaimer section adapted to the website's theme. This is REQUIRED for Google Ads compliance:
+
+**DISCLAIMER REQUIREMENTS:**
+1. Add the disclaimer in the Footer component, ABOVE the copyright section
+2. The disclaimer MUST be styled as a prominent colored block (dark red/maroon background with lighter text)
+3. The disclaimer text MUST be ADAPTED to match the website's theme/industry:
+   - Keep the core meaning: "content is for general information/education only, not professional advice"
+   - Adapt terminology to the specific industry (e.g., "financial advice" for finance, "medical advice" for health, "legal advice" for law, etc.)
+   - Always include: not professional advice, consult qualified experts, involves risk, we don't sell [relevant products]
+
+**DISCLAIMER COMPONENT TEMPLATE (include in Footer.js or separate Disclaimer.js):**
+\`\`\`jsx
+<div className="disclaimer-section">
+  <p>
+    <strong>Important Notice (Disclaimer) regarding Google Ads compliance:</strong>{' '}
+    [ADAPTED DISCLAIMER TEXT FOR SITE THEME AND LANGUAGE]
+  </p>
+</div>
+\`\`\`
+
+**DISCLAIMER STYLING (MUST INCLUDE IN Footer.css or App.css):**
+\`\`\`css
+.disclaimer-section {
+  background-color: #8B2635; /* Dark red/maroon */
+  color: #ffffff;
+  padding: 20px 30px;
+  margin: 30px auto 0 auto;
+  max-width: 1200px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.disclaimer-section strong {
+  display: block;
+  margin-bottom: 8px;
+}
+\`\`\`
+
+**LANGUAGE EXAMPLES (ADAPT TO SITE THEME):**
+- EN (Finance theme): "Important Notice (Disclaimer): The content of this website is intended solely for general information and financial education. It does not constitute investment, tax, or legal advice and cannot replace individual consultations with qualified experts. Any investments involve risk. We do not sell financial products."
+- EN (Health theme): "Important Notice (Disclaimer): The content of this website is intended solely for general information and health education. It does not constitute medical advice and cannot replace individual consultations with qualified healthcare professionals. Always consult a doctor before making health decisions. We do not sell medications."
+- EN (Legal theme): "Important Notice (Disclaimer): The content of this website is intended solely for general information and legal education. It does not constitute legal advice and cannot replace individual consultations with qualified attorneys. Every legal situation is unique. We do not provide legal representation."
+- DE (Finance): "Wichtiger Hinweis (Haftungsausschluss): Der Inhalt dieser Website dient ausschließlich der allgemeinen Information und Finanzbildung. Er stellt keine Anlage-, Steuer- oder Rechtsberatung dar und kann individuelle Beratungen durch qualifizierte Experten nicht ersetzen. Jede Investition ist mit Risiken verbunden. Wir verkaufen keine Finanzprodukte."
+- RU (Finance): "Важное уведомление (отказ от ответственности): Контент этого веб-сайта предназначен исключительно для общего ознакомления и финансового образования. Он не является инвестиционной, налоговой или юридической консультацией и не может заменить индивидуальные консультации квалифицированных экспертов. Любые инвестиции сопряжены с риском. Мы не продаем финансовые продукты."
+- UK (Finance): "Важливе повідомлення (відмова від відповідальності): Контент цього веб-сайту призначений виключно для загального ознайомлення та фінансової освіти. Він не є інвестиційною, податковою чи юридичною консультацією і не може замінити індивідуальні консультації кваліфікованих експертів. Будь-які інвестиції пов'язані з ризиком. Ми не продаємо фінансові продукти."
+
+**THIS IS NOT OPTIONAL - EVERY GENERATED REACT WEBSITE MUST HAVE THE DISCLAIMER ADAPTED TO ITS THEME!**
+
 **THIS RULE IS NON-NEGOTIABLE - ANY NUMERICAL DATA OTHER THAN CONTACT INFO WILL MAKE THE WEBSITE INVALID!**
 
 **📞 PHONE NUMBERS - MANDATORY REQUIREMENTS:**
