@@ -239,7 +239,7 @@ export function WebsiteGenerator() {
   // Load draft on mount
   const draft = useRef(loadDraft()).current;
   
-  const [siteName, setSiteName] = useState(draft.siteName || "");
+  const [siteName, setSiteName] = useState(draft.siteName || ""); // Can be multiple names separated by newlines or commas
   const [prompt, setPrompt] = useState(draft.prompt || "");
   const [originalPrompt, setOriginalPrompt] = useState<string | null>(null); // Stores original prompt before improvement
   const [improvedPromptValue, setImprovedPromptValue] = useState<string | null>(null); // Stores improved prompt
@@ -823,14 +823,24 @@ export function WebsiteGenerator() {
     setSelectedImageSources([source]);
   };
 
-  // Calculate total generations: languages × sites × styles × aiModels × websiteTypes × imageSources
+  // Parse site names from input (separated by newlines or commas)
+  const getAllSiteNames = () => {
+    return siteName
+      .split(/[\n,]+/)
+      .map(name => name.trim())
+      .filter(name => name.length > 0);
+  };
+
+  // Calculate total generations: siteNames × languages × sites × styles × aiModels × websiteTypes × imageSources
   const allLanguages = getAllSelectedLanguages();
   const allStyles = getAllSelectedStyles();
+  const allSiteNames = getAllSiteNames();
+  const siteNamesCount = allSiteNames.length || 1;
   const styleCount = allStyles.length || 1;
   const aiModelCount = selectedAiModels.length || 1;
   const websiteTypeCount = selectedWebsiteTypes.length || 1;
   const imageSourceCount = selectedImageSources.length || 1;
-  const totalGenerations = allLanguages.length * sitesPerLanguage * styleCount * aiModelCount * websiteTypeCount * imageSourceCount;
+  const totalGenerations = siteNamesCount * allLanguages.length * sitesPerLanguage * styleCount * aiModelCount * websiteTypeCount * imageSourceCount;
 
   // Calculate total cost for current generation (consider all combinations)
   const calculateTotalCost = () => {
@@ -957,10 +967,11 @@ export function WebsiteGenerator() {
   const wouldExceedLimit = totalGenerations > availableSlots;
 
   const handleGenerateClick = async () => {
-    if (!siteName.trim()) {
+    const siteNames = getAllSiteNames();
+    if (siteNames.length === 0) {
       toast({
         title: "Помилка",
-        description: "Будь ласка, введіть назву/домен сайту",
+        description: "Будь ласка, введіть хоча б одну назву/домен сайту",
         variant: "destructive",
       });
       return;
@@ -1043,18 +1054,19 @@ export function WebsiteGenerator() {
 
     try {
       // Create all generation requests in parallel
-      // Combinations: languages × sitesPerLanguage × styles × aiModels × websiteTypes × imageSources
+      // Combinations: siteNames × languages × sitesPerLanguage × styles × aiModels × websiteTypes × imageSources
       const stylesToUse = allStyles.length > 0 ? allStyles : [undefined];
       const aiModelsToUse = selectedAiModels.length > 0 ? selectedAiModels : ["senior" as AiModel];
       const websiteTypesToUse = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes : ["html" as WebsiteType];
       const imageSourcesToUse = selectedImageSources.length > 0 ? selectedImageSources : ["basic" as ImageSource];
       const langs = getAllSelectedLanguages();
-      const totalCount = langs.length * sitesPerLanguage * stylesToUse.length * aiModelsToUse.length * websiteTypesToUse.length * imageSourcesToUse.length;
+      const siteNames = getAllSiteNames();
+      const totalCount = siteNames.length * langs.length * sitesPerLanguage * stylesToUse.length * aiModelsToUse.length * websiteTypesToUse.length * imageSourcesToUse.length;
       
       setGenerationProgress({ completed: 0, total: totalCount });
 
       // Create wrapped promises that update progress on completion
-      const createTrackedPromise = async (lang: string, style: string | undefined, model: AiModel, wType: WebsiteType, iSource: ImageSource) => {
+      const createTrackedPromise = async (currentSiteName: string, lang: string, style: string | undefined, model: AiModel, wType: WebsiteType, iSource: ImageSource) => {
         const currentSeniorMode = model === "senior" ? seniorMode : undefined;
         // For admins, pass selected team ID; for regular users, teamId is undefined (uses their membership)
         const teamIdToUse = isAdmin ? selectedAdminTeamId : undefined;
@@ -1066,19 +1078,21 @@ export function WebsiteGenerator() {
           ? customGeo 
           : (selectedGeo && selectedGeo !== "none" ? selectedGeo : undefined);
         // Pass improved prompt only if it was manually improved via the button
-        const result = await startGeneration(promptForDisplay, lang, model, wType, style, siteName, currentSeniorMode, iSource, teamIdToUse, improvedPromptValue || undefined, geoToUse);
+        const result = await startGeneration(promptForDisplay, lang, model, wType, style, currentSiteName, currentSeniorMode, iSource, teamIdToUse, improvedPromptValue || undefined, geoToUse);
         setGenerationProgress(prev => ({ ...prev, completed: prev.completed + 1 }));
         return result;
       };
 
       const generationPromises: Promise<any>[] = [];
-      for (const lang of langs) {
-        for (let i = 0; i < sitesPerLanguage; i++) {
-          for (const style of stylesToUse) {
-            for (const model of aiModelsToUse) {
-              for (const wType of websiteTypesToUse) {
-                for (const iSource of imageSourcesToUse) {
-                  generationPromises.push(createTrackedPromise(lang, style, model, wType, iSource));
+      for (const currentSiteName of siteNames) {
+        for (const lang of langs) {
+          for (let i = 0; i < sitesPerLanguage; i++) {
+            for (const style of stylesToUse) {
+              for (const model of aiModelsToUse) {
+                for (const wType of websiteTypesToUse) {
+                  for (const iSource of imageSourcesToUse) {
+                    generationPromises.push(createTrackedPromise(currentSiteName, lang, style, model, wType, iSource));
+                  }
                 }
               }
             }
@@ -1374,19 +1388,26 @@ export function WebsiteGenerator() {
             {/* Site Name + Mode Selection - in one row for admin */}
             {isAdmin && (
               <div className="flex flex-wrap items-end gap-3">
-                {/* Site Name - left side */}
-                <div className="min-w-[180px]">
+                {/* Site Names - left side */}
+                <div className="min-w-[280px] flex-1">
                   <Label htmlFor="siteName" className="text-xs mb-1 block">
-                    Назва / Домен <span className="text-destructive">*</span>
+                    Назви сайтів <span className="text-destructive">*</span>
+                    <span className="text-muted-foreground ml-1">(через кому або рядок)</span>
                   </Label>
-                  <Input
+                  <Textarea
                     id="siteName"
-                    placeholder="my-company, techsolutions"
+                    placeholder="my-company&#10;techsolutions&#10;coffee-shop"
                     value={siteName}
                     onChange={(e) => setSiteName(e.target.value)}
                     disabled={isSubmitting || isImproving}
-                    className="h-8 text-sm"
+                    className="min-h-[60px] text-sm resize-none"
+                    rows={Math.max(2, Math.min(5, allSiteNames.length))}
                   />
+                  {allSiteNames.length > 1 && (
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      {allSiteNames.length} назв × генерації
+                    </p>
+                  )}
                 </div>
 
                 {/* Spacer */}
@@ -1485,16 +1506,23 @@ export function WebsiteGenerator() {
             {!isAdmin && (
               <div className="space-y-1">
                 <Label htmlFor="siteName" className="text-xs">
-                  Назва / Домен <span className="text-destructive">*</span>
+                  Назви сайтів <span className="text-destructive">*</span>
+                  <span className="text-muted-foreground ml-1">(через кому або рядок)</span>
                 </Label>
-                <Input
+                <Textarea
                   id="siteName"
-                  placeholder="my-company, techsolutions, coffee-shop"
+                  placeholder="my-company&#10;techsolutions&#10;coffee-shop"
                   value={siteName}
                   onChange={(e) => setSiteName(e.target.value)}
                   disabled={isSubmitting || isImproving}
-                  className="h-8 text-sm"
+                  className="min-h-[60px] text-sm resize-none"
+                  rows={Math.max(2, Math.min(5, allSiteNames.length))}
                 />
+                {allSiteNames.length > 1 && (
+                  <p className="text-[10px] text-muted-foreground">
+                    {allSiteNames.length} назв × генерації
+                  </p>
+                )}
               </div>
             )}
 
