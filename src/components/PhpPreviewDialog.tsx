@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -185,13 +186,16 @@ export function PhpPreviewDialog({ open, onOpenChange, files, siteName }: PhpPre
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-7xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="px-4 py-3 border-b shrink-0">
+      <DialogContent className="max-w-7xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0" aria-describedby={undefined}>
+        <VisuallyHidden>
+          <DialogDescription>PHP site preview with navigation and link checking</DialogDescription>
+        </VisuallyHidden>
+        <div className="px-4 py-3 border-b shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <DialogTitle className="text-lg">
+              <h2 className="text-lg font-semibold">
                 PHP Превью: {siteName || "Сайт"}
-              </DialogTitle>
+              </h2>
               {brokenLinksCount > 0 && (
                 <Badge variant="destructive" className="gap-1">
                   <Link2Off className="h-3 w-3" />
@@ -203,7 +207,7 @@ export function PhpPreviewDialog({ open, onOpenChange, files, siteName }: PhpPre
               <X className="h-4 w-4" />
             </Button>
           </div>
-        </DialogHeader>
+        </div>
 
         <div className="flex flex-1 min-h-0">
           {/* Sidebar with pages */}
