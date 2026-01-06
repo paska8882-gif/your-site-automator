@@ -30,7 +30,6 @@ interface HistoryItem {
   id: string;
   number: number;
   prompt: string;
-  improved_prompt: string | null;
   language: string;
   zip_data: string | null;
   files_data: GeneratedFile[] | null;
@@ -519,10 +518,10 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
       return;
     }
     
-    // Fetch only current user's generations
+    // Fetch only current user's generations (without improved_prompt - commercial secret)
     const { data, error } = await supabase
       .from("generation_history")
-      .select("*")
+      .select("id, number, prompt, language, zip_data, files_data, status, error_message, created_at, completed_at, ai_model, website_type, site_name, sale_price, image_source, geo")
       .eq("user_id", user.id)
       .order("number", { ascending: false });
 
