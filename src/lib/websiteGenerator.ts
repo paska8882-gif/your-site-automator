@@ -18,7 +18,7 @@ export interface GenerationResult {
 }
 
 export type AiModel = "junior" | "senior";
-export type WebsiteType = "html" | "react";
+export type WebsiteType = "html" | "react" | "php";
 export type SeniorMode = "codex" | "onepage" | "v0" | "reaktiv" | undefined;
 export type ImageSource = "basic" | "ai";
 
@@ -118,7 +118,11 @@ export async function startGeneration(
     return startV0Generation(prompt, language, websiteType, layoutStyle, siteName, teamId, geo);
   }
 
-  const functionName = websiteType === "react" ? "generate-react-website" : "generate-website";
+  const functionName = websiteType === "react" 
+    ? "generate-react-website" 
+    : websiteType === "php" 
+      ? "generate-php-website" 
+      : "generate-website";
 
   const makeRequest = async (accessToken: string) => {
     return fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`, {

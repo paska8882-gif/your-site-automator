@@ -1825,7 +1825,7 @@ export function WebsiteGenerator() {
                         {selectedWebsiteTypes.length === 0 
                           ? "Оберіть" 
                           : selectedWebsiteTypes.length === 1 
-                            ? (selectedWebsiteTypes[0] === "html" ? "HTML" : "React")
+                            ? (selectedWebsiteTypes[0] === "html" ? "HTML" : selectedWebsiteTypes[0] === "react" ? "React" : "PHP")
                             : `${selectedWebsiteTypes.length} типи`}
                       </span>
                       <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
@@ -1848,6 +1848,14 @@ export function WebsiteGenerator() {
                         />
                         <Layers className="h-4 w-4 text-cyan-500" />
                         <span className="text-sm">React</span>
+                      </label>
+                      <label className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
+                        <Checkbox
+                          checked={selectedWebsiteTypes.includes("php")}
+                          onCheckedChange={() => toggleWebsiteType("php")}
+                        />
+                        <FileCode2 className="h-4 w-4 text-indigo-500" />
+                        <span className="text-sm">PHP</span>
                       </label>
                     </div>
                   </PopoverContent>
