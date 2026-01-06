@@ -22,7 +22,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Hash, Palette, ChevronDown, AlertTriangle, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp, Filter, Newspaper, MapPin } from "lucide-react";
+import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Hash, Palette, ChevronDown, AlertTriangle, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp, Filter, Newspaper, MapPin, X, Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { startGeneration, AiModel, WebsiteType, SeniorMode, ImageSource, LAYOUT_STYLES } from "@/lib/websiteGenerator";
@@ -193,7 +194,7 @@ const playCompletionSound = (success: boolean) => {
 const DRAFT_STORAGE_KEY = "website_generator_draft";
 
 interface GeneratorDraft {
-  siteName: string;
+  siteNames: string[];
   prompt: string;
   selectedLanguages: string[];
   selectedGeo: string;
@@ -239,7 +240,8 @@ export function WebsiteGenerator() {
   // Load draft on mount
   const draft = useRef(loadDraft()).current;
   
-  const [siteName, setSiteName] = useState(draft.siteName || ""); // Can be multiple names separated by newlines or commas
+  const [siteNames, setSiteNames] = useState<string[]>(draft.siteNames || []);
+  const [currentSiteNameInput, setCurrentSiteNameInput] = useState("");
   const [prompt, setPrompt] = useState(draft.prompt || "");
   const [originalPrompt, setOriginalPrompt] = useState<string | null>(null); // Stores original prompt before improvement
   const [improvedPromptValue, setImprovedPromptValue] = useState<string | null>(null); // Stores improved prompt
@@ -300,7 +302,7 @@ export function WebsiteGenerator() {
   // Save draft to localStorage when form fields change
   useEffect(() => {
     saveDraft({
-      siteName,
+      siteNames,
       prompt,
       selectedLanguages,
       selectedGeo,
@@ -319,7 +321,7 @@ export function WebsiteGenerator() {
       adminGenerationMode,
     });
   }, [
-    siteName, prompt, selectedLanguages, selectedGeo, customGeo, isOtherGeoSelected,
+    siteNames, prompt, selectedLanguages, selectedGeo, customGeo, isOtherGeoSelected,
     customLanguage, isOtherSelected,
     selectedStyles, customStyle, isOtherStyleSelected, sitesPerLanguage,
     selectedAiModels, selectedWebsiteTypes, selectedImageSources,
@@ -823,12 +825,21 @@ export function WebsiteGenerator() {
     setSelectedImageSources([source]);
   };
 
-  // Parse site names from input (separated by newlines or commas)
-  const getAllSiteNames = () => {
-    return siteName
-      .split(/[\n,]+/)
-      .map(name => name.trim())
-      .filter(name => name.length > 0);
+  // Get all site names (already an array)
+  const getAllSiteNames = () => siteNames;
+
+  // Add a new site name from input
+  const addSiteName = () => {
+    const trimmed = currentSiteNameInput.trim();
+    if (trimmed && !siteNames.includes(trimmed)) {
+      setSiteNames(prev => [...prev, trimmed]);
+      setCurrentSiteNameInput("");
+    }
+  };
+
+  // Remove a site name
+  const removeSiteName = (name: string) => {
+    setSiteNames(prev => prev.filter(n => n !== name));
   };
 
   // Calculate total generations: siteNames × languages × sites × styles × aiModels × websiteTypes × imageSources
@@ -1114,7 +1125,8 @@ export function WebsiteGenerator() {
           title: "Генерації розпочато",
           description: `Запущено ${successCount} генерацій${failCount > 0 ? `, ${failCount} помилок` : ""}. Слідкуйте за статусом в історії.`,
         });
-        setSiteName("");
+        setSiteNames([]);
+        setCurrentSiteNameInput("");
         setPrompt("");
         setOriginalPrompt(null);
         setImprovedPromptValue(null);
@@ -1392,21 +1404,49 @@ export function WebsiteGenerator() {
                 <div className="min-w-[280px] flex-1">
                   <Label htmlFor="siteName" className="text-xs mb-1 block">
                     Назви сайтів <span className="text-destructive">*</span>
-                    <span className="text-muted-foreground ml-1">(через кому або рядок)</span>
                   </Label>
-                  <Textarea
-                    id="siteName"
-                    placeholder="my-company&#10;techsolutions&#10;coffee-shop"
-                    value={siteName}
-                    onChange={(e) => setSiteName(e.target.value)}
-                    disabled={isSubmitting || isImproving}
-                    className="min-h-[60px] text-sm resize-none"
-                    rows={Math.max(2, Math.min(5, allSiteNames.length))}
-                  />
-                  {allSiteNames.length > 1 && (
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      {allSiteNames.length} назв × генерації
-                    </p>
+                  <div className="flex gap-1">
+                    <Input
+                      id="siteName"
+                      placeholder="my-company"
+                      value={currentSiteNameInput}
+                      onChange={(e) => setCurrentSiteNameInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addSiteName();
+                        }
+                      }}
+                      disabled={isSubmitting || isImproving}
+                      className="h-8 text-sm flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addSiteName}
+                      disabled={isSubmitting || isImproving || !currentSiteNameInput.trim()}
+                      className="h-8 px-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {siteNames.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {siteNames.map((name) => (
+                        <Badge key={name} variant="secondary" className="text-xs gap-1 pr-1">
+                          {name}
+                          <button
+                            type="button"
+                            onClick={() => removeSiteName(name)}
+                            className="ml-0.5 hover:text-destructive"
+                            disabled={isSubmitting}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
                   )}
                 </div>
 
@@ -1507,21 +1547,49 @@ export function WebsiteGenerator() {
               <div className="space-y-1">
                 <Label htmlFor="siteName" className="text-xs">
                   Назви сайтів <span className="text-destructive">*</span>
-                  <span className="text-muted-foreground ml-1">(через кому або рядок)</span>
                 </Label>
-                <Textarea
-                  id="siteName"
-                  placeholder="my-company&#10;techsolutions&#10;coffee-shop"
-                  value={siteName}
-                  onChange={(e) => setSiteName(e.target.value)}
-                  disabled={isSubmitting || isImproving}
-                  className="min-h-[60px] text-sm resize-none"
-                  rows={Math.max(2, Math.min(5, allSiteNames.length))}
-                />
-                {allSiteNames.length > 1 && (
-                  <p className="text-[10px] text-muted-foreground">
-                    {allSiteNames.length} назв × генерації
-                  </p>
+                <div className="flex gap-1">
+                  <Input
+                    id="siteName"
+                    placeholder="my-company"
+                    value={currentSiteNameInput}
+                    onChange={(e) => setCurrentSiteNameInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addSiteName();
+                      }
+                    }}
+                    disabled={isSubmitting || isImproving}
+                    className="h-8 text-sm flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addSiteName}
+                    disabled={isSubmitting || isImproving || !currentSiteNameInput.trim()}
+                    className="h-8 px-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                {siteNames.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {siteNames.map((name) => (
+                      <Badge key={name} variant="secondary" className="text-xs gap-1 pr-1">
+                        {name}
+                        <button
+                          type="button"
+                          onClick={() => removeSiteName(name)}
+                          className="ml-0.5 hover:text-destructive"
+                          disabled={isSubmitting}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
@@ -1911,7 +1979,7 @@ export function WebsiteGenerator() {
             {isAdmin && adminGenerationMode === "senior_direct" && (
               <Button
                 onClick={async () => {
-                  if (!siteName.trim() || !prompt.trim() || !seniorMode) {
+                  if (siteNames.length === 0 || !prompt.trim() || !seniorMode) {
                     toast({
                       title: "Заповніть поля",
                       description: "Введіть назву, опис та оберіть сервіс",
@@ -1923,22 +1991,26 @@ export function WebsiteGenerator() {
                   setIsSubmitting(true);
                   const externalLanguage = selectedLanguages[0] || "uk";
                   try {
-                    // Pass team ID only if selected, otherwise generation is free (no billing)
-                    await startGeneration(
-                      prompt,
-                      externalLanguage,
-                      "senior",
-                      "html",
-                      undefined,
-                      siteName,
-                      seniorMode,
-                      "basic",
-                      selectedAdminTeamId || undefined
-                    );
+                    // Generate for each site name
+                    for (const name of siteNames) {
+                      await startGeneration(
+                        prompt,
+                        externalLanguage,
+                        "senior",
+                        "html",
+                        undefined,
+                        name,
+                        seniorMode,
+                        "basic",
+                        selectedAdminTeamId || undefined
+                      );
+                    }
                     toast({
                       title: "Генерацію запущено",
-                      description: `Запит відправлено на ${seniorMode} (${languages.find((l) => l.value === externalLanguage)?.label || externalLanguage})${selectedAdminTeamId ? "" : " — без списання коштів"}`,
+                      description: `Запущено ${siteNames.length} генерацій на ${seniorMode}${selectedAdminTeamId ? "" : " — без списання коштів"}`,
                     });
+                    setSiteNames([]);
+                    setCurrentSiteNameInput("");
                   } catch (error) {
                     toast({
                       title: "Помилка",
@@ -1948,7 +2020,7 @@ export function WebsiteGenerator() {
                   }
                   setIsSubmitting(false);
                 }}
-                disabled={isSubmitting || !siteName.trim() || !prompt.trim() || !seniorMode}
+                disabled={isSubmitting || siteNames.length === 0 || !prompt.trim() || !seniorMode}
                 className="w-full h-9 text-sm"
               >
                 {isSubmitting ? (
@@ -1973,7 +2045,7 @@ export function WebsiteGenerator() {
                 {/* Generate Button - left side */}
                 <Button
                   onClick={handleGenerateClick}
-                  disabled={isSubmitting || !siteName.trim() || !prompt.trim() || getAllSelectedLanguages().length === 0 || selectedAiModels.length === 0 || selectedWebsiteTypes.length === 0 || selectedImageSources.length === 0 || (isAdmin ? exceedsCreditLimit : insufficientBalance) || (isAdmin && !selectedAdminTeamId)}
+                  disabled={isSubmitting || siteNames.length === 0 || !prompt.trim() || getAllSelectedLanguages().length === 0 || selectedAiModels.length === 0 || selectedWebsiteTypes.length === 0 || selectedImageSources.length === 0 || (isAdmin ? exceedsCreditLimit : insufficientBalance) || (isAdmin && !selectedAdminTeamId)}
                   className="h-9 text-sm"
                 >
                   {isSubmitting ? (
@@ -2178,10 +2250,11 @@ export function WebsiteGenerator() {
         <GenerationHistory 
           defaultDateFilter="today"
           onUsePrompt={(name, desc) => {
-            setSiteName(name);
+            setSiteNames(name ? [name] : []);
+            setCurrentSiteNameInput("");
             setPrompt(desc);
             window.scrollTo({ top: 0, behavior: "smooth" });
-          }} 
+          }}
         />
       </div>
 
