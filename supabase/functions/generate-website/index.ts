@@ -1611,6 +1611,7 @@ serve(async (req) => {
         site_name: siteName || null,
         image_source: imageSource || "basic",
         sale_price: salePrice,
+        geo: geo || null,
       })
       .select()
       .single();
