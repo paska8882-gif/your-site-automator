@@ -1041,7 +1041,14 @@ async function runGeneration({
     return { missing, tooShort };
   };
 
-  const generateOnce = async (opts: { strictFormat: boolean }) => {
+  const generateOnce = async (opts: { strictFormat: boolean; timeoutMs?: number }) => {
+    const timeoutMs = opts.timeoutMs ?? 180_000; // 3 minutes default
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.error(`⏰ Generation timeout after ${timeoutMs / 1000}s`);
+      controller.abort();
+    }, timeoutMs);
+
     const strictFormatBlock = opts.strictFormat
       ? `\n\nSTRICT OUTPUT FORMAT (MANDATORY):\n- Output ONLY file blocks in this exact format. No commentary, no markdown headings.\n\n--- FILE: includes/config.php ---\n<file contents>\n--- END FILE ---\n\n--- FILE: includes/header.php ---\n<file contents>\n--- END FILE ---\n\n(Repeat for every file.)\n\nIf you cannot comply, output nothing.`
       : "";
@@ -1049,71 +1056,85 @@ async function runGeneration({
     const systemContent = PHP_GENERATION_PROMPT + layoutDescription + "\n\n" + imageStrategy + "\n\n" + IMAGE_CSS;
     const userContent = `Create a COMPLETE, FULLY FUNCTIONAL multi-page PHP website based on this brief:\n\n${refinedPrompt}\n\nCRITICAL GENERATION CHECKLIST - YOU MUST INCLUDE ALL:\n✅ includes/config.php - Site constants (SITE_NAME, SITE_EMAIL, SITE_PHONE, SITE_ADDRESS)\n✅ includes/header.php - Full HTML head, navigation with links to ALL pages\n✅ includes/footer.php - Footer with disclaimer, copyright, links\n✅ index.php - Homepage with hero, features, services preview, testimonials, CTA (FULL CONTENT)\n✅ about.php - About page with mission, team, values (FULL CONTENT)\n✅ services.php - Services/Products page with detailed descriptions (FULL CONTENT)\n✅ contact.php - Contact form with method=\"POST\" action=\"form-handler.php\"\n✅ form-handler.php - Form processor that redirects to thank-you.php\n✅ thank-you.php - Thank you page after form submission\n✅ privacy.php - Privacy policy page\n✅ css/style.css - Complete CSS with responsive design, mobile menu\n✅ js/script.js - JavaScript for mobile menu, interactions\n\nEach page MUST have SUBSTANTIAL, UNIQUE content (not placeholders).\nGenerate COMPLETE files with full HTML, CSS, and PHP code.\nUse proper PHP includes on every page.${strictFormatBlock}`;
 
-    let generateResponse: Response;
-    
-    if (useLovableAI) {
-      generateResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${lovableApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: generateModel,
-          messages: [
-            { role: "system", content: systemContent },
-            { role: "user", content: userContent },
-          ],
-          max_tokens: 32000,
-        }),
-      });
-    } else {
-      generateResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${openaiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: generateModel,
-          messages: [
-            { role: "system", content: systemContent },
-            { role: "user", content: userContent },
-          ],
-          max_tokens: 16000,
-          temperature: opts.strictFormat ? 0.4 : 0.6,
-        }),
-      });
-    }
-
-    if (!generateResponse.ok) {
-      const errText = await generateResponse.text();
-      console.error("Generate API error:", errText);
-      return { ok: false as const, error: `Website generation failed: ${errText}` };
-    }
-
-    let generateData: any;
     try {
-      const raw = await generateResponse.text();
-      generateData = raw ? JSON.parse(raw) : null;
-    } catch (e) {
-      console.error("Generate API JSON parse error:", e);
-      return { ok: false as const, error: "Website generation failed: invalid JSON response" };
+      let generateResponse: Response;
+      
+      if (useLovableAI) {
+        generateResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${lovableApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: generateModel,
+            messages: [
+              { role: "system", content: systemContent },
+              { role: "user", content: userContent },
+            ],
+            max_tokens: 32000,
+          }),
+          signal: controller.signal,
+        });
+      } else {
+        generateResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${openaiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: generateModel,
+            messages: [
+              { role: "system", content: systemContent },
+              { role: "user", content: userContent },
+            ],
+            max_tokens: 16000,
+            temperature: opts.strictFormat ? 0.4 : 0.6,
+          }),
+          signal: controller.signal,
+        });
+      }
+
+      clearTimeout(timeoutId);
+
+      if (!generateResponse.ok) {
+        const errText = await generateResponse.text();
+        console.error("Generate API error:", errText);
+        return { ok: false as const, error: `Website generation failed: ${errText}` };
+      }
+
+      let generateData: any;
+      try {
+        const raw = await generateResponse.text();
+        generateData = raw ? JSON.parse(raw) : null;
+      } catch (e) {
+        console.error("Generate API JSON parse error:", e);
+        return { ok: false as const, error: "Website generation failed: invalid JSON response" };
+      }
+
+      const generatedText = generateData?.choices?.[0]?.message?.content || "";
+      const genUsage = generateData?.usage || {};
+      const generateCost = calculateCost(genUsage, generateModel);
+
+      console.log(
+        `💰 Token usage for ${generateModel}: ${genUsage.prompt_tokens || 0} in, ${genUsage.completion_tokens || 0} out = $${generateCost.toFixed(6)}`
+      );
+
+      // Parse
+      const files = parseFilesFromModelText(generatedText);
+      console.log(`Parsed ${files.length} files from generation`);
+
+      return { ok: true as const, files, generateCost };
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (err instanceof Error && err.name === "AbortError") {
+        console.error(`Generation aborted due to timeout (${timeoutMs / 1000}s)`);
+        return { ok: false as const, error: `Generation timed out after ${timeoutMs / 1000} seconds` };
+      }
+      console.error("Generate unexpected error:", err);
+      return { ok: false as const, error: `Generation failed: ${err instanceof Error ? err.message : String(err)}` };
     }
-
-    const generatedText = generateData?.choices?.[0]?.message?.content || "";
-    const genUsage = generateData?.usage || {};
-    const generateCost = calculateCost(genUsage, generateModel);
-
-    console.log(
-      `💰 Token usage for ${generateModel}: ${genUsage.prompt_tokens || 0} in, ${genUsage.completion_tokens || 0} out = $${generateCost.toFixed(6)}`
-    );
-
-    // Parse
-    const files = parseFilesFromModelText(generatedText);
-    console.log(`Parsed ${files.length} files from generation`);
-
-    return { ok: true as const, files, generateCost };
   };
 
   // 4. Generate the PHP website (retry on JSON errors or incomplete files)
@@ -1142,7 +1163,8 @@ async function runGeneration({
     retryAttempted = true;
 
     try {
-      const second = await generateOnce({ strictFormat: true });
+      // Retry with shorter timeout (60s) and strict format
+      const second = await generateOnce({ strictFormat: true, timeoutMs: 90_000 });
       if (second.ok) {
         const v2 = validateFiles(second.files);
         console.log(`Retry attempt result: ${second.files.length} files, Missing: ${v2.missing.join(", ")}, Too short: ${v2.tooShort.join(", ")}`);
@@ -1165,6 +1187,16 @@ async function runGeneration({
       retryError = retryErr instanceof Error ? retryErr.message : "Retry exception";
       console.error(`Retry exception: ${retryError}`);
     }
+  }
+
+  // Graceful degradation: if we have 8+ files and only 1-2 non-critical files missing, accept with warning
+  const finalValidation = validateFiles(files);
+  const criticalFiles = ["index.php", "includes/header.php", "includes/footer.php", "css/style.css"];
+  const missingCritical = finalValidation.missing.filter(f => criticalFiles.includes(f));
+  
+  if (files.length >= 8 && missingCritical.length === 0 && finalValidation.missing.length <= 2) {
+    console.warn(`⚠️ Accepting partial result: ${files.length} files, missing non-critical: ${finalValidation.missing.join(", ")}`);
+    // Continue with partial result - warning will be in logs
   }
 
   const totalCost = refineCost + generateCost;
