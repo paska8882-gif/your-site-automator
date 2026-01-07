@@ -383,15 +383,41 @@ All phone numbers MUST be:
    - Czech Republic: +420 XXX XXX XXX - e.g., +420 221 847 293, +420 602 847 291
    - Sweden: +46 X XXX XXX XX - e.g., +46 8 847 293 64, +46 70 847 29 36
    - Norway: +47 XX XX XX XX - e.g., +47 22 84 72 93, +47 912 84 729
-   - Denmark: +45 XX XX XX XX - e.g., +45 32 84 72 93, +45 20 84 72 93
-   
-2. **CLICKABLE with tel: links** - ALWAYS wrap phone numbers in anchor tags:
-   <a href="tel:+14155551234">+1 (415) 555-1234</a>
+    - Denmark: +45 XX XX XX XX - e.g., +45 32 84 72 93, +45 20 84 72 93
+    
+2. **CLICKABLE with tel: links - ABSOLUTELY CRITICAL, NON-NEGOTIABLE:**
+   - EVERY phone number MUST be wrapped in an anchor tag with tel: href
+   - This is MANDATORY for mobile users to call directly
+   - CORRECT: <a href="tel:+14155551234" class="phone-link">+1 (415) 555-1234</a>
+   - CORRECT: <a href="tel:+491234567890">+49 123 456 7890</a>
+   - WRONG: <span>+1 (415) 555-1234</span>
+   - WRONG: +1 (415) 555-1234 (plain text)
+   - The tel: href MUST contain ONLY digits and + symbol (no spaces, dashes, or parentheses)
+   - Display text can be formatted nicely: +1 (415) 555-1234
+   - But href MUST be clean: tel:+14155551234
 
-3. **NEVER use obviously fake numbers** like 1234567, 0000000, 123-456-7890, or all same digits
-4. **NEVER use placeholder patterns** like 555, 1111, 2222, 1234, 5678 or any repeated/sequential digits
-5. **ALWAYS generate RANDOM, REALISTIC digits** that could be real phone numbers
-6. **Match the country/geo of the website** - If the site is for Germany, use German phone format
+3. **PHONE LINK STYLING - Include CSS for phone links:**
+   a.phone-link, a[href^="tel:"] {
+     color: inherit;
+     text-decoration: none;
+     cursor: pointer;
+     transition: color 0.2s ease;
+   }
+   a.phone-link:hover, a[href^="tel:"]:hover {
+     color: var(--accent-color, #2563eb);
+     text-decoration: underline;
+   }
+
+4. **NEVER use obviously fake numbers** like 1234567, 0000000, 123-456-7890, or all same digits
+5. **NEVER use placeholder patterns** like 555, 1111, 2222, 1234, 5678 or any repeated/sequential digits
+6. **ALWAYS generate RANDOM, REALISTIC digits** that could be real phone numbers
+7. **Match the country/geo of the website** - If the site is for Germany, use German phone format
+
+**⚠️ PHONE CLICKABILITY CHECK - VERIFY BEFORE COMPLETION:**
+Before finalizing EACH HTML file, scan for ANY phone number and ensure it has:
+- An <a> tag wrapper
+- href="tel:+[clean number]" attribute
+- This applies to: header phone, footer phone, contact section phone, ANY phone on ANY page
 
 **🏠 ADDRESSES - MANDATORY REQUIREMENTS:**
 All physical addresses MUST be:
