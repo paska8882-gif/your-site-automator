@@ -17,6 +17,7 @@ import { TaskDetailsDialog } from "@/components/TaskDetailsDialog";
 import { ClipboardList, Plus, Clock, User, Users, GripVertical, Trash2, LayoutGrid, List, ChevronDown, UserCheck, Send, Flag, Filter, Pencil, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { uk } from "date-fns/locale";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type TaskPriority = "low" | "medium" | "high";
 
@@ -47,22 +48,25 @@ interface Team {
   name: string;
 }
 
-const statusConfig = {
-  todo: { label: "До виконання", color: "bg-gradient-to-r from-slate-500 to-slate-600 text-white border-slate-700 shadow-lg" },
-  in_progress: { label: "В процесі", color: "bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-700 shadow-lg" },
-  done: { label: "Виконано", color: "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-emerald-700 shadow-lg" },
-  problematic: { label: "Проблемні", color: "bg-gradient-to-r from-red-500 to-red-600 text-white border-red-700 shadow-lg" },
-};
+const getStatusConfig = (t: (key: string) => string) => ({
+  todo: { label: t("admin.statusTodo"), color: "bg-gradient-to-r from-slate-500 to-slate-600 text-white border-slate-700 shadow-lg" },
+  in_progress: { label: t("admin.statusInProgress"), color: "bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-700 shadow-lg" },
+  done: { label: t("admin.statusDone"), color: "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-emerald-700 shadow-lg" },
+  problematic: { label: t("admin.statusProblematic"), color: "bg-gradient-to-r from-red-500 to-red-600 text-white border-red-700 shadow-lg" },
+});
 
-const priorityConfig = {
-  low: { label: "Низький", color: "text-slate-300", bgColor: "bg-slate-600/50", icon: "border-l-slate-400" },
-  medium: { label: "Середній", color: "text-amber-300", bgColor: "bg-amber-600/50", icon: "border-l-amber-400" },
-  high: { label: "Високий", color: "text-red-300", bgColor: "bg-red-600/50", icon: "border-l-red-400" },
-};
+const getPriorityConfig = (t: (key: string) => string) => ({
+  low: { label: t("admin.priorityLow"), color: "text-slate-300", bgColor: "bg-slate-600/50", icon: "border-l-slate-400" },
+  medium: { label: t("admin.priorityMedium"), color: "text-amber-300", bgColor: "bg-amber-600/50", icon: "border-l-amber-400" },
+  high: { label: t("admin.priorityHigh"), color: "text-red-300", bgColor: "bg-red-600/50", icon: "border-l-red-400" },
+});
 
 export const AdminTasksTab = () => {
   const { user } = useAuth();
   const { isSuperAdmin } = useSuperAdmin();
+  const { t } = useLanguage();
+  const statusConfig = getStatusConfig(t);
+  const priorityConfig = getPriorityConfig(t);
   const [tasks, setTasks] = useState<AdminTask[]>([]);
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -197,7 +201,7 @@ export const AdminTasksTab = () => {
 
   const createTask = async () => {
     if (!newTask.title || !newTask.assigned_to || !user) {
-      toast({ title: "Помилка", description: "Заповніть обов'язкові поля", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("admin.fillRequired"), variant: "destructive" });
       return;
     }
 
@@ -220,18 +224,18 @@ export const AdminTasksTab = () => {
       if (newTask.assigned_to !== user.id) {
         await supabase.from("notifications").insert({
           user_id: newTask.assigned_to,
-          title: "Нове завдання",
-          message: `Вам призначено нове завдання: ${newTask.title}`,
+          title: t("admin.taskAssigned"),
+          message: `${t("admin.taskAssignedMsg")}: ${newTask.title}`,
           type: "task_assigned",
         });
       }
 
-      toast({ title: "Успішно", description: "Завдання створено" });
+      toast({ title: t("common.success"), description: t("admin.taskCreated") });
       setNewTask({ title: "", description: "", assigned_to: "", team_id: "", priority: "medium" });
       setIsDialogOpen(false);
     } catch (error) {
       console.error("Error creating task:", error);
-      toast({ title: "Помилка", description: "Не вдалося створити завдання", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("admin.createError"), variant: "destructive" });
     }
   };
 
@@ -264,16 +268,16 @@ export const AdminTasksTab = () => {
       if (newStatus === "done" && task.created_by !== user?.id) {
         await supabase.from("notifications").insert({
           user_id: task.created_by,
-          title: "Завдання виконано",
-          message: `Завдання "${task.title}" було виконано`,
+          title: t("admin.taskCompleted"),
+          message: `${t("admin.taskCompletedMsg")}: "${task.title}"`,
           type: "task_completed",
         });
       }
 
-      toast({ title: "Успішно", description: "Статус оновлено" });
+      toast({ title: t("common.success"), description: t("admin.statusUpdated") });
     } catch (error) {
       console.error("Error updating task:", error);
-      toast({ title: "Помилка", description: "Не вдалося оновити статус", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("admin.statusError"), variant: "destructive" });
     }
   };
 
@@ -281,10 +285,10 @@ export const AdminTasksTab = () => {
     try {
       const { error } = await supabase.from("admin_tasks").delete().eq("id", taskId);
       if (error) throw error;
-      toast({ title: "Успішно", description: "Завдання видалено" });
+      toast({ title: t("common.success"), description: t("admin.taskDeleted") });
     } catch (error) {
       console.error("Error deleting task:", error);
-      toast({ title: "Помилка", description: "Не вдалося видалити завдання", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("admin.deleteError"), variant: "destructive" });
     }
   };
 
@@ -590,15 +594,15 @@ export const AdminTasksTab = () => {
   );
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64">Завантаження...</div>;
+    return <div className="flex items-center justify-center h-64">{t("common.loading")}</div>;
   }
 
   return (
     <div className="h-[calc(100vh-180px)] flex flex-col">
       <AdminPageHeader
         icon={ClipboardList}
-        title="Завдання"
-        description="Управління завданнями адміністраторів"
+        title={t("admin.tasksTitle")}
+        description={t("admin.tasksDescription")}
       />
 
       <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
