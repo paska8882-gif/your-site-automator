@@ -8,14 +8,9 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Loader2, ArrowRight } from "lucide-react";
-
-const authSchema = z.object({
-  email: z.string().trim().email({ message: "Невірний формат email" }),
-  password: z.string().min(6, { message: "Пароль має бути мінімум 6 символів" }),
-  displayName: z.string().trim().optional(),
-  inviteCode: z.string().trim().optional(),
-});
 
 type TeamRole = "owner" | "team_lead" | "buyer" | "tech_dev";
 
@@ -31,6 +26,7 @@ export default function Auth() {
   const { toast } = useToast();
   const { user, loading, signIn, signUp } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { t } = useLanguage();
   const isDarkTheme = theme === "dark";
   const [isLogin, setIsLogin] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,6 +36,13 @@ export default function Auth() {
   const [inviteCode, setInviteCode] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedRole, setSelectedRole] = useState<TeamRole | null>(null);
+
+  const authSchema = z.object({
+    email: z.string().trim().email({ message: t("auth.invalidEmail") }),
+    password: z.string().min(6, { message: t("auth.passwordMinLength") }),
+    displayName: z.string().trim().optional(),
+    inviteCode: z.string().trim().optional(),
+  });
 
   useEffect(() => {
     if (user && !loading) {
@@ -52,7 +55,7 @@ export default function Auth() {
       const schema = isLogin 
         ? authSchema.omit({ inviteCode: true, displayName: true })
         : authSchema.extend({
-            inviteCode: z.string().trim().min(1, { message: "Введіть інвайт-код" })
+            inviteCode: z.string().trim().min(1, { message: t("auth.enterInviteCode") })
           });
       schema.parse({ email, password, displayName: displayName || undefined, inviteCode: inviteCode || undefined });
       setErrors({});
@@ -190,13 +193,13 @@ export default function Auth() {
         if (error) {
           if (error.message.includes("Invalid login credentials")) {
             toast({
-              title: "Помилка входу",
-              description: "Невірний email або пароль",
+              title: t("auth.loginError"),
+              description: t("auth.invalidCredentials"),
               variant: "destructive",
             });
           } else {
             toast({
-              title: "Помилка",
+              title: t("common.error"),
               description: error.message,
               variant: "destructive",
             });
@@ -214,8 +217,8 @@ export default function Auth() {
             if (!selectedRole) {
               await supabase.auth.signOut();
               toast({
-                title: "Оберіть роль",
-                description: "Для входу потрібно обрати вашу роль в команді",
+                title: t("auth.selectRole"),
+                description: t("auth.selectRoleDescription"),
                 variant: "destructive",
               });
               setIsSubmitting(false);
@@ -228,10 +231,10 @@ export default function Auth() {
             if (!roleCheck.valid) {
               await supabase.auth.signOut();
               toast({
-                title: "Невірна роль",
+                title: t("auth.wrongRole"),
                 description: roleCheck.actualRole 
-                  ? `Ваша роль: ${roleCheck.actualRole}. Оберіть правильну роль.`
-                  : "Вас не затверджено в жодній команді або роль не призначена.",
+                  ? `${t("auth.yourRoleIs")} ${roleCheck.actualRole}. ${t("auth.selectCorrectRole")}`
+                  : t("auth.notApproved"),
                 variant: "destructive",
               });
               setIsSubmitting(false);
@@ -241,15 +244,15 @@ export default function Auth() {
         }
         
         toast({
-          title: "Успішний вхід",
-          description: "Ласкаво просимо!",
+          title: t("auth.loginSuccess"),
+          description: t("auth.welcome"),
         });
       } else {
         const codeResult = await validateInviteCode(inviteCode);
         if (!codeResult.valid) {
           toast({
-            title: "Помилка реєстрації",
-            description: "Невірний або використаний інвайт-код",
+            title: t("auth.registrationError"),
+            description: t("auth.invalidInviteCode"),
             variant: "destructive",
           });
           setIsSubmitting(false);
@@ -260,13 +263,13 @@ export default function Auth() {
         if (error) {
           if (error.message.includes("User already registered")) {
             toast({
-              title: "Помилка реєстрації",
-              description: "Користувач з таким email вже існує",
+              title: t("auth.registrationError"),
+              description: t("auth.userExists"),
               variant: "destructive",
             });
           } else {
             toast({
-              title: "Помилка",
+              title: t("common.error"),
               description: error.message,
               variant: "destructive",
             });
@@ -278,8 +281,8 @@ export default function Auth() {
             
             if (!regResult.success) {
               toast({
-                title: "Помилка",
-                description: regResult.error || "Не вдалося завершити реєстрацію",
+                title: t("common.error"),
+                description: regResult.error || t("errors.somethingWentWrong"),
                 variant: "destructive",
               });
               setIsSubmitting(false);
@@ -295,15 +298,15 @@ export default function Auth() {
             }
             
             toast({
-              title: "Реєстрація успішна",
+              title: t("auth.registrationSuccess"),
               description: isPending
-                ? "Ваш акаунт створено! Очікуйте затвердження від Owner команди." 
-                : "Ваш акаунт створено!",
+                ? t("auth.awaitApproval")
+                : t("auth.accountCreated"),
             });
           } else {
             toast({
-              title: "Реєстрація успішна",
-              description: "Ваш акаунт створено!",
+              title: t("auth.registrationSuccess"),
+              description: t("auth.accountCreated"),
             });
           }
         }
@@ -382,32 +385,31 @@ export default function Auth() {
 
         <div className="relative z-10 max-w-md animate-fade-in" style={{ animationDelay: '0.3s', animationFillMode: 'backwards' }}>
           <h1 className="text-5xl xl:text-6xl font-bold leading-tight mb-6">
-            <span className={isDarkTheme ? 'text-white' : 'text-black'}>Створюй сайти</span>
+            <span className={isDarkTheme ? 'text-white' : 'text-black'}>{t("auth.createSites")}</span>
             <br />
             <span className={isDarkTheme ? 'text-neutral-500' : 'text-neutral-400'}>
-              за допомогою AI
+              {t("auth.withAI")}
             </span>
           </h1>
           <p className={`text-lg leading-relaxed ${isDarkTheme ? 'text-neutral-400' : 'text-neutral-500'}`}>
-            Професійний генератор вебсайтів на базі штучного інтелекту. 
-            Опиши свою ідею — отримай готовий сайт за лічені хвилини.
+            {t("auth.heroDescription")}
           </p>
         </div>
 
         <div className={`relative z-10 flex items-center gap-8 text-sm animate-fade-in ${isDarkTheme ? 'text-neutral-500' : 'text-neutral-400'}`} style={{ animationDelay: '0.5s', animationFillMode: 'backwards' }}>
           <div>
             <span className={`font-semibold text-2xl ${isDarkTheme ? 'text-white' : 'text-black'}`}>24</span>
-            <span className="ml-1">мови</span>
+            <span className="ml-1">{t("auth.languages")}</span>
           </div>
           <div className={`w-px h-8 ${isDarkTheme ? 'bg-neutral-700' : 'bg-neutral-200'}`} />
           <div>
             <span className={`font-semibold text-2xl ${isDarkTheme ? 'text-white' : 'text-black'}`}>2</span>
-            <span className="ml-1">AI моделі</span>
+            <span className="ml-1">{t("auth.aiModels")}</span>
           </div>
           <div className={`w-px h-8 ${isDarkTheme ? 'bg-neutral-700' : 'bg-neutral-200'}`} />
           <div>
             <span className={`font-semibold text-2xl ${isDarkTheme ? 'text-white' : 'text-black'}`}>10+</span>
-            <span className="ml-1">стилів</span>
+            <span className="ml-1">{t("auth.styles")}</span>
           </div>
         </div>
       </div>
@@ -441,17 +443,20 @@ export default function Auth() {
             <span className={`font-semibold text-xl tracking-tight ${isDarkTheme ? 'text-white' : 'text-black'}`}>
               DRAGON<span className="text-neutral-400">WHITE</span>
             </span>
+            <div className="ml-auto">
+              <LanguageSwitcher variant="minimal" className={isDarkTheme ? 'text-white hover:bg-white/10' : 'text-black hover:bg-black/10'} />
+            </div>
           </div>
 
           {/* Header */}
           <div className="mb-8 animate-fade-in">
             <h2 className={`text-2xl font-bold mb-2 ${isDarkTheme ? 'text-white' : 'text-black'}`}>
-              {isLogin ? "Вхід в акаунт" : "Створити акаунт"}
+              {isLogin ? t("auth.loginTitle") : t("auth.registerTitle")}
             </h2>
             <p className={`text-sm ${isDarkTheme ? 'text-neutral-400' : 'text-neutral-500'}`}>
               {isLogin
-                ? "Оберіть роль та введіть дані"
-                : "Заповніть форму для реєстрації"}
+                ? t("auth.loginSubtitle")
+                : t("auth.registerSubtitle")}
             </p>
           </div>
 
@@ -484,10 +489,10 @@ export default function Auth() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
             {!isLogin && (
-              <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="inviteCode" className={`text-xs font-medium ${isDarkTheme ? 'text-neutral-300' : 'text-neutral-600'}`}>
-                    Інвайт-код
+                    {t("auth.inviteCode")}
                   </Label>
                   <Input
                     id="inviteCode"
@@ -509,12 +514,12 @@ export default function Auth() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="displayName" className={`text-xs font-medium ${isDarkTheme ? 'text-neutral-300' : 'text-neutral-600'}`}>
-                    Ім&apos;я
+                    {t("auth.displayName")}
                   </Label>
                   <Input
                     id="displayName"
                     type="text"
-                    placeholder="Ваше ім'я"
+                    placeholder={t("auth.yourName")}
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     disabled={isSubmitting}
@@ -530,7 +535,7 @@ export default function Auth() {
 
             <div className="space-y-2">
               <Label htmlFor="email" className={`text-xs font-medium ${isDarkTheme ? 'text-neutral-300' : 'text-neutral-600'}`}>
-                Email
+                {t("auth.email")}
               </Label>
               <Input
                 id="email"
@@ -552,7 +557,7 @@ export default function Auth() {
 
             <div className="space-y-2">
               <Label htmlFor="password" className={`text-xs font-medium ${isDarkTheme ? 'text-neutral-300' : 'text-neutral-600'}`}>
-                Пароль
+                {t("auth.password")}
               </Label>
               <Input
                 id="password"
@@ -585,7 +590,7 @@ export default function Auth() {
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <span className="flex items-center justify-center gap-2">
-                  {isLogin ? "Увійти" : "Зареєструватись"}
+                  {isLogin ? t("auth.login") : t("auth.register")}
                   <ArrowRight className="w-3.5 h-3.5" />
                 </span>
               )}
@@ -596,24 +601,24 @@ export default function Auth() {
           <div className="mt-6 text-center animate-fade-in" style={{ animationDelay: '0.3s' }}>
             {isLogin ? (
               <p className={`text-sm ${isDarkTheme ? 'text-neutral-400' : 'text-neutral-500'}`}>
-                Немає акаунту?{" "}
+                {t("auth.noAccount")}{" "}
                 <button
                   type="button"
                   onClick={() => setIsLogin(false)}
                   className={`font-medium hover:underline ${isDarkTheme ? 'text-white' : 'text-black'}`}
                 >
-                  Зареєструватись
+                  {t("auth.register")}
                 </button>
               </p>
             ) : (
               <p className={`text-sm ${isDarkTheme ? 'text-neutral-400' : 'text-neutral-500'}`}>
-                Вже є акаунт?{" "}
+                {t("auth.hasAccount")}{" "}
                 <button
                   type="button"
                   onClick={() => setIsLogin(true)}
                   className={`font-medium hover:underline ${isDarkTheme ? 'text-white' : 'text-black'}`}
                 >
-                  Увійти
+                  {t("auth.login")}
                 </button>
               </p>
             )}

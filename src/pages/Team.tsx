@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Loader2 } from "lucide-react";
 import { TeamManagement } from "@/components/TeamManagement";
 import { UserTeamInfo } from "@/components/UserTeamInfo";
@@ -14,6 +15,7 @@ export default function Team() {
   const navigate = useNavigate();
   const { user, loading, isBlocked } = useAuth();
   const { isTeamOwner, loading: teamLoading } = useTeamOwner();
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -36,12 +38,12 @@ export default function Team() {
   return (
     <AppLayout>
       <div className="p-4 max-w-4xl mx-auto space-y-4">
-        <h1 className="text-xl font-semibold">Моя команда</h1>
+        <h1 className="text-xl font-semibold">{t("team.title")}</h1>
         
         <Tabs defaultValue="team" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="team">Команда</TabsTrigger>
-            <TabsTrigger value="referral">Реферальна програма</TabsTrigger>
+            <TabsTrigger value="team">{t("team.teamTab")}</TabsTrigger>
+            <TabsTrigger value="referral">{t("team.referralTab")}</TabsTrigger>
           </TabsList>
           
           <TabsContent value="team" className="space-y-4">
@@ -51,7 +53,7 @@ export default function Team() {
             {/* Team Management only for owners */}
             {isTeamOwner && (
               <div className="mt-6">
-                <h2 className="text-lg font-medium mb-4">Управління командою</h2>
+                <h2 className="text-lg font-medium mb-4">{t("team.management")}</h2>
                 <TeamManagement />
               </div>
             )}
