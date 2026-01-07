@@ -914,42 +914,51 @@ async function runGeneration({
     : "";
 
   // API call helper for Lovable AI or OpenAI
-  const makeAPICall = async (systemContent: string, userContent: string, maxTokens: number, model: string, temperature = 0.7) => {
-    if (useLovableAI) {
-      const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const makeAPICall = async (
+    systemContent: string,
+    userContent: string,
+    maxTokens: number,
+    model: string,
+    opts?: { timeoutMs?: number; temperature?: number }
+  ) => {
+    const timeoutMs = opts?.timeoutMs ?? 120_000;
+    const temperature = opts?.temperature ?? 0.7;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const url = useLovableAI
+        ? "https://ai.gateway.lovable.dev/v1/chat/completions"
+        : "https://api.openai.com/v1/chat/completions";
+
+      const apiKey = useLovableAI ? lovableApiKey : openaiKey;
+      const body: Record<string, unknown> = {
+        model,
+        messages: [
+          { role: "system", content: systemContent },
+          { role: "user", content: userContent },
+        ],
+        max_tokens: maxTokens,
+      };
+
+      // OpenAI supports temperature; gateway is OpenAI-compatible, so this is safe here.
+      if (!useLovableAI) body.temperature = temperature;
+      else body.temperature = temperature;
+
+      const resp = await fetch(url, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${lovableApiKey}`,
+          Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          model: model,
-          messages: [
-            { role: "system", content: systemContent },
-            { role: "user", content: userContent },
-          ],
-          max_tokens: maxTokens,
-        }),
+        body: JSON.stringify(body),
+        signal: controller.signal,
       });
+
       return resp;
-    } else {
-      const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${openaiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: [
-            { role: "system", content: systemContent },
-            { role: "user", content: userContent },
-          ],
-          max_tokens: maxTokens,
-          temperature,
-        }),
-      });
-      return resp;
+    } finally {
+      clearTimeout(timeout);
     }
   };
 
@@ -957,7 +966,8 @@ async function runGeneration({
     SYSTEM_PROMPT + languageInstruction + siteNameInstruction,
     prompt + siteNameInstruction,
     1000,
-    refineModel
+    refineModel,
+    { timeoutMs: 90_000, temperature: 0.3 }
   );
 
   if (!refineResponse.ok) {
@@ -966,12 +976,23 @@ async function runGeneration({
     return { success: false, error: `Prompt refinement failed: ${errText}` };
   }
 
-  const refineData = await refineResponse.json();
-  const refinedPrompt = refineData.choices?.[0]?.message?.content || prompt;
-  const refineUsage = refineData.usage || {};
+  // Defensive JSON parsing (prevents "Unexpected end of JSON input" from leaving jobs stuck)
+  let refineData: any;
+  try {
+    const raw = await refineResponse.text();
+    refineData = raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    console.error("Refine API JSON parse error:", e);
+    return { success: false, error: "Prompt refinement failed: invalid JSON response" };
+  }
+
+  const refinedPrompt = refineData?.choices?.[0]?.message?.content || prompt;
+  const refineUsage = refineData?.usage || {};
   const refineCost = calculateCost(refineUsage, refineModel);
-  
-  console.log(`💰 Token usage for ${refineModel}: ${refineUsage.prompt_tokens || 0} in, ${refineUsage.completion_tokens || 0} out = $${refineCost.toFixed(6)}`);
+
+  console.log(
+    `💰 Token usage for ${refineModel}: ${refineUsage.prompt_tokens || 0} in, ${refineUsage.completion_tokens || 0} out = $${refineCost.toFixed(6)}`
+  );
   console.log("Refined prompt:", refinedPrompt.substring(0, 200) + "...");
 
   // 2. Select layout variation
@@ -1071,12 +1092,22 @@ async function runGeneration({
       return { ok: false as const, error: `Website generation failed: ${errText}` };
     }
 
-    const generateData = await generateResponse.json();
-    const generatedText = generateData.choices?.[0]?.message?.content || "";
-    const genUsage = generateData.usage || {};
+    let generateData: any;
+    try {
+      const raw = await generateResponse.text();
+      generateData = raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      console.error("Generate API JSON parse error:", e);
+      return { ok: false as const, error: "Website generation failed: invalid JSON response" };
+    }
+
+    const generatedText = generateData?.choices?.[0]?.message?.content || "";
+    const genUsage = generateData?.usage || {};
     const generateCost = calculateCost(genUsage, generateModel);
-    
-    console.log(`💰 Token usage for ${generateModel}: ${genUsage.prompt_tokens || 0} in, ${genUsage.completion_tokens || 0} out = $${generateCost.toFixed(6)}`);
+
+    console.log(
+      `💰 Token usage for ${generateModel}: ${genUsage.prompt_tokens || 0} in, ${genUsage.completion_tokens || 0} out = $${generateCost.toFixed(6)}`
+    );
 
     // Parse
     const files = parseFilesFromModelText(generatedText);
@@ -1557,14 +1588,23 @@ CRITICAL GEO REQUIREMENTS - ALL CONTENT MUST BE LOCALIZED FOR ${countryName.toUp
 
     // Run generation synchronously so the client immediately receives files
     // (UI expects files in the response; background-only runs result in “empty” output)
-    const result = await runGeneration({
-      prompt: promptForGeneration,
-      language,
-      aiModel,
-      layoutStyle,
-      imageSource,
-      siteName,
-    });
+    let result: GenerationResult;
+    try {
+      result = await runGeneration({
+        prompt: promptForGeneration,
+        language,
+        aiModel,
+        layoutStyle,
+        imageSource,
+        siteName,
+      });
+    } catch (e) {
+      console.error("PHP generation threw:", e);
+      result = {
+        success: false,
+        error: e instanceof Error ? e.message : "PHP generation failed (unexpected error)",
+      };
+    }
 
     if (!result.success || !result.files) {
       // Mark failed + refund (if deducted)
