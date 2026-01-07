@@ -1783,11 +1783,11 @@ export function WebsiteGenerator() {
             {/* Description Field */}
             <div className="space-y-1">
               <Label className="text-xs">
-                Опис сайту <span className="text-destructive">*</span>
+                {t("genForm.siteDescription")} <span className="text-destructive">*</span>
               </Label>
               <Textarea
                 ref={promptTextareaRef}
-                placeholder="Сучасний сайт для IT-компанії. Темна тема, мінімалізм. Сторінки: головна, послуги, портфоліо, контакти..."
+                placeholder={t("genForm.siteDescriptionPlaceholder")}
                 value={prompt}
                 onChange={(e) => {
                   setPrompt(e.target.value);
@@ -2431,11 +2431,11 @@ export function WebsiteGenerator() {
                           checked={isOtherStyleSelected} 
                           onCheckedChange={() => toggleOtherStyle()} 
                         />
-                        <span className="text-sm">Інший...</span>
+                        <span className="text-sm">{t("genForm.otherStyle")}</span>
                       </label>
                       {isOtherStyleSelected && (
                         <Input
-                          placeholder="Назва стилю"
+                          placeholder={t("genForm.styleName")}
                           value={customStyle}
                           onChange={(e) => setCustomStyle(e.target.value)}
                           className="mt-2"
@@ -2454,7 +2454,7 @@ export function WebsiteGenerator() {
                           setCustomStyle("");
                         }}
                       >
-                        Скинути (рандом)
+                        {t("genForm.resetRandom")}
                       </Button>
                     )}
                   </PopoverContent>
@@ -2464,7 +2464,7 @@ export function WebsiteGenerator() {
               {/* Geo Select - hide in VIP mode */}
               {!isVipMode && (
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Гео</Label>
+                <Label className="text-xs text-muted-foreground">{t("generator.geo")}</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between h-8 text-xs">
@@ -2475,7 +2475,7 @@ export function WebsiteGenerator() {
                             ? customGeo 
                             : selectedGeo 
                               ? geoOptions.find(g => g.value === selectedGeo)?.label || selectedGeo
-                              : "Не вибрано"}
+                              : t("genForm.notSelected")}
                         </span>
                       </div>
                       <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
@@ -2507,11 +2507,11 @@ export function WebsiteGenerator() {
                               }
                             }}
                           />
-                          <span className="text-xs">Інше</span>
+                          <span className="text-xs">{t("genForm.other")}</span>
                         </label>
                         {isOtherGeoSelected && (
                           <Input
-                            placeholder="Введіть своє гео..."
+                            placeholder={t("genForm.enterCustomGeo")}
                             value={customGeo}
                             onChange={(e) => setCustomGeo(e.target.value)}
                             className="mt-1 h-7 text-xs"
@@ -2526,7 +2526,7 @@ export function WebsiteGenerator() {
 
               {/* Quantity */}
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Кількість</Label>
+                <Label className="text-xs text-muted-foreground">{t("genForm.quantity")}</Label>
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
@@ -2537,7 +2537,7 @@ export function WebsiteGenerator() {
                     className="w-16 h-8 text-xs"
                   />
                   <span className={`text-xs whitespace-nowrap ${wouldExceedLimit ? 'text-destructive font-medium' : activeGenerationsCount > 20 ? 'text-yellow-600' : 'text-muted-foreground'}`}>
-                    = <strong>{totalGenerations}</strong> сайтів {activeGenerationsCount > 0 && <span className="opacity-70">(активних: {activeGenerationsCount}/{userMaxGenerations})</span>}
+                    = <strong>{totalGenerations}</strong> {t("genForm.sitesCount")} {activeGenerationsCount > 0 && <span className="opacity-70">({t("genForm.activeGenerations")}: {activeGenerationsCount}/{userMaxGenerations})</span>}
                     {wouldExceedLimit && " ⚠️"}
                   </span>
                 </div>
@@ -2547,16 +2547,16 @@ export function WebsiteGenerator() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {/* AI Model Multi-Select */}
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">AI модель</Label>
+                <Label className="text-xs text-muted-foreground">{t("genForm.aiModel")}</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between h-8 text-xs">
                       <span className="truncate">
                         {selectedAiModels.length === 0 
-                          ? "Оберіть" 
+                          ? t("genForm.selectAiModel")
                           : selectedAiModels.length === 1 
                             ? (selectedAiModels[0] === "senior" ? "Senior" : "Junior")
-                            : `${selectedAiModels.length} моделі`}
+                            : `${selectedAiModels.length} ${t("genForm.models")}`}
                       </span>
                       <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
                     </Button>
@@ -2586,13 +2586,13 @@ export function WebsiteGenerator() {
 
               {/* Website Type Multi-Select */}
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Тип сайту</Label>
+                <Label className="text-xs text-muted-foreground">{t("genForm.websiteType")}</Label>
                 <Select 
                   value={selectedWebsiteTypes[0] || "html"} 
                   onValueChange={(value) => selectWebsiteType(value as WebsiteType)}
                 >
                   <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Оберіть тип" />
+                    <SelectValue placeholder={t("genForm.selectType")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="html">
@@ -2619,25 +2619,25 @@ export function WebsiteGenerator() {
 
               {/* Image Source Select */}
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Підбір фото</Label>
+                <Label className="text-xs text-muted-foreground">{t("genForm.photoSelection")}</Label>
                 <Select 
                   value={selectedImageSources[0] || "basic"} 
                   onValueChange={(value) => selectImageSource(value as ImageSource)}
                 >
                   <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Оберіть" />
+                    <SelectValue placeholder={t("genForm.selectAiModel")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="basic">
                       <div className="flex items-center gap-2">
                         <Image className="h-4 w-4 text-gray-500" />
-                        <span>Базовий</span>
+                        <span>{t("genForm.basic")}</span>
                       </div>
                     </SelectItem>
                     <SelectItem value="ai">
                       <div className="flex items-center gap-2">
                         <Sparkles className="h-4 w-4 text-violet-500" />
-                        <span>AI пошук (+$2)</span>
+                        <span>{t("genForm.aiSearch")} (+$2)</span>
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -2654,8 +2654,8 @@ export function WebsiteGenerator() {
                 onClick={async () => {
                   if (siteNames.length === 0 || !prompt.trim() || !seniorMode) {
                     toast({
-                      title: "Заповніть поля",
-                      description: "Введіть назву, опис та оберіть сервіс",
+                      title: t("genForm.fillFields"),
+                      description: t("genForm.enterNameDescService"),
                       variant: "destructive",
                     });
                     return;
@@ -2685,18 +2685,18 @@ export function WebsiteGenerator() {
                         geoToUse // geo
                       );
                       if (!result.success) {
-                        throw new Error(result.error || "Не вдалося запустити генерацію");
+                        throw new Error(result.error || t("genForm.couldNotStart"));
                       }
                     }
                     toast({
-                      title: "Генерацію запущено",
-                      description: `Запущено ${siteNames.length} генерацій на ${seniorMode}${selectedAdminTeamId ? "" : " — без списання коштів"}`,
+                      title: t("genForm.generationStarted"),
+                      description: `${t("genForm.generationsLaunched")} ${siteNames.length} ${t("genForm.generations")} ${seniorMode}${selectedAdminTeamId ? "" : ` — ${t("genForm.noTeamDebit")}`}`,
                     });
                     // Don't clear inputs — let users start another generation immediately
                   } catch (error) {
                     toast({
-                      title: "Помилка",
-                      description: error instanceof Error ? error.message : "Не вдалося запустити генерацію",
+                      title: t("common.error"),
+                      description: error instanceof Error ? error.message : t("genForm.couldNotStart"),
                       variant: "destructive",
                     });
                   }
@@ -2708,12 +2708,12 @@ export function WebsiteGenerator() {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                    Відправка...
+                    {t("genForm.sending")}
                   </>
                 ) : (
                   <>
                     <Crown className="mr-1 h-3 w-3" />
-                    Запустити {seniorMode || "Senior"}
+                    {t("genForm.launch")} {seniorMode || "Senior"}
                   </>
                 )}
               </Button>
@@ -2734,17 +2734,17 @@ export function WebsiteGenerator() {
                     isImproving ? (
                       <>
                         <Sparkles className="mr-1 h-3 w-3 animate-pulse" />
-                        Покращуємо промт...
+                        {t("genForm.improvingPrompt")}
                       </>
                     ) : (
                       <>
                         <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                        Генеруємо... {generationProgress.total > 0 && `${generationProgress.completed}/${generationProgress.total}`}
+                        {t("genForm.generating")} {generationProgress.total > 0 && `${generationProgress.completed}/${generationProgress.total}`}
                       </>
                     )
                   ) : (
                     <>
-                      Згенерувати {totalGenerations > 1 ? `(${totalGenerations})` : ""}
+                      {t("genForm.generate")} {totalGenerations > 1 ? `(${totalGenerations})` : ""}
                       {teamPricing && (
                         <span className="ml-1 text-xs opacity-80">
                           ${calculateTotalCost().toFixed(2)}
@@ -2756,7 +2756,7 @@ export function WebsiteGenerator() {
 
                 {/* Preset Management - same row */}
                 <Input
-                  placeholder="Пресет..."
+                  placeholder={t("genForm.preset")}
                   value={presetName}
                   onChange={(e) => setPresetName(e.target.value)}
                   className="h-9 text-xs w-24"
@@ -2810,7 +2810,7 @@ export function WebsiteGenerator() {
                   className="h-9 px-2 text-xs text-destructive hover:text-destructive"
                   onClick={clearAllParameters}
                   disabled={isSubmitting}
-                  title="Очистити всі параметри"
+                  title={t("generatorExtra.clearParams")}
                 >
                   <Trash2 className="h-3 w-3" />
                 </Button>
@@ -2822,19 +2822,19 @@ export function WebsiteGenerator() {
                 {insufficientBalance && teamPricing && (
                   <p className="text-xs text-destructive flex items-center gap-1">
                     <AlertTriangle className="h-3 w-3" />
-                    Недостатньо коштів: потрібно ${calculateTotalCost().toFixed(2)}, на балансі ${teamPricing.balance.toFixed(2)}
+                    {t("genForm.insufficientFunds")}: {t("genForm.fundsNeeded")} ${calculateTotalCost().toFixed(2)}, {t("genForm.fundsBalance")} ${teamPricing.balance.toFixed(2)}
                   </p>
                 )}
                 {isGeneratingOnCredit && teamPricing && !exceedsCreditLimit && (
                   <p className="text-xs text-amber-500 flex items-center gap-1">
                     <AlertTriangle className="h-3 w-3" />
-                    Генерація в кредит: потрібно ${calculateTotalCost().toFixed(2)}, на балансі ${teamPricing.balance.toFixed(2)} (ліміт: ${selectedTeamCreditLimit.toFixed(2)})
+                    {t("genForm.creditGeneration")}: {t("genForm.fundsNeeded")} ${calculateTotalCost().toFixed(2)}, {t("genForm.fundsBalance")} ${teamPricing.balance.toFixed(2)} ({t("genForm.creditLimit")}: ${selectedTeamCreditLimit.toFixed(2)})
                   </p>
                 )}
                 {exceedsCreditLimit && teamPricing && (
                   <p className="text-xs text-destructive flex items-center gap-1">
                     <AlertTriangle className="h-3 w-3" />
-                    Перевищено ліміт кредиту: баланс ${teamPricing.balance.toFixed(2)}, потрібно ${calculateTotalCost().toFixed(2)}, ліміт ${selectedTeamCreditLimit.toFixed(2)}
+                    {t("genForm.creditLimitExceeded")}: {t("genForm.balance")} ${teamPricing.balance.toFixed(2)}, {t("genForm.fundsNeeded")} ${calculateTotalCost().toFixed(2)}, {t("genForm.creditLimit")} ${selectedTeamCreditLimit.toFixed(2)}
                   </p>
                 )}
               </div>
@@ -2845,9 +2845,9 @@ export function WebsiteGenerator() {
               <Collapsible open={showCostBreakdown} onOpenChange={setShowCostBreakdown}>
                 <div className={`flex items-center justify-between text-xs border p-2 ${wouldExceedLimit ? 'border-destructive bg-destructive/5' : 'border-border'}`}>
                   <span className={wouldExceedLimit ? 'text-destructive' : 'text-muted-foreground'}>
-                    {allLanguages.length}×{sitesPerLanguage}×{styleCount}×{aiModelCount}×{websiteTypeCount}×{imageSourceCount} = <strong className={wouldExceedLimit ? 'text-destructive' : 'text-foreground'}>{totalGenerations}</strong> сайтів • <strong className="text-foreground">${calculateTotalCost().toFixed(2)}</strong>
-                    {activeGenerationsCount > 0 && <span className="ml-2 opacity-70">(активних: {activeGenerationsCount}, доступно: {availableSlots})</span>}
-                    {wouldExceedLimit && " (перевищено ліміт!)"}
+                    {allLanguages.length}×{sitesPerLanguage}×{styleCount}×{aiModelCount}×{websiteTypeCount}×{imageSourceCount} = <strong className={wouldExceedLimit ? 'text-destructive' : 'text-foreground'}>{totalGenerations}</strong> {t("genForm.sitesCount")} • <strong className="text-foreground">${calculateTotalCost().toFixed(2)}</strong>
+                    {activeGenerationsCount > 0 && <span className="ml-2 opacity-70">({t("genForm.activeGenerations")}: {activeGenerationsCount}, {t("genForm.available")}: {availableSlots})</span>}
+                    {wouldExceedLimit && ` (${t("genForm.limitExceeded")})`}
                   </span>
                   <CollapsibleTrigger asChild>
                     <Button variant="ghost" size="sm" className="h-5 px-1 text-xs">
@@ -2860,14 +2860,14 @@ export function WebsiteGenerator() {
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/50">
-                          <TableHead className="text-xs py-2 h-auto">Тип</TableHead>
-                          <TableHead className="text-xs py-2 h-auto">AI</TableHead>
-                          <TableHead className="text-xs py-2 h-auto">Фото</TableHead>
-                          <TableHead className="text-xs py-2 h-auto text-right">Базова</TableHead>
-                          <TableHead className="text-xs py-2 h-auto text-right">+AI фото</TableHead>
-                          <TableHead className="text-xs py-2 h-auto text-right">За сайт</TableHead>
-                          <TableHead className="text-xs py-2 h-auto text-right">Кількість</TableHead>
-                          <TableHead className="text-xs py-2 h-auto text-right">Сума</TableHead>
+                          <TableHead className="text-xs py-2 h-auto">{t("genForm.breakdownTable.type")}</TableHead>
+                          <TableHead className="text-xs py-2 h-auto">{t("genForm.breakdownTable.model")}</TableHead>
+                          <TableHead className="text-xs py-2 h-auto">{t("genForm.breakdownTable.photos")}</TableHead>
+                          <TableHead className="text-xs py-2 h-auto text-right">{t("genForm.breakdownTable.base")}</TableHead>
+                          <TableHead className="text-xs py-2 h-auto text-right">+{t("genForm.breakdownTable.aiExtra")}</TableHead>
+                          <TableHead className="text-xs py-2 h-auto text-right">{t("genForm.breakdownTable.perSite")}</TableHead>
+                          <TableHead className="text-xs py-2 h-auto text-right">{t("genForm.breakdownTable.count")}</TableHead>
+                          <TableHead className="text-xs py-2 h-auto text-right">{t("genForm.breakdownTable.subtotal")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -2885,7 +2885,7 @@ export function WebsiteGenerator() {
                             </TableCell>
                             <TableCell className="py-1.5">
                               <span className={item.imageSource === "ai" ? "text-violet-500" : "text-muted-foreground"}>
-                                {item.imageSource === "ai" ? "AI" : "Базові"}
+                                {item.imageSource === "ai" ? "AI" : t("genForm.basic")}
                               </span>
                             </TableCell>
                             <TableCell className="py-1.5 text-right">${item.basePrice}</TableCell>
@@ -2898,7 +2898,7 @@ export function WebsiteGenerator() {
                           </TableRow>
                         ))}
                         <TableRow className="bg-muted/30 font-medium">
-                          <TableCell colSpan={6} className="py-2 text-right text-xs">Разом:</TableCell>
+                          <TableCell colSpan={6} className="py-2 text-right text-xs">{t("genForm.breakdownTable.total")}:</TableCell>
                           <TableCell className="py-2 text-right text-xs">{totalGenerations}</TableCell>
                           <TableCell className="py-2 text-right text-xs">${calculateTotalCost().toFixed(2)}</TableCell>
                         </TableRow>
@@ -2913,7 +2913,7 @@ export function WebsiteGenerator() {
             {isSubmitting && generationProgress.total > 1 && (
               <div className="space-y-2">
                 <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>Прогрес генерації</span>
+                  <span>{t("genForm.generateProgress")}</span>
                   <span>{generationProgress.completed} / {generationProgress.total}</span>
                 </div>
                 <Progress 
@@ -2945,32 +2945,32 @@ export function WebsiteGenerator() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Підтвердження замовлення
+              {t("genForm.orderConfirmTitle")}
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
               <p>
-                Ви збираєтесь запустити <strong className="text-foreground">{totalGenerations} генерацій</strong> одночасно.
+                {t("genForm.orderConfirmDesc").replace("{count}", String(totalGenerations))}
               </p>
               {teamPricing && (
                 <p className="flex items-center gap-2 text-foreground bg-muted p-2 rounded">
                   <Wallet className="h-4 w-4" />
-                  <span>Вартість: <strong>${calculateTotalCost().toFixed(2)}</strong></span>
+                  <span>{t("genForm.orderCost")}: <strong>${calculateTotalCost().toFixed(2)}</strong></span>
                   <span className="text-muted-foreground">|</span>
-                  <span>Баланс: <strong>${teamPricing.balance.toFixed(2)}</strong></span>
+                  <span>{t("genForm.orderBalance")}: <strong>${teamPricing.balance.toFixed(2)}</strong></span>
                 </p>
               )}
               <p className="text-amber-600 dark:text-amber-400">
-                Ця дія запустить всі процеси одразу і є невідворотньою.
+                {t("genForm.orderIrreversible")}
               </p>
               <p className="text-xs text-muted-foreground">
-                💳 Кошти списуються одразу при старті • Автоматичний рефанд при помилці
+                {t("genForm.orderNote")}
               </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Скасувати</AlertDialogCancel>
+            <AlertDialogCancel>{t("genForm.orderCancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={executeGeneration}>
-              Так, запустити за ${calculateTotalCost().toFixed(2)}
+              {t("genForm.orderConfirm")} ${calculateTotalCost().toFixed(2)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

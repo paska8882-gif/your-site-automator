@@ -473,6 +473,7 @@ export const ru = {
     creditLimit: "Кредитный лимит",
     onCredit: "В кредит",
     exceedsLimit: "Превышает лимит",
+    clearParams: "Очистить все параметры",
   },
 
   historyExtra: {
