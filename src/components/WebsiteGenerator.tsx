@@ -1441,7 +1441,6 @@ export function WebsiteGenerator() {
                             type="button"
                             onClick={() => removeSiteName(name)}
                             className="ml-0.5 hover:text-destructive"
-                            disabled={isSubmitting}
                           >
                             <X className="h-3 w-3" />
                           </button>
@@ -1459,7 +1458,6 @@ export function WebsiteGenerator() {
                   <button
                     type="button"
                     onClick={() => setAdminGenerationMode("standard")}
-                    disabled={isSubmitting}
                     className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-colors flex items-center gap-1.5 ${
                       adminGenerationMode === "standard"
                         ? "bg-background text-foreground shadow-sm"
@@ -1472,7 +1470,6 @@ export function WebsiteGenerator() {
                   <button
                     type="button"
                     onClick={() => setAdminGenerationMode("senior_direct")}
-                    disabled={isSubmitting}
                     className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-colors flex items-center gap-1.5 ${
                       adminGenerationMode === "senior_direct"
                         ? "bg-amber-500 text-white shadow-sm"
@@ -1489,7 +1486,6 @@ export function WebsiteGenerator() {
                     <Select 
                       value={seniorMode || "none"} 
                       onValueChange={(v) => setSeniorMode(v === "none" ? undefined : v as SeniorMode)} 
-                      disabled={isSubmitting}
                     >
                       <SelectTrigger className="w-[140px] h-8 text-xs">
                         <SelectValue placeholder="Сервіс..." />
@@ -1506,7 +1502,6 @@ export function WebsiteGenerator() {
                     <Select 
                       value={selectedLanguages[0] || "uk"} 
                       onValueChange={(v) => setSelectedLanguages([v])} 
-                      disabled={isSubmitting}
                     >
                       <SelectTrigger className="w-[130px] h-8 text-xs">
                         <Languages className="h-3.5 w-3.5 mr-1" />
@@ -1524,7 +1519,6 @@ export function WebsiteGenerator() {
                     <Select 
                       value={selectedGeo || "none"} 
                       onValueChange={(v) => setSelectedGeo(v === "none" ? "" : v)} 
-                      disabled={isSubmitting}
                     >
                       <SelectTrigger className="w-[130px] h-8 text-xs">
                         <MapPin className="h-3.5 w-3.5 mr-1" />
@@ -1584,7 +1578,6 @@ export function WebsiteGenerator() {
                           type="button"
                           onClick={() => removeSiteName(name)}
                           className="ml-0.5 hover:text-destructive"
-                          disabled={isSubmitting}
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -1673,7 +1666,7 @@ export function WebsiteGenerator() {
                 <Label className="text-xs text-muted-foreground">Мова</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between h-8 text-xs" disabled={isSubmitting}>
+                    <Button variant="outline" className="w-full justify-between h-8 text-xs">
                       <span className="truncate">
                         {allLanguages.length === 0 
                           ? "Оберіть мови" 
@@ -1726,7 +1719,7 @@ export function WebsiteGenerator() {
                 <Label className="text-xs text-muted-foreground">Стиль</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between h-8 text-xs" disabled={isSubmitting}>
+                    <Button variant="outline" className="w-full justify-between h-8 text-xs">
                       <span className="truncate">
                         {allStyles.length === 0 
                           ? "Рандом" 
@@ -1793,7 +1786,7 @@ export function WebsiteGenerator() {
                 <Label className="text-xs text-muted-foreground">Гео</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between h-8 text-xs" disabled={isSubmitting}>
+                    <Button variant="outline" className="w-full justify-between h-8 text-xs">
                       <div className="flex items-center">
                         <MapPin className="h-3.5 w-3.5 mr-1" />
                         <span className="truncate">
@@ -1860,7 +1853,6 @@ export function WebsiteGenerator() {
                     value={sitesPerLanguage}
                     onChange={(e) => setSitesPerLanguage(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
                     className="w-16 h-8 text-xs"
-                    disabled={isSubmitting}
                   />
                   <span className={`text-xs whitespace-nowrap ${wouldExceedLimit ? 'text-destructive font-medium' : activeGenerationsCount > 20 ? 'text-yellow-600' : 'text-muted-foreground'}`}>
                     = <strong>{totalGenerations}</strong> сайтів {activeGenerationsCount > 0 && <span className="opacity-70">(активних: {activeGenerationsCount}/{userMaxGenerations})</span>}
@@ -1876,7 +1868,7 @@ export function WebsiteGenerator() {
                 <Label className="text-xs text-muted-foreground">AI модель</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between h-8 text-xs" disabled={isSubmitting}>
+                    <Button variant="outline" className="w-full justify-between h-8 text-xs">
                       <span className="truncate">
                         {selectedAiModels.length === 0 
                           ? "Оберіть" 
@@ -1916,7 +1908,6 @@ export function WebsiteGenerator() {
                 <Select 
                   value={selectedWebsiteTypes[0] || "html"} 
                   onValueChange={(value) => selectWebsiteType(value as WebsiteType)}
-                  disabled={isSubmitting}
                 >
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="Оберіть тип" />
@@ -1950,7 +1941,6 @@ export function WebsiteGenerator() {
                 <Select 
                   value={selectedImageSources[0] || "basic"} 
                   onValueChange={(value) => selectImageSource(value as ImageSource)}
-                  disabled={isSubmitting}
                 >
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="Оберіть" />
@@ -2027,7 +2017,7 @@ export function WebsiteGenerator() {
                   }
                   setIsSubmitting(false);
                 }}
-                disabled={isSubmitting || siteNames.length === 0 || !prompt.trim() || !seniorMode}
+                disabled={siteNames.length === 0 || !prompt.trim() || !seniorMode}
                 className="w-full h-9 text-sm"
               >
                 {isSubmitting ? (
@@ -2052,7 +2042,7 @@ export function WebsiteGenerator() {
                 {/* Generate Button - left side */}
                 <Button
                   onClick={handleGenerateClick}
-                  disabled={isSubmitting || siteNames.length === 0 || !prompt.trim() || getAllSelectedLanguages().length === 0 || selectedAiModels.length === 0 || selectedWebsiteTypes.length === 0 || selectedImageSources.length === 0 || (isAdmin ? exceedsCreditLimit : insufficientBalance) || (isAdmin && !selectedAdminTeamId)}
+                  disabled={siteNames.length === 0 || !prompt.trim() || getAllSelectedLanguages().length === 0 || selectedAiModels.length === 0 || selectedWebsiteTypes.length === 0 || selectedImageSources.length === 0 || (isAdmin ? exceedsCreditLimit : insufficientBalance) || (isAdmin && !selectedAdminTeamId)}
                   className="h-9 text-sm"
                 >
                   {isSubmitting ? (
@@ -2085,21 +2075,20 @@ export function WebsiteGenerator() {
                   value={presetName}
                   onChange={(e) => setPresetName(e.target.value)}
                   className="h-9 text-xs w-24"
-                  disabled={isSubmitting}
                 />
                 <Button
                   variant="outline"
                   size="sm"
                   className="h-9 px-2 text-xs"
                   onClick={saveCurrentPreset}
-                  disabled={isSubmitting || !presetName.trim()}
+                  disabled={!presetName.trim()}
                 >
                   <Save className="h-3 w-3" />
                 </Button>
                 {presets.length > 0 && (
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-9 px-2 text-xs" disabled={isSubmitting}>
+                      <Button variant="outline" size="sm" className="h-9 px-2 text-xs">
                         <FolderOpen className="h-3 w-3 mr-1" />
                         {presets.length}
                       </Button>
