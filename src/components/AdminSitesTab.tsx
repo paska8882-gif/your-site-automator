@@ -495,25 +495,25 @@ export const AdminSitesTab = () => {
   const getStatusBadge = (status: string, salePrice?: number | null) => {
     // Check if this is a refunded failed generation
     if (status === "failed" && (salePrice === 0 || salePrice === null)) {
-      return <Badge variant="destructive">Помилка, кошти повернено</Badge>;
+      return <Badge variant="destructive">{t("admin.sitesStatus.failedRefunded")}</Badge>;
     }
     
     switch (status) {
       case "completed":
-        return <Badge variant="default" className="bg-green-500">Готово</Badge>;
+        return <Badge variant="default" className="bg-green-500">{t("admin.sitesStatus.completed")}</Badge>;
       case "failed":
-        return <Badge variant="destructive">Помилка</Badge>;
+        return <Badge variant="destructive">{t("admin.sitesStatus.failed")}</Badge>;
       case "pending":
-        return <Badge variant="secondary">Очікує</Badge>;
+        return <Badge variant="secondary">{t("admin.sitesStatus.pending")}</Badge>;
       case "generating":
-        return <Badge variant="secondary" className="bg-yellow-500 text-black">Генерується</Badge>;
+        return <Badge variant="secondary" className="bg-yellow-500 text-black">{t("admin.sitesStatus.generating")}</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
   };
 
   const getUserName = (userId: string | null) => {
-    if (!userId) return "Анонім";
+    if (!userId) return t("admin.sitesAnonymous");
     const profile = profiles[userId];
     return profile?.display_name || userId.slice(0, 8) + "...";
   };
@@ -702,8 +702,8 @@ export const AdminSitesTab = () => {
       <div className="flex items-center justify-between">
         <AdminPageHeader 
           icon={FileCode} 
-          title="Сайти" 
-          description="Історія всіх згенерованих сайтів" 
+          title={t("admin.sitesTitle")} 
+          description={t("admin.sitesDescription")} 
         />
         <Button
           size="sm"
@@ -711,41 +711,41 @@ export const AdminSitesTab = () => {
           className="h-8"
         >
           <Upload className="h-4 w-4 mr-2" />
-          Завантажити зовнішній сайт
+          {t("admin.sitesUpload.title")}
         </Button>
       </div>
       {/* Stats - compact row */}
       <div className="flex flex-wrap gap-2">
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
-          <span className="text-xs text-muted-foreground">Всього:</span>
+          <span className="text-xs text-muted-foreground">{t("admin.sitesStats.total")}:</span>
           <span className="text-sm font-bold">{stats.total}</span>
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
-          <span className="text-xs text-muted-foreground">Готово:</span>
+          <span className="text-xs text-muted-foreground">{t("admin.sitesStats.completed")}:</span>
           <span className="text-sm font-bold text-green-500">{stats.completed}</span>
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
-          <span className="text-xs text-muted-foreground">Помилки:</span>
+          <span className="text-xs text-muted-foreground">{t("admin.sitesStats.failed")}:</span>
           <span className="text-sm font-bold text-destructive">{stats.failed}</span>
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
-          <span className="text-xs text-muted-foreground">В процесі:</span>
+          <span className="text-xs text-muted-foreground">{t("admin.sitesStats.inProgress")}:</span>
           <span className="text-sm font-bold text-yellow-500">{stats.pending}</span>
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
-          <span className="text-xs text-muted-foreground">Юзерів:</span>
+          <span className="text-xs text-muted-foreground">{t("admin.sitesStats.users")}:</span>
           <span className="text-sm font-bold">{stats.uniqueUsers}</span>
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
-          <span className="text-xs text-muted-foreground">Команд:</span>
+          <span className="text-xs text-muted-foreground">{t("admin.sitesStats.teams")}:</span>
           <span className="text-sm font-bold">{stats.uniqueTeams}</span>
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
-          <span className="text-xs text-muted-foreground">⏱ HTML ({stats.htmlCount}):</span>
+          <span className="text-xs text-muted-foreground">{t("admin.sitesStats.avgTimeHtml")} ({stats.htmlCount}):</span>
           <span className="text-sm font-bold">{stats.avgTimeHtml}</span>
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
-          <span className="text-xs text-muted-foreground">⏱ React ({stats.reactCount}):</span>
+          <span className="text-xs text-muted-foreground">{t("admin.sitesStats.avgTimeReact")} ({stats.reactCount}):</span>
           <span className="text-sm font-bold">{stats.avgTimeReact}</span>
         </div>
       </div>
@@ -755,7 +755,7 @@ export const AdminSitesTab = () => {
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
           <Input
-            placeholder="Пошук..."
+            placeholder={t("admin.sitesFilters.search")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-7 h-7 text-xs w-32"
@@ -763,10 +763,10 @@ export const AdminSitesTab = () => {
         </div>
         <Select value={teamFilter} onValueChange={setTeamFilter}>
           <SelectTrigger className="h-7 text-xs w-28">
-            <SelectValue placeholder="Команда" />
+            <SelectValue placeholder={t("admin.sitesTable.team")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all" className="text-xs">Всі команди</SelectItem>
+            <SelectItem value="all" className="text-xs">{t("admin.sitesFilters.allTeams")}</SelectItem>
             {uniqueTeams.map(team => (
               <SelectItem key={team} value={team} className="text-xs">{team}</SelectItem>
             ))}
@@ -774,10 +774,10 @@ export const AdminSitesTab = () => {
         </Select>
         <Select value={userFilter} onValueChange={setUserFilter}>
           <SelectTrigger className="h-7 text-xs w-28">
-            <SelectValue placeholder="Юзер" />
+            <SelectValue placeholder={t("admin.sitesTable.user")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all" className="text-xs">Всі</SelectItem>
+            <SelectItem value="all" className="text-xs">{t("admin.sitesFilters.allUsers")}</SelectItem>
             {uniqueUsers.map(userId => (
               <SelectItem key={userId} value={userId} className="text-xs">{getUserName(userId)}</SelectItem>
             ))}
@@ -785,14 +785,14 @@ export const AdminSitesTab = () => {
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="h-7 text-xs w-24">
-            <SelectValue placeholder="Статус" />
+            <SelectValue placeholder={t("admin.sitesTable.status")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all" className="text-xs">Всі</SelectItem>
-            <SelectItem value="completed" className="text-xs">Готово</SelectItem>
-            <SelectItem value="generating" className="text-xs">Генерується</SelectItem>
-            <SelectItem value="pending" className="text-xs">Очікує</SelectItem>
-            <SelectItem value="failed" className="text-xs">Помилка</SelectItem>
+            <SelectItem value="all" className="text-xs">{t("admin.sitesFilters.allStatuses")}</SelectItem>
+            <SelectItem value="completed" className="text-xs">{t("admin.sitesFilters.completed")}</SelectItem>
+            <SelectItem value="generating" className="text-xs">{t("admin.sitesFilters.generating")}</SelectItem>
+            <SelectItem value="pending" className="text-xs">{t("admin.sitesFilters.pending")}</SelectItem>
+            <SelectItem value="failed" className="text-xs">{t("admin.sitesFilters.failed")}</SelectItem>
           </SelectContent>
         </Select>
         <Select value={aiModelFilter} onValueChange={setAiModelFilter}>
@@ -800,27 +800,27 @@ export const AdminSitesTab = () => {
             <SelectValue placeholder="AI" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all" className="text-xs">Всі</SelectItem>
+            <SelectItem value="all" className="text-xs">{t("admin.sitesFilters.allModels")}</SelectItem>
             <SelectItem value="junior" className="text-xs">Jr</SelectItem>
             <SelectItem value="senior" className="text-xs">Sr</SelectItem>
           </SelectContent>
         </Select>
         <Select value={websiteTypeFilter} onValueChange={setWebsiteTypeFilter}>
           <SelectTrigger className="h-7 text-xs w-20">
-            <SelectValue placeholder="Тип" />
+            <SelectValue placeholder={t("admin.sitesTable.type")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all" className="text-xs">Всі</SelectItem>
+            <SelectItem value="all" className="text-xs">{t("admin.sitesFilters.allTypes")}</SelectItem>
             <SelectItem value="html" className="text-xs">HTML</SelectItem>
             <SelectItem value="react" className="text-xs">React</SelectItem>
           </SelectContent>
         </Select>
         <Select value={languageFilter} onValueChange={setLanguageFilter}>
           <SelectTrigger className="h-7 text-xs w-24">
-            <SelectValue placeholder="Мова" />
+            <SelectValue placeholder={t("admin.sitesTable.language")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all" className="text-xs">Всі</SelectItem>
+            <SelectItem value="all" className="text-xs">{t("admin.sitesFilters.allLanguages")}</SelectItem>
             {uniqueLanguages.map(lang => (
               <SelectItem key={lang} value={lang} className="text-xs">{lang}</SelectItem>
             ))}
@@ -828,13 +828,13 @@ export const AdminSitesTab = () => {
         </Select>
         <Select value={dateFilter} onValueChange={setDateFilter}>
           <SelectTrigger className="h-7 text-xs w-24">
-            <SelectValue placeholder="Дата" />
+            <SelectValue placeholder={t("admin.sitesTable.date")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all" className="text-xs">Весь час</SelectItem>
-            <SelectItem value="today" className="text-xs">Сьогодні</SelectItem>
-            <SelectItem value="week" className="text-xs">Тиждень</SelectItem>
-            <SelectItem value="month" className="text-xs">Місяць</SelectItem>
+            <SelectItem value="all" className="text-xs">{t("admin.sitesFilters.allTime")}</SelectItem>
+            <SelectItem value="today" className="text-xs">{t("admin.sitesFilters.today")}</SelectItem>
+            <SelectItem value="week" className="text-xs">{t("admin.sitesFilters.week")}</SelectItem>
+            <SelectItem value="month" className="text-xs">{t("admin.sitesFilters.month")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -844,7 +844,7 @@ export const AdminSitesTab = () => {
         <CardHeader className="py-2 px-3">
           <CardTitle className="flex items-center gap-1.5 text-sm">
             <FileCode className="h-3.5 w-3.5" />
-            Всі генерації ({sortedHistory.length})
+            {t("admin.sitesAllGenerations")} ({sortedHistory.length})
           </CardTitle>
         </CardHeader>
         <CardContent className="px-3 pb-3">
@@ -854,7 +854,7 @@ export const AdminSitesTab = () => {
             </div>
           ) : sortedHistory.length === 0 ? (
             <p className="text-center text-muted-foreground py-4 text-xs">
-              {searchQuery ? "Нічого не знайдено" : "Немає генерацій"}
+              {searchQuery ? t("admin.sitesNothing") : t("admin.sitesEmpty")}
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -866,7 +866,7 @@ export const AdminSitesTab = () => {
                       onClick={() => handleSort("status")}
                     >
                       <div className="flex items-center">
-                        Статус
+                        {t("admin.sitesTable.status")}
                         {getSortIcon("status")}
                       </div>
                     </TableHead>
@@ -875,7 +875,7 @@ export const AdminSitesTab = () => {
                       onClick={() => handleSort("site_name")}
                     >
                       <div className="flex items-center">
-                        Назва сайту
+                        {t("admin.sitesTable.siteName")}
                         {getSortIcon("site_name")}
                       </div>
                     </TableHead>
@@ -884,7 +884,7 @@ export const AdminSitesTab = () => {
                       onClick={() => handleSort("team")}
                     >
                       <div className="flex items-center">
-                        Команда
+                        {t("admin.sitesTable.team")}
                         {getSortIcon("team")}
                       </div>
                     </TableHead>
@@ -893,17 +893,17 @@ export const AdminSitesTab = () => {
                       onClick={() => handleSort("user")}
                     >
                       <div className="flex items-center">
-                        Користувач
+                        {t("admin.sitesTable.user")}
                         {getSortIcon("user")}
                       </div>
                     </TableHead>
-                    <TableHead>Роль</TableHead>
+                    <TableHead>{t("admin.sitesTable.role")}</TableHead>
                     <TableHead 
                       className="cursor-pointer hover:bg-accent/50"
                       onClick={() => handleSort("language")}
                     >
                       <div className="flex items-center">
-                        Мова
+                        {t("admin.sitesTable.language")}
                         {getSortIcon("language")}
                       </div>
                     </TableHead>
@@ -912,7 +912,7 @@ export const AdminSitesTab = () => {
                       onClick={() => handleSort("website_type")}
                     >
                       <div className="flex items-center">
-                        Тип
+                        {t("admin.sitesTable.type")}
                         {getSortIcon("website_type")}
                       </div>
                     </TableHead>
@@ -921,7 +921,7 @@ export const AdminSitesTab = () => {
                       onClick={() => handleSort("ai_model")}
                     >
                       <div className="flex items-center">
-                        AI
+                        {t("admin.sitesTable.ai")}
                         {getSortIcon("ai_model")}
                       </div>
                     </TableHead>
@@ -930,12 +930,12 @@ export const AdminSitesTab = () => {
                       onClick={() => handleSort("created_at")}
                     >
                       <div className="flex items-center">
-                        Дата
+                        {t("admin.sitesTable.date")}
                         {getSortIcon("created_at")}
                       </div>
                     </TableHead>
-                    <TableHead>Час</TableHead>
-                    <TableHead className="w-[80px]">Дії</TableHead>
+                    <TableHead>{t("admin.sitesTable.duration")}</TableHead>
+                    <TableHead className="w-[80px]">{t("admin.sitesTable.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1021,30 +1021,30 @@ export const AdminSitesTab = () => {
                             <div className="flex items-center gap-1">
                               {item.status === "completed" && (
                                 <>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 w-7 p-0"
-                                    onClick={() => handlePreview(item)}
-                                    title="Превью"
-                                  >
-                                    <Eye className="h-3.5 w-3.5" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 w-7 p-0"
-                                    onClick={() => handleEdit(item)}
-                                    title="Редагувати"
-                                  >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 w-7 p-0"
-                                    onClick={() => handleDownload(item)}
-                                    title="Завантажити ZIP"
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0"
+                                      onClick={() => handlePreview(item)}
+                                      title={t("admin.sitesPreview.title")}
+                                    >
+                                      <Eye className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0"
+                                      onClick={() => handleEdit(item)}
+                                      title={t("admin.sitesPreview.edit")}
+                                    >
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0"
+                                      onClick={() => handleDownload(item)}
+                                      title={t("admin.downloadZip")}
                                   >
                                     <Download className="h-3.5 w-3.5" />
                                   </Button>
@@ -1069,7 +1069,7 @@ export const AdminSitesTab = () => {
           <DialogHeader className="px-4 py-2 border-b">
             <DialogTitle className="flex items-center gap-2 text-sm">
               <Eye className="h-4 w-4" />
-              Превью: {previewItem?.site_name || `Site ${previewItem?.number}`}
+              {t("admin.sitesPreview.title")}: {previewItem?.site_name || `Site ${previewItem?.number}`}
               <Button
                 variant="outline"
                 size="sm"
@@ -1080,7 +1080,7 @@ export const AdminSitesTab = () => {
                 }}
               >
                 <Pencil className="h-3 w-3 mr-1" />
-                Редагувати
+                {t("admin.sitesPreview.edit")}
               </Button>
             </DialogTitle>
           </DialogHeader>
@@ -1103,28 +1103,27 @@ export const AdminSitesTab = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5" />
-              Завантажити зовнішню генерацію
+              {t("admin.sitesUpload.title")}
             </DialogTitle>
             <DialogDescription>
-              Завантажте ZIP файл сайту, згенерованого на зовнішній платформі. 
-              Він буде доданий в історію команди як звичайна генерація.
+              {t("admin.sitesUpload.description")}
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Команда *</Label>
+              <Label>{t("admin.sitesUpload.team")} *</Label>
               <Select
                 value={uploadForm.teamId}
                 onValueChange={(value) => setUploadForm(prev => ({ ...prev, teamId: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Виберіть команду" />
+                  <SelectValue placeholder={t("admin.sitesUpload.selectTeam")} />
                 </SelectTrigger>
                 <SelectContent>
                   {teams.map(team => (
                     <SelectItem key={team.id} value={team.id}>
-                      {team.name} (баланс: ${team.balance.toFixed(2)})
+                      {team.name} ({t("admin.sitesUpload.balance")}: ${team.balance.toFixed(2)})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1132,27 +1131,27 @@ export const AdminSitesTab = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>Назва сайту *</Label>
+              <Label>{t("admin.sitesUpload.siteName")} *</Label>
               <Input
                 value={uploadForm.siteName}
                 onChange={(e) => setUploadForm(prev => ({ ...prev, siteName: e.target.value }))}
-                placeholder="Назва сайту"
+                placeholder={t("admin.sitesUpload.siteName")}
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Промпт *</Label>
+              <Label>{t("admin.sitesUpload.prompt")} *</Label>
               <Textarea
                 value={uploadForm.prompt}
                 onChange={(e) => setUploadForm(prev => ({ ...prev, prompt: e.target.value }))}
-                placeholder="Опис сайту / промпт генерації"
+                placeholder={t("admin.sitesUpload.promptPlaceholder")}
                 rows={3}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Мова</Label>
+                <Label>{t("admin.sitesUpload.language")}</Label>
                 <Select
                   value={uploadForm.language}
                   onValueChange={(value) => setUploadForm(prev => ({ ...prev, language: value }))}
@@ -1173,7 +1172,7 @@ export const AdminSitesTab = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Тип сайту</Label>
+                <Label>{t("admin.sitesUpload.websiteType")}</Label>
                 <Select
                   value={uploadForm.websiteType}
                   onValueChange={(value) => setUploadForm(prev => ({ ...prev, websiteType: value }))}
@@ -1191,7 +1190,7 @@ export const AdminSitesTab = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>AI модель</Label>
+                <Label>{t("admin.sitesUpload.aiModel")}</Label>
                 <Select
                   value={uploadForm.aiModel}
                   onValueChange={(value) => setUploadForm(prev => ({ ...prev, aiModel: value }))}
@@ -1207,7 +1206,7 @@ export const AdminSitesTab = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Ціна продажу (списання з балансу)</Label>
+                <Label>{t("admin.sitesUpload.salePrice")}</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -1222,17 +1221,17 @@ export const AdminSitesTab = () => {
                     const standardPrice = uploadForm.websiteType === "react" ? pricing.react_price : pricing.html_price;
                     return (
                       <p className="text-xs text-muted-foreground">
-                        Стандартна ціна для {uploadForm.websiteType.toUpperCase()}: <span className="font-medium">${standardPrice.toFixed(2)}</span> (з тарифів команди)
+                        {t("admin.sitesUpload.salePriceStandard")} {uploadForm.websiteType.toUpperCase()}: <span className="font-medium">${standardPrice.toFixed(2)}</span> ({t("admin.sitesUpload.fromTeamTariffs")})
                       </p>
                     );
                   }
-                  return <p className="text-xs text-amber-500">Тарифи команди не налаштовані</p>;
+                  return <p className="text-xs text-amber-500">{t("admin.sitesUpload.teamTariffsNotSet")}</p>;
                 })()}
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Собівартість генерації</Label>
+              <Label>{t("admin.sitesUpload.generationCost")}</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -1247,19 +1246,19 @@ export const AdminSitesTab = () => {
                   const standardCost = uploadForm.aiModel === "senior" ? pricing.generation_cost_senior : pricing.generation_cost_junior;
                   return (
                     <p className="text-xs text-muted-foreground">
-                      Стандартна собівартість для {uploadForm.aiModel === "senior" ? "Senior" : "Junior"}: <span className="font-medium">${standardCost.toFixed(2)}</span> (з тарифів команди)
+                      {t("admin.sitesUpload.generationCostStandard")} {uploadForm.aiModel === "senior" ? "Senior" : "Junior"}: <span className="font-medium">${standardCost.toFixed(2)}</span> ({t("admin.sitesUpload.fromTeamTariffs")})
                     </p>
                   );
                 }
                 return null;
               })()}
               <p className="text-xs text-muted-foreground">
-                Для статистики. Не списується з балансу команди.
+                {t("admin.sitesUpload.generationCostNote")}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label>ZIP файл *</Label>
+              <Label>{t("admin.sitesUpload.zipFile")} *</Label>
               <Input
                 type="file"
                 accept=".zip"
@@ -1267,7 +1266,7 @@ export const AdminSitesTab = () => {
               />
               {uploadFile && (
                 <p className="text-xs text-muted-foreground">
-                  Вибрано: {uploadFile.name} ({(uploadFile.size / 1024).toFixed(1)} KB)
+                  {t("admin.sitesUpload.selected")}: {uploadFile.name} ({(uploadFile.size / 1024).toFixed(1)} KB)
                 </p>
               )}
             </div>
@@ -1279,7 +1278,7 @@ export const AdminSitesTab = () => {
               onClick={() => setUploadDialogOpen(false)}
               disabled={uploading}
             >
-              Скасувати
+              {t("admin.sitesUpload.cancel")}
             </Button>
             <Button
               onClick={handleExternalUpload}
@@ -1288,12 +1287,12 @@ export const AdminSitesTab = () => {
               {uploading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Завантаження...
+                  {t("admin.sitesUpload.uploading")}
                 </>
               ) : (
                 <>
                   <Upload className="h-4 w-4 mr-2" />
-                  Завантажити
+                  {t("admin.sitesUpload.upload")}
                 </>
               )}
             </Button>
