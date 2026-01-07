@@ -18,6 +18,9 @@ verify_jwt = true
 [functions.improve-prompt]
 verify_jwt = false
 
+[functions.generate-vip-prompt]
+verify_jwt = false
+
 [functions.codex-proxy]
 verify_jwt = true
 max_duration_seconds = 600

@@ -260,6 +260,7 @@ export type Database = {
           status: string
           team_id: string | null
           user_id: string | null
+          vip_prompt: string | null
           website_type: string | null
           zip_data: string | null
         }
@@ -283,6 +284,7 @@ export type Database = {
           status?: string
           team_id?: string | null
           user_id?: string | null
+          vip_prompt?: string | null
           website_type?: string | null
           zip_data?: string | null
         }
@@ -306,6 +308,7 @@ export type Database = {
           status?: string
           team_id?: string | null
           user_id?: string | null
+          vip_prompt?: string | null
           website_type?: string | null
           zip_data?: string | null
         }
@@ -903,6 +906,7 @@ export type Database = {
           react_price: number
           team_id: string
           updated_at: string
+          vip_extra_price: number | null
         }
         Insert: {
           created_at?: string
@@ -914,6 +918,7 @@ export type Database = {
           react_price?: number
           team_id: string
           updated_at?: string
+          vip_extra_price?: number | null
         }
         Update: {
           created_at?: string
@@ -925,6 +930,7 @@ export type Database = {
           react_price?: number
           team_id?: string
           updated_at?: string
+          vip_extra_price?: number | null
         }
         Relationships: [
           {
