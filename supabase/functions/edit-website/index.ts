@@ -16,25 +16,26 @@ const EDIT_SYSTEM_PROMPT = `You are an expert website editor. Your job is to mod
 
 CRITICAL RULES:
 1. Make ONLY the specific change requested - NOTHING ELSE
-2. DO NOT modify anything that wasn't explicitly asked to change
+2. DO NOT modify anything that wasn't explicitly asked to change  
 3. Keep ALL other content, styles, images, and structure EXACTLY as they are
-4. Return ALL files (modified and unmodified) in exact same format
+4. YOU MUST RETURN EVERY SINGLE FILE - both modified AND unmodified files
+5. If the website has 11 files, you MUST return all 11 files
 
-OUTPUT FORMAT:
+OUTPUT FORMAT (MANDATORY):
 <!-- FILE: filename.ext -->
-<file content here>
+<complete file content here>
 <!-- FILE: another.ext -->
-<content>
+<complete file content here>
 
-IMPORTANT:
-- Return complete file contents, not snippets
-- Do not use markdown code blocks
+ABSOLUTELY CRITICAL:
+- Return COMPLETE file contents for EVERY file, not snippets
+- Do not use markdown code blocks  
 - Use ONLY the <!-- FILE: --> markers
-- If user asks to change button color - change ONLY that button's color
-- If user asks to change text - change ONLY that text
+- YOU MUST INCLUDE ALL FILES - if you received 10 files, return 10 files
+- Missing files will break the website - NEVER skip any file
+- If user asks to change title - change ONLY the title, but return ALL files
 - DO NOT change images unless specifically asked
-- DO NOT change layout unless specifically asked
-- DO NOT add or remove features unless specifically asked`;
+- DO NOT change layout unless specifically asked`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -86,13 +87,18 @@ serve(async (req) => {
       .map((f: GeneratedFile) => `<!-- FILE: ${f.path} -->\n${f.content}`)
       .join("\n\n");
 
+    const filesList = currentFiles.map((f: GeneratedFile) => f.path).join(", ");
+    
     // Simpler prompt focused ONLY on current edit request
-    const editPrompt = `CURRENT WEBSITE FILES:
+    const editPrompt = `CURRENT WEBSITE FILES (${currentFiles.length} total files):
 ${filesContext}
 
 USER REQUEST: ${editRequest}
 
-IMPORTANT: Make ONLY this specific change. Do NOT modify anything else. Return all files.`;
+CRITICAL REMINDER: 
+- You received ${currentFiles.length} files: ${filesList}
+- You MUST return ALL ${currentFiles.length} files in your response
+- Make ONLY the requested change, but include ALL files unchanged or modified`;
 
     let response;
     
@@ -182,6 +188,23 @@ IMPORTANT: Make ONLY this specific change. Do NOT modify anything else. Return a
       if (path && fileContent) {
         parsedFiles.push({ path, content: fileContent });
         console.log(`Parsed file: ${path} (${fileContent.length} chars)`);
+      }
+    }
+
+    // If AI returned fewer files than expected, merge with originals
+    if (parsedFiles.length < currentFiles.length) {
+      console.warn(`AI returned only ${parsedFiles.length} files, expected ${currentFiles.length}. Merging with originals.`);
+      
+      const parsedByPath = new Map<string, GeneratedFile>(
+        parsedFiles.map((f) => [f.path, f])
+      );
+      
+      // Start with all original files, then overlay parsed files
+      for (const original of currentFiles as GeneratedFile[]) {
+        if (!parsedByPath.has(original.path)) {
+          parsedFiles.push({ path: original.path, content: original.content });
+          console.log(`Restored missing file from original: ${original.path}`);
+        }
       }
     }
 
