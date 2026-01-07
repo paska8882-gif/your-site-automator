@@ -1800,189 +1800,337 @@ export function WebsiteGenerator() {
                 </Button>
               </div>
 
-              {/* VIP Mode Fields */}
+              {/* VIP Mode - Language & Geo REQUIRED (shown above VIP fields for better UX) */}
               {isVipMode && (
-                <div className="p-3 border border-amber-500/50 bg-amber-500/5 rounded-lg space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                      <Star className="h-4 w-4 fill-current" />
-                      <span className="text-sm font-medium">VIP режим генерації</span>
-                      <Badge variant="outline" className="text-amber-600 border-amber-500/50">+${teamPricing?.vipExtraPrice || 2}/сайт</Badge>
+                <div className="space-y-3">
+                  {/* Language & Geo Required Row */}
+                  <div className="p-3 border border-amber-500/30 bg-amber-50/50 dark:bg-amber-900/10 rounded-lg">
+                    <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300 mb-3">
+                      <AlertTriangle className="h-4 w-4" />
+                      <span className="text-xs font-medium">Обов'язкові поля для VIP генерації</span>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        // Pick random topic
-                        const topic = randomVipTopics[Math.floor(Math.random() * randomVipTopics.length)];
-                        
-                        // Generate domain from topic
-                        const domainBase = topic.toLowerCase().replace(/[^a-z0-9]/g, '');
-                        const randomNum = Math.floor(Math.random() * 900) + 100;
-                        const domain = `${domainBase}${randomNum}.com`;
-                        
-                        // Get geo-specific data
-                        const geoKey = selectedGeo || "default";
-                        const addresses = randomVipAddressesByGeo[geoKey] || randomVipAddressesByGeo["default"];
-                        const phones = randomVipPhonesByGeo[geoKey] || randomVipPhonesByGeo["default"];
-                        
-                        const address = addresses[Math.floor(Math.random() * addresses.length)];
-                        const phone = phones[Math.floor(Math.random() * phones.length)];
-                        const keywords = randomVipKeywordsByTopic[topic] || "professional services, quality, expert, trusted";
-                        
-                        setVipDomain(domain);
-                        setVipAddress(address);
-                        setVipPhone(phone);
-                        setVipTopic(topic);
-                        setVipKeywords(keywords);
-                      }}
-                      className="h-7 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-100/50 dark:hover:bg-amber-900/30"
-                    >
-                      <Shuffle className="h-3 w-3 mr-1" />
-                      Рандом
-                    </Button>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Language Select for VIP */}
+                      <div className="space-y-1.5">
+                        <Label className={`text-xs flex items-center gap-1 ${selectedLanguages.length === 0 && !isOtherSelected ? 'text-destructive' : 'text-muted-foreground'}`}>
+                          <Languages className="h-3 w-3" />
+                          Мова <span className="text-destructive">*</span>
+                        </Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              className={`w-full justify-between h-9 text-sm ${selectedLanguages.length === 0 && !isOtherSelected ? 'border-destructive/50 bg-destructive/5' : ''}`}
+                            >
+                              <span className="truncate">
+                                {(() => {
+                                  const allLangs = [...selectedLanguages];
+                                  if (isOtherSelected && customLanguage) allLangs.push(customLanguage);
+                                  return allLangs.length === 0 
+                                    ? "Оберіть мову" 
+                                    : allLangs.length === 1 
+                                      ? languages.find(l => l.value === allLangs[0])?.label || allLangs[0]
+                                      : `${allLangs.length} мов`;
+                                })()}
+                              </span>
+                              <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-56 p-2" align="start">
+                            <div className="space-y-1 max-h-64 overflow-y-auto">
+                              {languages.map((lang) => (
+                                <label 
+                                  key={lang.value} 
+                                  className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer"
+                                >
+                                  <Checkbox
+                                    checked={selectedLanguages.includes(lang.value)}
+                                    onCheckedChange={() => toggleLanguage(lang.value)}
+                                  />
+                                  <span className="text-sm">{lang.label}</span>
+                                </label>
+                              ))}
+                              <label className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer border-t mt-1 pt-2">
+                                <Checkbox checked={isOtherSelected} onCheckedChange={() => toggleOther()} />
+                                <span className="text-sm">Інша...</span>
+                              </label>
+                              {isOtherSelected && (
+                                <Input
+                                  placeholder="Назва мови"
+                                  value={customLanguage}
+                                  onChange={(e) => setCustomLanguage(e.target.value)}
+                                  className="mt-2"
+                                  autoFocus
+                                />
+                              )}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      {/* Geo Select for VIP */}
+                      <div className="space-y-1.5">
+                        <Label className={`text-xs flex items-center gap-1 ${!selectedGeo && !isOtherGeoSelected ? 'text-destructive' : 'text-muted-foreground'}`}>
+                          <MapPin className="h-3 w-3" />
+                          Гео/Регіон <span className="text-destructive">*</span>
+                        </Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              className={`w-full justify-between h-9 text-sm ${!selectedGeo && !isOtherGeoSelected ? 'border-destructive/50 bg-destructive/5' : ''}`}
+                            >
+                              <div className="flex items-center">
+                                <MapPin className="h-3.5 w-3.5 mr-1" />
+                                <span className="truncate">
+                                  {isOtherGeoSelected && customGeo 
+                                    ? customGeo 
+                                    : selectedGeo 
+                                      ? geoOptions.find(g => g.value === selectedGeo)?.label || selectedGeo
+                                      : "Оберіть регіон"}
+                                </span>
+                              </div>
+                              <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-56 p-2 max-h-64 overflow-y-auto" align="start">
+                            <div className="space-y-1">
+                              {geoOptions.map((geo) => (
+                                <label key={geo.value || "none"} className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
+                                  <Checkbox
+                                    checked={!isOtherGeoSelected && selectedGeo === geo.value}
+                                    onCheckedChange={() => {
+                                      setSelectedGeo(geo.value);
+                                      setIsOtherGeoSelected(false);
+                                      setCustomGeo("");
+                                    }}
+                                  />
+                                  <span className="text-xs">{geo.label}</span>
+                                </label>
+                              ))}
+                              <div className="border-t my-1 pt-1">
+                                <label className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
+                                  <Checkbox
+                                    checked={isOtherGeoSelected}
+                                    onCheckedChange={(checked) => {
+                                      setIsOtherGeoSelected(!!checked);
+                                      if (checked) setSelectedGeo("");
+                                    }}
+                                  />
+                                  <span className="text-xs">Інше</span>
+                                </label>
+                                {isOtherGeoSelected && (
+                                  <Input
+                                    placeholder="Введіть своє гео..."
+                                    value={customGeo}
+                                    onChange={(e) => setCustomGeo(e.target.value)}
+                                    className="mt-1 h-8 text-xs"
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
                   </div>
+
+                  {/* VIP Mode Fields */}
+                  <div className="p-3 border border-amber-500/50 bg-amber-500/5 rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                        <Star className="h-4 w-4 fill-current" />
+                        <span className="text-sm font-medium">VIP режим генерації</span>
+                        <Badge variant="outline" className="text-amber-600 border-amber-500/50">+${teamPricing?.vipExtraPrice || 2}/сайт</Badge>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          // Pick random topic
+                          const topic = randomVipTopics[Math.floor(Math.random() * randomVipTopics.length)];
+                          
+                          // Generate domain from topic
+                          const domainBase = topic.toLowerCase().replace(/[^a-z0-9]/g, '');
+                          const randomNum = Math.floor(Math.random() * 900) + 100;
+                          const domain = `${domainBase}${randomNum}.com`;
+                          
+                          // Get geo-specific data
+                          const geoKey = selectedGeo || "default";
+                          const addresses = randomVipAddressesByGeo[geoKey] || randomVipAddressesByGeo["default"];
+                          const phones = randomVipPhonesByGeo[geoKey] || randomVipPhonesByGeo["default"];
+                          
+                          const address = addresses[Math.floor(Math.random() * addresses.length)];
+                          const phone = phones[Math.floor(Math.random() * phones.length)];
+                          const keywords = randomVipKeywordsByTopic[topic] || "professional services, quality, expert, trusted";
+                          
+                          setVipDomain(domain);
+                          setVipAddress(address);
+                          setVipPhone(phone);
+                          setVipTopic(topic);
+                          setVipKeywords(keywords);
+                        }}
+                        className="h-7 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-100/50 dark:hover:bg-amber-900/30"
+                      >
+                        <Shuffle className="h-3 w-3 mr-1" />
+                        Рандом
+                      </Button>
+                    </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {/* Domain - required */}
-                    <div className="space-y-1">
-                      <Label className="text-xs flex items-center gap-1">
-                        <Globe className="h-3 w-3" />
-                        Домен <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        placeholder="example.com"
-                        value={vipDomain}
-                        onChange={(e) => setVipDomain(e.target.value)}
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                    
-                    {/* Address - required */}
-                    <div className="space-y-1">
-                      <Label className="text-xs flex items-center gap-1">
-                        <Building2 className="h-3 w-3" />
-                        Адреса <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        placeholder="100 Main Street, City, Country"
-                        value={vipAddress}
-                        onChange={(e) => setVipAddress(e.target.value)}
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                    
-                    {/* Phone - required */}
-                    <div className="space-y-1">
-                      <Label className="text-xs flex items-center gap-1">
-                        <Phone className="h-3 w-3" />
-                        Телефон <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        placeholder="+1 (555) 123-4567"
-                        value={vipPhone}
-                        onChange={(e) => setVipPhone(e.target.value)}
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                    
-                    {/* Topic - optional */}
-                    <div className="space-y-1">
-                      <Label className="text-xs flex items-center gap-1">
-                        <Tag className="h-3 w-3" />
-                        Тема/Ніша
-                      </Label>
-                      <Input
-                        placeholder="Video Games, Law Services..."
-                        value={vipTopic}
-                        onChange={(e) => setVipTopic(e.target.value)}
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Keywords - optional, full width */}
-                  <div className="space-y-1">
-                    <Label className="text-xs flex items-center gap-1">
-                      <Hash className="h-3 w-3" />
-                      Ключові слова
-                    </Label>
-                    <Input
-                      placeholder="keyword1, keyword2, keyword3..."
-                      value={vipKeywords}
-                      onChange={(e) => setVipKeywords(e.target.value)}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  
-                  {/* Generate VIP prompt button */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
-                      if (!vipDomain || !vipAddress || !vipPhone || !prompt.trim()) {
-                        return;
-                      }
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Domain - required */}
+                      <div className="space-y-1">
+                        <Label className="text-xs flex items-center gap-1">
+                          <Globe className="h-3 w-3" />
+                          Домен <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          placeholder="example.com"
+                          value={vipDomain}
+                          onChange={(e) => setVipDomain(e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
                       
-                      setIsGeneratingVip(true);
-                      try {
-                        const siteName = siteNames[0] || vipDomain.split('.')[0];
-                        const geoValue = isOtherGeoSelected && customGeo ? customGeo : selectedGeo;
-                        const langValue = selectedLanguages[0] || "en";
-                        const langLabel = languages.find(l => l.value === langValue)?.label || langValue;
-                        const geoLabel = geoOptions.find(g => g.value === geoValue)?.label || geoValue || "International";
-                        
-                        const { data, error } = await supabase.functions.invoke('generate-vip-prompt', {
-                          body: {
-                            domain: vipDomain,
-                            siteName,
-                            geo: geoLabel,
-                            language: langLabel,
-                            address: vipAddress,
-                            phone: vipPhone,
-                            topic: vipTopic || undefined,
-                            description: prompt,
-                            keywords: vipKeywords || undefined,
-                          }
-                        });
-                        
-                        if (error) throw error;
-                        
-                        if (data?.vipPrompt) {
-                          setVipPromptValue(data.vipPrompt);
-                          toast({
-                            title: "VIP промт згенеровано",
-                            description: "Детальний промт готовий для генерації",
-                          });
-                        }
-                      } catch (error) {
-                        console.error("VIP prompt error:", error);
-                        toast({
-                          title: "Помилка",
-                          description: "Не вдалося згенерувати VIP промт",
-                          variant: "destructive",
-                        });
-                      } finally {
-                        setIsGeneratingVip(false);
-                      }
-                    }}
-                    disabled={isGeneratingVip || !vipDomain || !vipAddress || !vipPhone || !prompt.trim()}
-                    className="w-full h-8 text-xs border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
-                  >
-                    {isGeneratingVip ? (
-                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                    ) : (
-                      <Sparkles className="mr-1 h-3 w-3" />
-                    )}
-                    Згенерувати VIP промт
-                  </Button>
-                  
-                  {vipPromptValue && (
-                    <div className="text-xs text-green-600 flex items-center gap-1 mt-2">
-                      <Star className="h-3 w-3 fill-current" />
-                      VIP промт згенеровано! Буде використано при генерації сайту.
+                      {/* Address - required */}
+                      <div className="space-y-1">
+                        <Label className="text-xs flex items-center gap-1">
+                          <Building2 className="h-3 w-3" />
+                          Адреса <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          placeholder="100 Main Street, City, Country"
+                          value={vipAddress}
+                          onChange={(e) => setVipAddress(e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      
+                      {/* Phone - required */}
+                      <div className="space-y-1">
+                        <Label className="text-xs flex items-center gap-1">
+                          <Phone className="h-3 w-3" />
+                          Телефон <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          placeholder="+1 (555) 123-4567"
+                          value={vipPhone}
+                          onChange={(e) => setVipPhone(e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      
+                      {/* Topic - optional */}
+                      <div className="space-y-1">
+                        <Label className="text-xs flex items-center gap-1">
+                          <Tag className="h-3 w-3" />
+                          Тема/Ніша
+                        </Label>
+                        <Input
+                          placeholder="Video Games, Law Services..."
+                          value={vipTopic}
+                          onChange={(e) => setVipTopic(e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
                     </div>
-                  )}
+                    
+                    {/* Keywords - optional, full width */}
+                    <div className="space-y-1">
+                      <Label className="text-xs flex items-center gap-1">
+                        <Hash className="h-3 w-3" />
+                        Ключові слова
+                      </Label>
+                      <Input
+                        placeholder="keyword1, keyword2, keyword3..."
+                        value={vipKeywords}
+                        onChange={(e) => setVipKeywords(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    
+                    {/* Generate VIP prompt button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        // Validate language and geo are selected
+                        const hasLanguage = selectedLanguages.length > 0 || (isOtherSelected && customLanguage);
+                        const hasGeo = selectedGeo || (isOtherGeoSelected && customGeo);
+                        
+                        if (!hasLanguage || !hasGeo) {
+                          toast({
+                            title: "Заповніть обов'язкові поля",
+                            description: "Для VIP генерації потрібно обрати мову та регіон",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        
+                        if (!vipDomain || !vipAddress || !vipPhone || !prompt.trim()) {
+                          return;
+                        }
+                        
+                        setIsGeneratingVip(true);
+                        try {
+                          const siteName = siteNames[0] || vipDomain.split('.')[0];
+                          const geoValue = isOtherGeoSelected && customGeo ? customGeo : selectedGeo;
+                          const langValue = selectedLanguages[0] || customLanguage || "en";
+                          const langLabel = languages.find(l => l.value === langValue)?.label || langValue;
+                          const geoLabel = geoOptions.find(g => g.value === geoValue)?.label || geoValue || "International";
+                          
+                          const { data, error } = await supabase.functions.invoke('generate-vip-prompt', {
+                            body: {
+                              domain: vipDomain,
+                              siteName,
+                              geo: geoLabel,
+                              language: langLabel,
+                              address: vipAddress,
+                              phone: vipPhone,
+                              topic: vipTopic || undefined,
+                              description: prompt,
+                              keywords: vipKeywords || undefined,
+                            }
+                          });
+                          
+                          if (error) throw error;
+                          
+                          if (data?.vipPrompt) {
+                            setVipPromptValue(data.vipPrompt);
+                            toast({
+                              title: "VIP промт згенеровано",
+                              description: "Детальний промт готовий для генерації",
+                            });
+                          }
+                        } catch (error) {
+                          console.error("VIP prompt error:", error);
+                          toast({
+                            title: "Помилка",
+                            description: "Не вдалося згенерувати VIP промт",
+                            variant: "destructive",
+                          });
+                        } finally {
+                          setIsGeneratingVip(false);
+                        }
+                      }}
+                      disabled={isGeneratingVip || !vipDomain || !vipAddress || !vipPhone || !prompt.trim() || (selectedLanguages.length === 0 && !isOtherSelected) || (!selectedGeo && !isOtherGeoSelected)}
+                      className="w-full h-8 text-xs border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+                    >
+                      {isGeneratingVip ? (
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      ) : (
+                        <Sparkles className="mr-1 h-3 w-3" />
+                      )}
+                      Згенерувати VIP промт
+                    </Button>
+                    
+                    {vipPromptValue && (
+                      <div className="text-xs text-green-600 flex items-center gap-1 mt-2">
+                        <Star className="h-3 w-3 fill-current" />
+                        VIP промт згенеровано! Буде використано при генерації сайту.
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
