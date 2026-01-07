@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File, AlertTriangle, Upload, X, Layers, Filter, CalendarDays, MonitorPlay, Ban } from "lucide-react";
+import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File, AlertTriangle, Upload, X, Layers, Filter, CalendarDays, MonitorPlay, Ban, Send, User, Bot, Crown, Zap, Maximize2, Minimize2, Folder, FolderOpen } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -319,20 +319,18 @@ function SingleHistoryItem({
               )}
               {item.status === "completed" && (
                 <>
-                  {isAdmin && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEdit(item.id);
-                      }}
-                      title="Редагувати"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(item.id);
+                    }}
+                    title="Редагувати"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
                   {/* PHP Preview button */}
                   {item.website_type === "php" && item.files_data && onPhpPreview && (
                     <Button
@@ -586,6 +584,19 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
   // PHP Preview dialog
   const [phpPreviewOpen, setPhpPreviewOpen] = useState(false);
   const [phpPreviewItem, setPhpPreviewItem] = useState<HistoryItem | null>(null);
+
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editItem, setEditItem] = useState<HistoryItem | null>(null);
+  const [editFiles, setEditFiles] = useState<GeneratedFile[]>([]);
+  const [editSelectedFile, setEditSelectedFile] = useState<GeneratedFile | null>(null);
+  const [editMessages, setEditMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
+  const [editInput, setEditInput] = useState("");
+  const [editAiModel, setEditAiModel] = useState<"junior" | "senior">("senior");
+  const [isEditing, setIsEditing] = useState(false);
+  const [editViewMode, setEditViewMode] = useState<"preview" | "code">("preview");
+  const [editFullscreen, setEditFullscreen] = useState(false);
+  const editScrollRef = useRef<HTMLDivElement>(null);
 
   const fetchHistory = async () => {
     setIsLoading(true);
@@ -899,6 +910,227 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
         variant: "destructive",
       });
     }
+  };
+
+  // Open edit dialog
+  const openEditDialog = (item: HistoryItem) => {
+    setEditItem(item);
+    setEditFiles(item.files_data || []);
+    setEditAiModel((item.ai_model as "junior" | "senior") || "senior");
+    setEditMessages([]);
+    setEditInput("");
+    setIsEditing(false);
+    setEditViewMode("preview");
+    setEditFullscreen(false);
+    
+    // Select index.html or first file
+    if (item.files_data && item.files_data.length > 0) {
+      const indexFile = item.files_data.find(f => f.path === "index.html");
+      setEditSelectedFile(indexFile || item.files_data[0]);
+    } else {
+      setEditSelectedFile(null);
+    }
+    
+    // Load saved messages from localStorage
+    const saved = localStorage.getItem(`edit-chat-${item.id}`);
+    if (saved) {
+      try {
+        setEditMessages(JSON.parse(saved));
+      } catch {}
+    }
+    
+    setEditDialogOpen(true);
+  };
+
+  // Send edit request
+  const handleEditSend = async () => {
+    if (!editInput.trim() || isEditing || !editItem) return;
+
+    const userMessage = editInput.trim();
+    setEditInput("");
+    setEditMessages(prev => [...prev, { role: "user", content: userMessage }]);
+    setIsEditing(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error("Потрібна авторизація");
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/edit-website`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            generationId: editItem.id,
+            editRequest: userMessage,
+            currentFiles: editFiles,
+            aiModel: editAiModel,
+            websiteType: editItem.website_type,
+            originalPrompt: editItem.prompt,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(errText || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.files) {
+        setEditFiles(data.files);
+        
+        // Update selected file
+        if (editSelectedFile) {
+          const updated = data.files.find((f: GeneratedFile) => f.path === editSelectedFile.path);
+          if (updated) setEditSelectedFile(updated);
+        }
+        
+        const newMessages = [...editMessages, { role: "user" as const, content: userMessage }, { role: "assistant" as const, content: data.message || "Готово! Зміни застосовано." }];
+        setEditMessages(prev => [...prev, { role: "assistant", content: data.message || "Готово! Зміни застосовано." }]);
+        
+        // Save to localStorage
+        localStorage.setItem(`edit-chat-${editItem.id}`, JSON.stringify(newMessages));
+        
+        // Update history item
+        setHistory(prev => prev.map(h => h.id === editItem.id ? { ...h, files_data: data.files } : h));
+
+        toast({
+          title: "Успішно",
+          description: "Сайт оновлено",
+        });
+      } else {
+        throw new Error(data.error || "Невідома помилка");
+      }
+    } catch (error) {
+      console.error("Edit error:", error);
+      setEditMessages(prev => [
+        ...prev,
+        { role: "assistant", content: `Помилка: ${error instanceof Error ? error.message : "Невідома помилка"}` },
+      ]);
+      toast({
+        title: "Помилка",
+        description: error instanceof Error ? error.message : "Невідома помилка",
+        variant: "destructive",
+      });
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  // Build preview HTML for edit dialog
+  const buildEditPreviewHtml = (): string => {
+    if (!editItem) return "";
+    
+    if (editItem.website_type === "react") {
+      // Build React preview
+      const globalCss = editFiles.find(f => f.path.includes("global.css") || f.path.includes("index.css"));
+      const jsFiles = editFiles.filter(f => 
+        (f.path.endsWith(".js") || f.path.endsWith(".jsx")) && 
+        !f.path.includes("index.js") &&
+        !f.path.includes("reportWebVitals")
+      );
+      
+      const processFile = (file: GeneratedFile): string => {
+        let content = file.content;
+        const componentName = file.path.split("/").pop()?.replace(/\.(js|jsx)$/, "") || "";
+        content = content.replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];?\s*/g, '');
+        content = content.replace(/import\s+['"][^'"]+['"];?\s*/g, '');
+        content = content.replace(/export\s+default\s+function\s+(\w+)/g, (_, name) => `window.${name} = function ${name}`);
+        content = content.replace(/export\s+default\s+(\w+)\s*;?/g, (_, name) => `window.${name} = ${name};`);
+        content = content.replace(/export\s+function\s+(\w+)/g, (_, name) => `window.${name} = function ${name}`);
+        content = content.replace(/export\s+const\s+(\w+)/g, (_, name) => `window.${name} = window.${name} || {}; const ${name}`);
+        if (!content.includes(`window.${componentName}`)) {
+          content = content.replace(new RegExp(`function\\s+${componentName}\\s*\\(`), `window.${componentName} = function ${componentName}(`);
+          content = content.replace(new RegExp(`const\\s+${componentName}\\s*=\\s*\\(`), `window.${componentName} = (`);
+        }
+        return `// === ${file.path} ===\n${content}`;
+      };
+      
+      const sortedFiles = [...jsFiles].sort((a, b) => {
+        if (a.path.includes("App.")) return 1;
+        if (b.path.includes("App.")) return -1;
+        return 0;
+      });
+      
+      const processedCode = sortedFiles.map(processFile).join('\n\n');
+      
+      return `<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>React Preview</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+  <style>${globalCss?.content || '* { margin: 0; padding: 0; box-sizing: border-box; }'}</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext, Fragment } = React;
+    const BrowserRouter = ({ children }) => children;
+    const Routes = ({ children }) => children;
+    const Route = () => null;
+    const Link = ({ to, children, ...props }) => React.createElement('a', { href: '#', ...props }, children);
+    const NavLink = Link;
+    const useNavigate = () => () => {};
+    const useLocation = () => ({ pathname: '/', search: '', hash: '' });
+    const useParams = () => ({});
+    window.BrowserRouter = BrowserRouter;
+    window.Routes = Routes;
+    window.Route = Route;
+    window.Link = Link;
+    window.NavLink = NavLink;
+    window.useNavigate = useNavigate;
+    window.useLocation = useLocation;
+    window.useParams = useParams;
+    
+    ${processedCode}
+    
+    try {
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      const AppComponent = window.App;
+      if (AppComponent) {
+        root.render(React.createElement(AppComponent));
+      } else {
+        document.getElementById('root').innerHTML = '<p style="padding:20px;color:red;">App component not found</p>';
+      }
+    } catch (err) {
+      document.getElementById('root').innerHTML = '<pre style="padding:20px;color:red;">' + err.message + '</pre>';
+    }
+  </script>
+</body>
+</html>`;
+    }
+    
+    // HTML preview
+    if (!editSelectedFile?.path.endsWith(".html")) return editSelectedFile?.content || "";
+    
+    let html = editSelectedFile.content;
+    const cssFile = editFiles.find(f => f.path === "styles.css" || f.path.endsWith("/styles.css"));
+    
+    if (cssFile) {
+      const styleTag = `<style>${cssFile.content}</style>`;
+      if (html.includes("</head>")) {
+        html = html.replace("</head>", `${styleTag}</head>`);
+      } else if (html.includes("<body")) {
+        html = html.replace("<body", `${styleTag}<body`);
+      } else {
+        html = styleTag + html;
+      }
+    }
+    
+    return html;
   };
 
   const truncatePrompt = (text: string, maxLength: number = 100) => {
@@ -1465,7 +1697,10 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
                           onExpand={handleExpand}
                           onExpandPrompt={(id) => setExpandedPromptId(expandedPromptId === id ? null : id)}
                           onDownload={handleDownload}
-                          onEdit={(id) => navigate(`/edit/${id}`)}
+                          onEdit={(id) => {
+                            const item = group.items.find(i => i.id === id);
+                            if (item) openEditDialog(item);
+                          }}
                           onUsePrompt={onUsePrompt}
                           onAppeal={openAppealDialog}
                           onPhpPreview={(item) => {
@@ -1500,7 +1735,10 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
                   onExpand={handleExpand}
                   onExpandPrompt={(id) => setExpandedPromptId(expandedPromptId === id ? null : id)}
                   onDownload={handleDownload}
-                  onEdit={(id) => navigate(`/edit/${id}`)}
+                  onEdit={(id) => {
+                    const item = history.find(i => i.id === id);
+                    if (item) openEditDialog(item);
+                  }}
                   onUsePrompt={onUsePrompt}
                   onAppeal={openAppealDialog}
                   onPhpPreview={(item) => {
@@ -1614,6 +1852,205 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
         files={phpPreviewItem?.files_data || []}
         siteName={phpPreviewItem?.site_name || undefined}
       />
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={(open) => {
+        if (!open && !isEditing) setEditDialogOpen(false);
+      }}>
+        <DialogContent className="max-w-[95vw] w-[1400px] h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-4 py-3 border-b shrink-0">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2">
+                <Pencil className="h-4 w-4" />
+                Редагування: {editItem?.site_name || `Site ${editItem?.number}`}
+              </DialogTitle>
+              {isEditing && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Редагування...
+                </div>
+              )}
+            </div>
+          </DialogHeader>
+          
+          <div className="flex flex-1 overflow-hidden">
+            {/* Chat panel */}
+            <div className="w-[350px] border-r flex flex-col shrink-0">
+              {/* AI Model selector */}
+              <div className="p-3 border-b">
+                <Select 
+                  value={editAiModel} 
+                  onValueChange={(v) => setEditAiModel(v as "junior" | "senior")}
+                  disabled={isEditing}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="senior">
+                      <div className="flex items-center gap-2">
+                        <Crown className="h-4 w-4 text-amber-500" />
+                        Senior AI
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="junior">
+                      <div className="flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-blue-500" />
+                        Junior AI
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Messages */}
+              <ScrollArea className="flex-1 p-3" ref={editScrollRef}>
+                <div className="space-y-3">
+                  {editMessages.length === 0 && (
+                    <div className="text-center text-muted-foreground py-6">
+                      <Bot className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Опишіть які зміни потрібно внести</p>
+                      <p className="text-xs mt-1">Наприклад: "Зміни колір кнопок на синій"</p>
+                    </div>
+                  )}
+                  {editMessages.map((msg, idx) => (
+                    <div key={idx} className={`flex gap-2 ${msg.role === "user" ? "justify-end" : ""}`}>
+                      {msg.role === "assistant" && (
+                        <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                          <Bot className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                      )}
+                      <div className={`rounded-lg px-3 py-2 max-w-[85%] text-sm ${
+                        msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
+                      }`}>
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                      </div>
+                      {msg.role === "user" && (
+                        <div className="h-7 w-7 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                          <User className="h-3.5 w-3.5" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {isEditing && (
+                    <div className="flex gap-2">
+                      <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <Bot className="h-3.5 w-3.5 text-primary" />
+                      </div>
+                      <div className="bg-muted rounded-lg px-3 py-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Редагую...
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+              
+              {/* Input */}
+              <div className="p-3 border-t">
+                <div className="flex gap-2">
+                  <Textarea
+                    value={editInput}
+                    onChange={(e) => setEditInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleEditSend();
+                      }
+                    }}
+                    placeholder="Опишіть зміни..."
+                    className="min-h-[50px] max-h-[100px] resize-none text-sm"
+                    disabled={isEditing}
+                  />
+                  <Button
+                    onClick={handleEditSend}
+                    disabled={!editInput.trim() || isEditing}
+                    size="icon"
+                    className="h-[50px] w-[50px]"
+                  >
+                    {isEditing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            
+            {/* Preview panel */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Toolbar */}
+              <div className="border-b px-3 py-2 flex items-center justify-between shrink-0 bg-muted/20">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={editViewMode === "preview" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setEditViewMode("preview")}
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    Перегляд
+                  </Button>
+                  <Button
+                    variant={editViewMode === "code" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setEditViewMode("code")}
+                  >
+                    <Code className="h-4 w-4 mr-1" />
+                    Код
+                  </Button>
+                </div>
+                {editViewMode === "preview" && (
+                  <Button variant="ghost" size="sm" onClick={() => setEditFullscreen(!editFullscreen)}>
+                    {editFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                  </Button>
+                )}
+              </div>
+              
+              <div className="flex-1 flex overflow-hidden">
+                {/* File tree */}
+                <div className="w-48 border-r bg-muted/30 flex flex-col shrink-0">
+                  <div className="p-2 border-b">
+                    <span className="text-xs font-medium text-muted-foreground uppercase">Файли</span>
+                  </div>
+                  <ScrollArea className="flex-1">
+                    <div className="py-1">
+                      {editFiles.map(file => (
+                        <div
+                          key={file.path}
+                          onClick={() => setEditSelectedFile(file)}
+                          className={`flex items-center gap-2 px-2 py-1 text-sm cursor-pointer transition-colors ${
+                            editSelectedFile?.path === file.path ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                          }`}
+                        >
+                          {getFileIcon(file.path)}
+                          <span className="truncate">{file.path.split("/").pop()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+                
+                {/* Content */}
+                <div className="flex-1 overflow-hidden">
+                  {editViewMode === "preview" ? (
+                    <iframe
+                      srcDoc={buildEditPreviewHtml()}
+                      className="w-full h-full border-0 bg-white"
+                      title="Preview"
+                      sandbox="allow-scripts allow-same-origin"
+                    />
+                  ) : (
+                    <ScrollArea className="h-full">
+                      <pre className="p-4 text-sm font-mono whitespace-pre-wrap break-all">
+                        {editSelectedFile?.content || "Виберіть файл"}
+                      </pre>
+                    </ScrollArea>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
