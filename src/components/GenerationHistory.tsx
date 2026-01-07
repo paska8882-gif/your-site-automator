@@ -222,6 +222,7 @@ function SingleHistoryItem({
   compact = false,
   isAdmin = false,
 }: SingleHistoryItemProps) {
+  const { t } = useLanguage();
   const getStatusIcon = (status: string, salePrice?: number | null) => {
     if (status === "failed" && (salePrice === 0 || salePrice === null)) {
       return <XCircle className="h-4 w-4 text-destructive" />;
@@ -295,11 +296,11 @@ function SingleHistoryItem({
                     e.stopPropagation();
                     onUsePrompt(item.site_name || "", item.prompt);
                     toast({
-                      title: "Промпт завантажено",
-                      description: "Назва та опис підтягнуті з історії",
+                      title: t("historyExtra.promptLoaded"),
+                      description: t("historyExtra.promptLoadedDesc"),
                     });
                   }}
-                  title="Використати промпт"
+                  title={t("historyExtra.usePrompt")}
                 >
                   <RotateCcw className="h-4 w-4" />
                 </Button>
@@ -313,13 +314,13 @@ function SingleHistoryItem({
                     e.stopPropagation();
                     onCancel(item);
                   }}
-                  title="Скасувати генерацію"
+                  title={t("historyExtra.cancelGeneration")}
                 >
                   <Ban className="h-4 w-4" />
                 </Button>
               )}
               {item.status === "completed" && (
-                <>
+                  <>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -328,7 +329,7 @@ function SingleHistoryItem({
                       e.stopPropagation();
                       onEdit(item.id);
                     }}
-                    title="Редагувати"
+                    title={t("historyExtra.editButton")}
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -342,7 +343,7 @@ function SingleHistoryItem({
                         e.stopPropagation();
                         onPhpPreview(item);
                       }}
-                      title="PHP Превью"
+                      title={t("historyExtra.phpPreview")}
                     >
                       <MonitorPlay className="h-4 w-4" />
                     </Button>
@@ -356,18 +357,19 @@ function SingleHistoryItem({
                       onDownload(item);
                     }}
                     disabled={!item.zip_data}
-                    title="Завантажити ZIP"
+                    title={t("historyExtra.downloadZip")}
                   >
                     <Download className="h-4 w-4" />
                   </Button>
                   {(() => {
                     const appeal = getAppeal(item.id);
                     if (appeal) {
+                      const statusText = appeal.status === "pending" ? t("historyExtra.appealPending") : appeal.status === "approved" ? t("historyExtra.appealApproved") : t("historyExtra.appealRejected");
                       return (
                         <Badge 
                           variant={appeal.status === "approved" ? "default" : appeal.status === "rejected" ? "destructive" : "outline"}
                           className="text-xs h-6"
-                          title={`Апеляція: ${appeal.status === "pending" ? "На розгляді" : appeal.status === "approved" ? "Схвалено" : "Відхилено"}`}
+                          title={`${t("historyExtra.appealStatus")}: ${statusText}`}
                         >
                           {appeal.status === "pending" ? "⏳" : appeal.status === "approved" ? "✓" : "✗"}
                         </Badge>
@@ -382,7 +384,7 @@ function SingleHistoryItem({
                           e.stopPropagation();
                           onAppeal(item);
                         }}
-                        title="Подати апеляцію"
+                        title={t("historyExtra.submitAppeal")}
                       >
                         <AlertTriangle className="h-4 w-4" />
                       </Button>
@@ -403,32 +405,32 @@ function SingleHistoryItem({
           <div className="border-t px-4 py-3 space-y-3 bg-muted/20">
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
               <div>
-                <span className="text-muted-foreground text-xs">AI модель</span>
+                <span className="text-muted-foreground text-xs">{t("historyExtra.aiModel")}</span>
                 <p className="font-medium">{item.ai_model === "senior" ? "Senior" : "Junior"}</p>
               </div>
               <div>
-                <span className="text-muted-foreground text-xs">Мова</span>
+                <span className="text-muted-foreground text-xs">{t("historyExtra.contentLanguage")}</span>
                 <p className="font-medium">{getLanguageLabel(item.language)}</p>
               </div>
               <div>
-                <span className="text-muted-foreground text-xs">Гео</span>
+                <span className="text-muted-foreground text-xs">{t("historyExtra.geo")}</span>
                 <p className="font-medium">{item.geo ? getGeoLabel(item.geo) : "—"}</p>
               </div>
               <div>
-                <span className="text-muted-foreground text-xs">Фото</span>
-                <p className="font-medium">{item.image_source === "ai" ? "AI пошук" : "Базові"}</p>
+                <span className="text-muted-foreground text-xs">{t("historyExtra.photos")}</span>
+                <p className="font-medium">{item.image_source === "ai" ? t("historyExtra.aiPhotos") : t("historyExtra.basicPhotos")}</p>
               </div>
               <div>
-                <span className="text-muted-foreground text-xs">Ціна</span>
+                <span className="text-muted-foreground text-xs">{t("historyExtra.price")}</span>
                 <p className="font-medium">${item.sale_price || 0}</p>
               </div>
             </div>
             <div>
-              <span className="text-muted-foreground text-xs">Дата створення</span>
+              <span className="text-muted-foreground text-xs">{t("historyExtra.creationDate")}</span>
               <p className="text-sm">{new Date(item.created_at).toLocaleString("uk-UA")}</p>
             </div>
             <div>
-              <span className="text-muted-foreground text-xs">Опис</span>
+              <span className="text-muted-foreground text-xs">{t("historyExtra.description")}</span>
               <p className="text-sm mt-1 whitespace-pre-wrap">{item.prompt}</p>
             </div>
             {/* Improved prompt is only visible in admin panel Sites tab */}
@@ -442,7 +444,7 @@ function SingleHistoryItem({
                     <PopoverTrigger asChild>
                       <Button variant="outline" size="sm" className="gap-2">
                         <Files className="h-4 w-4" />
-                        Файли ({item.files_data.length})
+                        {t("generator.files")} ({item.files_data.length})
                         <ChevronDown className="h-3 w-3" />
                       </Button>
                     </PopoverTrigger>
@@ -478,7 +480,7 @@ function SingleHistoryItem({
                     onClick={() => onViewModeChange("preview")}
                   >
                     <Eye className="h-4 w-4 mr-1" />
-                    Превью
+                    {t("historyExtra.previewTab")}
                   </Button>
                   <Button
                     variant={viewMode === "code" ? "default" : "ghost"}
@@ -486,7 +488,7 @@ function SingleHistoryItem({
                     onClick={() => onViewModeChange("code")}
                   >
                     <Code className="h-4 w-4 mr-1" />
-                    Код
+                    {t("historyExtra.codeTab")}
                   </Button>
                 </div>
               </div>
@@ -507,14 +509,15 @@ function SingleHistoryItem({
                 {(() => {
                   const appeal = getAppeal(item.id);
                   if (appeal) {
+                    const statusText = appeal.status === "pending" ? t("historyExtra.appealPending") : appeal.status === "approved" ? t("historyExtra.appealApproved") : t("historyExtra.appealRejected");
                     return (
                       <div className="flex items-center gap-2 text-sm">
                         <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                        <span>Апеляція:</span>
+                        <span>{t("historyExtra.appealStatus")}:</span>
                         <Badge 
                           variant={appeal.status === "approved" ? "default" : appeal.status === "rejected" ? "destructive" : "outline"}
                         >
-                          {appeal.status === "pending" ? "На розгляді" : appeal.status === "approved" ? "Схвалено" : "Відхилено"}
+                          {statusText}
                         </Badge>
                       </div>
                     );
@@ -527,7 +530,7 @@ function SingleHistoryItem({
                       className="text-yellow-600 border-yellow-500/50 hover:bg-yellow-500/10"
                     >
                       <AlertTriangle className="h-4 w-4 mr-2" />
-                      Подати апеляцію
+                      {t("historyExtra.submitAppeal")}
                     </Button>
                   );
                 })()}
@@ -538,7 +541,7 @@ function SingleHistoryItem({
           {item.error_message && (
             <div className="border-t p-4">
               <p className="text-sm text-destructive">
-                Помилка: {item.error_message}
+                {t("historyExtra.errorPrefix")}: {item.error_message}
               </p>
             </div>
           )}
@@ -621,8 +624,8 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
     if (error) {
       console.error("Error fetching history:", error);
       toast({
-        title: "Помилка",
-        description: "Не вдалося завантажити історію",
+        title: t("common.error"),
+        description: t("historyExtra.loadError"),
         variant: "destructive",
       });
     } else {
@@ -696,8 +699,8 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
       if (Date.now() - state.lastToastAt > 5 * 60_000) {
         state.lastToastAt = Date.now();
         toast({
-          title: "Бекенд тимчасово недоступний",
-          description: "Деякі дані можуть не завантажуватись. Спробуйте пізніше.",
+          title: t("historyExtra.backendUnavailable"),
+          description: t("historyExtra.backendUnavailableDesc"),
           variant: "destructive",
         });
       }
@@ -782,8 +785,8 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
   const handleDownload = (item: HistoryItem) => {
     if (!item.zip_data) {
       toast({
-        title: "Помилка",
-        description: "ZIP-файл недоступний",
+        title: t("common.error"),
+        description: t("historyExtra.zipNotAvailable"),
         variant: "destructive",
       });
       return;
@@ -815,14 +818,14 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
       URL.revokeObjectURL(url);
 
       toast({
-        title: "Завантаження",
-        description: "ZIP-архів завантажено",
+        title: t("historyExtra.downloadTitle"),
+        description: t("historyExtra.downloadDesc"),
       });
     } catch (error) {
       console.error("Download error:", error);
       toast({
-        title: "Помилка",
-        description: "Не вдалося завантажити файл",
+        title: t("common.error"),
+        description: t("historyExtra.downloadError"),
         variant: "destructive",
       });
     }
@@ -833,16 +836,16 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
     
     if (completedItems.length === 0) {
       toast({
-        title: "Немає файлів",
-        description: "Немає завершених генерацій для завантаження",
+        title: t("historyExtra.noCompletedItems"),
+        description: t("historyExtra.noCompletedDesc"),
         variant: "destructive",
       });
       return;
     }
 
     toast({
-      title: "Завантаження",
-      description: `Завантажуємо ${completedItems.length} файлів...`,
+      title: t("historyExtra.downloadTitle"),
+      description: `${t("historyExtra.downloadingFiles")} ${completedItems.length}...`,
     });
 
     // Download each file with a small delay to prevent browser blocking
@@ -882,8 +885,8 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
     }
 
     toast({
-      title: "Готово",
-      description: `Завантажено ${completedItems.length} ZIP-архівів`,
+      title: t("historyExtra.downloadComplete"),
+      description: `${t("historyExtra.downloadCompleteDesc")} ${completedItems.length}`,
     });
   };
 
@@ -893,7 +896,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
         .from("generation_history")
         .update({ 
           status: "failed", 
-          error_message: "Скасовано користувачем",
+          error_message: t("historyExtra.cancelledByUser"),
           completed_at: new Date().toISOString()
         })
         .eq("id", item.id);
@@ -901,14 +904,14 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
       if (error) throw error;
 
       toast({
-        title: "Генерацію скасовано",
-        description: `Генерація "${item.site_name || `Site ${item.number}`}" була скасована`,
+        title: t("historyExtra.generationCancelled"),
+        description: `"${item.site_name || `Site ${item.number}`}" ${t("historyExtra.generationCancelledDesc")}`,
       });
     } catch (error) {
       console.error("Cancel error:", error);
       toast({
-        title: "Помилка",
-        description: "Не вдалося скасувати генерацію",
+        title: t("common.error"),
+        description: t("historyExtra.cancelError"),
         variant: "destructive",
       });
     }
@@ -957,7 +960,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session?.access_token) {
-        throw new Error("Потрібна авторизація");
+        throw new Error(t("historyExtra.authRequired"));
       }
 
       const response = await fetch(
@@ -996,8 +999,8 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
           if (updated) setEditSelectedFile(updated);
         }
         
-        const newMessages = [...editMessages, { role: "user" as const, content: userMessage }, { role: "assistant" as const, content: data.message || "Готово! Зміни застосовано." }];
-        setEditMessages(prev => [...prev, { role: "assistant", content: data.message || "Готово! Зміни застосовано." }]);
+        const newMessages = [...editMessages, { role: "user" as const, content: userMessage }, { role: "assistant" as const, content: data.message || t("historyExtra.editSuccess") }];
+        setEditMessages(prev => [...prev, { role: "assistant", content: data.message || t("historyExtra.editSuccess") }]);
         
         // Save to localStorage
         localStorage.setItem(`edit-chat-${editItem.id}`, JSON.stringify(newMessages));
@@ -1006,21 +1009,21 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
         setHistory(prev => prev.map(h => h.id === editItem.id ? { ...h, files_data: data.files } : h));
 
         toast({
-          title: "Успішно",
-          description: "Сайт оновлено",
+          title: t("historyExtra.siteUpdated"),
+          description: t("historyExtra.siteUpdatedDesc"),
         });
       } else {
-        throw new Error(data.error || "Невідома помилка");
+        throw new Error(data.error || t("historyExtra.unknownError"));
       }
     } catch (error) {
       console.error("Edit error:", error);
       setEditMessages(prev => [
         ...prev,
-        { role: "assistant", content: `Помилка: ${error instanceof Error ? error.message : "Невідома помилка"}` },
+        { role: "assistant", content: `${t("historyExtra.errorPrefix")}: ${error instanceof Error ? error.message : t("historyExtra.unknownError")}` },
       ]);
       toast({
-        title: "Помилка",
-        description: error instanceof Error ? error.message : "Невідома помилка",
+        title: t("common.error"),
+        description: error instanceof Error ? error.message : t("historyExtra.unknownError"),
         variant: "destructive",
       });
     } finally {
