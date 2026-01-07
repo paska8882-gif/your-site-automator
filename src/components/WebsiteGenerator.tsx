@@ -2256,7 +2256,7 @@ export function WebsiteGenerator() {
                           return;
                         }
                         
-                        if (!vipDomain || !vipAddress || !vipPhone || !prompt.trim()) {
+                        if (!vipAddress || !vipPhone || !prompt.trim()) {
                           return;
                         }
                         
@@ -2303,7 +2303,7 @@ export function WebsiteGenerator() {
                           setIsGeneratingVip(false);
                         }
                       }}
-                      disabled={isGeneratingVip || !vipDomain || !vipAddress || !vipPhone || !prompt.trim() || (selectedLanguages.length === 0 && !isOtherSelected) || (!selectedGeo && !isOtherGeoSelected)}
+                      disabled={isGeneratingVip || !vipAddress || !vipPhone || !prompt.trim() || (selectedLanguages.length === 0 && !isOtherSelected) || (!selectedGeo && !isOtherGeoSelected)}
                       className="w-full h-8 text-xs border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
                     >
                       {isGeneratingVip ? (
