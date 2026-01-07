@@ -916,7 +916,7 @@ async function runGeneration({
   // API call helper for Lovable AI or OpenAI
   const makeAPICall = async (systemContent: string, userContent: string, maxTokens: number, model: string, temperature = 0.7) => {
     if (useLovableAI) {
-      const resp = await fetch("https://ai.lovable.dev/chat/v1/messages", {
+      const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${lovableApiKey}`,
@@ -1031,7 +1031,7 @@ async function runGeneration({
     let generateResponse: Response;
     
     if (useLovableAI) {
-      generateResponse = await fetch("https://ai.lovable.dev/chat/v1/messages", {
+      generateResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${lovableApiKey}`,
