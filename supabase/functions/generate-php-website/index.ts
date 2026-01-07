@@ -914,22 +914,21 @@ async function runGeneration({
     : "";
 
   // API call helper for Lovable AI or OpenAI
-  const makeAPICall = async (systemContent: string, userContent: string, maxTokens: number, temperature = 0.7) => {
+  const makeAPICall = async (systemContent: string, userContent: string, maxTokens: number, model: string, temperature = 0.7) => {
     if (useLovableAI) {
-      const resp = await fetch("https://api.lovable.dev/v1/chat/completions", {
+      const resp = await fetch("https://ai.lovable.dev/chat/v1/messages", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${lovableApiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: refineModel,
+          model: model,
           messages: [
             { role: "system", content: systemContent },
             { role: "user", content: userContent },
           ],
           max_tokens: maxTokens,
-          temperature,
         }),
       });
       return resp;
@@ -941,7 +940,7 @@ async function runGeneration({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: refineModel,
+          model: model,
           messages: [
             { role: "system", content: systemContent },
             { role: "user", content: userContent },
@@ -957,7 +956,8 @@ async function runGeneration({
   const refineResponse = await makeAPICall(
     SYSTEM_PROMPT + languageInstruction + siteNameInstruction,
     prompt + siteNameInstruction,
-    1000
+    1000,
+    refineModel
   );
 
   if (!refineResponse.ok) {
@@ -1031,7 +1031,7 @@ async function runGeneration({
     let generateResponse: Response;
     
     if (useLovableAI) {
-      generateResponse = await fetch("https://api.lovable.dev/v1/chat/completions", {
+      generateResponse = await fetch("https://ai.lovable.dev/chat/v1/messages", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${lovableApiKey}`,
@@ -1044,7 +1044,6 @@ async function runGeneration({
             { role: "user", content: userContent },
           ],
           max_tokens: 32000,
-          temperature: opts.strictFormat ? 0.4 : 0.6,
         }),
       });
     } else {
