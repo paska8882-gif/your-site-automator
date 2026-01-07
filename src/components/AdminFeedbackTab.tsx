@@ -4,7 +4,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Loader2, Trash2, Check, Mail, MailOpen } from "lucide-react";
 import { format } from "date-fns";
-import { uk } from "date-fns/locale";
+import { uk, ru } from "date-fns/locale";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Feedback {
   id: string;
@@ -17,8 +18,11 @@ interface Feedback {
 
 export function AdminFeedbackTab() {
   const { toast } = useToast();
+  const { t, language } = useLanguage();
   const [feedback, setFeedback] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  const dateLocale = language === "ru" ? ru : uk;
 
   const fetchFeedback = async () => {
     setLoading(true);
@@ -42,14 +46,14 @@ export function AdminFeedbackTab() {
       setFeedback(
         (data || []).map(f => ({
           ...f,
-          user_email: emailMap.get(f.user_id) || "Невідомий",
+          user_email: emailMap.get(f.user_id) || t("admin.feedbackUnknown"),
         }))
       );
     } catch (error) {
       console.error("Error fetching feedback:", error);
       toast({
-        title: "Помилка",
-        description: "Не вдалося завантажити фідбек",
+        title: t("common.error"),
+        description: t("admin.feedbackError"),
         variant: "destructive",
       });
     } finally {
@@ -76,8 +80,8 @@ export function AdminFeedbackTab() {
     } catch (error) {
       console.error("Error updating feedback:", error);
       toast({
-        title: "Помилка",
-        description: "Не вдалося оновити статус",
+        title: t("common.error"),
+        description: t("admin.feedbackUpdateError"),
         variant: "destructive",
       });
     }
@@ -90,12 +94,12 @@ export function AdminFeedbackTab() {
       if (error) throw error;
 
       setFeedback(prev => prev.filter(f => f.id !== id));
-      toast({ title: "Фідбек видалено" });
+      toast({ title: t("admin.feedbackDeleteSuccess") });
     } catch (error) {
       console.error("Error deleting feedback:", error);
       toast({
-        title: "Помилка",
-        description: "Не вдалося видалити фідбек",
+        title: t("common.error"),
+        description: t("admin.feedbackDeleteError"),
         variant: "destructive",
       });
     }
@@ -115,21 +119,21 @@ export function AdminFeedbackTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">
-          Фідбек{" "}
+          {t("admin.feedbackTitle")}{" "}
           {unreadCount > 0 && (
             <span className="text-sm text-muted-foreground">
-              ({unreadCount} нових)
+              ({unreadCount} {t("admin.feedbackNew")})
             </span>
           )}
         </h2>
         <Button variant="outline" size="sm" onClick={fetchFeedback}>
-          Оновити
+          {t("admin.feedbackRefresh")}
         </Button>
       </div>
 
       {feedback.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
-          Фідбек ще не надходив
+          {t("admin.feedbackEmpty")}
         </div>
       ) : (
         <div className="space-y-2">
@@ -147,7 +151,7 @@ export function AdminFeedbackTab() {
                     <span>•</span>
                     <span>
                       {format(new Date(f.created_at), "dd MMM yyyy, HH:mm", {
-                        locale: uk,
+                        locale: dateLocale,
                       })}
                     </span>
                   </div>
@@ -159,7 +163,7 @@ export function AdminFeedbackTab() {
                     size="icon"
                     className="h-7 w-7"
                     onClick={() => toggleRead(f.id, f.is_read)}
-                    title={f.is_read ? "Позначити як непрочитане" : "Позначити як прочитане"}
+                    title={f.is_read ? t("admin.feedbackMarkUnread") : t("admin.feedbackMarkRead")}
                   >
                     {f.is_read ? (
                       <MailOpen className="h-3.5 w-3.5 text-muted-foreground" />
@@ -172,7 +176,7 @@ export function AdminFeedbackTab() {
                     size="icon"
                     className="h-7 w-7 text-destructive hover:text-destructive"
                     onClick={() => deleteFeedback(f.id)}
-                    title="Видалити"
+                    title={t("common.delete")}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>

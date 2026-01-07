@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { MessageSquare, Send, User, Clock, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
-import { uk } from "date-fns/locale";
+import { uk, ru } from "date-fns/locale";
 
 interface Conversation {
   id: string;
@@ -35,6 +36,7 @@ interface Message {
 export const AdminSupportTab = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t, language } = useLanguage();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -42,6 +44,8 @@ export const AdminSupportTab = () => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  const dateLocale = language === "ru" ? ru : uk;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -80,8 +84,8 @@ export const AdminSupportTab = () => {
 
           return {
             ...conv,
-            user_name: profile?.display_name || "Користувач",
-            last_message: lastMsg?.message || "Немає повідомлень",
+            user_name: profile?.display_name || t("admin.user"),
+            last_message: lastMsg?.message || t("admin.supportNoMessages"),
           };
         })
       );
@@ -177,7 +181,7 @@ export const AdminSupportTab = () => {
       // Create notification for user
       await supabase.from("notifications").insert({
         user_id: selectedConversation.user_id,
-        title: "Нове повідомлення від підтримки",
+        title: t("admin.supportNewMessage"),
         message: newMessage.trim().substring(0, 100) + (newMessage.length > 100 ? "..." : ""),
         type: "support_message",
         data: { conversation_id: selectedConversation.id },
@@ -187,8 +191,8 @@ export const AdminSupportTab = () => {
     } catch (error) {
       console.error("Error sending message:", error);
       toast({
-        title: "Помилка",
-        description: "Не вдалося надіслати повідомлення",
+        title: t("common.error"),
+        description: t("admin.notificationError"),
         variant: "destructive",
       });
     } finally {
@@ -211,8 +215,8 @@ export const AdminSupportTab = () => {
       fetchConversations();
 
       toast({
-        title: "Статус оновлено",
-        description: `Чат ${status === "closed" ? "закрито" : "відкрито"}`,
+        title: t("admin.statusUpdated"),
+        description: status === "closed" ? t("admin.supportClose") : t("admin.supportReopen"),
       });
     } catch (error) {
       console.error("Error updating status:", error);
@@ -226,18 +230,18 @@ export const AdminSupportTab = () => {
         <CardHeader className="py-2 px-3">
           <CardTitle className="text-sm flex items-center gap-1.5">
             <MessageSquare className="h-4 w-4" />
-            Чати підтримки
+            {t("admin.supportTitle")}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <ScrollArea className="h-[calc(100vh-250px)]">
             {loading ? (
               <div className="p-3 text-center text-muted-foreground text-xs">
-                Завантаження...
+                {t("common.loading")}
               </div>
             ) : conversations.length === 0 ? (
               <div className="p-3 text-center text-muted-foreground text-xs">
-                Немає чатів
+                {t("admin.supportNoConversations")}
               </div>
             ) : (
               conversations.map((conv) => (
@@ -256,14 +260,14 @@ export const AdminSupportTab = () => {
                       variant={conv.status === "open" ? "default" : "secondary"}
                       className="text-[10px] h-4"
                     >
-                      {conv.status === "open" ? "Відкритий" : "Закритий"}
+                      {conv.status === "open" ? t("admin.supportOpen") : t("admin.supportClosed")}
                     </Badge>
                   </div>
                   <p className="text-[10px] text-muted-foreground truncate">
                     {conv.last_message}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {format(new Date(conv.updated_at), "dd.MM.yy HH:mm", { locale: uk })}
+                    {format(new Date(conv.updated_at), "dd.MM.yy HH:mm", { locale: dateLocale })}
                   </p>
                 </div>
               ))
@@ -284,7 +288,7 @@ export const AdminSupportTab = () => {
                   variant={selectedConversation.status === "open" ? "default" : "secondary"}
                   className="text-[10px] h-4"
                 >
-                  {selectedConversation.status === "open" ? "Відкритий" : "Закритий"}
+                  {selectedConversation.status === "open" ? t("admin.supportOpen") : t("admin.supportClosed")}
                 </Badge>
               </div>
               <Button
@@ -300,12 +304,12 @@ export const AdminSupportTab = () => {
                 {selectedConversation.status === "open" ? (
                   <>
                     <XCircle className="h-3 w-3 mr-1" />
-                    Закрити
+                    {t("admin.supportClose")}
                   </>
                 ) : (
                   <>
                     <CheckCircle className="h-3 w-3 mr-1" />
-                    Відкрити
+                    {t("admin.supportReopen")}
                   </>
                 )}
               </Button>
@@ -327,11 +331,11 @@ export const AdminSupportTab = () => {
                       >
                         <p className="text-xs">{msg.message}</p>
                         <p
-                          className={`text-[10px] mt-1 ${
+                        className={`text-[10px] mt-1 ${
                             msg.is_admin ? "text-primary-foreground/70" : "text-muted-foreground"
                           }`}
                         >
-                          {format(new Date(msg.created_at), "HH:mm", { locale: uk })}
+                          {format(new Date(msg.created_at), "HH:mm", { locale: dateLocale })}
                         </p>
                       </div>
                     </div>
@@ -343,7 +347,7 @@ export const AdminSupportTab = () => {
                 <Input
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Напишіть повідомлення..."
+                  placeholder={t("admin.supportMessagePlaceholder")}
                   className="h-8 text-xs"
                   onKeyPress={(e) => e.key === "Enter" && sendMessage()}
                   disabled={selectedConversation.status === "closed"}
@@ -363,7 +367,7 @@ export const AdminSupportTab = () => {
           <CardContent className="h-full flex items-center justify-center">
             <div className="text-center text-muted-foreground">
               <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-xs">Виберіть чат зі списку</p>
+              <p className="text-xs">{t("admin.supportSelectConversation")}</p>
             </div>
           </CardContent>
         )}

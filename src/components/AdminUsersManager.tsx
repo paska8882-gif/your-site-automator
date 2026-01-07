@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { 
   Users, 
   UserPlus,
@@ -66,16 +67,17 @@ interface PendingMember {
   created_at: string;
 }
 
-const roleLabels: Record<TeamRole, string> = {
-  owner: "Owner",
-  team_lead: "Team Lead",
-  buyer: "Buyer",
-  tech_dev: "Tech Dev"
-};
-
 export const AdminUsersManager = () => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [users, setUsers] = useState<UserWithRoles[]>([]);
+  
+  const roleLabels: Record<TeamRole, string> = {
+    owner: "Owner",
+    team_lead: "Team Lead",
+    buyer: "Buyer",
+    tech_dev: "Tech Dev"
+  };
   const [teams, setTeams] = useState<Team[]>([]);
   const [pendingMembers, setPendingMembers] = useState<PendingMember[]>([]);
   const [loading, setLoading] = useState(true);

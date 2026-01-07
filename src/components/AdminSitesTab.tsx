@@ -16,6 +16,7 @@ import { EditPreview } from "@/components/EditPreview";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import JSZip from "jszip";
 import { 
   Search, 
@@ -199,6 +200,7 @@ export const AdminSitesTab = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   
   // Preview dialog state
