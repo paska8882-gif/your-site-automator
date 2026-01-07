@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Users, Wallet } from "lucide-react";
 import { useBalanceSound } from "@/hooks/useBalanceSound";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type TeamRole = "owner" | "team_lead" | "buyer" | "tech_dev";
 
@@ -12,13 +13,6 @@ interface TeamMembership {
   role: TeamRole;
 }
 
-const roleLabels: Record<TeamRole, string> = {
-  owner: "Owner",
-  team_lead: "Team Lead",
-  buyer: "Buyer",
-  tech_dev: "Tech Dev"
-};
-
 export function UserTeamInfo() {
   const [teams, setTeams] = useState<TeamMembership[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +20,14 @@ export function UserTeamInfo() {
   const [balanceDirection, setBalanceDirection] = useState<"positive" | "negative" | null>(null);
   const prevBalancesRef = useRef<Record<string, number>>({});
   const { playBalanceSound } = useBalanceSound();
+  const { t } = useLanguage();
+
+  const roleLabels: Record<TeamRole, string> = {
+    owner: t("team.owner"),
+    team_lead: t("team.teamLead"),
+    buyer: t("team.buyer"),
+    tech_dev: t("team.techDev")
+  };
 
   useEffect(() => {
     fetchTeamInfo();
@@ -127,7 +129,7 @@ export function UserTeamInfo() {
     return (
       <div className="border border-border p-4 text-center text-muted-foreground">
         <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-        <p className="text-sm">Ви не належите до жодної команди</p>
+        <p className="text-sm">{t("team.noTeam")}</p>
       </div>
     );
   }

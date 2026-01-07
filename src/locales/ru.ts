@@ -21,6 +21,7 @@ export const ru = {
     and: "и",
     copy: "Копировать",
     copied: "Скопировано",
+    selected: "Выбрано",
     download: "Скачать",
     upload: "Загрузить",
     refresh: "Обновить",
