@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Hash, Palette, ChevronDown, AlertTriangle, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp, Filter, Newspaper, MapPin, X, Plus } from "lucide-react";
+import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Hash, Palette, ChevronDown, AlertTriangle, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp, Filter, Newspaper, MapPin, X, Plus, Star, Phone, Building2, Tag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -47,6 +47,7 @@ interface TeamPricing {
   balance: number;
   htmlPrice: number;
   reactPrice: number;
+  vipExtraPrice: number;
 }
 
 interface AdminTeam {
@@ -267,6 +268,16 @@ export function WebsiteGenerator() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImproving, setIsImproving] = useState(false);
   
+  // VIP mode state
+  const [isVipMode, setIsVipMode] = useState(false);
+  const [isGeneratingVip, setIsGeneratingVip] = useState(false);
+  const [vipPromptValue, setVipPromptValue] = useState<string | null>(null);
+  const [vipDomain, setVipDomain] = useState("");
+  const [vipAddress, setVipAddress] = useState("");
+  const [vipPhone, setVipPhone] = useState("");
+  const [vipKeywords, setVipKeywords] = useState("");
+  const [vipTopic, setVipTopic] = useState("");
+  
   const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 });
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [teamPricing, setTeamPricing] = useState<TeamPricing | null>(null);
@@ -455,7 +466,7 @@ export function WebsiteGenerator() {
 
       const { data: pricing } = await supabase
         .from("team_pricing")
-        .select("html_price, react_price")
+        .select("html_price, react_price, vip_extra_price")
         .eq("team_id", selectedAdminTeamId)
         .maybeSingle();
 
@@ -464,7 +475,8 @@ export function WebsiteGenerator() {
         teamName: selectedTeam.name,
         balance: selectedTeam.balance || 0,
         htmlPrice: pricing?.html_price || 7,
-        reactPrice: pricing?.react_price || 9
+        reactPrice: pricing?.react_price || 9,
+        vipExtraPrice: pricing?.vip_extra_price || 2
       });
     };
 
@@ -588,7 +600,7 @@ export function WebsiteGenerator() {
       // Get team pricing
       const { data: pricing } = await supabase
         .from("team_pricing")
-        .select("html_price, react_price")
+        .select("html_price, react_price, vip_extra_price")
         .eq("team_id", membership.team_id)
         .maybeSingle();
 
@@ -598,7 +610,8 @@ export function WebsiteGenerator() {
           teamName: team.name,
           balance: team.balance || 0,
           htmlPrice: pricing?.html_price || 7,
-          reactPrice: pricing?.react_price || 9
+          reactPrice: pricing?.react_price || 9,
+          vipExtraPrice: pricing?.vip_extra_price || 2
         });
       }
     };
@@ -859,6 +872,7 @@ export function WebsiteGenerator() {
     let total = 0;
     const htmlPrice = teamPricing?.htmlPrice || 7;
     const reactPrice = teamPricing?.reactPrice || 9;
+    const vipExtra = isVipMode ? (teamPricing?.vipExtraPrice || 2) : 0;
     
     const websiteTypesToUse = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes : ["html"];
     const imageSourcesToUse = selectedImageSources.length > 0 ? selectedImageSources : ["basic"];
@@ -866,7 +880,7 @@ export function WebsiteGenerator() {
     for (const wt of websiteTypesToUse) {
       for (const is of imageSourcesToUse) {
         const basePrice = wt === "react" ? reactPrice : htmlPrice;
-        const pricePerSite = basePrice + (is === "ai" ? 2 : 0);
+        const pricePerSite = basePrice + (is === "ai" ? 2 : 0) + vipExtra;
         const count = siteNamesCount * allLanguages.length * sitesPerLanguage * styleCount * aiModelCount;
         total += count * pricePerSite;
       }
@@ -1073,6 +1087,7 @@ export function WebsiteGenerator() {
     const aiModelsSnapshot = selectedAiModels.length > 0 ? selectedAiModels : (["senior"] as AiModel[]);
     const websiteTypesSnapshot = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes : (["html"] as WebsiteType[]);
     const imageSourcesSnapshot = selectedImageSources.length > 0 ? selectedImageSources : (["basic"] as ImageSource[]);
+    const vipPromptSnapshot = vipPromptValue;
 
     // Clear inputs immediately so user can start preparing the next website while generation runs
     setSiteNames([]);
@@ -1080,7 +1095,13 @@ export function WebsiteGenerator() {
     setPrompt("");
     setOriginalPrompt(null);
     setImprovedPromptValue(null);
-
+    setVipPromptValue(null);
+    setIsVipMode(false);
+    setVipDomain("");
+    setVipAddress("");
+    setVipPhone("");
+    setVipKeywords("");
+    setVipTopic("");
 
     try {
       // Create all generation requests in parallel
@@ -1122,7 +1143,8 @@ export function WebsiteGenerator() {
           iSource,
           teamIdToUse,
           improvedPromptSnapshot || undefined,
-          geoToUse
+          geoToUse,
+          vipPromptSnapshot || undefined
         );
         setGenerationProgress((prev) => ({ ...prev, completed: prev.completed + 1 }));
         return result;
@@ -1650,22 +1672,48 @@ export function WebsiteGenerator() {
                   Промпт покращено AI{!isAdmin && " (внутрішньо)"}. Оригінал збережеться в історії.
                 </div>
               )}
-            <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 {/* Improve prompt button - $1 extra */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleImprovePrompt}
-                  disabled={isImproving || !prompt.trim()}
-                  className="h-7 text-xs px-2"
-                >
-                  {isImproving ? (
-                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                  ) : (
-                    <Sparkles className="mr-1 h-3 w-3" />
-                  )}
-                  Покращити промпт (+$1)
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleImprovePrompt}
+                    disabled={isImproving || isGeneratingVip || !prompt.trim() || isVipMode}
+                    className="h-7 text-xs px-2"
+                  >
+                    {isImproving ? (
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="mr-1 h-3 w-3" />
+                    )}
+                    Покращити промпт (+$1)
+                  </Button>
+                  
+                  {/* VIP button */}
+                  <Button
+                    variant={isVipMode ? "default" : "outline"}
+                    size="sm"
+                    onClick={async () => {
+                      if (isVipMode) {
+                        // Turn off VIP
+                        setIsVipMode(false);
+                        setVipPromptValue(null);
+                      } else {
+                        // Turn on VIP
+                        setIsVipMode(true);
+                        setImprovedPromptValue(null); // Clear improved prompt when switching to VIP
+                        setOriginalPrompt(null);
+                      }
+                    }}
+                    disabled={isImproving || isGeneratingVip}
+                    className={`h-7 text-xs px-2 ${isVipMode ? "bg-amber-500 hover:bg-amber-600" : ""}`}
+                  >
+                    <Star className={`mr-1 h-3 w-3 ${isVipMode ? "fill-current" : ""}`} />
+                    VIP (+${teamPricing?.vipExtraPrice || 2})
+                    {isVipMode && <span className="ml-1">✓</span>}
+                  </Button>
+                </div>
                 
                 {/* Clear button */}
                 <Button
@@ -1675,6 +1723,13 @@ export function WebsiteGenerator() {
                     setPrompt('');
                     setOriginalPrompt(null);
                     setImprovedPromptValue(null);
+                    setVipPromptValue(null);
+                    setIsVipMode(false);
+                    setVipDomain("");
+                    setVipAddress("");
+                    setVipPhone("");
+                    setVipKeywords("");
+                    setVipTopic("");
                   }}
                   disabled={!prompt.trim()}
                   className="h-7 text-xs px-2"
@@ -1683,6 +1738,158 @@ export function WebsiteGenerator() {
                   Очистити
                 </Button>
               </div>
+
+              {/* VIP Mode Fields */}
+              {isVipMode && (
+                <div className="p-3 border border-amber-500/50 bg-amber-500/5 rounded-lg space-y-3">
+                  <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                    <Star className="h-4 w-4 fill-current" />
+                    <span className="text-sm font-medium">VIP режим генерації</span>
+                    <Badge variant="outline" className="text-amber-600 border-amber-500/50">+${teamPricing?.vipExtraPrice || 2}/сайт</Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Domain - required */}
+                    <div className="space-y-1">
+                      <Label className="text-xs flex items-center gap-1">
+                        <Globe className="h-3 w-3" />
+                        Домен <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        placeholder="example.com"
+                        value={vipDomain}
+                        onChange={(e) => setVipDomain(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    
+                    {/* Address - required */}
+                    <div className="space-y-1">
+                      <Label className="text-xs flex items-center gap-1">
+                        <Building2 className="h-3 w-3" />
+                        Адреса <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        placeholder="100 Main Street, City, Country"
+                        value={vipAddress}
+                        onChange={(e) => setVipAddress(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    
+                    {/* Phone - required */}
+                    <div className="space-y-1">
+                      <Label className="text-xs flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        Телефон <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        placeholder="+1 (555) 123-4567"
+                        value={vipPhone}
+                        onChange={(e) => setVipPhone(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    
+                    {/* Topic - optional */}
+                    <div className="space-y-1">
+                      <Label className="text-xs flex items-center gap-1">
+                        <Tag className="h-3 w-3" />
+                        Тема/Ніша
+                      </Label>
+                      <Input
+                        placeholder="Video Games, Law Services..."
+                        value={vipTopic}
+                        onChange={(e) => setVipTopic(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Keywords - optional, full width */}
+                  <div className="space-y-1">
+                    <Label className="text-xs flex items-center gap-1">
+                      <Hash className="h-3 w-3" />
+                      Ключові слова
+                    </Label>
+                    <Input
+                      placeholder="keyword1, keyword2, keyword3..."
+                      value={vipKeywords}
+                      onChange={(e) => setVipKeywords(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  
+                  {/* Generate VIP prompt button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      if (!vipDomain || !vipAddress || !vipPhone || !prompt.trim()) {
+                        return;
+                      }
+                      
+                      setIsGeneratingVip(true);
+                      try {
+                        const siteName = siteNames[0] || vipDomain.split('.')[0];
+                        const geoValue = isOtherGeoSelected && customGeo ? customGeo : selectedGeo;
+                        const langValue = selectedLanguages[0] || "en";
+                        const langLabel = languages.find(l => l.value === langValue)?.label || langValue;
+                        const geoLabel = geoOptions.find(g => g.value === geoValue)?.label || geoValue || "International";
+                        
+                        const { data, error } = await supabase.functions.invoke('generate-vip-prompt', {
+                          body: {
+                            domain: vipDomain,
+                            siteName,
+                            geo: geoLabel,
+                            language: langLabel,
+                            address: vipAddress,
+                            phone: vipPhone,
+                            topic: vipTopic || undefined,
+                            description: prompt,
+                            keywords: vipKeywords || undefined,
+                          }
+                        });
+                        
+                        if (error) throw error;
+                        
+                        if (data?.vipPrompt) {
+                          setVipPromptValue(data.vipPrompt);
+                          toast({
+                            title: "VIP промт згенеровано",
+                            description: "Детальний промт готовий для генерації",
+                          });
+                        }
+                      } catch (error) {
+                        console.error("VIP prompt error:", error);
+                        toast({
+                          title: "Помилка",
+                          description: "Не вдалося згенерувати VIP промт",
+                          variant: "destructive",
+                        });
+                      } finally {
+                        setIsGeneratingVip(false);
+                      }
+                    }}
+                    disabled={isGeneratingVip || !vipDomain || !vipAddress || !vipPhone || !prompt.trim()}
+                    className="w-full h-8 text-xs border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+                  >
+                    {isGeneratingVip ? (
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="mr-1 h-3 w-3" />
+                    )}
+                    Згенерувати VIP промт
+                  </Button>
+                  
+                  {vipPromptValue && (
+                    <div className="text-xs text-green-600 flex items-center gap-1 mt-2">
+                      <Star className="h-3 w-3 fill-current" />
+                      VIP промт згенеровано! Буде використано при генерації сайту.
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Standard Mode Options - show for non-admins OR when admin selects standard mode */}

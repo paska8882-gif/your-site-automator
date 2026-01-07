@@ -109,7 +109,8 @@ export async function startGeneration(
   imageSource: ImageSource = "basic",
   teamId?: string, // Optional team ID for admin generation
   improvedPrompt?: string, // AI-improved prompt (commercial secret)
-  geo?: string // Target country/region for the website
+  geo?: string, // Target country/region for the website
+  vipPrompt?: string // VIP detailed prompt (+$2)
 ): Promise<GenerationResult> {
   // IMPORTANT: seniorMode (codex/reaktiv) only applies to React websites
   // HTML and PHP websites always use their dedicated generation functions
@@ -131,6 +132,10 @@ export async function startGeneration(
       ? "generate-php-website" 
       : "generate-website";
 
+  // Determine which prompt to use for generation
+  // Priority: vipPrompt > improvedPrompt > original prompt
+  const promptForGeneration = vipPrompt || improvedPrompt || prompt;
+
   const makeRequest = async (accessToken: string) => {
     return fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`, {
       method: "POST",
@@ -140,9 +145,10 @@ export async function startGeneration(
         Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({ 
-        prompt: improvedPrompt || prompt,
+        prompt: promptForGeneration,
         originalPrompt: prompt,
         improvedPrompt: improvedPrompt || null,
+        vipPrompt: vipPrompt || null,
         language, aiModel, layoutStyle, siteName, seniorMode, imageSource, teamId, geo 
       }),
     });
