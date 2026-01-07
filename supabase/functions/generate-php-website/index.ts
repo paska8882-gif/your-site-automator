@@ -1059,6 +1059,8 @@ async function runGeneration({
 
     try {
       let generateResponse: Response;
+      const startTime = Date.now();
+      console.log(`🚀 Starting generation with ${generateModel} (timeout: ${timeoutMs / 1000}s)...`);
       
       if (useLovableAI) {
         generateResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -1077,6 +1079,7 @@ async function runGeneration({
           }),
           signal: controller.signal,
         });
+        console.log(`✅ Generation API responded in ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
       } else {
         generateResponse = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
