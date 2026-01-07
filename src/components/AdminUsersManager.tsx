@@ -73,10 +73,10 @@ export const AdminUsersManager = () => {
   const [users, setUsers] = useState<UserWithRoles[]>([]);
   
   const roleLabels: Record<TeamRole, string> = {
-    owner: "Owner",
-    team_lead: "Team Lead",
-    buyer: "Buyer",
-    tech_dev: "Tech Dev"
+    owner: t("team.owner"),
+    team_lead: t("team.teamLead"),
+    buyer: t("team.buyer"),
+    tech_dev: t("team.techDev")
   };
   const [teams, setTeams] = useState<Team[]>([]);
   const [pendingMembers, setPendingMembers] = useState<PendingMember[]>([]);
@@ -178,7 +178,7 @@ export const AdminUsersManager = () => {
       id: pm.id,
       user_id: pm.user_id,
       team_id: pm.team_id,
-      team_name: teamsMap.get(pm.team_id) || "Невідома команда",
+      team_name: teamsMap.get(pm.team_id) || t("admin.unknownTeam"),
       display_name: profilesMap.get(pm.user_id) || null,
       role: pm.role as TeamRole,
       invite_code: inviteCodeMap.get(`${pm.user_id}_${pm.team_id}`) || null,
@@ -193,7 +193,7 @@ export const AdminUsersManager = () => {
       }
       userMemberships[m.user_id].push({
         team_id: m.team_id,
-        team_name: teamsMap.get(m.team_id) || "Невідома команда",
+        team_name: teamsMap.get(m.team_id) || t("admin.unknownTeam"),
         role: m.role as TeamRole
       });
     });
@@ -241,11 +241,11 @@ export const AdminUsersManager = () => {
 
       if (error) throw error;
 
-      const teamName = teams.find(t => t.id === approveTeam)?.name || "команди";
+      const teamName = teams.find(t => t.id === approveTeam)?.name || t("admin.unknownTeam");
       
       toast({
-        title: "Успішно",
-        description: `${pendingToApprove.display_name || pendingToApprove.user_id.slice(0, 8)} додано до ${teamName} як ${roleLabels[approveRole]}`
+        title: t("common.success"),
+        description: `${pendingToApprove.display_name || pendingToApprove.user_id.slice(0, 8)} ${t("admin.addedTo")} ${teamName} ${t("admin.asRole")} ${roleLabels[approveRole]}`
       });
       
       setApproveDialogOpen(false);
@@ -253,8 +253,8 @@ export const AdminUsersManager = () => {
       fetchData();
     } catch (error) {
       toast({
-        title: "Помилка",
-        description: "Не вдалося схвалити запит",
+        title: t("common.error"),
+        description: t("admin.approveError"),
         variant: "destructive"
       });
     }
@@ -272,15 +272,15 @@ export const AdminUsersManager = () => {
       if (error) throw error;
 
       toast({
-        title: "Успішно",
-        description: `Запит від ${member.display_name || member.user_id.slice(0, 8)} відхилено`
+        title: t("common.success"),
+        description: `${t("admin.requestRejected")}: ${member.display_name || member.user_id.slice(0, 8)}`
       });
       
       fetchData();
     } catch (error) {
       toast({
-        title: "Помилка",
-        description: "Не вдалося відхилити запит",
+        title: t("common.error"),
+        description: t("admin.rejectError"),
         variant: "destructive"
       });
     }
@@ -306,8 +306,8 @@ export const AdminUsersManager = () => {
         if (error) throw error;
 
         toast({
-          title: "Успішно",
-          description: `Роль оновлено на ${roleLabels[selectedRole]}`
+          title: t("common.success"),
+          description: `${t("admin.roleUpdated")} ${roleLabels[selectedRole]}`
         });
       } else {
         // Add to team
@@ -324,8 +324,8 @@ export const AdminUsersManager = () => {
         if (error) throw error;
 
         toast({
-          title: "Успішно",
-          description: `Користувача додано до команди з роллю ${roleLabels[selectedRole]}`
+          title: t("common.success"),
+          description: `${t("admin.userAddedToTeam")} ${roleLabels[selectedRole]}`
         });
       }
 
@@ -336,8 +336,8 @@ export const AdminUsersManager = () => {
       fetchData();
     } catch (error) {
       toast({
-        title: "Помилка",
-        description: "Не вдалося призначити до команди",
+        title: t("common.error"),
+        description: t("admin.assignError"),
         variant: "destructive"
       });
     }
@@ -355,15 +355,15 @@ export const AdminUsersManager = () => {
       if (error) throw error;
 
       toast({
-        title: "Успішно",
-        description: "Користувача видалено з команди"
+        title: t("common.success"),
+        description: t("admin.userRemovedFromTeam")
       });
       
       fetchData();
     } catch (error) {
       toast({
-        title: "Помилка",
-        description: "Не вдалося видалити з команди",
+        title: t("common.error"),
+        description: t("admin.removeError"),
         variant: "destructive"
       });
     }
@@ -379,17 +379,17 @@ export const AdminUsersManager = () => {
       if (error) throw error;
 
       toast({
-        title: "Успішно",
+        title: t("common.success"),
         description: user.is_blocked 
-          ? "Користувача розблоковано" 
-          : "Користувача заблоковано"
+          ? t("admin.userUnblocked") 
+          : t("admin.userBlocked")
       });
       
       fetchData();
     } catch (error) {
       toast({
-        title: "Помилка",
-        description: "Не вдалося змінити статус блокування",
+        title: t("common.error"),
+        description: t("admin.blockError"),
         variant: "destructive"
       });
     }
@@ -421,8 +421,8 @@ export const AdminUsersManager = () => {
       if (error) throw error;
 
       toast({
-        title: "Успішно",
-        description: "Ім'я користувача оновлено"
+        title: t("common.success"),
+        description: t("admin.nameUpdated")
       });
 
       setEditingUserId(null);
@@ -430,8 +430,8 @@ export const AdminUsersManager = () => {
       fetchData();
     } catch (error) {
       toast({
-        title: "Помилка",
-        description: "Не вдалося оновити ім'я",
+        title: t("common.error"),
+        description: t("admin.nameError"),
         variant: "destructive"
       });
     }
@@ -460,8 +460,8 @@ export const AdminUsersManager = () => {
       if (error) throw error;
 
       toast({
-        title: "Успішно",
-        description: `Ліміт генерацій оновлено до ${limitValue}`
+        title: t("common.success"),
+        description: `${t("admin.limitUpdated")} ${limitValue}`
       });
 
       setEditingGenLimitUserId(null);
@@ -469,8 +469,8 @@ export const AdminUsersManager = () => {
       fetchData();
     } catch (error) {
       toast({
-        title: "Помилка",
-        description: "Не вдалося оновити ліміт",
+        title: t("common.error"),
+        description: t("admin.limitError"),
         variant: "destructive"
       });
     }
@@ -488,8 +488,8 @@ export const AdminUsersManager = () => {
     
     if (newPassword.length < 6) {
       toast({
-        title: "Помилка",
-        description: "Пароль має бути мінімум 6 символів",
+        title: t("common.error"),
+        description: t("admin.passwordMinLength"),
         variant: "destructive"
       });
       return;
@@ -501,7 +501,7 @@ export const AdminUsersManager = () => {
       const accessToken = session?.access_token;
 
       if (!accessToken) {
-        throw new Error("Спочатку увійдіть як адмін (нема активної сесії)");
+        throw new Error(t("admin.loginFirst"));
       }
 
       const { data, error } = await supabase.functions.invoke("reset-user-password", {
@@ -524,8 +524,8 @@ export const AdminUsersManager = () => {
       }
 
       toast({
-        title: "Успішно",
-        description: `Пароль для ${resetPasswordUser.display_name || resetPasswordUser.user_id.slice(0, 8)} змінено`
+        title: t("common.success"),
+        description: `${t("admin.passwordChanged")}: ${resetPasswordUser.display_name || resetPasswordUser.user_id.slice(0, 8)}`
       });
 
       setResetPasswordDialogOpen(false);
@@ -533,8 +533,8 @@ export const AdminUsersManager = () => {
       setNewPassword("");
     } catch (error) {
       toast({
-        title: "Помилка",
-        description: error instanceof Error ? error.message : "Не вдалося скинути пароль",
+        title: t("common.error"),
+        description: error instanceof Error ? error.message : t("admin.passwordError"),
         variant: "destructive"
       });
     }
@@ -570,42 +570,42 @@ export const AdminUsersManager = () => {
     <div className="space-y-3">
       <AdminPageHeader 
         icon={UserCog} 
-        title="Користувачі" 
-        description="Управління користувачами та їхніми ролями" 
+        title={t("admin.usersTitle")} 
+        description={t("admin.usersDescription")} 
       />
       {/* Stats + Search row */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
           <Users className="h-3 w-3 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">Всього:</span>
+          <span className="text-xs text-muted-foreground">{t("admin.usersStats.total")}:</span>
           <span className="text-sm font-bold">{stats.total}</span>
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
           <Crown className="h-3 w-3 text-yellow-500" />
-          <span className="text-xs text-muted-foreground">Адмінів:</span>
+          <span className="text-xs text-muted-foreground">{t("admin.usersStats.admins")}:</span>
           <span className="text-sm font-bold text-yellow-500">{stats.admins}</span>
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
           <ShieldCheck className="h-3 w-3 text-green-500" />
-          <span className="text-xs text-muted-foreground">В командах:</span>
+          <span className="text-xs text-muted-foreground">{t("admin.usersStats.inTeams")}:</span>
           <span className="text-sm font-bold text-green-500">{stats.withTeam}</span>
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
           <Ban className="h-3 w-3 text-destructive" />
-          <span className="text-xs text-muted-foreground">Заблок:</span>
+          <span className="text-xs text-muted-foreground">{t("admin.usersStats.blocked")}:</span>
           <span className="text-sm font-bold text-destructive">{stats.blocked}</span>
         </div>
         {stats.pending > 0 && (
           <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-orange-500/10 border-orange-500/30">
             <Clock className="h-3 w-3 text-orange-500" />
-            <span className="text-xs text-muted-foreground">Очікують:</span>
+            <span className="text-xs text-muted-foreground">{t("admin.usersStats.pending")}:</span>
             <span className="text-sm font-bold text-orange-500">{stats.pending}</span>
           </div>
         )}
         <div className="relative ml-auto">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
           <Input
-            placeholder="Пошук..."
+            placeholder={t("admin.searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-7 h-7 text-xs w-40"
@@ -619,7 +619,7 @@ export const AdminUsersManager = () => {
           <CardHeader className="py-2 px-3">
             <CardTitle className="text-xs font-medium flex items-center gap-2">
               <Clock className="h-4 w-4 text-orange-500" />
-              Очікують схвалення ({pendingMembers.length})
+              {t("admin.usersPendingSection")} ({pendingMembers.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="px-3 pb-3">
@@ -627,12 +627,12 @@ export const AdminUsersManager = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-[10px] py-1">Користувач</TableHead>
-                    <TableHead className="text-[10px] py-1">Команда</TableHead>
-                    <TableHead className="text-[10px] py-1">Роль</TableHead>
-                    <TableHead className="text-[10px] py-1">Інвайт-код</TableHead>
-                    <TableHead className="text-[10px] py-1">Дата запиту</TableHead>
-                    <TableHead className="text-[10px] py-1 text-right">Дії</TableHead>
+                    <TableHead className="text-[10px] py-1">{t("admin.usersTableHeaders.user")}</TableHead>
+                    <TableHead className="text-[10px] py-1">{t("admin.usersTableHeaders.team")}</TableHead>
+                    <TableHead className="text-[10px] py-1">{t("admin.usersTableHeaders.role")}</TableHead>
+                    <TableHead className="text-[10px] py-1">{t("admin.usersTableHeaders.inviteCode")}</TableHead>
+                    <TableHead className="text-[10px] py-1">{t("admin.usersTableHeaders.requestDate")}</TableHead>
+                    <TableHead className="text-[10px] py-1 text-right">{t("admin.usersTableHeaders.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -641,7 +641,7 @@ export const AdminUsersManager = () => {
                       <TableCell className="py-1.5">
                         <div>
                           <div className="font-medium text-xs">
-                            {member.display_name || "Без імені"}
+                            {member.display_name || t("admin.usersNoName")}
                           </div>
                           <div className="text-[10px] text-muted-foreground">
                             {member.user_id.slice(0, 8)}...
@@ -679,7 +679,7 @@ export const AdminUsersManager = () => {
                             disabled={approvingId === member.id || rejectingId === member.id}
                           >
                             <UserCheck className="h-3 w-3 mr-0.5" />
-                            Схвалити
+                            {t("admin.usersApprove")}
                           </Button>
                           <Button
                             variant="destructive"
@@ -693,7 +693,7 @@ export const AdminUsersManager = () => {
                             ) : (
                               <>
                                 <UserX className="h-3 w-3 mr-0.5" />
-                                Відхилити
+                                {t("admin.usersReject")}
                               </>
                             )}
                           </Button>
@@ -711,19 +711,19 @@ export const AdminUsersManager = () => {
       {/* Users Table */}
       <Card>
         <CardHeader className="py-2 px-3">
-          <CardTitle className="text-xs font-medium">Користувачі ({filteredUsers.length})</CardTitle>
+          <CardTitle className="text-xs font-medium">{t("admin.users")} ({filteredUsers.length})</CardTitle>
         </CardHeader>
         <CardContent className="px-3 pb-3">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
+                <TableHeader>
                 <TableRow>
-                  <TableHead className="text-[10px] py-1">Користувач</TableHead>
-                  <TableHead className="text-[10px] py-1">Команди</TableHead>
-                  <TableHead className="text-[10px] py-1">Ліміт</TableHead>
-                  <TableHead className="text-[10px] py-1">Статус</TableHead>
-                  <TableHead className="text-[10px] py-1">Дата</TableHead>
-                  <TableHead className="text-[10px] py-1 text-right">Дії</TableHead>
+                  <TableHead className="text-[10px] py-1">{t("admin.usersTableHeaders.user")}</TableHead>
+                  <TableHead className="text-[10px] py-1">{t("admin.usersTableHeaders.teams")}</TableHead>
+                  <TableHead className="text-[10px] py-1">{t("admin.usersTableHeaders.limit")}</TableHead>
+                  <TableHead className="text-[10px] py-1">{t("admin.usersTableHeaders.status")}</TableHead>
+                  <TableHead className="text-[10px] py-1">{t("admin.usersTableHeaders.date")}</TableHead>
+                  <TableHead className="text-[10px] py-1 text-right">{t("admin.usersTableHeaders.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -769,7 +769,7 @@ export const AdminUsersManager = () => {
                           </div>
                         ) : (
                           <div className="font-medium text-xs flex items-center gap-1">
-                            {user.display_name || "Без імені"}
+                            {user.display_name || t("admin.usersNoName")}
                             {user.isAdmin && (
                               <Crown className="h-3 w-3 text-yellow-500" />
                             )}
@@ -807,7 +807,7 @@ export const AdminUsersManager = () => {
                           ))}
                         </div>
                       ) : (
-                        <span className="text-muted-foreground text-[10px]">Немає</span>
+                        <span className="text-muted-foreground text-[10px]">{t("admin.usersNoTeams")}</span>
                       )}
                     </TableCell>
                     <TableCell className="py-1.5">
@@ -867,13 +867,13 @@ export const AdminUsersManager = () => {
                     <TableCell className="py-1.5">
                       <div className="flex items-center gap-1">
                         {user.isAdmin && (
-                          <Badge className="bg-yellow-500 text-black text-[10px] px-1 py-0">Адмін</Badge>
+                          <Badge className="bg-yellow-500 text-black text-[10px] px-1 py-0">{t("admin.usersStatusAdmin")}</Badge>
                         )}
                         {user.is_blocked && (
-                          <Badge variant="destructive" className="text-[10px] px-1 py-0">Заблок</Badge>
+                          <Badge variant="destructive" className="text-[10px] px-1 py-0">{t("admin.usersStatusBlocked")}</Badge>
                         )}
                         {!user.isAdmin && !user.is_blocked && (
-                          <Badge variant="outline" className="text-[10px] px-1 py-0">Актив</Badge>
+                          <Badge variant="outline" className="text-[10px] px-1 py-0">{t("admin.usersStatusActive")}</Badge>
                         )}
                       </div>
                     </TableCell>
@@ -887,7 +887,7 @@ export const AdminUsersManager = () => {
                           size="sm"
                           className="h-6 text-[10px] px-1.5"
                           onClick={() => openResetPasswordDialog(user)}
-                          title="Скинути пароль"
+                          title={t("admin.usersResetPassword")}
                         >
                           <KeyRound className="h-3 w-3" />
                         </Button>
@@ -898,7 +898,7 @@ export const AdminUsersManager = () => {
                           onClick={() => openAssignDialog(user)}
                         >
                           <UserPlus className="h-3 w-3 mr-0.5" />
-                          Команда
+                          {t("admin.usersTeam")}
                         </Button>
                         <Button
                           variant={user.is_blocked ? "default" : "destructive"}
@@ -909,12 +909,12 @@ export const AdminUsersManager = () => {
                           {user.is_blocked ? (
                             <>
                               <ShieldCheck className="h-3 w-3 mr-0.5" />
-                              Розблок
+                              {t("admin.usersUnblock")}
                             </>
                           ) : (
                             <>
                               <Ban className="h-3 w-3 mr-0.5" />
-                              Блок
+                              {t("admin.usersBlock")}
                             </>
                           )}
                         </Button>
@@ -933,22 +933,22 @@ export const AdminUsersManager = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Призначити до команди: {selectedUser?.display_name || selectedUser?.user_id.slice(0, 8)}
+              {t("admin.usersAssignDialog.title")}: {selectedUser?.display_name || selectedUser?.user_id.slice(0, 8)}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium">Команда</label>
+              <label className="text-sm font-medium">{t("admin.usersAssignDialog.team")}</label>
               <Select value={selectedTeam} onValueChange={setSelectedTeam}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Виберіть команду" />
+                  <SelectValue placeholder={t("admin.usersAssignDialog.selectTeam")} />
                 </SelectTrigger>
                 <SelectContent>
                   {teams.map(team => (
                     <SelectItem key={team.id} value={team.id}>
                       {team.name}
                       {selectedUser?.teams.find(t => t.team_id === team.id) && (
-                        <span className="ml-2 text-muted-foreground">(вже член)</span>
+                        <span className="ml-2 text-muted-foreground">({t("admin.usersAssignDialog.alreadyMember")})</span>
                       )}
                     </SelectItem>
                   ))}
@@ -956,16 +956,16 @@ export const AdminUsersManager = () => {
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium">Роль</label>
+              <label className="text-sm font-medium">{t("admin.usersAssignDialog.role")}</label>
               <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as TeamRole)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="owner">Owner</SelectItem>
-                  <SelectItem value="team_lead">Team Lead</SelectItem>
-                  <SelectItem value="buyer">Buyer</SelectItem>
-                  <SelectItem value="tech_dev">Tech Dev</SelectItem>
+                  <SelectItem value="owner">{t("team.owner")}</SelectItem>
+                  <SelectItem value="team_lead">{t("team.teamLead")}</SelectItem>
+                  <SelectItem value="buyer">{t("team.buyer")}</SelectItem>
+                  <SelectItem value="tech_dev">{t("team.techDev")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -980,8 +980,8 @@ export const AdminUsersManager = () => {
                 <UserPlus className="h-4 w-4 mr-2" />
               )}
               {selectedUser?.teams.find(t => t.team_id === selectedTeam) 
-                ? "Оновити роль" 
-                : "Призначити"}
+                ? t("admin.usersAssignDialog.updateRole") 
+                : t("admin.usersAssignDialog.assign")}
             </Button>
           </div>
         </DialogContent>
@@ -992,28 +992,28 @@ export const AdminUsersManager = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Схвалити запит: {pendingToApprove?.display_name || pendingToApprove?.user_id.slice(0, 8)}
+              {t("admin.usersApproveDialog.title")}: {pendingToApprove?.display_name || pendingToApprove?.user_id.slice(0, 8)}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             {pendingToApprove?.invite_code && (
               <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
                 <Ticket className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">Інвайт-код: <span className="font-mono font-medium">{pendingToApprove.invite_code}</span></span>
+                <span className="text-sm">{t("admin.usersApproveDialog.inviteCode")}: <span className="font-mono font-medium">{pendingToApprove.invite_code}</span></span>
               </div>
             )}
             <div>
-              <label className="text-sm font-medium">Команда</label>
+              <label className="text-sm font-medium">{t("admin.usersApproveDialog.team")}</label>
               <Select value={approveTeam} onValueChange={setApproveTeam}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Виберіть команду" />
+                  <SelectValue placeholder={t("admin.usersApproveDialog.selectTeam")} />
                 </SelectTrigger>
                 <SelectContent>
                   {teams.map(team => (
                     <SelectItem key={team.id} value={team.id}>
                       {team.name}
                       {team.id === pendingToApprove?.team_id && (
-                        <span className="ml-2 text-muted-foreground">(оригінал)</span>
+                        <span className="ml-2 text-muted-foreground">({t("admin.usersApproveDialog.original")})</span>
                       )}
                     </SelectItem>
                   ))}
@@ -1021,16 +1021,16 @@ export const AdminUsersManager = () => {
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium">Роль</label>
+              <label className="text-sm font-medium">{t("admin.usersApproveDialog.role")}</label>
               <Select value={approveRole} onValueChange={(v) => setApproveRole(v as TeamRole)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="owner">Owner</SelectItem>
-                  <SelectItem value="team_lead">Team Lead</SelectItem>
-                  <SelectItem value="buyer">Buyer</SelectItem>
-                  <SelectItem value="tech_dev">Tech Dev</SelectItem>
+                  <SelectItem value="owner">{t("team.owner")}</SelectItem>
+                  <SelectItem value="team_lead">{t("team.teamLead")}</SelectItem>
+                  <SelectItem value="buyer">{t("team.buyer")}</SelectItem>
+                  <SelectItem value="tech_dev">{t("team.techDev")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1044,7 +1044,7 @@ export const AdminUsersManager = () => {
               ) : (
                 <UserCheck className="h-4 w-4 mr-2" />
               )}
-              Схвалити
+              {t("admin.usersApproveDialog.approve")}
             </Button>
           </div>
         </DialogContent>
@@ -1055,17 +1055,17 @@ export const AdminUsersManager = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Скинути пароль: {resetPasswordUser?.display_name || resetPasswordUser?.user_id.slice(0, 8)}
+              {t("admin.usersResetPassword")}: {resetPasswordUser?.display_name || resetPasswordUser?.user_id.slice(0, 8)}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium">Новий пароль</label>
+              <label className="text-sm font-medium">{t("admin.usersNewPassword")}</label>
               <Input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Мінімум 6 символів"
+                placeholder={t("admin.usersMinPassword")}
                 className="mt-1"
               />
             </div>
@@ -1079,7 +1079,7 @@ export const AdminUsersManager = () => {
               ) : (
                 <KeyRound className="h-4 w-4 mr-2" />
               )}
-              Скинути пароль
+              {t("admin.usersResetPassword")}
             </Button>
           </div>
         </DialogContent>
