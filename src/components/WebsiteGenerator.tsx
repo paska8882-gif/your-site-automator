@@ -286,6 +286,45 @@ const randomVipKeywordsByTopic: Record<string, string> = {
   "Marketing Agency": "digital marketing, SEO, social media, branding, advertising"
 };
 
+const randomVipBannedWordsByTopic: Record<string, string> = {
+  "Video Games": "cheat, hack, pirate, crack, keygen, torrent, warez, illegal download",
+  "Law Services": "guaranteed outcome, 100% win, free lawyer, no-risk, miracle verdict, instant settlement",
+  "Dental Care": "painless guarantee, miracle cure, instant whitening, free treatment, no side effects",
+  "Real Estate": "guaranteed profit, risk-free investment, instant equity, free property, miracle deal",
+  "Pet Grooming": "miracle cure, instant results, free service, guaranteed transformation",
+  "Auto Repair": "free repair, guaranteed fix, miracle solution, instant repair, no cost",
+  "Fitness Training": "instant results, miracle diet, guaranteed weight loss, free program, no effort",
+  "Photography": "free photoshoot, guaranteed masterpiece, instant delivery, miracle editing",
+  "Home Renovation": "free renovation, guaranteed savings, instant completion, miracle transformation",
+  "Accounting": "tax evasion, guaranteed refund, free audit, instant savings, miracle deduction",
+  "Travel Agency": "free vacation, guaranteed booking, instant visa, miracle price, risk-free travel",
+  "Coffee Shop": "free coffee, miracle blend, instant energy, guaranteed freshness",
+  "Bakery": "free cake, miracle recipe, instant baking, guaranteed taste",
+  "Flower Delivery": "free flowers, guaranteed freshness, instant delivery, miracle blooms",
+  "IT Consulting": "free service, guaranteed uptime, instant fix, miracle solution, unhackable",
+  "Wedding Planning": "free wedding, guaranteed success, instant booking, miracle planning",
+  "Restaurant": "free meal, guaranteed taste, instant service, miracle recipe",
+  "Spa & Wellness": "miracle cure, instant relaxation, free treatment, guaranteed results",
+  "Plumbing Services": "free repair, guaranteed fix, instant service, miracle solution",
+  "Insurance Agency": "guaranteed payout, free coverage, instant approval, miracle policy, risk-free",
+  "Hair Salon": "miracle treatment, instant results, free styling, guaranteed transformation",
+  "Yoga Studio": "instant enlightenment, miracle healing, free classes, guaranteed results",
+  "Car Dealership": "free car, guaranteed approval, instant financing, miracle deal, no credit check",
+  "Cleaning Services": "free cleaning, guaranteed spotless, instant service, miracle results",
+  "News Portal": "fake news, clickbait, sensational, unverified, rumor, conspiracy, propaganda",
+  "E-commerce": "free shipping forever, guaranteed lowest price, instant refund, miracle product",
+  "Education": "instant diploma, guaranteed degree, free certification, miracle learning",
+  "Healthcare": "miracle cure, instant healing, guaranteed treatment, free diagnosis, no side effects",
+  "Fashion": "free designer, guaranteed authentic, instant delivery, miracle fabric",
+  "Sports": "guaranteed win, instant muscles, free gear, miracle performance, doping",
+  "Music": "free downloads, guaranteed hits, instant fame, miracle sound, pirated",
+  "Art Gallery": "guaranteed appreciation, instant value, free artwork, miracle investment",
+  "Crypto": "guaranteed returns, risk-free investment, instant profit, moon, lambo, 100x gains",
+  "Marketing Agency": "guaranteed viral, instant followers, free marketing, miracle growth, spam"
+};
+
+const defaultBannedWords = "crypto, free, miracle, health, profit, investment, quick gain, earnings, money, price, cost, guarantee, exclusive, top, bonus, 100%, risk-free";
+
 interface GeneratorDraft {
   siteNames: string[];
   prompt: string;
@@ -2096,11 +2135,15 @@ export function WebsiteGenerator() {
                             ? customGeo 
                             : (selectedGeo ? geoOptions.find(g => g.value === selectedGeo)?.label || selectedGeo : "");
                           
+                          // Get banned words for the detected/selected topic
+                          const bannedWords = randomVipBannedWordsByTopic[topic] || defaultBannedWords;
+                          
                           setVipDomain(domain);
                           setVipAddress(address);
                           setVipPhone(phone);
                           setVipTopic(topic + (geoLabel ? ` in ${geoLabel}` : ""));
                           setVipKeywords(finalKeywords);
+                          setVipBannedWords(bannedWords);
                         }}
                         className="h-7 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-100/50 dark:hover:bg-amber-900/30"
                       >
