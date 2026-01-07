@@ -202,7 +202,9 @@ const randomVipTopics = [
   "Home Renovation", "Accounting", "Travel Agency", "Coffee Shop",
   "Bakery", "Flower Delivery", "IT Consulting", "Wedding Planning",
   "Restaurant", "Spa & Wellness", "Plumbing Services", "Insurance Agency",
-  "Hair Salon", "Yoga Studio", "Car Dealership", "Cleaning Services"
+  "Hair Salon", "Yoga Studio", "Car Dealership", "Cleaning Services",
+  "News Portal", "E-commerce", "Education", "Healthcare", "Fashion",
+  "Sports", "Music", "Art Gallery", "Crypto", "Marketing Agency"
 ];
 
 const randomVipAddressesByGeo: Record<string, string[]> = {
@@ -214,6 +216,15 @@ const randomVipAddressesByGeo: Record<string, string[]> = {
   "fr": ["15 Rue de Rivoli, 75001 Paris", "8 Avenue Jean Médecin, 06000 Nice"],
   "es": ["Calle Gran Vía 28, 28013 Madrid", "Passeig de Gràcia 55, 08007 Barcelona"],
   "it": ["Via del Corso 120, 00186 Roma", "Via Montenapoleone 8, 20121 Milano"],
+  "nl": ["Damrak 1, 1012 LG Amsterdam", "Coolsingel 42, 3011 AD Rotterdam", "Oudegracht 120, 3511 AX Utrecht", "Grote Markt 15, 9711 LV Groningen"],
+  "be": ["Grand Place 1, 1000 Bruxelles", "Meir 50, 2000 Antwerpen"],
+  "at": ["Kärntner Straße 10, 1010 Wien", "Getreidegasse 5, 5020 Salzburg"],
+  "ch": ["Bahnhofstrasse 15, 8001 Zürich", "Rue du Rhône 42, 1204 Genève"],
+  "pl": ["Nowy Świat 25, 00-029 Warszawa", "Rynek Główny 10, 31-042 Kraków"],
+  "se": ["Drottninggatan 50, 111 21 Stockholm", "Avenyn 15, 411 36 Göteborg"],
+  "no": ["Karl Johans gate 10, 0154 Oslo", "Bryggen 5, 5003 Bergen"],
+  "dk": ["Strøget 20, 1160 København", "Søndergade 15, 8000 Aarhus"],
+  "pt": ["Rua Augusta 100, 1100-053 Lisboa", "Rua Santa Catarina 50, 4000-442 Porto"],
   "default": ["123 Business Center, Downtown", "456 Commerce Blvd, City Center", "789 Enterprise Ave, Business District"]
 };
 
@@ -226,6 +237,15 @@ const randomVipPhonesByGeo: Record<string, string[]> = {
   "fr": ["+33 1 42 86 82 00", "+33 4 93 16 64 00"],
   "es": ["+34 91 123 4567", "+34 93 987 6543"],
   "it": ["+39 06 1234 5678", "+39 02 8765 4321"],
+  "nl": ["+31 20 123 4567", "+31 10 234 5678", "+31 30 345 6789"],
+  "be": ["+32 2 123 45 67", "+32 3 234 56 78"],
+  "at": ["+43 1 234 5678", "+43 662 345 678"],
+  "ch": ["+41 44 123 45 67", "+41 22 234 56 78"],
+  "pl": ["+48 22 123 45 67", "+48 12 234 56 78"],
+  "se": ["+46 8 123 45 67", "+46 31 234 56 78"],
+  "no": ["+47 21 12 34 56", "+47 55 23 45 67"],
+  "dk": ["+45 33 12 34 56", "+45 87 23 45 67"],
+  "pt": ["+351 21 123 4567", "+351 22 234 5678"],
   "default": ["+1 (555) 000-1234", "+44 20 1234 5678", "+49 30 55512345"]
 };
 
@@ -253,7 +273,17 @@ const randomVipKeywordsByTopic: Record<string, string> = {
   "Hair Salon": "haircuts, hair coloring, styling, hair treatments, beauty salon",
   "Yoga Studio": "yoga classes, meditation, mindfulness, wellness retreats",
   "Car Dealership": "new cars, used vehicles, car financing, auto sales",
-  "Cleaning Services": "house cleaning, office cleaning, deep cleaning, maid service"
+  "Cleaning Services": "house cleaning, office cleaning, deep cleaning, maid service",
+  "News Portal": "breaking news, latest headlines, world news, local news, journalism",
+  "E-commerce": "online shopping, product catalog, secure checkout, fast delivery",
+  "Education": "online courses, learning platform, tutorials, certifications, e-learning",
+  "Healthcare": "medical services, patient care, health clinic, doctors, appointments",
+  "Fashion": "clothing, style trends, designer wear, accessories, fashion boutique",
+  "Sports": "sports news, team updates, live scores, athletic training, fitness",
+  "Music": "music streaming, albums, concerts, artists, playlists, music production",
+  "Art Gallery": "art exhibitions, paintings, sculptures, contemporary art, artists",
+  "Crypto": "cryptocurrency, blockchain, bitcoin, trading, digital assets, DeFi",
+  "Marketing Agency": "digital marketing, SEO, social media, branding, advertising"
 };
 
 interface GeneratorDraft {
@@ -1962,21 +1992,46 @@ export function WebsiteGenerator() {
                           
                           // Also check for common keywords in description
                           const topicKeywordMap: Record<string, string> = {
+                            // News & Media
+                            "news": "News Portal", "новост": "News Portal", "headline": "News Portal", "журнал": "News Portal", 
+                            "article": "News Portal", "press": "News Portal", "media": "News Portal", "broadcast": "News Portal",
+                            // E-commerce
+                            "shop": "E-commerce", "store": "E-commerce", "ecommerce": "E-commerce", "e-commerce": "E-commerce",
+                            "магазин": "E-commerce", "buy": "E-commerce", "sell": "E-commerce", "product": "E-commerce",
+                            // Education
+                            "education": "Education", "learn": "Education", "course": "Education", "school": "Education",
+                            "university": "Education", "training": "Education", "tutorial": "Education",
+                            // Healthcare
+                            "health": "Healthcare", "medical": "Healthcare", "doctor": "Healthcare", "hospital": "Healthcare",
+                            "clinic": "Healthcare", "patient": "Healthcare",
+                            // Fashion
+                            "fashion": "Fashion", "clothing": "Fashion", "style": "Fashion", "wear": "Fashion", "boutique": "Fashion",
+                            // Sports
+                            "sport": "Sports", "athlete": "Sports", "team": "Sports", "football": "Sports", "basketball": "Sports",
+                            // Music
+                            "music": "Music", "song": "Music", "album": "Music", "concert": "Music", "artist": "Music",
+                            // Art
+                            "art": "Art Gallery", "gallery": "Art Gallery", "painting": "Art Gallery", "exhibition": "Art Gallery",
+                            // Crypto
+                            "crypto": "Crypto", "bitcoin": "Crypto", "blockchain": "Crypto", "nft": "Crypto", "defi": "Crypto",
+                            // Marketing
+                            "marketing": "Marketing Agency", "seo": "Marketing Agency", "advertising": "Marketing Agency", "brand": "Marketing Agency",
+                            // Original topics
                             "game": "Video Games", "gaming": "Video Games", "gamer": "Video Games",
                             "law": "Law Services", "legal": "Law Services", "attorney": "Law Services", "lawyer": "Law Services",
                             "dental": "Dental Care", "dentist": "Dental Care", "teeth": "Dental Care",
                             "real estate": "Real Estate", "property": "Real Estate", "house": "Real Estate", "apartment": "Real Estate",
                             "pet": "Pet Grooming", "dog": "Pet Grooming", "cat": "Pet Grooming", "animal": "Pet Grooming",
                             "car": "Auto Repair", "auto": "Auto Repair", "mechanic": "Auto Repair", "vehicle": "Auto Repair",
-                            "fitness": "Fitness Training", "gym": "Fitness Training", "workout": "Fitness Training", "training": "Fitness Training",
+                            "fitness": "Fitness Training", "gym": "Fitness Training", "workout": "Fitness Training",
                             "photo": "Photography", "photographer": "Photography", "camera": "Photography",
-                            "home": "Home Renovation", "renovation": "Home Renovation", "remodel": "Home Renovation",
-                            "account": "Accounting", "tax": "Accounting", "finance": "Accounting", "bookkeep": "Accounting",
+                            "renovation": "Home Renovation", "remodel": "Home Renovation", "interior": "Home Renovation",
+                            "account": "Accounting", "tax": "Accounting", "bookkeep": "Accounting",
                             "travel": "Travel Agency", "vacation": "Travel Agency", "trip": "Travel Agency", "tour": "Travel Agency",
                             "coffee": "Coffee Shop", "cafe": "Coffee Shop", "espresso": "Coffee Shop",
                             "bakery": "Bakery", "bread": "Bakery", "cake": "Bakery", "pastry": "Bakery",
                             "flower": "Flower Delivery", "floral": "Flower Delivery", "bouquet": "Flower Delivery",
-                            "it": "IT Consulting", "tech": "IT Consulting", "software": "IT Consulting", "computer": "IT Consulting",
+                            "software": "IT Consulting", "computer": "IT Consulting", "developer": "IT Consulting",
                             "wedding": "Wedding Planning", "bride": "Wedding Planning", "marry": "Wedding Planning",
                             "restaurant": "Restaurant", "food": "Restaurant", "dining": "Restaurant", "menu": "Restaurant",
                             "spa": "Spa & Wellness", "massage": "Spa & Wellness", "wellness": "Spa & Wellness", "relax": "Spa & Wellness",
