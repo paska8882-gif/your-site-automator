@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export type BackendHealthStatus = "checking" | "healthy" | "degraded";
 
@@ -20,7 +20,6 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, tim
 }
 
 export function useBackendHealth(options: Options = {}) {
-  // Increased timeout to 10 seconds, require 2 consecutive failures before showing degraded
   const { timeoutMs = 10000, intervalMs = 30000, failuresBeforeDegraded = 2 } = options;
   
   const [status, setStatus] = useState<BackendHealthStatus>("checking");
@@ -48,17 +47,18 @@ export function useBackendHealth(options: Options = {}) {
       setFailureCount(0);
       setStatus("healthy");
     } catch {
-      setFailureCount(prev => {
-        const newCount = prev + 1;
-        // Only show degraded after multiple consecutive failures
-        if (newCount >= failuresBeforeDegraded) {
-          setStatus("degraded");
-          setLastErrorAt(Date.now());
-        }
-        return newCount;
-      });
+      // Increment failure count
+      setFailureCount(prev => prev + 1);
     }
-  }, [timeoutMs, failuresBeforeDegraded]);
+  }, [timeoutMs]);
+
+  // Handle status change based on failure count
+  useEffect(() => {
+    if (failureCount >= failuresBeforeDegraded) {
+      setStatus("degraded");
+      setLastErrorAt(Date.now());
+    }
+  }, [failureCount, failuresBeforeDegraded]);
 
   useEffect(() => {
     check();
