@@ -1480,7 +1480,7 @@ export function WebsiteGenerator() {
                 {sendingFeedback ? (
                   <Loader2 className="h-3 w-3 animate-spin mr-1" />
                 ) : null}
-                Надіслати
+                {t("genForm.sendFeedback")}
               </Button>
             </div>
           </div>
@@ -1489,7 +1489,7 @@ export function WebsiteGenerator() {
           <div className="border border-border rounded p-3">
             <div className="flex items-center gap-2 mb-3">
               <Newspaper className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">Новини</span>
+              <span className="text-sm font-medium">{t("genForm.news")}</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {/* Article 1 */}
@@ -1502,12 +1502,12 @@ export function WebsiteGenerator() {
                   />
                 </div>
                 <div className="p-2.5">
-                  <span className="text-[9px] text-muted-foreground/60">21 грудня 2025</span>
+                  <span className="text-[9px] text-muted-foreground/60">{t("genForm.newsDate1")}</span>
                   <h3 className="text-xs font-medium line-clamp-2 mt-1 group-hover:text-primary transition-colors">
-                    Нейромережі навчились писати код краще
+                    {t("genForm.newsTitle1")}
                   </h3>
                   <p className="text-[10px] text-muted-foreground line-clamp-2 mt-1">
-                    Останні дослідження показують значний прогрес у автоматичній генерації веб-сторінок.
+                    {t("genForm.newsDesc1")}
                   </p>
                 </div>
               </article>
@@ -1522,12 +1522,12 @@ export function WebsiteGenerator() {
                   />
                 </div>
                 <div className="p-2.5">
-                  <span className="text-[9px] text-muted-foreground/60">19 грудня 2025</span>
+                  <span className="text-[9px] text-muted-foreground/60">{t("genForm.newsDate2")}</span>
                   <h3 className="text-xs font-medium line-clamp-2 mt-1 group-hover:text-primary transition-colors">
-                    React 20: що нового для AI-генерації
+                    {t("genForm.newsTitle2")}
                   </h3>
                   <p className="text-[10px] text-muted-foreground line-clamp-2 mt-1">
-                    Нові хуки та серверні компоненти спрощують інтеграцію з генеративними моделями.
+                    {t("genForm.newsDesc2")}
                   </p>
                 </div>
               </article>
@@ -1542,12 +1542,12 @@ export function WebsiteGenerator() {
                   />
                 </div>
                 <div className="p-2.5">
-                  <span className="text-[9px] text-muted-foreground/60">17 грудня 2025</span>
+                  <span className="text-[9px] text-muted-foreground/60">{t("genForm.newsDate3")}</span>
                   <h3 className="text-xs font-medium line-clamp-2 mt-1 group-hover:text-primary transition-colors">
-                    Модерація контенту: AI vs людина
+                    {t("genForm.newsTitle3")}
                   </h3>
                   <p className="text-[10px] text-muted-foreground line-clamp-2 mt-1">
-                    Дослідження показало, що AI-модератори працюють у 5 разів швидше при тій же точності.
+                    {t("genForm.newsDesc3")}
                   </p>
                 </div>
               </article>
@@ -1657,7 +1657,7 @@ export function WebsiteGenerator() {
                     }`}
                   >
                     <Layers className="h-3.5 w-3.5" />
-                    Внутрішня
+                    {t("genForm.internalMode")}
                   </button>
                   <button
                     type="button"
@@ -1669,7 +1669,7 @@ export function WebsiteGenerator() {
                     }`}
                   >
                     <Crown className="h-3.5 w-3.5" />
-                    Зовнішня
+                    {t("genForm.externalMode")}
                   </button>
                 </div>
                 
@@ -1680,10 +1680,10 @@ export function WebsiteGenerator() {
                       onValueChange={(v) => setSeniorMode(v === "none" ? undefined : v as SeniorMode)} 
                     >
                       <SelectTrigger className="w-[140px] h-8 text-xs">
-                        <SelectValue placeholder="Сервіс..." />
+                        <SelectValue placeholder={t("genForm.selectService")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none" disabled>Оберіть сервіс</SelectItem>
+                        <SelectItem value="none" disabled>{t("genForm.selectService")}</SelectItem>
                         <SelectItem value="codex">🤖 Кодувальник Кирил</SelectItem>
                         <SelectItem value="onepage">📄 Одноазка</SelectItem>
                         <SelectItem value="v0">⚡ Вова нуляра</SelectItem>
@@ -1810,7 +1810,7 @@ export function WebsiteGenerator() {
               {improvedPromptValue && (
                 <div className="text-xs text-green-600 flex items-center gap-1">
                   <Sparkles className="h-3 w-3" />
-                  Промпт покращено AI{!isAdmin && " (внутрішньо)"}. Оригінал збережеться в історії.
+                  {t("genForm.promptImprovedInternal")}
                 </div>
               )}
               <div className="flex items-center justify-between flex-wrap gap-2">
@@ -1828,7 +1828,7 @@ export function WebsiteGenerator() {
                     ) : (
                       <Sparkles className="mr-1 h-3 w-3" />
                     )}
-                    Покращити промпт (+$1)
+                    {t("genForm.improvePromptCost")}
                   </Button>
                   
                   {/* VIP button */}
@@ -1877,7 +1877,7 @@ export function WebsiteGenerator() {
                   className="h-7 text-xs px-2"
                 >
                   <Trash2 className="mr-1 h-3 w-3" />
-                  Очистити
+                  {t("genForm.clearPrompt")}
                 </Button>
               </div>
 
@@ -1888,14 +1888,14 @@ export function WebsiteGenerator() {
                   <div className="p-3 border border-amber-500/30 bg-amber-50/50 dark:bg-amber-900/10 rounded-lg">
                     <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300 mb-3">
                       <AlertTriangle className="h-4 w-4" />
-                      <span className="text-xs font-medium">Обов'язкові поля для VIP генерації</span>
+                      <span className="text-xs font-medium">{t("genForm.requiredVipFields")}</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {/* Language Select for VIP */}
                       <div className="space-y-1.5">
                         <Label className={`text-xs flex items-center gap-1 ${selectedLanguages.length === 0 && !isOtherSelected ? 'text-destructive' : 'text-muted-foreground'}`}>
                           <Languages className="h-3 w-3" />
-                          Мова <span className="text-destructive">*</span>
+                          {t("genForm.selectLanguageRequired")} <span className="text-destructive">*</span>
                         </Label>
                         <Popover>
                           <PopoverTrigger asChild>
@@ -1908,10 +1908,10 @@ export function WebsiteGenerator() {
                                   const allLangs = [...selectedLanguages];
                                   if (isOtherSelected && customLanguage) allLangs.push(customLanguage);
                                   return allLangs.length === 0 
-                                    ? "Оберіть мову" 
+                                    ? t("genForm.selectLanguages")
                                     : allLangs.length === 1 
                                       ? languages.find(l => l.value === allLangs[0])?.label || allLangs[0]
-                                      : `${allLangs.length} мов`;
+                                      : `${allLangs.length} ${t("genForm.languages")}`;
                                 })()}
                               </span>
                               <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
@@ -1933,11 +1933,11 @@ export function WebsiteGenerator() {
                               ))}
                               <label className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer border-t mt-1 pt-2">
                                 <Checkbox checked={isOtherSelected} onCheckedChange={() => toggleOther()} />
-                                <span className="text-sm">Інша...</span>
+                                <span className="text-sm">{t("genForm.otherLanguage")}</span>
                               </label>
                               {isOtherSelected && (
                                 <Input
-                                  placeholder="Назва мови"
+                                  placeholder={t("genForm.languageName")}
                                   value={customLanguage}
                                   onChange={(e) => setCustomLanguage(e.target.value)}
                                   className="mt-2"
@@ -1953,7 +1953,7 @@ export function WebsiteGenerator() {
                       <div className="space-y-1.5">
                         <Label className={`text-xs flex items-center gap-1 ${!selectedGeo && !isOtherGeoSelected ? 'text-destructive' : 'text-muted-foreground'}`}>
                           <MapPin className="h-3 w-3" />
-                          Гео/Регіон <span className="text-destructive">*</span>
+                          {t("genForm.selectGeoRequired")} <span className="text-destructive">*</span>
                         </Label>
                         <Popover>
                           <PopoverTrigger asChild>
@@ -1968,7 +1968,7 @@ export function WebsiteGenerator() {
                                     ? customGeo 
                                     : selectedGeo 
                                       ? geoOptions.find(g => g.value === selectedGeo)?.label || selectedGeo
-                                      : "Оберіть регіон"}
+                                      : t("genForm.selectRegion")}
                                 </span>
                               </div>
                               <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
@@ -1998,11 +1998,11 @@ export function WebsiteGenerator() {
                                       if (checked) setSelectedGeo("");
                                     }}
                                   />
-                                  <span className="text-xs">Інше</span>
+                                  <span className="text-xs">{t("genForm.other")}</span>
                                 </label>
                                 {isOtherGeoSelected && (
                                   <Input
-                                    placeholder="Введіть своє гео..."
+                                    placeholder={t("genForm.enterCustomGeo")}
                                     value={customGeo}
                                     onChange={(e) => setCustomGeo(e.target.value)}
                                     className="mt-1 h-8 text-xs"
@@ -2021,8 +2021,8 @@ export function WebsiteGenerator() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
                         <Star className="h-4 w-4 fill-current" />
-                        <span className="text-sm font-medium">VIP режим генерації</span>
-                        <Badge variant="outline" className="text-amber-600 border-amber-500/50">+${teamPricing?.vipExtraPrice || 2}/сайт</Badge>
+                        <span className="text-sm font-medium">{t("genForm.vipModeTitle")}</span>
+                        <Badge variant="outline" className="text-amber-600 border-amber-500/50">+${teamPricing?.vipExtraPrice || 2}{t("genForm.perSite")}</Badge>
                       </div>
                       <Button
                         variant="ghost"
@@ -2157,7 +2157,7 @@ export function WebsiteGenerator() {
                         className="h-7 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-100/50 dark:hover:bg-amber-900/30"
                       >
                         <Shuffle className="h-3 w-3 mr-1" />
-                        Рандом
+                        {t("genForm.randomize")}
                       </Button>
                     </div>
                   
@@ -2166,7 +2166,7 @@ export function WebsiteGenerator() {
                       <div className="space-y-1">
                         <Label className="text-xs flex items-center gap-1">
                           <Globe className="h-3 w-3" />
-                          Домен
+                          {t("genForm.domain")}
                         </Label>
                         <Input
                           placeholder="example.com"
@@ -2180,7 +2180,7 @@ export function WebsiteGenerator() {
                       <div className="space-y-1">
                         <Label className="text-xs flex items-center gap-1">
                           <Building2 className="h-3 w-3" />
-                          Адреса <span className="text-destructive">*</span>
+                          {t("genForm.address")} <span className="text-destructive">*</span>
                         </Label>
                         <Input
                           placeholder="100 Main Street, City, Country"
@@ -2194,7 +2194,7 @@ export function WebsiteGenerator() {
                       <div className="space-y-1">
                         <Label className="text-xs flex items-center gap-1">
                           <Phone className="h-3 w-3" />
-                          Телефон <span className="text-destructive">*</span>
+                          {t("genForm.phone")} <span className="text-destructive">*</span>
                         </Label>
                         <Input
                           placeholder="+1 (555) 123-4567"
@@ -2208,7 +2208,7 @@ export function WebsiteGenerator() {
                       <div className="space-y-1">
                         <Label className="text-xs flex items-center gap-1">
                           <Tag className="h-3 w-3" />
-                          Тема/Ніша
+                          {t("genForm.topicNiche")}
                         </Label>
                         <Input
                           placeholder="Video Games, Law Services..."
@@ -2223,7 +2223,7 @@ export function WebsiteGenerator() {
                     <div className="space-y-1">
                       <Label className="text-xs flex items-center gap-1">
                         <Hash className="h-3 w-3" />
-                        Ключові слова
+                        {t("genForm.keywords")}
                       </Label>
                       <Input
                         placeholder="keyword1, keyword2, keyword3..."
@@ -2237,7 +2237,7 @@ export function WebsiteGenerator() {
                     <div className="space-y-1">
                       <Label className="text-xs flex items-center gap-1">
                         <X className="h-3 w-3 text-red-500" />
-                        Заборонені слова
+                        {t("genForm.bannedWords")}
                       </Label>
                       <Input
                         placeholder="crypto, free, miracle, profit..."
@@ -2258,8 +2258,8 @@ export function WebsiteGenerator() {
                         
                         if (!hasLanguage || !hasGeo) {
                           toast({
-                            title: "Заповніть обов'язкові поля",
-                            description: "Для VIP генерації потрібно обрати мову та регіон",
+                            title: t("genForm.vipFieldsRequired"),
+                            description: t("genForm.vipFieldsRequiredDesc"),
                             variant: "destructive",
                           });
                           return;
@@ -2297,15 +2297,15 @@ export function WebsiteGenerator() {
                           if (data?.vipPrompt) {
                             setVipPromptValue(data.vipPrompt);
                             toast({
-                              title: "VIP промт згенеровано",
-                              description: "Детальний промт готовий для генерації",
+                              title: t("genForm.vipPromptGeneratedTitle"),
+                              description: t("genForm.vipPromptGeneratedDesc"),
                             });
                           }
                         } catch (error) {
                           console.error("VIP prompt error:", error);
                           toast({
-                            title: "Помилка",
-                            description: "Не вдалося згенерувати VIP промт",
+                            title: t("common.error"),
+                            description: t("genForm.vipPromptError"),
                             variant: "destructive",
                           });
                         } finally {
@@ -2320,13 +2320,13 @@ export function WebsiteGenerator() {
                       ) : (
                         <Sparkles className="mr-1 h-3 w-3" />
                       )}
-                      Згенерувати VIP промт
+                      {t("genForm.generateVipPrompt")}
                     </Button>
                     
                     {vipPromptValue && (
                       <div className="text-xs text-green-600 flex items-center gap-1 mt-2">
                         <Star className="h-3 w-3 fill-current" />
-                        VIP промт згенеровано! Буде використано при генерації сайту.
+                        {t("genForm.vipPromptReady")}
                       </div>
                     )}
                   </div>
@@ -2342,16 +2342,16 @@ export function WebsiteGenerator() {
               {/* Language Multi-Select Dropdown - hide in VIP mode */}
               {!isVipMode && (
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Мова</Label>
+                <Label className="text-xs text-muted-foreground">{t("genForm.language")}</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between h-8 text-xs">
                       <span className="truncate">
                         {allLanguages.length === 0 
-                          ? "Оберіть мови" 
+                          ? t("genForm.selectLanguages")
                           : allLanguages.length === 1 
                             ? languages.find(l => l.value === allLanguages[0])?.label || allLanguages[0]
-                            : `${allLanguages.length} мов`}
+                            : `${allLanguages.length} ${t("genForm.languages")}`}
                       </span>
                       <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
                     </Button>
@@ -2377,11 +2377,11 @@ export function WebsiteGenerator() {
                           checked={isOtherSelected} 
                           onCheckedChange={() => toggleOther()} 
                         />
-                        <span className="text-sm">Інша...</span>
+                        <span className="text-sm">{t("genForm.otherLanguage")}</span>
                       </label>
                       {isOtherSelected && (
                         <Input
-                          placeholder="Назва мови"
+                          placeholder={t("genForm.languageName")}
                           value={customLanguage}
                           onChange={(e) => setCustomLanguage(e.target.value)}
                           className="mt-2"
@@ -2396,16 +2396,16 @@ export function WebsiteGenerator() {
 
               {/* Style Multi-Select Dropdown */}
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Стиль</Label>
+                <Label className="text-xs text-muted-foreground">{t("genForm.layout")}</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between h-8 text-xs">
                       <span className="truncate">
                         {allStyles.length === 0 
-                          ? "Рандом" 
+                          ? t("genForm.random")
                           : allStyles.length === 1 
                             ? LAYOUT_STYLES.find(s => s.id === allStyles[0])?.name || allStyles[0]
-                            : `${allStyles.length} стилів`}
+                            : `${allStyles.length} ${t("genForm.styles")}`}
                       </span>
                       <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
                     </Button>
