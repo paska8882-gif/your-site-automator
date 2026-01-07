@@ -1072,8 +1072,9 @@ export function WebsiteGenerator() {
       const websiteTypesToUse = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes : ["html" as WebsiteType];
       const imageSourcesToUse = selectedImageSources.length > 0 ? selectedImageSources : ["basic" as ImageSource];
       const langs = getAllSelectedLanguages();
-      const siteNames = getAllSiteNames();
-      const totalCount = siteNames.length * langs.length * sitesPerLanguage * stylesToUse.length * aiModelsToUse.length * websiteTypesToUse.length * imageSourcesToUse.length;
+      // If no site names provided, use array with one undefined to generate at least one site
+      const siteNamesToUse = getAllSiteNames().length > 0 ? getAllSiteNames() : [undefined as string | undefined];
+      const totalCount = siteNamesToUse.length * langs.length * sitesPerLanguage * stylesToUse.length * aiModelsToUse.length * websiteTypesToUse.length * imageSourcesToUse.length;
       
       setGenerationProgress({ completed: 0, total: totalCount });
 
@@ -1096,7 +1097,7 @@ export function WebsiteGenerator() {
       };
 
       const generationPromises: Promise<any>[] = [];
-      for (const currentSiteName of siteNames) {
+      for (const currentSiteName of siteNamesToUse) {
         for (const lang of langs) {
           for (let i = 0; i < sitesPerLanguage; i++) {
             for (const style of stylesToUse) {
