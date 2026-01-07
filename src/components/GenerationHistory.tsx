@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File, AlertTriangle, Upload, X, Layers, Filter, CalendarDays, MonitorPlay } from "lucide-react";
+import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File, AlertTriangle, Upload, X, Layers, Filter, CalendarDays, MonitorPlay, Ban } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -189,6 +189,7 @@ interface SingleHistoryItemProps {
   onUsePrompt?: (siteName: string, prompt: string) => void;
   onAppeal: (item: HistoryItem) => void;
   onPhpPreview?: (item: HistoryItem) => void;
+  onCancel: (item: HistoryItem) => void;
   onSelectFile: (file: GeneratedFile) => void;
   onViewModeChange: (mode: "preview" | "code") => void;
   getAppeal: (itemId: string) => Appeal | undefined;
@@ -211,6 +212,7 @@ function SingleHistoryItem({
   onUsePrompt,
   onAppeal,
   onPhpPreview,
+  onCancel,
   onSelectFile,
   onViewModeChange,
   getAppeal,
@@ -299,6 +301,20 @@ function SingleHistoryItem({
                   title="Використати промпт"
                 >
                   <RotateCcw className="h-4 w-4" />
+                </Button>
+              )}
+              {(item.status === "pending" || item.status === "generating") && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCancel(item);
+                  }}
+                  title="Скасувати генерацію"
+                >
+                  <Ban className="h-4 w-4" />
                 </Button>
               )}
               {item.status === "completed" && (
@@ -858,6 +874,32 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
     });
   };
 
+  const handleCancel = async (item: HistoryItem) => {
+    try {
+      const { error } = await supabase
+        .from("generation_history")
+        .update({ 
+          status: "failed", 
+          error_message: "Скасовано користувачем",
+          completed_at: new Date().toISOString()
+        })
+        .eq("id", item.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Генерацію скасовано",
+        description: `Генерація "${item.site_name || `Site ${item.number}`}" була скасована`,
+      });
+    } catch (error) {
+      console.error("Cancel error:", error);
+      toast({
+        title: "Помилка",
+        description: "Не вдалося скасувати генерацію",
+        variant: "destructive",
+      });
+    }
+  };
 
   const truncatePrompt = (text: string, maxLength: number = 100) => {
     if (text.length <= maxLength) return text;
@@ -1430,6 +1472,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
                             setPhpPreviewItem(item);
                             setPhpPreviewOpen(true);
                           }}
+                          onCancel={handleCancel}
                           onSelectFile={setSelectedFile}
                           onViewModeChange={setViewMode}
                           getAppeal={getAppealForItem}
@@ -1464,6 +1507,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
                     setPhpPreviewItem(item);
                     setPhpPreviewOpen(true);
                   }}
+                  onCancel={handleCancel}
                   onSelectFile={setSelectedFile}
                   onViewModeChange={setViewMode}
                   getAppeal={getAppealForItem}
