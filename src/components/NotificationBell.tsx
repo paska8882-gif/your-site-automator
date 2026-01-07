@@ -12,8 +12,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDistanceToNow } from "date-fns";
-import { uk } from "date-fns/locale";
+import { uk, ru } from "date-fns/locale";
 
 interface Notification {
   id: string;
@@ -28,9 +29,11 @@ interface Notification {
 export function NotificationBell() {
   const { user } = useAuth();
   const { isAdmin } = useAdmin();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
+  const dateLocale = language === "ru" ? ru : uk;
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -147,7 +150,7 @@ export function NotificationBell() {
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="end">
         <div className="flex items-center justify-between p-3 border-b">
-          <h4 className="font-semibold text-sm">Сповіщення</h4>
+          <h4 className="font-semibold text-sm">{t("notifications.title")}</h4>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
@@ -155,14 +158,14 @@ export function NotificationBell() {
               className="text-xs h-7"
               onClick={markAllAsRead}
             >
-              Прочитати всі
+              {t("notifications.markAllRead")}
             </Button>
           )}
         </div>
         <ScrollArea className="h-[300px]">
           {notifications.length === 0 ? (
             <div className="p-4 text-center text-muted-foreground text-sm">
-              Немає сповіщень
+              {t("notifications.empty")}
             </div>
           ) : (
             <div className="divide-y">
@@ -188,7 +191,7 @@ export function NotificationBell() {
                       <p className="text-xs text-muted-foreground mt-1">
                         {formatDistanceToNow(new Date(notification.created_at), {
                           addSuffix: true,
-                          locale: uk,
+                          locale: dateLocale,
                         })}
                       </p>
                     </div>

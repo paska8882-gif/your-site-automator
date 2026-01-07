@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,7 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { useToast } from "@/hooks/use-toast";
 import { MessageCircle, Send, Loader2 } from "lucide-react";
 import { format } from "date-fns";
-import { uk } from "date-fns/locale";
+import { uk, ru } from "date-fns/locale";
 
 interface Message {
   id: string;
@@ -28,6 +29,7 @@ interface Conversation {
 export const SupportChat = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t, language } = useLanguage();
   const [open, setOpen] = useState(false);
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -35,6 +37,7 @@ export const SupportChat = () => {
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const dateLocale = language === "ru" ? ru : uk;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -169,8 +172,8 @@ export const SupportChat = () => {
     } catch (error) {
       console.error("Error sending message:", error);
       toast({
-        title: "Помилка",
-        description: "Не вдалося надіслати повідомлення",
+        title: t("common.error"),
+        description: t("support.sendError"),
         variant: "destructive",
       });
     } finally {
@@ -185,14 +188,14 @@ export const SupportChat = () => {
       <SheetTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 text-foreground">
           <MessageCircle className="h-4 w-4 mr-1" />
-          Підтримка
+          {t("support.title")}
         </Button>
       </SheetTrigger>
       <SheetContent className="w-[380px] sm:w-[420px] p-0 flex flex-col">
         <SheetHeader className="p-3 border-b">
           <SheetTitle className="text-sm flex items-center gap-2">
             <MessageCircle className="h-4 w-4" />
-            Чат з підтримкою
+            {t("support.title")}
           </SheetTitle>
         </SheetHeader>
 
@@ -206,7 +209,7 @@ export const SupportChat = () => {
               {messages.length === 0 ? (
                 <div className="text-center text-muted-foreground text-xs py-8">
                   <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>Напишіть нам, і ми відповімо якнайшвидше!</p>
+                  <p>{t("support.startConversation")}</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -224,7 +227,7 @@ export const SupportChat = () => {
                       >
                         {msg.is_admin && (
                           <p className="text-[10px] font-medium mb-0.5 text-muted-foreground">
-                            Підтримка
+                            {t("support.title")}
                           </p>
                         )}
                         <p className="text-xs">{msg.message}</p>
@@ -233,7 +236,7 @@ export const SupportChat = () => {
                             msg.is_admin ? "text-muted-foreground" : "text-primary-foreground/70"
                           }`}
                         >
-                          {format(new Date(msg.created_at), "HH:mm", { locale: uk })}
+                          {format(new Date(msg.created_at), "HH:mm", { locale: dateLocale })}
                         </p>
                       </div>
                     </div>
@@ -247,7 +250,7 @@ export const SupportChat = () => {
               <Input
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Напишіть повідомлення..."
+                placeholder={t("support.messagePlaceholder")}
                 className="h-9 text-sm"
                 onKeyPress={(e) => e.key === "Enter" && sendMessage()}
               />

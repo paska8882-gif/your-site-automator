@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +41,7 @@ interface ReferralReward {
 
 export function ReferralProgram() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [settings, setSettings] = useState<ReferralSettings | null>(null);
@@ -156,8 +158,8 @@ export function ReferralProgram() {
     
     if (!canGenerateCode) {
       toast({
-        title: "Ліміт досягнуто",
-        description: `Ви маєте ${maxInvites} активних кодів. Дочекайтесь поки запрошені команди досягнуть ${settings?.milestone_generations || 50} генерацій.`,
+        title: t("referral.limitReached"),
+        description: t("referral.limitReachedDesc").replace("{max}", String(maxInvites)).replace("{milestone}", String(settings?.milestone_generations || 50)),
         variant: "destructive"
       });
       return;
@@ -178,14 +180,14 @@ export function ReferralProgram() {
     
     if (error) {
       toast({
-        title: "Помилка",
-        description: "Не вдалося створити код",
+        title: t("common.error"),
+        description: t("referral.codeCreateError"),
         variant: "destructive"
       });
     } else {
       toast({
-        title: "Код створено",
-        description: `Ваш реферальний код: ${code}`
+        title: t("referral.codeCreated"),
+        description: `${t("referral.yourCodeIs")}: ${code}`
       });
       fetchData();
     }
@@ -197,8 +199,8 @@ export function ReferralProgram() {
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
     toast({
-      title: "Скопійовано",
-      description: "Код скопійовано в буфер обміну"
+      title: t("common.copied"),
+      description: t("referral.codeCopied")
     });
     setTimeout(() => setCopiedCode(null), 2000);
   };
@@ -206,11 +208,11 @@ export function ReferralProgram() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
-        return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30">Очікує</Badge>;
+        return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30">{t("balance.pending")}</Badge>;
       case "approved":
-        return <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">Схвалено</Badge>;
+        return <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">{t("balance.approved")}</Badge>;
       case "rejected":
-        return <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30">Відхилено</Badge>;
+        return <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30">{t("balance.rejected")}</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -219,11 +221,11 @@ export function ReferralProgram() {
   const getRewardTypeLabel = (type: string) => {
     switch (type) {
       case "invite":
-        return "Запрошення";
+        return t("referral.rewardTypeInvite");
       case "milestone":
-        return "Досягнення";
+        return t("referral.rewardTypeMilestone");
       case "new_user_bonus":
-        return "Бонус нового користувача";
+        return t("referral.newUserBonus");
       default:
         return type;
     }
@@ -256,7 +258,7 @@ export function ReferralProgram() {
                 <Gift className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">За запрошення</p>
+                <p className="text-sm text-muted-foreground">{t("referral.inviteReward")}</p>
                 <p className="text-2xl font-bold">${settings?.invite_reward || 0}</p>
               </div>
             </div>
@@ -270,7 +272,7 @@ export function ReferralProgram() {
                 <Target className="h-5 w-5 text-green-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">За {settings?.milestone_generations || 0} генерацій</p>
+                <p className="text-sm text-muted-foreground">{t("referral.forGenerations").replace("{count}", String(settings?.milestone_generations || 0))}</p>
                 <p className="text-2xl font-bold">${settings?.milestone_reward || 0}</p>
               </div>
             </div>
@@ -284,10 +286,10 @@ export function ReferralProgram() {
                 <DollarSign className="h-5 w-5 text-amber-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Ви заробили</p>
+                <p className="text-sm text-muted-foreground">{t("referral.totalEarned")}</p>
                 <p className="text-2xl font-bold">${totalEarned.toFixed(2)}</p>
                 {pendingRewards > 0 && (
-                  <p className="text-xs text-muted-foreground">+ ${pendingRewards.toFixed(2)} очікує</p>
+                  <p className="text-xs text-muted-foreground">+ ${pendingRewards.toFixed(2)} {t("referral.pendingRewards")}</p>
                 )}
               </div>
             </div>
@@ -300,11 +302,10 @@ export function ReferralProgram() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Запросити команду
+            {t("referral.inviteTeam")}
           </CardTitle>
           <CardDescription>
-            Згенеруйте унікальний код для запрошення нової команди. 
-            Ви отримаєте ${settings?.invite_reward || 0} після схвалення адміністратором.
+            {t("referral.inviteTeamDesc").replace("{reward}", String(settings?.invite_reward || 0))}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -313,24 +314,24 @@ export function ReferralProgram() {
               {activeInvitesCount} / {maxInvites}
             </Badge>
             <span className="text-muted-foreground">
-              активних кодів (які ще не досягли {settings?.milestone_generations || 50} генерацій)
+              {t("referral.activeCodes").replace("{milestone}", String(settings?.milestone_generations || 50))}
             </span>
           </div>
           <Button onClick={generateCode} disabled={generating || !canGenerateCode}>
             {generating ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Генерація...
+                {t("common.loading")}
               </>
             ) : !canGenerateCode ? (
               <>
                 <Gift className="h-4 w-4 mr-2" />
-                Ліміт досягнуто
+                {t("referral.limitReached")}
               </>
             ) : (
               <>
                 <Gift className="h-4 w-4 mr-2" />
-                Згенерувати реферальний код
+                {t("referral.generateCode")}
               </>
             )}
           </Button>
@@ -341,18 +342,18 @@ export function ReferralProgram() {
       {invites.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Мої реферальні коди</CardTitle>
+            <CardTitle>{t("referral.myCodes")}</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Код</TableHead>
-                  <TableHead>Створено</TableHead>
-                  <TableHead>Статус</TableHead>
-                  <TableHead>Команда</TableHead>
+                  <TableHead>{t("team.code")}</TableHead>
+                  <TableHead>{t("team.createdAt")}</TableHead>
+                  <TableHead>{t("balance.status")}</TableHead>
+                  <TableHead>{t("sidebar.team")}</TableHead>
                   <TableHead>Milestone</TableHead>
-                  <TableHead>Дії</TableHead>
+                  <TableHead>{t("team.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -365,15 +366,15 @@ export function ReferralProgram() {
                     <TableCell>
                       {invite.used_at ? (
                         <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">
-                          Використано
+                          {t("referral.used")}
                         </Badge>
                       ) : invite.is_active ? (
                         <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/30">
-                          Активний
+                          {t("team.active")}
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="bg-muted text-muted-foreground">
-                          Неактивний
+                          {t("referral.inactive")}
                         </Badge>
                       )}
                     </TableCell>
@@ -385,11 +386,11 @@ export function ReferralProgram() {
                         invite.milestone_reached ? (
                           <Badge variant="default" className="bg-green-500">
                             <Check className="h-3 w-3 mr-1" />
-                            Досягнуто
+                            {t("referral.achieved")}
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="text-muted-foreground">
-                            В процесі
+                            {t("referral.inProgress")}
                           </Badge>
                         )
                       ) : "-"}
@@ -421,17 +422,17 @@ export function ReferralProgram() {
       {rewards.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Історія винагород</CardTitle>
+            <CardTitle>{t("referral.rewardsHistory")}</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Дата</TableHead>
-                  <TableHead>Тип</TableHead>
-                  <TableHead>Сума</TableHead>
-                  <TableHead>Статус</TableHead>
-                  <TableHead>Коментар</TableHead>
+                  <TableHead>{t("balance.date")}</TableHead>
+                  <TableHead>{t("balance.type")}</TableHead>
+                  <TableHead>{t("balance.amount")}</TableHead>
+                  <TableHead>{t("balance.status")}</TableHead>
+                  <TableHead>{t("balance.adminComment")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
