@@ -874,12 +874,14 @@ async function runGeneration({
   aiModel,
   layoutStyle,
   imageSource = "basic",
+  siteName,
 }: {
   prompt: string;
   language?: string;
   aiModel: "junior" | "senior";
   layoutStyle?: string;
   imageSource?: "basic" | "ai";
+  siteName?: string;
 }): Promise<GenerationResult> {
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
   if (!openaiKey) {
@@ -897,6 +899,11 @@ async function runGeneration({
     ? `\n\nIMPORTANT: The website MUST be in ${language}. All text, buttons, navigation, and content should be in this language.`
     : "";
 
+  // Add site name instruction if provided
+  const siteNameInstruction = siteName
+    ? `\n\nCRITICAL SITE NAME REQUIREMENT: The website/business/brand name MUST be "${siteName}". Use this EXACT name in the logo, header, footer, page titles, meta tags, copyright, and all references to the business. Do NOT invent a different name.`
+    : "";
+
   const refineResponse = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -906,8 +913,8 @@ async function runGeneration({
     body: JSON.stringify({
       model: refineModel,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT + languageInstruction },
-        { role: "user", content: prompt },
+        { role: "system", content: SYSTEM_PROMPT + languageInstruction + siteNameInstruction },
+        { role: "user", content: prompt + siteNameInstruction },
       ],
       max_tokens: 1000,
     }),
@@ -1494,6 +1501,7 @@ CRITICAL GEO REQUIREMENTS - ALL CONTENT MUST BE LOCALIZED FOR ${countryName.toUp
       aiModel,
       layoutStyle,
       imageSource,
+      siteName,
     });
 
     if (!result.success || !result.files) {
@@ -1543,6 +1551,7 @@ CRITICAL GEO REQUIREMENTS - ALL CONTENT MUST BE LOCALIZED FOR ${countryName.toUp
           files_data: result.files,
           zip_data: zipBase64,
           error_message: null,
+          completed_at: new Date().toISOString(),
         })
         .eq("id", historyEntry.id);
     } catch (e) {
