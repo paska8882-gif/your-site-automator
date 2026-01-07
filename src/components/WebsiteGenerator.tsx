@@ -2138,9 +2138,10 @@ export function WebsiteGenerator() {
             {/* Standard Mode Options - show for non-admins OR when admin selects standard mode */}
             {(!isAdmin || adminGenerationMode === "standard") && (
               <>
-            {/* Compact row: Language, Style, Geo, Quantity */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
-              {/* Language Multi-Select Dropdown */}
+            {/* Compact row: Language, Style, Geo, Quantity - hide Language & Geo when VIP mode is active */}
+            <div className={`grid grid-cols-1 gap-2 ${isVipMode ? 'sm:grid-cols-2' : 'sm:grid-cols-4'}`}>
+              {/* Language Multi-Select Dropdown - hide in VIP mode */}
+              {!isVipMode && (
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Мова</Label>
                 <Popover>
@@ -2192,6 +2193,7 @@ export function WebsiteGenerator() {
                   </PopoverContent>
                 </Popover>
               </div>
+              )}
 
               {/* Style Multi-Select Dropdown */}
               <div className="space-y-1.5">
@@ -2260,7 +2262,8 @@ export function WebsiteGenerator() {
                 </Popover>
               </div>
 
-              {/* Geo Select */}
+              {/* Geo Select - hide in VIP mode */}
+              {!isVipMode && (
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Гео</Label>
                 <Popover>
@@ -2320,6 +2323,7 @@ export function WebsiteGenerator() {
                   </PopoverContent>
                 </Popover>
               </div>
+              )}
 
               {/* Quantity */}
               <div className="space-y-1.5">
