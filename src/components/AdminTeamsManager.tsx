@@ -25,6 +25,7 @@ import {
   UserPlus,
   Ticket
 } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Admin {
   user_id: string;
@@ -76,6 +77,7 @@ export const AdminTeamsManager = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [teams, setTeams] = useState<Team[]>([]);
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [loading, setLoading] = useState(true);
@@ -243,9 +245,9 @@ export const AdminTeamsManager = () => {
       .eq("id", teamId);
 
     if (error) {
-      toast({ title: "Помилка", description: "Не вдалося призначити адміністратора", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("admin.teamsAssignAdminError"), variant: "destructive" });
     } else {
-      toast({ title: "Збережено", description: "Адміністратора призначено" });
+      toast({ title: t("common.saved"), description: t("admin.teamsAdminAssigned") });
       fetchTeams();
     }
   };
@@ -257,11 +259,11 @@ export const AdminTeamsManager = () => {
       .eq("id", teamId);
 
     if (error) {
-      toast({ title: "Помилка", description: "Не вдалося оновити ліміт кредиту", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("admin.teamsCreditLimitError"), variant: "destructive" });
     } else {
       // Update local state
       setTeams(teams.map(t => t.id === teamId ? { ...t, credit_limit: creditLimit } : t));
-      toast({ title: "Збережено", description: `Ліміт кредиту: $${creditLimit}` });
+      toast({ title: t("common.saved"), description: t("admin.teamsCreditLimitSaved").replace("{amount}", creditLimit.toString()) });
     }
   };
 
@@ -329,8 +331,8 @@ export const AdminTeamsManager = () => {
 
     if (teamError || !team) {
       toast({
-        title: "Помилка",
-        description: "Не вдалося створити команду",
+        title: t("common.error"),
+        description: t("admin.teamsCreateError"),
         variant: "destructive"
       });
       setCreating(false);
@@ -349,14 +351,14 @@ export const AdminTeamsManager = () => {
 
     if (codeError) {
       toast({
-        title: "Помилка",
-        description: "Не вдалося створити інвайт-код для Owner",
+        title: t("common.error"),
+        description: t("admin.teamsOwnerCodeError"),
         variant: "destructive"
       });
     } else {
       toast({
-        title: "Команду створено",
-        description: `${newTeamName} - код для Owner: ${ownerCode}`
+        title: t("admin.teamsCreated"),
+        description: t("admin.teamsOwnerCodeCreated").replace("{name}", newTeamName).replace("{code}", ownerCode)
       });
       setNewTeamName("");
       fetchTeams();
@@ -368,7 +370,7 @@ export const AdminTeamsManager = () => {
     await navigator.clipboard.writeText(code);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
-    toast({ title: "Скопійовано", description: code });
+    toast({ title: t("common.copied"), description: code });
   };
 
   const handleGenerateNewOwnerCode = async (teamId: string, teamName: string) => {
@@ -392,9 +394,9 @@ export const AdminTeamsManager = () => {
       });
 
     if (error) {
-      toast({ title: "Помилка", description: "Не вдалося створити новий код", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("admin.teamsNewCodeError"), variant: "destructive" });
     } else {
-      toast({ title: "Новий код створено", description: `${teamName}: ${newCode}` });
+      toast({ title: t("admin.teamsNewCodeCreated"), description: `${teamName}: ${newCode}` });
       fetchTeams();
     }
   };
@@ -452,9 +454,9 @@ export const AdminTeamsManager = () => {
       .eq("user_id", userId);
     
     if (error) {
-      toast({ title: "Помилка", description: "Не вдалося призначити власника", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("admin.teamsAssignOwnerError"), variant: "destructive" });
     } else {
-      toast({ title: "Збережено", description: "Власника команди призначено" });
+      toast({ title: t("common.saved"), description: t("admin.teamsOwnerAssigned") });
       setShowOwnerDialog(false);
       setOwnerDialogTeam(null);
       fetchTeams();

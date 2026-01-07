@@ -23,6 +23,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface InviteCode {
   id: string;
@@ -52,6 +53,7 @@ const generateCode = () => {
 export const InviteCodesManager = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [codes, setCodes] = useState<InviteCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -146,13 +148,13 @@ export const InviteCodesManager = () => {
 
     if (error) {
       toast({
-        title: "Помилка",
-        description: "Не вдалося створити код",
+        title: t("common.error"),
+        description: t("admin.inviteCodesCreateError"),
         variant: "destructive"
       });
     } else {
       toast({
-        title: "Код створено",
+        title: t("admin.inviteCodesCreated"),
         description: newCode
       });
       fetchCodes();
@@ -165,7 +167,7 @@ export const InviteCodesManager = () => {
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
     toast({
-      title: "Скопійовано",
+      title: t("common.copied"),
       description: code
     });
   };
@@ -178,8 +180,8 @@ export const InviteCodesManager = () => {
 
     if (error) {
       toast({
-        title: "Помилка",
-        description: "Не вдалося оновити код",
+        title: t("common.error"),
+        description: t("admin.inviteCodesUpdateError"),
         variant: "destructive"
       });
     } else {
@@ -199,14 +201,14 @@ export const InviteCodesManager = () => {
 
     if (error) {
       toast({
-        title: "Помилка",
-        description: "Не вдалося деактивувати коди",
+        title: t("common.error"),
+        description: t("admin.inviteCodesDeactivateError"),
         variant: "destructive"
       });
     } else {
       toast({
-        title: "Успішно",
-        description: `Деактивовано ${selectedIds.size} кодів`
+        title: t("common.success"),
+        description: t("admin.inviteCodesDeactivated").replace("{count}", selectedIds.size.toString())
       });
       fetchCodes();
     }
@@ -253,7 +255,7 @@ export const InviteCodesManager = () => {
     
     codesToGroup.forEach(code => {
       const key = code.team_id || "no-team";
-      const name = code.team_name || "Без команди";
+      const name = code.team_name || t("admin.inviteCodesNoTeam");
       
       if (!groups[key]) {
         groups[key] = { name, codes: [] };
@@ -293,11 +295,11 @@ export const InviteCodesManager = () => {
           )}
           <code className="font-mono text-[10px] bg-muted px-1.5 py-0.5 rounded">{code.code}</code>
           {code.used_by ? (
-            <Badge variant="secondary" className="text-[10px] px-1 py-0">Використано</Badge>
+            <Badge variant="secondary" className="text-[10px] px-1 py-0">{t("admin.inviteCodesUsed")}</Badge>
           ) : code.is_active ? (
-            <Badge variant="default" className="bg-green-500 text-[10px] px-1 py-0">Активний</Badge>
+            <Badge variant="default" className="bg-green-500 text-[10px] px-1 py-0">{t("admin.inviteCodesActive")}</Badge>
           ) : (
-            <Badge variant="outline" className="text-[10px] px-1 py-0">Неактивний</Badge>
+            <Badge variant="outline" className="text-[10px] px-1 py-0">{t("admin.inviteCodesInactive")}</Badge>
           )}
           {code.assigned_role && (
             <Badge variant="outline" className="text-[10px] px-1 py-0 capitalize">{code.assigned_role}</Badge>
@@ -311,7 +313,7 @@ export const InviteCodesManager = () => {
                 {copiedId === code.id ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
               </Button>
               <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1" onClick={() => handleToggleActive(code.id, code.is_active)}>
-                Деактив
+                {t("admin.inviteCodesDeactivate")}
               </Button>
             </>
           )}
@@ -322,18 +324,18 @@ export const InviteCodesManager = () => {
       <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
         <div className="flex items-center gap-1">
           <User className="h-2.5 w-2.5" />
-          <span>Створив: {code.creator_name}</span>
+          <span>{t("admin.inviteCodesCreatedBy")}: {code.creator_name}</span>
         </div>
         {code.team_name && (
           <div className="flex items-center gap-1">
             <Users className="h-2.5 w-2.5" />
-            <span>Команда: {code.team_name}</span>
+            <span>{t("admin.inviteCodesTeam")}: {code.team_name}</span>
           </div>
         )}
         {code.used_by && (
           <div className="flex items-center gap-1 text-blue-500">
             <Check className="h-2.5 w-2.5" />
-            <span>Використав: {code.user_name}</span>
+            <span>{t("admin.inviteCodesUsedBy")}: {code.user_name}</span>
             {code.used_at && (
               <span>({new Date(code.used_at).toLocaleDateString("uk-UA")})</span>
             )}
@@ -384,7 +386,7 @@ export const InviteCodesManager = () => {
         <CardTitle className="flex items-center justify-between text-sm">
           <div className="flex items-center gap-1.5">
             <Ticket className="h-3.5 w-3.5" />
-            Інвайт-коди
+            {t("admin.inviteCodesTitle")}
           </div>
           <div className="flex items-center gap-1">
             <Button 
@@ -401,7 +403,7 @@ export const InviteCodesManager = () => {
             </Button>
             <Button onClick={handleGenerateCode} disabled={generating} size="sm" className="h-6 text-xs px-2">
               {generating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
-              Створити
+              {t("admin.inviteCodesCreate")}
             </Button>
           </div>
         </CardTitle>
@@ -416,8 +418,8 @@ export const InviteCodesManager = () => {
                 <SelectValue placeholder="Команда" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all" className="text-xs">Всі команди</SelectItem>
-                <SelectItem value="none" className="text-xs">Без команди</SelectItem>
+                <SelectItem value="all" className="text-xs">{t("admin.inviteCodesAllTeams")}</SelectItem>
+                <SelectItem value="none" className="text-xs">{t("admin.inviteCodesNoTeam")}</SelectItem>
                 {teams.map(team => (
                   <SelectItem key={team.id} value={team.id} className="text-xs">{team.name}</SelectItem>
                 ))}
@@ -431,7 +433,7 @@ export const InviteCodesManager = () => {
                 <SelectValue placeholder="Роль" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all" className="text-xs">Всі ролі</SelectItem>
+                <SelectItem value="all" className="text-xs">{t("admin.inviteCodesAllRoles")}</SelectItem>
                 {uniqueRoles.map(role => (
                   <SelectItem key={role} value={role} className="text-xs capitalize">{role}</SelectItem>
                 ))}
@@ -444,15 +446,15 @@ export const InviteCodesManager = () => {
         <div className="grid grid-cols-3 gap-2 flex-shrink-0">
           <div className="text-center p-1.5 rounded-md bg-muted">
             <div className="text-sm font-bold">{filteredCodes.length}</div>
-            <div className="text-[10px] text-muted-foreground">Всього</div>
+            <div className="text-[10px] text-muted-foreground">{t("admin.inviteCodesTotal")}</div>
           </div>
           <div className="text-center p-1.5 rounded-md bg-muted">
             <div className="text-sm font-bold text-green-500">{activeCodes.length}</div>
-            <div className="text-[10px] text-muted-foreground">Активних</div>
+            <div className="text-[10px] text-muted-foreground">{t("admin.inviteCodesActiveCount")}</div>
           </div>
           <div className="text-center p-1.5 rounded-md bg-muted">
             <div className="text-sm font-bold text-blue-500">{inactiveCodes.length}</div>
-            <div className="text-[10px] text-muted-foreground">Використано</div>
+            <div className="text-[10px] text-muted-foreground">{t("admin.inviteCodesUsedCount")}</div>
           </div>
         </div>
 
@@ -462,15 +464,15 @@ export const InviteCodesManager = () => {
             <Loader2 className="h-4 w-4 animate-spin" />
           </div>
         ) : codes.length === 0 ? (
-          <p className="text-center text-muted-foreground py-2 text-xs">Немає кодів</p>
+          <p className="text-center text-muted-foreground py-2 text-xs">{t("admin.inviteCodesNoCodes")}</p>
         ) : (
           <Tabs defaultValue="active" className="flex-1 flex flex-col min-h-0">
             <TabsList className="grid w-full grid-cols-2 h-7 flex-shrink-0">
               <TabsTrigger value="active" className="text-xs h-6">
-                Активні ({activeCodes.length})
+                {t("admin.inviteCodesActiveTab")} ({activeCodes.length})
               </TabsTrigger>
               <TabsTrigger value="inactive" className="text-xs h-6">
-                Неактивні ({inactiveCodes.length})
+                {t("admin.inviteCodesInactiveTab")} ({inactiveCodes.length})
               </TabsTrigger>
             </TabsList>
             

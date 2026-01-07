@@ -31,6 +31,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } fro
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { uk } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Team {
   id: string;
@@ -89,6 +90,7 @@ interface BalanceTransaction {
 
 export function AdminFinanceTab() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamPricing, setTeamPricing] = useState<Record<string, TeamPricing>>({});
   const [generations, setGenerations] = useState<GenerationWithFinance[]>([]);
@@ -185,7 +187,7 @@ export function AdminFinanceTab() {
       setGenerations(enrichedGenerations);
     } catch (error) {
       console.error("Error fetching finance data:", error);
-      toast.error("Помилка завантаження даних");
+      toast.error(t("admin.financeLoadError"));
     } finally {
       setLoading(false);
     }
@@ -285,12 +287,12 @@ export function AdminFinanceTab() {
         await supabase.from("team_pricing").insert(pricingData);
       }
 
-      toast.success("Ціни збережено");
+      toast.success(t("admin.financePricesSaved"));
       fetchData();
       setEditingPrices(prev => { const newPrices = { ...prev }; delete newPrices[teamId]; return newPrices; });
     } catch (error) {
       console.error("Error saving pricing:", error);
-      toast.error("Помилка збереження цін");
+      toast.error(t("admin.financePricesSaveError"));
     } finally {
       setSavingPricing(null);
     }
@@ -302,7 +304,7 @@ export function AdminFinanceTab() {
     const externalPrice = bulkPrices.external ? parseFloat(bulkPrices.external) : null;
 
     if (htmlPrice === null && reactPrice === null && externalPrice === null) {
-      toast.error("Введіть хоча б одну ціну");
+      toast.error(t("admin.financeEnterPrice"));
       return;
     }
 
@@ -326,12 +328,12 @@ export function AdminFinanceTab() {
         }
       }
 
-      toast.success(`Ціни оновлено для ${teams.length} команд`);
+      toast.success(t("admin.financeBulkPricesUpdated").replace("{count}", teams.length.toString()));
       setBulkPrices({ html: "", react: "", external: "" });
       fetchData();
     } catch (error) {
       console.error("Error saving bulk pricing:", error);
-      toast.error("Помилка масового оновлення цін");
+      toast.error(t("admin.financeBulkPricesError"));
     } finally {
       setSavingBulk(false);
     }
@@ -342,17 +344,17 @@ export function AdminFinanceTab() {
     const note = topUpNotes[teamId]?.trim() || "";
     
     if (amount <= 0) {
-      toast.error("Введіть суму більше 0");
+      toast.error(t("admin.financeEnterAmountGreater"));
       return;
     }
 
     if (!note) {
-      toast.error("Введіть примітку (посилання на квитанцію)");
+      toast.error(t("admin.financeEnterNote"));
       return;
     }
 
     if (!user) {
-      toast.error("Помилка авторизації");
+      toast.error(t("admin.financeAuthError"));
       return;
     }
 
@@ -379,13 +381,13 @@ export function AdminFinanceTab() {
 
       if (updateError) throw updateError;
 
-      toast.success(`Баланс поповнено на $${amount.toFixed(2)}`);
+      toast.success(t("admin.financeBalanceTopUp").replace("{amount}", amount.toFixed(2)));
       setTopUpAmounts(prev => ({ ...prev, [teamId]: "" }));
       setTopUpNotes(prev => ({ ...prev, [teamId]: "" }));
       fetchData();
     } catch (error) {
       console.error("Error topping up balance:", error);
-      toast.error("Помилка поповнення балансу");
+      toast.error(t("admin.financeBalanceTopUpError"));
     } finally {
       setSavingBalance(null);
     }
@@ -574,34 +576,34 @@ export function AdminFinanceTab() {
     <div className="space-y-3">
       <AdminPageHeader 
         icon={DollarSign} 
-        title="Фінанси" 
-        description="Аналітика доходів, витрат та прибутку" 
+        title={t("admin.financeTitle")} 
+        description={t("admin.financeDescription")} 
       />
       {/* Summary inline */}
       <div className="flex flex-wrap gap-2">
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
           <DollarSign className="h-3 w-3 text-green-600" />
-          <span className="text-xs text-muted-foreground">Дохід:</span>
+          <span className="text-xs text-muted-foreground">{t("admin.financeIncome")}:</span>
           <span className="text-sm font-bold text-green-600">${totalSales.toFixed(2)}</span>
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
           <TrendingDown className="h-3 w-3 text-red-600" />
-          <span className="text-xs text-muted-foreground">Витрати:</span>
+          <span className="text-xs text-muted-foreground">{t("admin.financeExpenses")}:</span>
           <span className="text-sm font-bold text-red-600">${totalCosts.toFixed(2)}</span>
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
           <TrendingUp className="h-3 w-3" />
-          <span className="text-xs text-muted-foreground">Прибуток:</span>
+          <span className="text-xs text-muted-foreground">{t("admin.financeProfit")}:</span>
           <span className={`text-sm font-bold ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
             ${totalProfit.toFixed(2)}
           </span>
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-amber-500/10 border-amber-500/30">
-          <span className="text-xs text-amber-600">Зовн:</span>
+          <span className="text-xs text-amber-600">{t("admin.financeExternal")}:</span>
           <span className="text-sm font-bold text-amber-600">{externalCount}</span>
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
-          <span className="text-xs text-muted-foreground">Внутр:</span>
+          <span className="text-xs text-muted-foreground">{t("admin.financeInternal")}:</span>
           <span className="text-sm font-bold">{internalCount}</span>
         </div>
       </div>
@@ -613,16 +615,16 @@ export function AdminFinanceTab() {
           <CardHeader className="py-2 px-3 flex flex-row items-center justify-between">
             <div className="flex items-center gap-1.5">
               <BarChart3 className="h-3 w-3 text-muted-foreground" />
-              <CardTitle className="text-xs font-medium">Динаміка по днях</CardTitle>
+              <CardTitle className="text-xs font-medium">{t("admin.financeDailyDynamics")}</CardTitle>
             </div>
             <Select value={chartPeriod} onValueChange={(v) => setChartPeriod(v as "7" | "14" | "30")}>
               <SelectTrigger className="w-20 h-5 text-[10px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="7" className="text-xs">7 днів</SelectItem>
-                <SelectItem value="14" className="text-xs">14 днів</SelectItem>
-                <SelectItem value="30" className="text-xs">30 днів</SelectItem>
+                <SelectItem value="7" className="text-xs">{t("admin.finance7Days")}</SelectItem>
+                <SelectItem value="14" className="text-xs">{t("admin.finance14Days")}</SelectItem>
+                <SelectItem value="30" className="text-xs">{t("admin.finance30Days")}</SelectItem>
               </SelectContent>
             </Select>
           </CardHeader>
@@ -636,8 +638,8 @@ export function AdminFinanceTab() {
                     contentStyle={{ fontSize: 10, padding: '4px 8px' }}
                     formatter={(value: number) => [`$${value.toFixed(2)}`, '']}
                   />
-                  <Bar dataKey="income" name="Дохід" fill="#22c55e" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="expenses" name="Витрати" fill="#ef4444" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="income" name={t("admin.financeIncome")} fill="#22c55e" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="expenses" name={t("admin.financeExpenses")} fill="#ef4444" radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -649,7 +651,7 @@ export function AdminFinanceTab() {
           <CardHeader className="py-2 px-3">
             <div className="flex items-center gap-1.5">
               <BarChart3 className="h-3 w-3 text-muted-foreground" />
-              <CardTitle className="text-xs font-medium">По командах</CardTitle>
+              <CardTitle className="text-xs font-medium">{t("admin.financeByTeams")}</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="px-3 pb-3">
@@ -662,8 +664,8 @@ export function AdminFinanceTab() {
                     contentStyle={{ fontSize: 10, padding: '4px 8px' }}
                     formatter={(value: number) => [`$${value.toFixed(2)}`, '']}
                   />
-                  <Bar dataKey="income" name="Дохід" fill="#22c55e" radius={[0, 2, 2, 0]} />
-                  <Bar dataKey="expenses" name="Витрати" fill="#ef4444" radius={[0, 2, 2, 0]} />
+                  <Bar dataKey="income" name={t("admin.financeIncome")} fill="#22c55e" radius={[0, 2, 2, 0]} />
+                  <Bar dataKey="expenses" name={t("admin.financeExpenses")} fill="#ef4444" radius={[0, 2, 2, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -675,7 +677,7 @@ export function AdminFinanceTab() {
           <CardHeader className="py-2 px-3">
             <div className="flex items-center gap-1.5">
               <BarChart3 className="h-3 w-3 text-muted-foreground" />
-              <CardTitle className="text-xs font-medium">Витрати AI по днях</CardTitle>
+              <CardTitle className="text-xs font-medium">{t("admin.financeAICostsByDay")}</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="px-3 pb-3">
@@ -690,7 +692,7 @@ export function AdminFinanceTab() {
                   />
                   <Bar dataKey="junior" name="Junior AI" fill="#3b82f6" radius={[2, 2, 0, 0]} />
                   <Bar dataKey="senior" name="Senior AI" fill="#8b5cf6" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="external" name="Зовнішня" fill="#f59e0b" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="external" name={t("admin.financeExternal")} fill="#f59e0b" radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -702,7 +704,7 @@ export function AdminFinanceTab() {
           <CardHeader className="py-2 px-3 flex flex-row items-center justify-between">
             <div className="flex items-center gap-1.5">
               <BarChart3 className="h-3 w-3 text-muted-foreground" />
-              <CardTitle className="text-xs font-medium">Витрати по моделях</CardTitle>
+              <CardTitle className="text-xs font-medium">{t("admin.financeByModels")}</CardTitle>
             </div>
             <Button
               size="sm"
@@ -710,7 +712,7 @@ export function AdminFinanceTab() {
               className="h-5 text-[10px] px-2"
               onClick={() => setDetailedModelView(!detailedModelView)}
             >
-              {detailedModelView ? "Детально" : "Простий"}
+              {detailedModelView ? t("admin.financeDetailed") : t("admin.financeSimple")}
             </Button>
           </CardHeader>
           <CardContent className="px-3 pb-3">
@@ -726,11 +728,11 @@ export function AdminFinanceTab() {
                   <Tooltip 
                     contentStyle={{ fontSize: 10, padding: '4px 8px' }}
                     formatter={(value: number, name: string) => [
-                      name === 'cost' ? `$${value.toFixed(4)}` : name === 'avgCost' ? `$${value.toFixed(4)}/шт` : value,
-                      name === 'cost' ? 'Загалом' : name === 'count' ? 'Кількість' : 'Середня'
+                      name === 'cost' ? `$${value.toFixed(4)}` : name === 'avgCost' ? `$${value.toFixed(4)}/${t("admin.financePerPiece")}` : value,
+                      name === 'cost' ? t("admin.financeTotal") : name === 'count' ? t("admin.financeQuantity") : t("admin.financeAverage")
                     ]}
                   />
-                  <Bar dataKey="cost" name="Загалом" fill="#f59e0b" radius={[0, 2, 2, 0]} />
+                  <Bar dataKey="cost" name={t("admin.financeTotal")} fill="#f59e0b" radius={[0, 2, 2, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -738,8 +740,8 @@ export function AdminFinanceTab() {
               {(detailedModelView ? aiCostsBySpecificModelData : aiCostsByModelData).map(m => (
                 <div key={m.name} className="text-center p-1 rounded bg-muted/30">
                   <div className="font-medium truncate">{m.name}</div>
-                  <div className="text-muted-foreground">{m.count} шт • ${m.cost.toFixed(4)}</div>
-                  <div className="text-muted-foreground">~${m.avgCost.toFixed(4)}/шт</div>
+                  <div className="text-muted-foreground">{m.count} {t("admin.financePcs")} • ${m.cost.toFixed(4)}</div>
+                  <div className="text-muted-foreground">~${m.avgCost.toFixed(4)}/{t("admin.financePcs")}</div>
                 </div>
               ))}
             </div>
@@ -754,13 +756,13 @@ export function AdminFinanceTab() {
           <CardHeader className="py-2 px-3">
             <div className="flex items-center gap-1.5">
               <Settings className="h-3 w-3 text-muted-foreground" />
-              <CardTitle className="text-xs font-medium">Ціни команд</CardTitle>
+              <CardTitle className="text-xs font-medium">{t("admin.financeTeamPrices")}</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="px-3 pb-3">
             {/* Bulk pricing row */}
             <div className="flex items-center gap-1 py-0.5 mb-1.5 px-1 rounded border-2 border-dashed border-primary/30 bg-primary/5">
-              <span className="font-medium text-[9px] w-20 text-primary">Всі:</span>
+              <span className="font-medium text-[9px] w-20 text-primary">{t("admin.financeAll")}:</span>
               <span className="text-[9px] text-muted-foreground">H:</span>
               <Input type="number" step="0.01" placeholder="7" className="w-9 h-4 text-[9px] px-1"
                 value={bulkPrices.html}
@@ -810,7 +812,7 @@ export function AdminFinanceTab() {
           <CardHeader className="py-2 px-3">
             <div className="flex items-center gap-1.5">
               <Wallet className="h-3 w-3 text-muted-foreground" />
-              <CardTitle className="text-xs font-medium">Баланси</CardTitle>
+              <CardTitle className="text-xs font-medium">{t("admin.financeBalances")}</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="px-3 pb-3">
@@ -825,7 +827,7 @@ export function AdminFinanceTab() {
                     className="w-10 h-4 text-[9px] px-1"
                     value={topUpAmounts[team.id] || ""}
                     onChange={(e) => setTopUpAmounts(prev => ({ ...prev, [team.id]: e.target.value }))} />
-                  <Input type="text" placeholder="Квитанція" 
+                  <Input type="text" placeholder={t("admin.financeReceipt")} 
                     className="flex-1 h-4 text-[9px] px-1"
                     value={topUpNotes[team.id] || ""}
                     onChange={(e) => setTopUpNotes(prev => ({ ...prev, [team.id]: e.target.value }))} />
@@ -848,7 +850,7 @@ export function AdminFinanceTab() {
       <Card>
         <CardHeader className="py-2 px-3">
           <div className="flex items-center justify-between mb-2">
-            <CardTitle className="text-xs font-medium">Історія генерацій</CardTitle>
+            <CardTitle className="text-xs font-medium">{t("admin.financeGenerationHistory")}</CardTitle>
             <Badge variant="secondary" className="text-[10px]">
               {filteredGenerations.length}/{generations.length}
             </Badge>
@@ -861,7 +863,7 @@ export function AdminFinanceTab() {
                 <SelectValue placeholder="Команда" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all" className="text-[11px]">Всі команди</SelectItem>
+                <SelectItem value="all" className="text-[11px]">{t("admin.financeAllTeams")}</SelectItem>
                 {[...new Set(generations.map(g => g.team_name).filter(Boolean))].map((teamName) => (
                   <SelectItem key={teamName} value={teamName!} className="text-[11px]">{teamName}</SelectItem>
                 ))}
@@ -873,7 +875,7 @@ export function AdminFinanceTab() {
                 <SelectValue placeholder="Юзер" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all" className="text-[11px]">Всі юзери</SelectItem>
+                <SelectItem value="all" className="text-[11px]">{t("admin.financeAllUsers")}</SelectItem>
                 {uniqueUsers.map((userName) => (
                   <SelectItem key={userName} value={userName} className="text-[11px]">{userName}</SelectItem>
                 ))}
@@ -885,7 +887,7 @@ export function AdminFinanceTab() {
                 <SelectValue placeholder="Тип" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all" className="text-[11px]">Всі</SelectItem>
+                <SelectItem value="all" className="text-[11px]">{t("admin.financeAllTypes")}</SelectItem>
                 <SelectItem value="html" className="text-[11px]">HTML</SelectItem>
                 <SelectItem value="react" className="text-[11px]">React</SelectItem>
               </SelectContent>
@@ -896,7 +898,7 @@ export function AdminFinanceTab() {
                 <SelectValue placeholder="AI" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all" className="text-[11px]">Всі</SelectItem>
+                <SelectItem value="all" className="text-[11px]">{t("admin.financeAllTypes")}</SelectItem>
                 <SelectItem value="junior" className="text-[11px]">Jr</SelectItem>
                 <SelectItem value="senior" className="text-[11px]">Sr</SelectItem>
               </SelectContent>
@@ -906,7 +908,7 @@ export function AdminFinanceTab() {
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className={cn("h-6 text-[11px] px-2 justify-start", !dateFromFilter && "text-muted-foreground")}>
                   <CalendarIcon className="h-3 w-3 mr-1" />
-                  {dateFromFilter ? format(dateFromFilter, "dd.MM.yy") : "Від"}
+                  {dateFromFilter ? format(dateFromFilter, "dd.MM.yy") : t("admin.financeFrom")}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -925,7 +927,7 @@ export function AdminFinanceTab() {
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className={cn("h-6 text-[11px] px-2 justify-start", !dateToFilter && "text-muted-foreground")}>
                   <CalendarIcon className="h-3 w-3 mr-1" />
-                  {dateToFilter ? format(dateToFilter, "dd.MM.yy") : "До"}
+                  {dateToFilter ? format(dateToFilter, "dd.MM.yy") : t("admin.financeTo")}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -963,14 +965,14 @@ export function AdminFinanceTab() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-[11px] py-1.5">Сайт</TableHead>
-                <TableHead className="text-[11px] py-1.5">Команда</TableHead>
-                <TableHead className="text-[11px] py-1.5">Юзер</TableHead>
-                <TableHead className="text-[11px] py-1.5">Тип</TableHead>
+                <TableHead className="text-[11px] py-1.5">{t("admin.financeSite")}</TableHead>
+                <TableHead className="text-[11px] py-1.5">{t("admin.financeTeam")}</TableHead>
+                <TableHead className="text-[11px] py-1.5">{t("admin.financeUser")}</TableHead>
+                <TableHead className="text-[11px] py-1.5">{t("admin.financeType")}</TableHead>
                 <TableHead className="text-[11px] py-1.5">AI</TableHead>
-                <TableHead className="text-[11px] py-1.5 text-right">Витр</TableHead>
-                <TableHead className="text-[11px] py-1.5 text-right">Прод</TableHead>
-                <TableHead className="text-[11px] py-1.5">Дата</TableHead>
+                <TableHead className="text-[11px] py-1.5 text-right">{t("admin.financeCost")}</TableHead>
+                <TableHead className="text-[11px] py-1.5 text-right">{t("admin.financeSale")}</TableHead>
+                <TableHead className="text-[11px] py-1.5">{t("admin.financeDate")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -995,7 +997,7 @@ export function AdminFinanceTab() {
               {paginatedGenerations.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center text-muted-foreground py-4 text-[11px]">
-                    Немає даних
+                    {t("admin.noData")}
                   </TableCell>
                 </TableRow>
               )}
@@ -1004,7 +1006,7 @@ export function AdminFinanceTab() {
               <tfoot>
                 <tr className="border-t bg-muted/50">
                   <td colSpan={5} className="text-[11px] py-1.5 px-3 font-medium">
-                    Всього: {filteredGenerations.length}
+                    {t("admin.financeTotal")}: {filteredGenerations.length}
                   </td>
                   <td className="text-[11px] py-1.5 px-3 text-right font-medium text-red-600">
                     ${totalCosts.toFixed(2)}
@@ -1087,19 +1089,19 @@ export function AdminFinanceTab() {
           <div className="flex-1 overflow-auto">
             <div className="grid grid-cols-4 gap-2 mb-3">
               <div className="p-2 rounded border bg-muted/50 text-center">
-                <div className="text-[10px] text-muted-foreground">Генерацій</div>
+                <div className="text-[10px] text-muted-foreground">{t("admin.financeGenerations")}</div>
                 <div className="text-sm font-medium">{teamTransactions.length}</div>
               </div>
               <div className="p-2 rounded border bg-muted/50 text-center">
-                <div className="text-[10px] text-muted-foreground">Продажі</div>
+                <div className="text-[10px] text-muted-foreground">{t("admin.financeSales")}</div>
                 <div className="text-sm font-medium text-green-600">${teamTotalSales.toFixed(2)}</div>
               </div>
               <div className="p-2 rounded border bg-muted/50 text-center">
-                <div className="text-[10px] text-muted-foreground">Витрати AI</div>
+                <div className="text-[10px] text-muted-foreground">{t("admin.financeAICosts")}</div>
                 <div className="text-sm font-medium text-red-600">${teamTotalCosts.toFixed(2)}</div>
               </div>
               <div className="p-2 rounded border bg-muted/50 text-center">
-                <div className="text-[10px] text-muted-foreground">Поповнень</div>
+                <div className="text-[10px] text-muted-foreground">{t("admin.financeDeposits")}</div>
                 <div className="text-sm font-medium text-blue-600">{balanceTransactions.length}</div>
               </div>
             </div>
@@ -1109,38 +1111,38 @@ export function AdminFinanceTab() {
               <div className="mb-4">
                 <div className="text-xs font-medium mb-2 flex items-center gap-1.5">
                   <Receipt className="h-3 w-3" />
-                  Історія поповнень
+                  {t("admin.financeDepositHistory")}
                 </div>
                 <div className="space-y-1 max-h-[150px] overflow-y-auto">
-                  {balanceTransactions.map((t) => (
-                    <div key={t.id} className="p-2 rounded border bg-blue-50 dark:bg-blue-950/30 text-xs flex items-center justify-between">
+                  {balanceTransactions.map((tx) => (
+                    <div key={tx.id} className="p-2 rounded border bg-blue-50 dark:bg-blue-950/30 text-xs flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-blue-600">+${t.amount.toFixed(2)}</span>
+                          <span className="font-medium text-blue-600">+${tx.amount.toFixed(2)}</span>
                           <span className="text-muted-foreground text-[10px]">
-                            ${t.balance_before.toFixed(2)} → ${t.balance_after.toFixed(2)}
+                            ${tx.balance_before.toFixed(2)} → ${tx.balance_after.toFixed(2)}
                           </span>
                         </div>
                         <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                          {t.note.startsWith('http') ? (
+                          {tx.note.startsWith('http') ? (
                             <a 
-                              href={t.note} 
+                              href={tx.note} 
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="text-blue-500 hover:underline flex items-center gap-0.5"
                             >
                               <ExternalLink className="h-2.5 w-2.5" />
-                              Квитанція
+                              {t("admin.financeReceipt")}
                             </a>
                           ) : (
-                            <span className="truncate">{t.note}</span>
+                            <span className="truncate">{tx.note}</span>
                           )}
                         </div>
                       </div>
                       <div className="text-right ml-2">
-                        <div className="text-[10px] text-muted-foreground">{t.admin_display_name}</div>
+                        <div className="text-[10px] text-muted-foreground">{tx.admin_display_name}</div>
                         <div className="text-[10px] text-muted-foreground">
-                          {new Date(t.created_at).toLocaleDateString("uk-UA")}
+                          {new Date(tx.created_at).toLocaleDateString("uk-UA")}
                         </div>
                       </div>
                     </div>
@@ -1149,7 +1151,7 @@ export function AdminFinanceTab() {
               </div>
             )}
 
-            <div className="text-xs font-medium mb-2">Історія генерацій</div>
+            <div className="text-xs font-medium mb-2">{t("admin.financeGenerationHistory")}</div>
             
             {loadingTransactions ? (
               <div className="flex items-center justify-center py-4">
