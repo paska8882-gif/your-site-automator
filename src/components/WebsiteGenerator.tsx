@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Hash, Palette, ChevronDown, AlertTriangle, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp, Filter, Newspaper, MapPin, X, Plus, Star, Phone, Building2, Tag } from "lucide-react";
+import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Hash, Palette, ChevronDown, AlertTriangle, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp, Filter, Newspaper, MapPin, X, Plus, Star, Phone, Building2, Tag, Shuffle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -194,6 +194,67 @@ const playCompletionSound = (success: boolean) => {
 };
 
 const DRAFT_STORAGE_KEY = "website_generator_draft";
+
+// Random VIP data arrays
+const randomVipTopics = [
+  "Video Games", "Law Services", "Dental Care", "Real Estate",
+  "Pet Grooming", "Auto Repair", "Fitness Training", "Photography",
+  "Home Renovation", "Accounting", "Travel Agency", "Coffee Shop",
+  "Bakery", "Flower Delivery", "IT Consulting", "Wedding Planning",
+  "Restaurant", "Spa & Wellness", "Plumbing Services", "Insurance Agency",
+  "Hair Salon", "Yoga Studio", "Car Dealership", "Cleaning Services"
+];
+
+const randomVipAddressesByGeo: Record<string, string[]> = {
+  "us": ["123 Main St, New York, NY 10001", "456 Oak Ave, Los Angeles, CA 90001", "789 Pine Rd, Chicago, IL 60601", "321 Elm Blvd, Houston, TX 77001"],
+  "uk": ["10 Baker Street, London, W1U 3BW", "25 Queen Road, Manchester, M1 1AB", "42 King Lane, Birmingham, B1 1AA"],
+  "de": ["Hauptstraße 15, 10115 Berlin", "Bahnhofstraße 8, 80335 München", "Königstraße 22, 70173 Stuttgart"],
+  "ca": ["100 Maple Ave, Toronto, ON M5H 2N2", "200 Cedar St, Vancouver, BC V6B 1A1", "50 Oak Blvd, Montreal, QC H2Y 1C6"],
+  "au": ["1 George St, Sydney NSW 2000", "25 Collins St, Melbourne VIC 3000", "10 Queen St, Brisbane QLD 4000"],
+  "fr": ["15 Rue de Rivoli, 75001 Paris", "8 Avenue Jean Médecin, 06000 Nice"],
+  "es": ["Calle Gran Vía 28, 28013 Madrid", "Passeig de Gràcia 55, 08007 Barcelona"],
+  "it": ["Via del Corso 120, 00186 Roma", "Via Montenapoleone 8, 20121 Milano"],
+  "default": ["123 Business Center, Downtown", "456 Commerce Blvd, City Center", "789 Enterprise Ave, Business District"]
+};
+
+const randomVipPhonesByGeo: Record<string, string[]> = {
+  "us": ["+1 (555) 123-4567", "+1 (212) 555-7890", "+1 (310) 555-2345", "+1 (312) 555-6789"],
+  "uk": ["+44 20 7946 0958", "+44 161 555 1234", "+44 121 555 5678"],
+  "de": ["+49 30 12345678", "+49 89 87654321", "+49 711 55512345"],
+  "ca": ["+1 (416) 555-1234", "+1 (604) 555-5678", "+1 (514) 555-9012"],
+  "au": ["+61 2 9876 5432", "+61 3 8765 4321", "+61 7 5555 1234"],
+  "fr": ["+33 1 42 86 82 00", "+33 4 93 16 64 00"],
+  "es": ["+34 91 123 4567", "+34 93 987 6543"],
+  "it": ["+39 06 1234 5678", "+39 02 8765 4321"],
+  "default": ["+1 (555) 000-1234", "+44 20 1234 5678", "+49 30 55512345"]
+};
+
+const randomVipKeywordsByTopic: Record<string, string> = {
+  "Video Games": "gaming reviews, gameplay tips, PC games, console gaming, esports",
+  "Law Services": "legal advice, attorney consultation, court representation, legal documents",
+  "Dental Care": "teeth cleaning, dental implants, cosmetic dentistry, oral health",
+  "Real Estate": "property listings, home buying, real estate investment, property management",
+  "Pet Grooming": "dog grooming, cat care, pet spa, animal styling, pet hygiene",
+  "Auto Repair": "car maintenance, engine repair, brake service, oil change, auto diagnostics",
+  "Fitness Training": "personal training, weight loss, muscle building, workout plans",
+  "Photography": "portrait photography, event photos, wedding photographer, photo editing",
+  "Home Renovation": "kitchen remodeling, bathroom renovation, home improvement, interior design",
+  "Accounting": "tax preparation, bookkeeping, financial planning, business accounting",
+  "Travel Agency": "vacation packages, flight booking, hotel reservations, travel planning",
+  "Coffee Shop": "specialty coffee, espresso drinks, pastries, cafe atmosphere",
+  "Bakery": "fresh bread, custom cakes, pastries, wedding cakes, artisan baking",
+  "Flower Delivery": "fresh flowers, bouquet arrangements, wedding flowers, same-day delivery",
+  "IT Consulting": "tech solutions, network security, cloud services, IT support",
+  "Wedding Planning": "event coordination, venue selection, wedding decoration, bridal services",
+  "Restaurant": "fine dining, local cuisine, food delivery, catering services",
+  "Spa & Wellness": "massage therapy, facial treatments, relaxation, wellness programs",
+  "Plumbing Services": "pipe repair, drain cleaning, water heater, emergency plumbing",
+  "Insurance Agency": "life insurance, auto insurance, home insurance, insurance quotes",
+  "Hair Salon": "haircuts, hair coloring, styling, hair treatments, beauty salon",
+  "Yoga Studio": "yoga classes, meditation, mindfulness, wellness retreats",
+  "Car Dealership": "new cars, used vehicles, car financing, auto sales",
+  "Cleaning Services": "house cleaning, office cleaning, deep cleaning, maid service"
+};
 
 interface GeneratorDraft {
   siteNames: string[];
@@ -1742,10 +1803,44 @@ export function WebsiteGenerator() {
               {/* VIP Mode Fields */}
               {isVipMode && (
                 <div className="p-3 border border-amber-500/50 bg-amber-500/5 rounded-lg space-y-3">
-                  <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                    <Star className="h-4 w-4 fill-current" />
-                    <span className="text-sm font-medium">VIP режим генерації</span>
-                    <Badge variant="outline" className="text-amber-600 border-amber-500/50">+${teamPricing?.vipExtraPrice || 2}/сайт</Badge>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                      <Star className="h-4 w-4 fill-current" />
+                      <span className="text-sm font-medium">VIP режим генерації</span>
+                      <Badge variant="outline" className="text-amber-600 border-amber-500/50">+${teamPricing?.vipExtraPrice || 2}/сайт</Badge>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        // Pick random topic
+                        const topic = randomVipTopics[Math.floor(Math.random() * randomVipTopics.length)];
+                        
+                        // Generate domain from topic
+                        const domainBase = topic.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        const randomNum = Math.floor(Math.random() * 900) + 100;
+                        const domain = `${domainBase}${randomNum}.com`;
+                        
+                        // Get geo-specific data
+                        const geoKey = selectedGeo || "default";
+                        const addresses = randomVipAddressesByGeo[geoKey] || randomVipAddressesByGeo["default"];
+                        const phones = randomVipPhonesByGeo[geoKey] || randomVipPhonesByGeo["default"];
+                        
+                        const address = addresses[Math.floor(Math.random() * addresses.length)];
+                        const phone = phones[Math.floor(Math.random() * phones.length)];
+                        const keywords = randomVipKeywordsByTopic[topic] || "professional services, quality, expert, trusted";
+                        
+                        setVipDomain(domain);
+                        setVipAddress(address);
+                        setVipPhone(phone);
+                        setVipTopic(topic);
+                        setVipKeywords(keywords);
+                      }}
+                      className="h-7 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-100/50 dark:hover:bg-amber-900/30"
+                    >
+                      <Shuffle className="h-3 w-3 mr-1" />
+                      Рандом
+                    </Button>
                   </div>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
