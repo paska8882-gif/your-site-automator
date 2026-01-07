@@ -944,72 +944,118 @@ async function runGeneration({
     imageStrategy = await buildPexelsImageStrategy(prompt);
   }
 
-  // 4. Generate the PHP website
-  const generateResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${openaiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: generateModel,
-      messages: [
-        {
-          role: "system",
-          content: PHP_GENERATION_PROMPT + layoutDescription + "\n\n" + imageStrategy + "\n\n" + IMAGE_CSS,
-        },
-        {
-          role: "user",
-          content: `Create a COMPLETE, FULLY FUNCTIONAL multi-page PHP website based on this brief:
+  const requiredPaths = [
+    "includes/config.php",
+    "includes/header.php",
+    "includes/footer.php",
+    "index.php",
+    "about.php",
+    "services.php",
+    "contact.php",
+    "form-handler.php",
+    "thank-you.php",
+    "privacy.php",
+    "css/style.css",
+    "js/script.js",
+  ];
 
-${refinedPrompt}
+  const validateFiles = (files: GeneratedFile[]) => {
+    const paths = new Set(files.map((f) => f.path));
+    const missing = requiredPaths.filter((p) => !paths.has(p));
+    // Guard against "nothingburger" files: if the file exists but is extremely short, treat as invalid.
+    const tooShort = files
+      .filter((f) => requiredPaths.includes(f.path))
+      .filter((f) => f.content.trim().length < 50)
+      .map((f) => f.path);
 
-CRITICAL GENERATION CHECKLIST - YOU MUST INCLUDE ALL:
-✅ includes/config.php - Site constants (SITE_NAME, SITE_EMAIL, SITE_PHONE, SITE_ADDRESS)
-✅ includes/header.php - Full HTML head, navigation with links to ALL pages
-✅ includes/footer.php - Footer with disclaimer, copyright, links
-✅ index.php - Homepage with hero, features, services preview, testimonials, CTA (FULL CONTENT)
-✅ about.php - About page with mission, team, values (FULL CONTENT)
-✅ services.php - Services/Products page with detailed descriptions (FULL CONTENT)
-✅ contact.php - Contact form with method="POST" action="form-handler.php"
-✅ form-handler.php - Form processor that redirects to thank-you.php
-✅ thank-you.php - Thank you page after form submission
-✅ privacy.php - Privacy policy page
-✅ css/style.css - Complete CSS with responsive design, mobile menu
-✅ js/script.js - JavaScript for mobile menu, interactions
+    return { missing, tooShort };
+  };
 
-Each page MUST have SUBSTANTIAL, UNIQUE content (not placeholders).
-Generate COMPLETE files with full HTML, CSS, and PHP code.
-Use proper PHP includes on every page.`,
-        },
-      ],
-      max_tokens: 16000,
-      temperature: 0.6,
-    }),
-  });
+  const generateOnce = async (opts: { strictFormat: boolean }) => {
+    const strictFormatBlock = opts.strictFormat
+      ? `\n\nSTRICT OUTPUT FORMAT (MANDATORY):\n- Output ONLY file blocks in this exact format. No commentary, no markdown headings.\n\n--- FILE: includes/config.php ---\n<file contents>\n--- END FILE ---\n\n--- FILE: includes/header.php ---\n<file contents>\n--- END FILE ---\n\n(Repeat for every file.)\n\nIf you cannot comply, output nothing.`
+      : "";
 
-  if (!generateResponse.ok) {
-    const errText = await generateResponse.text();
-    console.error("Generate API error:", errText);
-    return { success: false, error: `Website generation failed: ${errText}` };
+    const generateResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openaiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: generateModel,
+        messages: [
+          {
+            role: "system",
+            content: PHP_GENERATION_PROMPT + layoutDescription + "\n\n" + imageStrategy + "\n\n" + IMAGE_CSS,
+          },
+          {
+            role: "user",
+            content: `Create a COMPLETE, FULLY FUNCTIONAL multi-page PHP website based on this brief:\n\n${refinedPrompt}\n\nCRITICAL GENERATION CHECKLIST - YOU MUST INCLUDE ALL:\n✅ includes/config.php - Site constants (SITE_NAME, SITE_EMAIL, SITE_PHONE, SITE_ADDRESS)\n✅ includes/header.php - Full HTML head, navigation with links to ALL pages\n✅ includes/footer.php - Footer with disclaimer, copyright, links\n✅ index.php - Homepage with hero, features, services preview, testimonials, CTA (FULL CONTENT)\n✅ about.php - About page with mission, team, values (FULL CONTENT)\n✅ services.php - Services/Products page with detailed descriptions (FULL CONTENT)\n✅ contact.php - Contact form with method=\"POST\" action=\"form-handler.php\"\n✅ form-handler.php - Form processor that redirects to thank-you.php\n✅ thank-you.php - Thank you page after form submission\n✅ privacy.php - Privacy policy page\n✅ css/style.css - Complete CSS with responsive design, mobile menu\n✅ js/script.js - JavaScript for mobile menu, interactions\n\nEach page MUST have SUBSTANTIAL, UNIQUE content (not placeholders).\nGenerate COMPLETE files with full HTML, CSS, and PHP code.\nUse proper PHP includes on every page.${strictFormatBlock}`,
+          },
+        ],
+        max_tokens: 16000,
+        temperature: opts.strictFormat ? 0.4 : 0.6,
+      }),
+    });
+
+    if (!generateResponse.ok) {
+      const errText = await generateResponse.text();
+      console.error("Generate API error:", errText);
+      return { ok: false as const, error: `Website generation failed: ${errText}` };
+    }
+
+    const generateData = await generateResponse.json();
+    const generatedText = generateData.choices?.[0]?.message?.content || "";
+    const generateCost = calculateCost(generateData.usage || {}, generateModel);
+
+    // Parse
+    const files = parseFilesFromModelText(generatedText);
+    console.log(`Parsed ${files.length} files from generation`);
+
+    return { ok: true as const, files, generateCost };
+  };
+
+  // 4. Generate the PHP website (retry once with stricter output format if required files are missing)
+  const first = await generateOnce({ strictFormat: false });
+  if (!first.ok) return { success: false, error: first.error };
+
+  let files = first.files;
+  let generateCost = first.generateCost;
+
+  // If model returned something parseable but incomplete/empty-ish, retry once.
+  const v1 = validateFiles(files);
+  if (files.length === 0 || v1.missing.length > 0 || v1.tooShort.length > 0) {
+    console.warn(
+      `PHP generation invalid on attempt #1. Missing: ${v1.missing.join(", ")}; Too short: ${v1.tooShort.join(", ")}`
+    );
+
+    const second = await generateOnce({ strictFormat: true });
+    if (second.ok) {
+      const v2 = validateFiles(second.files);
+      if (second.files.length > 0 && v2.missing.length === 0 && v2.tooShort.length === 0) {
+        files = second.files;
+        generateCost = second.generateCost;
+      }
+    }
   }
 
-  const generateData = await generateResponse.json();
-  const generatedText = generateData.choices?.[0]?.message?.content || "";
-  const generateCost = calculateCost(generateData.usage || {}, generateModel);
-
   const totalCost = refineCost + generateCost;
-  console.log(`Generation costs: Refine=$${refineCost.toFixed(4)}, Generate=$${generateCost.toFixed(4)}, Total=$${totalCost.toFixed(4)}`);
-
-  // 5. Parse the generated files
-  const files = parseFilesFromModelText(generatedText);
-  console.log(`Parsed ${files.length} files from generation`);
+  console.log(
+    `Generation costs: Refine=$${refineCost.toFixed(4)}, Generate=$${generateCost.toFixed(4)}, Total=$${totalCost.toFixed(4)}`
+  );
 
   if (files.length === 0) {
     return { success: false, error: "Failed to parse generated files" };
   }
 
-  // Post-processing helpers to make output more reliable
+  const validation = validateFiles(files);
+  if (validation.missing.length > 0 || validation.tooShort.length > 0) {
+    return {
+      success: false,
+      error: `Generation output incomplete. Missing: ${validation.missing.join(", ")}. Too short: ${validation.tooShort.join(", ")}.`,
+    };
+  }
   const normalizePaths = (files: GeneratedFile[]) =>
     files.map((f) => ({ ...f, path: f.path.replace(/^\/+/, "").trim() }));
 
@@ -1443,7 +1489,7 @@ CRITICAL GEO REQUIREMENTS - ALL CONTENT MUST BE LOCALIZED FOR ${countryName.toUp
     // Run generation synchronously so the client immediately receives files
     // (UI expects files in the response; background-only runs result in “empty” output)
     const result = await runGeneration({
-      prompt,
+      prompt: promptForGeneration,
       language,
       aiModel,
       layoutStyle,
