@@ -306,7 +306,7 @@ export const AdminTasksTab = () => {
 
   const updateTask = async () => {
     if (!editingTask || !editTask.title || !editTask.assigned_to) {
-      toast({ title: "Помилка", description: "Заповніть обов'язкові поля", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("admin.fillRequired"), variant: "destructive" });
       return;
     }
 
@@ -328,18 +328,18 @@ export const AdminTasksTab = () => {
       if (editTask.assigned_to !== editingTask.assigned_to && editTask.assigned_to !== user?.id) {
         await supabase.from("notifications").insert({
           user_id: editTask.assigned_to,
-          title: "Завдання перепризначено",
-          message: `Вам призначено завдання: ${editTask.title}`,
+          title: t("admin.taskReassigned"),
+          message: `${t("admin.taskReassignedMsg")}: ${editTask.title}`,
           type: "task_assigned",
         });
       }
 
-      toast({ title: "Успішно", description: "Завдання оновлено" });
+      toast({ title: t("common.success"), description: t("admin.taskUpdated") });
       setIsEditDialogOpen(false);
       setEditingTask(null);
     } catch (error) {
       console.error("Error updating task:", error);
-      toast({ title: "Помилка", description: "Не вдалося оновити завдання", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("admin.updateError"), variant: "destructive" });
     }
   };
 
@@ -475,11 +475,11 @@ export const AdminTasksTab = () => {
           )}
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <UserCheck className="h-3 w-3" />
-            <span>{task.assigned_profile?.display_name || "Невідомий"}</span>
+            <span>{task.assigned_profile?.display_name || t("admin.unknownUser")}</span>
           </div>
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Send className="h-3 w-3" />
-            <span>{task.creator_profile?.display_name || "Невідомий"}</span>
+            <span>{task.creator_profile?.display_name || t("admin.unknownUser")}</span>
           </div>
         </div>
         
@@ -492,12 +492,12 @@ export const AdminTasksTab = () => {
           <div className="mt-3 flex gap-1">
             {(task.status === "todo" || task.status === "problematic") && (
               <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => updateTaskStatus(task.id, "in_progress")}>
-                Почати
+                {t("admin.start")}
               </Button>
             )}
             {task.status === "in_progress" && (
               <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => updateTaskStatus(task.id, "done")}>
-                Завершити
+                {t("admin.finish")}
               </Button>
             )}
           </div>
@@ -544,7 +544,7 @@ export const AdminTasksTab = () => {
             <p className={`text-center text-sm py-8 rounded-lg border-2 border-dashed transition-colors ${
               isDragOver ? "border-primary/50 text-primary bg-primary/5" : "text-muted-foreground border-transparent"
             }`}>
-              {isDragOver ? "Відпустіть тут" : "Немає завдань"}
+              {isDragOver ? t("admin.dropHere") : t("admin.noTasks")}
             </p>
           )}
         </div>
@@ -562,7 +562,7 @@ export const AdminTasksTab = () => {
       </CollapsibleTrigger>
       <CollapsibleContent className="pt-3 space-y-2">
         {taskList.length === 0 ? (
-          <p className="text-center text-muted-foreground text-sm py-4">Немає завдань</p>
+          <p className="text-center text-muted-foreground text-sm py-4">{t("admin.noTasks")}</p>
         ) : (
           taskList.map(task => renderTaskCard(task, false))
         )}
@@ -573,19 +573,19 @@ export const AdminTasksTab = () => {
   const renderListView = () => (
     <div className="space-y-4 overflow-y-auto overflow-x-hidden max-h-[calc(100vh-350px)] scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
       {renderListGroup(
-        "Призначені мені",
+        t("admin.assignedToMe"),
         <UserCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />,
         "assigned",
         myAssignedTasks
       )}
       {renderListGroup(
-        "Створені мною",
+        t("admin.createdByMe"),
         <Send className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />,
         "created",
         myCreatedTasks
       )}
       {isSuperAdmin && renderListGroup(
-        "Всі завдання",
+        t("admin.allTasks"),
         <Users className="h-4 w-4 text-slate-500" />,
         "all",
         filteredTasks
@@ -608,7 +608,7 @@ export const AdminTasksTab = () => {
       <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
         <div className="flex items-center gap-4">
           <div className="text-sm text-muted-foreground">
-            Всього: {filteredTasks.length} | Активних: {filteredTasks.filter(t => t.status !== "done").length}
+            {t("admin.total")}: {filteredTasks.length} | {t("admin.active")}: {filteredTasks.filter(t => t.status !== "done").length}
           </div>
           
           <div className="flex items-center gap-1 border rounded-lg p-1">
@@ -617,6 +617,7 @@ export const AdminTasksTab = () => {
               size="sm"
               className="h-7 px-2"
               onClick={() => setViewMode("kanban")}
+              title={t("admin.kanban")}
             >
               <LayoutGrid className="h-4 w-4" />
             </Button>
@@ -625,6 +626,7 @@ export const AdminTasksTab = () => {
               size="sm"
               className="h-7 px-2"
               onClick={() => setViewMode("list")}
+              title={t("admin.list")}
             >
               <List className="h-4 w-4" />
             </Button>
@@ -639,7 +641,7 @@ export const AdminTasksTab = () => {
                 onClick={() => setKanbanFilter("all")}
               >
                 <Users className="h-3 w-3 mr-1" />
-                Всі
+                {t("admin.filterAll")}
               </Button>
               <Button
                 variant={kanbanFilter === "assigned" ? "default" : "ghost"}
@@ -648,7 +650,7 @@ export const AdminTasksTab = () => {
                 onClick={() => setKanbanFilter("assigned")}
               >
                 <UserCheck className="h-3 w-3 mr-1" />
-                Мені
+                {t("admin.filterAssignedMe")}
               </Button>
               <Button
                 variant={kanbanFilter === "created" ? "default" : "ghost"}
@@ -657,7 +659,7 @@ export const AdminTasksTab = () => {
                 onClick={() => setKanbanFilter("created")}
               >
                 <Send className="h-3 w-3 mr-1" />
-                Від мене
+                {t("admin.filterFromMe")}
               </Button>
             </div>
           )}
@@ -670,7 +672,7 @@ export const AdminTasksTab = () => {
               className="h-7 px-2 text-xs"
               onClick={() => setPriorityFilter("all")}
             >
-              Всі
+              {t("admin.filterAll")}
             </Button>
             <Button
               variant={priorityFilter === "high" ? "default" : "ghost"}
@@ -679,7 +681,7 @@ export const AdminTasksTab = () => {
               onClick={() => setPriorityFilter("high")}
             >
               <Flag className="h-3 w-3 mr-1" />
-              Високий
+              {t("admin.priorityHigh")}
             </Button>
             <Button
               variant={priorityFilter === "medium" ? "default" : "ghost"}
@@ -688,7 +690,7 @@ export const AdminTasksTab = () => {
               onClick={() => setPriorityFilter("medium")}
             >
               <Flag className="h-3 w-3 mr-1" />
-              Середній
+              {t("admin.priorityMedium")}
             </Button>
             <Button
               variant={priorityFilter === "low" ? "default" : "ghost"}
@@ -697,7 +699,7 @@ export const AdminTasksTab = () => {
               onClick={() => setPriorityFilter("low")}
             >
               <Flag className="h-3 w-3 mr-1" />
-              Низький
+              {t("admin.priorityLow")}
             </Button>
           </div>
         </div>
@@ -706,43 +708,43 @@ export const AdminTasksTab = () => {
           <DialogTrigger asChild>
             <Button size="sm" className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg">
               <Plus className="h-4 w-4 mr-2" />
-              Нове завдання
+              {t("admin.newTask")}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Створити завдання</DialogTitle>
+              <DialogTitle>{t("admin.createTask")}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 mt-4">
               <div>
-                <label className="text-sm font-medium mb-1 block">Назва *</label>
+                <label className="text-sm font-medium mb-1 block">{t("admin.taskTitle")} *</label>
                 <Input
                   value={newTask.title}
                   onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                  placeholder="Введіть назву завдання"
+                  placeholder={t("admin.taskTitlePlaceholder")}
                 />
               </div>
               
               <div>
-                <label className="text-sm font-medium mb-1 block">Опис</label>
+                <label className="text-sm font-medium mb-1 block">{t("admin.taskDescription")}</label>
                 <Textarea
                   value={newTask.description}
                   onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                  placeholder="Введіть опис завдання"
+                  placeholder={t("admin.taskDescriptionPlaceholder")}
                   rows={3}
                 />
               </div>
               
               <div>
-                <label className="text-sm font-medium mb-1 block">Виконавець *</label>
+                <label className="text-sm font-medium mb-1 block">{t("admin.executor")} *</label>
                 <Select value={newTask.assigned_to} onValueChange={(v) => setNewTask({ ...newTask, assigned_to: v })}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Оберіть адміністратора" />
+                    <SelectValue placeholder={t("admin.selectAdmin")} />
                   </SelectTrigger>
                   <SelectContent>
                     {admins.map((admin) => (
                       <SelectItem key={admin.user_id} value={admin.user_id}>
-                        {admin.display_name || "Без імені"}
+                        {admin.display_name || t("admin.noName")}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -750,13 +752,13 @@ export const AdminTasksTab = () => {
               </div>
               
               <div>
-                <label className="text-sm font-medium mb-1 block">Команда (опціонально)</label>
+                <label className="text-sm font-medium mb-1 block">{t("admin.teamOptional")}</label>
                 <Select value={newTask.team_id} onValueChange={(v) => setNewTask({ ...newTask, team_id: v === "none" ? "" : v })}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Без команди" />
+                    <SelectValue placeholder={t("admin.noTeam")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Без команди</SelectItem>
+                    <SelectItem value="none">{t("admin.noTeam")}</SelectItem>
                     {teams.map((team) => (
                       <SelectItem key={team.id} value={team.id}>
                         {team.name}
@@ -767,28 +769,28 @@ export const AdminTasksTab = () => {
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-1 block">Пріоритет</label>
+                <label className="text-sm font-medium mb-1 block">{t("admin.priority")}</label>
                 <Select value={newTask.priority} onValueChange={(v) => setNewTask({ ...newTask, priority: v as TaskPriority })}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Середній" />
+                    <SelectValue placeholder={t("admin.priorityMedium")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="low">
                       <div className="flex items-center gap-2">
                         <Flag className="h-3 w-3 text-slate-500" />
-                        Низький
+                        {t("admin.priorityLow")}
                       </div>
                     </SelectItem>
                     <SelectItem value="medium">
                       <div className="flex items-center gap-2">
                         <Flag className="h-3 w-3 text-amber-500" />
-                        Середній
+                        {t("admin.priorityMedium")}
                       </div>
                     </SelectItem>
                     <SelectItem value="high">
                       <div className="flex items-center gap-2">
                         <Flag className="h-3 w-3 text-red-500" />
-                        Високий
+                        {t("admin.priorityHigh")}
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -797,11 +799,11 @@ export const AdminTasksTab = () => {
               
               <div className="text-sm text-muted-foreground">
                 <Clock className="h-4 w-4 inline mr-1" />
-                Дедлайн буде встановлено автоматично: 24 години від створення
+                {t("admin.deadlineAuto")}
               </div>
               
               <Button onClick={createTask} className="w-full">
-                Створити завдання
+                {t("admin.createTask")}
               </Button>
             </div>
           </DialogContent>
@@ -811,38 +813,38 @@ export const AdminTasksTab = () => {
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Редагувати завдання</DialogTitle>
+              <DialogTitle>{t("admin.editTask")}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 mt-4">
               <div>
-                <label className="text-sm font-medium mb-1 block">Назва *</label>
+                <label className="text-sm font-medium mb-1 block">{t("admin.taskTitle")} *</label>
                 <Input
                   value={editTask.title}
                   onChange={(e) => setEditTask({ ...editTask, title: e.target.value })}
-                  placeholder="Введіть назву завдання"
+                  placeholder={t("admin.taskTitlePlaceholder")}
                 />
               </div>
               
               <div>
-                <label className="text-sm font-medium mb-1 block">Опис</label>
+                <label className="text-sm font-medium mb-1 block">{t("admin.taskDescription")}</label>
                 <Textarea
                   value={editTask.description}
                   onChange={(e) => setEditTask({ ...editTask, description: e.target.value })}
-                  placeholder="Введіть опис завдання"
+                  placeholder={t("admin.taskDescriptionPlaceholder")}
                   rows={3}
                 />
               </div>
               
               <div>
-                <label className="text-sm font-medium mb-1 block">Виконавець *</label>
+                <label className="text-sm font-medium mb-1 block">{t("admin.executor")} *</label>
                 <Select value={editTask.assigned_to} onValueChange={(v) => setEditTask({ ...editTask, assigned_to: v })}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Оберіть адміністратора" />
+                    <SelectValue placeholder={t("admin.selectAdmin")} />
                   </SelectTrigger>
                   <SelectContent>
                     {admins.map((admin) => (
                       <SelectItem key={admin.user_id} value={admin.user_id}>
-                        {admin.display_name || "Без імені"}
+                        {admin.display_name || t("admin.noName")}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -850,13 +852,13 @@ export const AdminTasksTab = () => {
               </div>
               
               <div>
-                <label className="text-sm font-medium mb-1 block">Команда (опціонально)</label>
+                <label className="text-sm font-medium mb-1 block">{t("admin.teamOptional")}</label>
                 <Select value={editTask.team_id || "none"} onValueChange={(v) => setEditTask({ ...editTask, team_id: v === "none" ? "" : v })}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Без команди" />
+                    <SelectValue placeholder={t("admin.noTeam")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Без команди</SelectItem>
+                    <SelectItem value="none">{t("admin.noTeam")}</SelectItem>
                     {teams.map((team) => (
                       <SelectItem key={team.id} value={team.id}>
                         {team.name}
@@ -867,28 +869,28 @@ export const AdminTasksTab = () => {
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-1 block">Пріоритет</label>
+                <label className="text-sm font-medium mb-1 block">{t("admin.priority")}</label>
                 <Select value={editTask.priority} onValueChange={(v) => setEditTask({ ...editTask, priority: v as TaskPriority })}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Середній" />
+                    <SelectValue placeholder={t("admin.priorityMedium")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="low">
                       <div className="flex items-center gap-2">
                         <Flag className="h-3 w-3 text-slate-500" />
-                        Низький
+                        {t("admin.priorityLow")}
                       </div>
                     </SelectItem>
                     <SelectItem value="medium">
                       <div className="flex items-center gap-2">
                         <Flag className="h-3 w-3 text-amber-500" />
-                        Середній
+                        {t("admin.priorityMedium")}
                       </div>
                     </SelectItem>
                     <SelectItem value="high">
                       <div className="flex items-center gap-2">
                         <Flag className="h-3 w-3 text-red-500" />
-                        Високий
+                        {t("admin.priorityHigh")}
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -896,7 +898,7 @@ export const AdminTasksTab = () => {
               </div>
               
               <Button onClick={updateTask} className="w-full">
-                Зберегти зміни
+                {t("common.save")}
               </Button>
             </div>
           </DialogContent>
