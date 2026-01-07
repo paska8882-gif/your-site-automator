@@ -1074,7 +1074,13 @@ export function WebsiteGenerator() {
     const websiteTypesSnapshot = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes : (["html"] as WebsiteType[]);
     const imageSourcesSnapshot = selectedImageSources.length > 0 ? selectedImageSources : (["basic"] as ImageSource[]);
 
-    // Snapshot inputs, but do NOT clear the UI — let users start another generation immediately
+    // Clear inputs immediately so user can start preparing the next website while generation runs
+    setSiteNames([]);
+    setCurrentSiteNameInput("");
+    setPrompt("");
+    setOriginalPrompt(null);
+    setImprovedPromptValue(null);
+
 
     try {
       // Create all generation requests in parallel
@@ -1155,12 +1161,6 @@ export function WebsiteGenerator() {
           title: "Генерації розпочато",
           description: `Запущено ${successCount} генерацій${failCount > 0 ? `, ${failCount} помилок` : ""}. Слідкуйте за статусом в історії.`,
         });
-        setSiteNames([]);
-        setCurrentSiteNameInput("");
-        setPrompt("");
-        setOriginalPrompt(null);
-        setImprovedPromptValue(null);
-      } else {
         const firstError = results.find((r) => !r.success)?.error;
         toast({
           title: "Помилка",
