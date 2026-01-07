@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -234,15 +235,15 @@ function SingleHistoryItem({
     }
   };
 
-  const getStatusText = (status: string, salePrice?: number | null) => {
+  const getStatusText = (status: string, salePrice?: number | null, t?: (key: string) => string) => {
     if (status === "failed" && (salePrice === 0 || salePrice === null)) {
-      return "Помилка, кошти повернено";
+      return t ? t("history.refunded") : "Помилка, кошти повернено";
     }
     switch (status) {
-      case "pending": return "Очікує";
-      case "generating": return "Генерація...";
-      case "completed": return "Готово";
-      case "failed": return "Помилка";
+      case "pending": return t ? t("history.pending") : "Очікує";
+      case "generating": return t ? t("history.generating") : "Генерація...";
+      case "completed": return t ? t("history.completed") : "Готово";
+      case "failed": return t ? t("history.failed") : "Помилка";
       default: return status;
     }
   };
@@ -548,6 +549,7 @@ function SingleHistoryItem({
 }
 
 export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: GenerationHistoryProps) {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const navigate = useNavigate();
   const { isAdmin } = useAdmin();
@@ -1158,23 +1160,16 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
     }
   };
 
-  const getStatusText = (status: string, salePrice?: number | null) => {
-    // Check if this is a refunded failed generation
+  const getStatusTextLocal = (status: string, salePrice?: number | null) => {
     if (status === "failed" && (salePrice === 0 || salePrice === null)) {
-      return "Помилка, кошти повернено";
+      return t("history.refunded");
     }
-    
     switch (status) {
-      case "pending":
-        return "Очікує";
-      case "generating":
-        return "Генерація...";
-      case "completed":
-        return "Готово";
-      case "failed":
-        return "Помилка";
-      default:
-        return status;
+      case "pending": return t("history.pending");
+      case "generating": return t("history.generating");
+      case "completed": return t("history.completed");
+      case "failed": return t("history.failed");
+      default: return status;
     }
   };
 
@@ -1489,7 +1484,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base">
             <History className="h-4 w-4" />
-            Історія генерацій
+            {t("history.title")}
           </CardTitle>
           <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={fetchHistory} disabled={isLoading}>
             <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
@@ -1499,7 +1494,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
           <div className="relative flex-1 max-w-[200px]">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
             <Input
-              placeholder="Пошук..."
+              placeholder={t("common.search") + "..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-7 h-7 text-xs"
@@ -1514,7 +1509,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
                 className={`h-7 px-2 text-xs gap-1 ${hasActiveFilters ? "border-primary text-primary" : ""}`}
               >
                 <Filter className="h-3 w-3" />
-                Фільтри
+                {t("common.filter")}
                 {hasActiveFilters && <span className="ml-1 px-1 bg-primary text-primary-foreground rounded text-[10px]">!</span>}
               </Button>
             </PopoverTrigger>
@@ -1522,22 +1517,22 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
               <div className="flex flex-wrap gap-1.5">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-[90px] h-7 text-xs">
-                    <SelectValue placeholder="Статус" />
+                    <SelectValue placeholder={t("history.status")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Всі</SelectItem>
-                    <SelectItem value="completed">Готово</SelectItem>
-                    <SelectItem value="in_progress">В процесі</SelectItem>
-                    <SelectItem value="failed">Помилка</SelectItem>
+                    <SelectItem value="all">{t("common.all")}</SelectItem>
+                    <SelectItem value="completed">{t("history.completed")}</SelectItem>
+                    <SelectItem value="in_progress">{t("history.inProgress")}</SelectItem>
+                    <SelectItem value="failed">{t("history.failed")}</SelectItem>
                   </SelectContent>
                 </Select>
                 
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
                   <SelectTrigger className="w-[70px] h-7 text-xs">
-                    <SelectValue placeholder="Тип" />
+                    <SelectValue placeholder={t("history.type")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Всі</SelectItem>
+                    <SelectItem value="all">{t("common.all")}</SelectItem>
                     <SelectItem value="html">HTML</SelectItem>
                     <SelectItem value="react">React</SelectItem>
                   </SelectContent>
@@ -1545,23 +1540,23 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
                 
                 <Select value={dateFilter} onValueChange={setDateFilter}>
                   <SelectTrigger className="w-[90px] h-7 text-xs">
-                    <SelectValue placeholder="Дата" />
+                    <SelectValue placeholder={t("history.date")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Весь час</SelectItem>
-                    <SelectItem value="today">Сьогодні</SelectItem>
-                    <SelectItem value="week">Тиждень</SelectItem>
-                    <SelectItem value="month">Місяць</SelectItem>
+                    <SelectItem value="all">{t("common.all")}</SelectItem>
+                    <SelectItem value="today">{t("balance.today")}</SelectItem>
+                    <SelectItem value="week">{t("balance.week")}</SelectItem>
+                    <SelectItem value="month">{t("balance.month")}</SelectItem>
                   </SelectContent>
                 </Select>
                 
                 {uniqueLanguages.length > 1 && (
                   <Select value={languageFilter} onValueChange={setLanguageFilter}>
                     <SelectTrigger className="w-[70px] h-7 text-xs">
-                      <SelectValue placeholder="Мова" />
+                      <SelectValue placeholder={t("history.language")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Всі</SelectItem>
+                      <SelectItem value="all">{t("common.all")}</SelectItem>
                       {uniqueLanguages.map(lang => (
                         <SelectItem key={lang} value={lang}>{lang.toUpperCase()}</SelectItem>
                       ))}
@@ -1574,9 +1569,9 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
                     <SelectValue placeholder="AI" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Всі</SelectItem>
-                    <SelectItem value="junior">Junior</SelectItem>
-                    <SelectItem value="senior">Senior</SelectItem>
+                    <SelectItem value="all">{t("common.all")}</SelectItem>
+                    <SelectItem value="junior">{t("generator.junior")}</SelectItem>
+                    <SelectItem value="senior">{t("generator.senior")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1595,7 +1590,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
                   }}
                 >
                   <X className="h-3 w-3 mr-1" />
-                  Скинути
+                  {t("common.reset")}
                 </Button>
               )}
             </PopoverContent>
@@ -1762,27 +1757,27 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
       {/* Appeal Dialog */}
       <Dialog open={appealDialogOpen} onOpenChange={setAppealDialogOpen}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Апеляція на генерацію</DialogTitle>
+        <DialogHeader>
+            <DialogTitle>{t("history.appeal")}</DialogTitle>
           </DialogHeader>
           {appealItem && (
             <div className="space-y-4">
               <div className="text-sm">
-                <p><span className="text-muted-foreground">Сайт:</span> {appealItem.site_name}</p>
-                <p><span className="text-muted-foreground">Сума:</span> ${appealItem.sale_price?.toFixed(2) || "0.00"}</p>
+                <p><span className="text-muted-foreground">{t("generator.siteName")}:</span> {appealItem.site_name}</p>
+                <p><span className="text-muted-foreground">{t("history.refundAmount")}:</span> ${appealItem.sale_price?.toFixed(2) || "0.00"}</p>
               </div>
               <div>
-                <label className="text-sm font-medium">Причина апеляції</label>
+                <label className="text-sm font-medium">{t("history.appealReason")}</label>
                 <Textarea
                   value={appealReason}
                   onChange={(e) => setAppealReason(e.target.value)}
-                  placeholder="Опишіть, чому ви вважаєте, що генерація не відповідає вашим вимогам..."
+                  placeholder={t("history.appealReasonPlaceholder")}
                   className="mt-1"
                   rows={4}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Скріншоти помилки (необов'язково, до 5 шт.)</label>
+                <label className="text-sm font-medium">{t("history.screenshotOptional")}</label>
                 {appealScreenshotPreviews.length > 0 && (
                   <div className="mt-2 grid grid-cols-3 gap-2">
                     {appealScreenshotPreviews.map((preview, index) => (
@@ -1826,7 +1821,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setAppealDialogOpen(false)}>
-                  Скасувати
+                  {t("common.cancel")}
                 </Button>
                 <Button 
                   onClick={submitAppeal} 
@@ -1837,7 +1832,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
                   ) : (
                     <AlertTriangle className="h-4 w-4 mr-2" />
                   )}
-                  Надіслати апеляцію
+                  {t("history.sendAppeal")}
                 </Button>
               </DialogFooter>
             </div>

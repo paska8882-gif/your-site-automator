@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -364,6 +365,7 @@ const saveDraft = (draft: GeneratorDraft) => {
 
 export function WebsiteGenerator() {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const { user } = useAuth();
   const { isAdmin } = useAdmin();
   const { isTeamOwner } = useTeamOwner();
@@ -1559,7 +1561,7 @@ export function WebsiteGenerator() {
       <div className="container mx-auto p-4 lg:p-6 max-w-4xl lg:max-w-5xl xl:max-w-6xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-lg font-medium">Генератор сайтів</h1>
+          <h1 className="text-lg font-medium">{t("generator.title")}</h1>
           {/* Admin: Show selected team with change button */}
           {isAdmin && selectedTeamForHeader && (
             <div className={`flex items-center gap-2 px-3 py-1.5 border border-border rounded ${animatingTeamId === selectedAdminTeamId ? "balance-changed" : ""}`}>
@@ -1572,7 +1574,7 @@ export function WebsiteGenerator() {
                 onClick={() => setSelectedAdminTeamId("")}
                 className="ml-2 text-xs text-muted-foreground hover:text-foreground underline"
               >
-                Змінити
+                {t("common.edit")}
               </button>
             </div>
           )}
@@ -1581,7 +1583,7 @@ export function WebsiteGenerator() {
         {/* Input Section */}
         <div className="border border-border mb-4">
           <div className="p-3 border-b border-border">
-            <div className="text-sm font-medium">Новий сайт</div>
+            <div className="text-sm font-medium">{t("generator.newGeneration")}</div>
           </div>
           <div className="p-3 space-y-3">
             {/* Site Name + Mode Selection - in one row for admin */}
@@ -1590,7 +1592,7 @@ export function WebsiteGenerator() {
                 {/* Site Names - left side */}
                 <div className="min-w-[280px] flex-1">
                   <Label htmlFor="siteName" className="text-xs mb-1 block">
-                    Назви сайтів <span className="text-destructive">*</span>
+                    {t("generator.siteName")} <span className="text-destructive">*</span>
                   </Label>
                   <div className="flex gap-1">
                     <Input
@@ -1727,7 +1729,7 @@ export function WebsiteGenerator() {
             {!isAdmin && (
               <div className="space-y-1">
                 <Label htmlFor="siteName" className="text-xs">
-                  Назви сайтів <span className="text-destructive">*</span>
+                  {t("generator.siteName")} <span className="text-destructive">*</span>
                 </Label>
                 <div className="flex gap-1">
                   <Input
