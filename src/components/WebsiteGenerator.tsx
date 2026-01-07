@@ -1315,6 +1315,9 @@ export function WebsiteGenerator() {
           title: "Генерації розпочато",
           description: `Запущено ${successCount} генерацій${failCount > 0 ? `, ${failCount} помилок` : ""}. Слідкуйте за статусом в історії.`,
         });
+      }
+      
+      if (failCount > 0 && successCount === 0) {
         const firstError = results.find((r) => !r.success)?.error;
         toast({
           title: "Помилка",
