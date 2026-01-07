@@ -2662,7 +2662,7 @@ export function WebsiteGenerator() {
                   try {
                     // Generate for each site name
                     for (const name of siteNames) {
-                      await startGeneration(
+                      const result = await startGeneration(
                         promptSnapshot,
                         externalLanguage,
                         "senior",
@@ -2675,6 +2675,9 @@ export function WebsiteGenerator() {
                         undefined, // improvedPrompt
                         geoToUse // geo
                       );
+                      if (!result.success) {
+                        throw new Error(result.error || "Не вдалося запустити генерацію");
+                      }
                     }
                     toast({
                       title: "Генерацію запущено",
