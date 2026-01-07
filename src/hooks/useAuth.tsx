@@ -98,7 +98,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Try global sign-out first (revokes refresh token), but fall back to local to avoid UI freezes
+    const timeoutMs = 5000;
+
+    const withTimeout = <T,>(p: Promise<T>) =>
+      new Promise<T>((resolve, reject) => {
+        const t = setTimeout(() => reject(new Error("signOut timeout")), timeoutMs);
+        p.then((v) => {
+          clearTimeout(t);
+          resolve(v);
+        }).catch((e) => {
+          clearTimeout(t);
+          reject(e);
+        });
+      });
+
+    try {
+      await withTimeout(supabase.auth.signOut());
+    } catch {
+      // Local sign-out clears the session client-side even if the network is flaky
+      await supabase.auth.signOut({ scope: "local" });
+    }
   };
 
   return (

@@ -87,8 +87,12 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate("/auth");
+    try {
+      await signOut();
+    } finally {
+      // Ensure we always leave the protected area even if network is flaky
+      navigate("/auth", { replace: true });
+    }
   };
 
   const isActive = (path: string) => location.pathname === path;
