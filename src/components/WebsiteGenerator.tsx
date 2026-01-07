@@ -2156,11 +2156,11 @@ export function WebsiteGenerator() {
                     </div>
                   
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {/* Domain - required */}
+                      {/* Domain - optional */}
                       <div className="space-y-1">
                         <Label className="text-xs flex items-center gap-1">
                           <Globe className="h-3 w-3" />
-                          Домен <span className="text-destructive">*</span>
+                          Домен
                         </Label>
                         <Input
                           placeholder="example.com"
