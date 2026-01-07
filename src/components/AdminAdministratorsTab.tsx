@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { 
   Shield, 
   ShieldOff,
@@ -42,6 +43,7 @@ interface UserProfile {
 
 export const AdminAdministratorsTab = () => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,8 +118,8 @@ export const AdminAdministratorsTab = () => {
   const handleAddAdmin = async () => {
     if (!selectedUserId || !superAdminPassword) {
       toast({
-        title: "Помилка",
-        description: "Виберіть користувача та введіть пароль",
+        title: t("common.error"),
+        description: t("admin.selectUserForAdmin"),
         variant: "destructive"
       });
       return;
@@ -129,8 +131,8 @@ export const AdminAdministratorsTab = () => {
     
     if (!isValid) {
       toast({
-        title: "Помилка",
-        description: "Невірний пароль супер-адміністратора",
+        title: t("common.error"),
+        description: t("admin.passwordIncorrect"),
         variant: "destructive"
       });
       setVerifying(false);
@@ -148,8 +150,8 @@ export const AdminAdministratorsTab = () => {
       if (error) throw error;
 
       toast({
-        title: "Успішно",
-        description: "Користувача призначено адміністратором"
+        title: t("common.success"),
+        description: t("admin.adminAdded")
       });
 
       setAddDialogOpen(false);
@@ -158,8 +160,8 @@ export const AdminAdministratorsTab = () => {
       fetchData();
     } catch (error) {
       toast({
-        title: "Помилка",
-        description: "Не вдалося призначити адміністратора",
+        title: t("common.error"),
+        description: t("admin.addAdminError"),
         variant: "destructive"
       });
     }
@@ -170,8 +172,8 @@ export const AdminAdministratorsTab = () => {
   const handleRemoveAdmin = async () => {
     if (!adminToRemove || !removePassword) {
       toast({
-        title: "Помилка",
-        description: "Введіть пароль супер-адміністратора",
+        title: t("common.error"),
+        description: t("admin.superAdminPassword"),
         variant: "destructive"
       });
       return;
@@ -183,8 +185,8 @@ export const AdminAdministratorsTab = () => {
     
     if (!isValid) {
       toast({
-        title: "Помилка",
-        description: "Невірний пароль супер-адміністратора",
+        title: t("common.error"),
+        description: t("admin.passwordIncorrect"),
         variant: "destructive"
       });
       setVerifying(false);
@@ -201,8 +203,8 @@ export const AdminAdministratorsTab = () => {
       if (error) throw error;
 
       toast({
-        title: "Успішно",
-        description: "Права адміністратора знято"
+        title: t("common.success"),
+        description: t("admin.adminRemoved")
       });
 
       setRemoveDialogOpen(false);
@@ -211,8 +213,8 @@ export const AdminAdministratorsTab = () => {
       fetchData();
     } catch (error) {
       toast({
-        title: "Помилка",
-        description: "Не вдалося зняти права адміністратора",
+        title: t("common.error"),
+        description: t("admin.removeAdminError"),
         variant: "destructive"
       });
     }
@@ -237,17 +239,17 @@ export const AdminAdministratorsTab = () => {
     <div className="space-y-6">
       <AdminPageHeader 
         icon={Settings} 
-        title="Адміністратори" 
-        description="Управління правами адміністраторів системи" 
+        title={t("admin.administratorsTitle")} 
+        description={t("admin.administratorsDescription")} 
       />
       {/* Info Card */}
       <Card className="border-yellow-500/50 bg-yellow-500/10">
         <CardContent className="p-4 flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium text-yellow-500">Увага!</p>
+            <p className="font-medium text-yellow-500">{t("appeals.attention")}</p>
             <p className="text-sm text-muted-foreground">
-              Для додавання або видалення адміністраторів потрібно ввести пароль супер-адміністратора ({SUPER_ADMIN_EMAIL}).
+              {t("admin.superAdminNote")} ({SUPER_ADMIN_EMAIL}).
             </p>
           </div>
         </CardContent>
@@ -259,14 +261,14 @@ export const AdminAdministratorsTab = () => {
           <CardContent className="p-4 text-center">
             <Shield className="h-5 w-5 mx-auto mb-1 text-primary" />
             <div className="text-2xl font-bold">{admins.length}</div>
-            <div className="text-xs text-muted-foreground">Адміністраторів</div>
+            <div className="text-xs text-muted-foreground">{t("admin.adminsTotal")}</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <Crown className="h-5 w-5 mx-auto mb-1 text-yellow-500" />
             <div className="text-2xl font-bold">1</div>
-            <div className="text-xs text-muted-foreground">Супер-адмін</div>
+            <div className="text-xs text-muted-foreground">{t("admin.superAdminsCount")}</div>
           </CardContent>
         </Card>
       </div>
@@ -276,28 +278,28 @@ export const AdminAdministratorsTab = () => {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
-            Адміністратори
+            {t("admin.currentAdmins")}
           </CardTitle>
           <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
             <DialogTrigger asChild>
               <Button>
                 <UserPlus className="h-4 w-4 mr-2" />
-                Додати адміністратора
+                {t("admin.addAdmin")}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Lock className="h-5 w-5" />
-                  Додати адміністратора
+                  {t("admin.addAdmin")}
                 </DialogTitle>
                 <DialogDescription>
-                  Для підтвердження введіть пароль супер-адміністратора
+                  {t("admin.superAdminNote")}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label>Користувач</Label>
+                  <Label>{t("admin.selectUserForAdmin")}</Label>
                   <Popover open={userComboboxOpen} onOpenChange={setUserComboboxOpen}>
                     <PopoverTrigger asChild>
                       <Button
@@ -309,15 +311,15 @@ export const AdminAdministratorsTab = () => {
                         {selectedUserId
                           ? allUsers.find(u => u.user_id === selectedUserId)?.display_name || 
                             allUsers.find(u => u.user_id === selectedUserId)?.user_id.slice(0, 8) + "..."
-                          : "Пошук користувача..."}
+                          : t("common.search") + "..."}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-full p-0" align="start">
                       <Command>
-                        <CommandInput placeholder="Введіть ім'я або email..." />
+                        <CommandInput placeholder={t("common.search") + "..."} />
                         <CommandList>
-                          <CommandEmpty>Користувача не знайдено</CommandEmpty>
+                          <CommandEmpty>{t("users.noUsers")}</CommandEmpty>
                           <CommandGroup>
                             {allUsers.map(user => (
                               <CommandItem
@@ -335,7 +337,7 @@ export const AdminAdministratorsTab = () => {
                                   )}
                                 />
                                 <div className="flex flex-col">
-                                  <span>{user.display_name || "Без імені"}</span>
+                                  <span>{user.display_name || t("users.noName")}</span>
                                   <span className="text-xs text-muted-foreground">
                                     {user.user_id.slice(0, 12)}...
                                   </span>
@@ -349,12 +351,12 @@ export const AdminAdministratorsTab = () => {
                   </Popover>
                 </div>
                 <div>
-                  <Label>Пароль супер-адміністратора</Label>
+                  <Label>{t("admin.superAdminPassword")}</Label>
                   <Input
                     type="password"
                     value={superAdminPassword}
                     onChange={(e) => setSuperAdminPassword(e.target.value)}
-                    placeholder="Введіть пароль"
+                    placeholder={t("auth.password")}
                   />
                 </div>
                 <Button 
@@ -367,7 +369,7 @@ export const AdminAdministratorsTab = () => {
                   ) : (
                     <Shield className="h-4 w-4 mr-2" />
                   )}
-                  Призначити адміністратором
+                  {t("admin.addAdmin")}
                 </Button>
               </div>
             </DialogContent>
@@ -375,15 +377,15 @@ export const AdminAdministratorsTab = () => {
         </CardHeader>
         <CardContent>
           {admins.length === 0 ? (
-            <p className="text-center text-muted-foreground py-4">Немає адміністраторів</p>
+            <p className="text-center text-muted-foreground py-4">{t("admin.noAdmins")}</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Користувач</TableHead>
+                  <TableHead>{t("users.user")}</TableHead>
                   <TableHead>ID</TableHead>
-                  <TableHead>Призначено</TableHead>
-                  <TableHead className="text-right">Дії</TableHead>
+                  <TableHead>{t("admin.roleDate")}</TableHead>
+                  <TableHead className="text-right">{t("sites.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -391,8 +393,8 @@ export const AdminAdministratorsTab = () => {
                   <TableRow key={admin.user_id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{admin.display_name || "Без імені"}</span>
-                        <Badge className="bg-primary">Адмін</Badge>
+                        <span className="font-medium">{admin.display_name || t("users.noName")}</span>
+                        <Badge className="bg-primary">{t("admin.roleAdmin")}</Badge>
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
@@ -408,7 +410,7 @@ export const AdminAdministratorsTab = () => {
                         onClick={() => openRemoveDialog(admin)}
                       >
                         <ShieldOff className="h-4 w-4 mr-1" />
-                        Зняти права
+                        {t("admin.removeAdmin")}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -425,20 +427,20 @@ export const AdminAdministratorsTab = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
               <ShieldOff className="h-5 w-5" />
-              Зняти права адміністратора
+              {t("admin.removeAdmin")}
             </DialogTitle>
             <DialogDescription>
-              Ви впевнені, що хочете зняти права адміністратора з {adminToRemove?.display_name || adminToRemove?.user_id.slice(0, 8)}?
+              {t("admin.confirmRemove")} {adminToRemove?.display_name || adminToRemove?.user_id.slice(0, 8)}?
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Пароль супер-адміністратора</Label>
+              <Label>{t("admin.superAdminPassword")}</Label>
               <Input
                 type="password"
                 value={removePassword}
                 onChange={(e) => setRemovePassword(e.target.value)}
-                placeholder="Введіть пароль для підтвердження"
+                placeholder={t("auth.password")}
               />
             </div>
             <div className="flex gap-2">
@@ -447,7 +449,7 @@ export const AdminAdministratorsTab = () => {
                 onClick={() => setRemoveDialogOpen(false)}
                 className="flex-1"
               >
-                Скасувати
+                {t("common.cancel")}
               </Button>
               <Button 
                 variant="destructive"
@@ -460,7 +462,7 @@ export const AdminAdministratorsTab = () => {
                 ) : (
                   <ShieldOff className="h-4 w-4 mr-2" />
                 )}
-                Зняти права
+                {t("admin.removeAdmin")}
               </Button>
             </div>
           </div>

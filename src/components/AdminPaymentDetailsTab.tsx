@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Save, History, Wallet } from "lucide-react";
 import { format } from "date-fns";
-import { uk } from "date-fns/locale";
+import { uk, ru } from "date-fns/locale";
 import {
   Table,
   TableBody,
@@ -18,6 +18,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { AdminPageHeader } from "@/components/AdminPageHeader";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface PaymentAddress {
   id: string;
@@ -39,11 +41,14 @@ interface AddressHistory {
 
 export function AdminPaymentDetailsTab() {
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   const [addresses, setAddresses] = useState<PaymentAddress[]>([]);
   const [history, setHistory] = useState<AddressHistory[]>([]);
   const [editedAddresses, setEditedAddresses] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const dateLocale = language === "ru" ? ru : uk;
 
   useEffect(() => {
     fetchData();
@@ -61,8 +66,8 @@ export function AdminPaymentDetailsTab() {
     if (addressError) {
       console.error("Error fetching addresses:", addressError);
       toast({
-        title: "Помилка",
-        description: "Не вдалося завантажити реквізити",
+        title: t("common.error"),
+        description: t("admin.addressSaveError"),
         variant: "destructive",
       });
     } else {
@@ -99,7 +104,7 @@ export function AdminPaymentDetailsTab() {
         setHistory(
           historyData?.map((h) => ({
             ...h,
-            admin_name: profileMap.get(h.changed_by) || "Невідомий",
+            admin_name: profileMap.get(h.changed_by) || t("users.unknown"),
           })) || []
         );
       } else {
@@ -118,8 +123,8 @@ export function AdminPaymentDetailsTab() {
 
     if (!currentAddress || currentAddress.address === newAddress) {
       toast({
-        title: "Без змін",
-        description: "Адреса не змінилася",
+        title: t("common.success"),
+        description: t("admin.addressSaved"),
       });
       return;
     }
@@ -135,8 +140,8 @@ export function AdminPaymentDetailsTab() {
     if (updateError) {
       console.error("Error updating address:", updateError);
       toast({
-        title: "Помилка",
-        description: "Не вдалося оновити адресу",
+        title: t("common.error"),
+        description: t("admin.addressSaveError"),
         variant: "destructive",
       });
       setSaving(false);
@@ -158,8 +163,8 @@ export function AdminPaymentDetailsTab() {
     }
 
     toast({
-      title: "Збережено",
-      description: `Адреса ${network} оновлена`,
+      title: t("admin.addressSaved"),
+      description: `${t("admin.network")} ${network}`,
     });
 
     fetchData();
@@ -176,16 +181,17 @@ export function AdminPaymentDetailsTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Wallet className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-bold">Реквізити для оплати</h1>
-      </div>
+      <AdminPageHeader 
+        icon={Wallet} 
+        title={t("admin.paymentDetailsTitle")} 
+        description={t("admin.paymentDetailsDescription")} 
+      />
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Edit Addresses */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Гаманці</CardTitle>
+            <CardTitle className="text-lg">{t("admin.wallets")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {addresses.map((addr) => (
@@ -201,7 +207,7 @@ export function AdminPaymentDetailsTab() {
                         [addr.id]: e.target.value,
                       }))
                     }
-                    placeholder={`Введіть адресу ${addr.network}`}
+                    placeholder={`${t("admin.address")} ${addr.network}`}
                     className="font-mono text-sm"
                   />
                   <Button
@@ -226,22 +232,22 @@ export function AdminPaymentDetailsTab() {
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <History className="h-5 w-5" />
-              Історія змін
+              {t("admin.changeHistory")} ({t("admin.summary")})
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[400px]">
               {history.length === 0 ? (
                 <p className="text-muted-foreground text-sm text-center py-4">
-                  Історія змін порожня
+                  {t("admin.noRequests")}
                 </p>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Мережа</TableHead>
-                      <TableHead>Адмін</TableHead>
-                      <TableHead>Дата</TableHead>
+                      <TableHead>{t("admin.network")}</TableHead>
+                      <TableHead>{t("admin.changedBy")}</TableHead>
+                      <TableHead>{t("admin.changeDate")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -251,7 +257,7 @@ export function AdminPaymentDetailsTab() {
                         <TableCell>{h.admin_name}</TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                           {format(new Date(h.changed_at), "dd MMM yyyy HH:mm", {
-                            locale: uk,
+                            locale: dateLocale,
                           })}
                         </TableCell>
                       </TableRow>
@@ -267,18 +273,18 @@ export function AdminPaymentDetailsTab() {
       {/* Full History Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Детальна історія</CardTitle>
+          <CardTitle className="text-lg">{t("admin.detailedHistory")}</CardTitle>
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-[300px]">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Мережа</TableHead>
-                  <TableHead>Стара адреса</TableHead>
-                  <TableHead>Нова адреса</TableHead>
-                  <TableHead>Адмін</TableHead>
-                  <TableHead>Дата</TableHead>
+                  <TableHead>{t("admin.network")}</TableHead>
+                  <TableHead>{t("admin.oldAddress")}</TableHead>
+                  <TableHead>{t("admin.newAddress")}</TableHead>
+                  <TableHead>{t("admin.changedBy")}</TableHead>
+                  <TableHead>{t("admin.changeDate")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -294,7 +300,7 @@ export function AdminPaymentDetailsTab() {
                     <TableCell>{h.admin_name}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {format(new Date(h.changed_at), "dd.MM.yyyy HH:mm", {
-                        locale: uk,
+                        locale: dateLocale,
                       })}
                     </TableCell>
                   </TableRow>
