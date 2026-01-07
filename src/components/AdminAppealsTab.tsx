@@ -469,8 +469,8 @@ export function AdminAppealsTab() {
     <div className="space-y-3">
       <AdminPageHeader 
         icon={MessageSquare} 
-        title="Апеляції" 
-        description="Розгляд скарг та повернення коштів" 
+        title={t("admin.appealsTitle")} 
+        description={t("admin.appealsDescription")} 
       />
       
       {/* Two column layout: Teams + Appeals */}
@@ -481,7 +481,7 @@ export function AdminAppealsTab() {
             <CardHeader className="py-2 px-3">
               <CardTitle className="flex items-center gap-1.5 text-sm">
                 <Wallet className="h-3.5 w-3.5" />
-                Баланси команд
+                {t("admin.teamBalances")}
               </CardTitle>
             </CardHeader>
             <CardContent className="px-2 pb-2">
@@ -493,7 +493,7 @@ export function AdminAppealsTab() {
                       !selectedTeamId ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/50"
                     }`}
                   >
-                    <span className="font-medium">Всі команди</span>
+                    <span className="font-medium">{t("admin.allTeams")}</span>
                     <span className="text-muted-foreground">{appeals.length}</span>
                   </button>
                   
@@ -550,7 +550,7 @@ export function AdminAppealsTab() {
                             <CollapsibleTrigger className="w-full text-[10px] text-yellow-600 font-medium px-2 pt-2 pb-1 flex items-center gap-1 hover:bg-muted/30 rounded cursor-pointer">
                               {pendingGroupOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                               <Clock className="h-3 w-3" />
-                              Активні апеляції ({teamsWithPending.length})
+                              {t("admin.activeAppeals")} ({teamsWithPending.length})
                             </CollapsibleTrigger>
                             <CollapsibleContent>
                               {teamsWithPending.map(renderTeam)}
@@ -563,7 +563,7 @@ export function AdminAppealsTab() {
                             <CollapsibleTrigger className="w-full text-[10px] text-muted-foreground font-medium px-2 pt-2 pb-1 flex items-center gap-1 hover:bg-muted/30 rounded cursor-pointer">
                               {historicalGroupOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                               <CheckCircle className="h-3 w-3" />
-                              Історичні апеляції ({teamsWithHistorical.length})
+                              {t("admin.historicalAppeals")} ({teamsWithHistorical.length})
                             </CollapsibleTrigger>
                             <CollapsibleContent>
                               {teamsWithHistorical.map(renderTeam)}
@@ -576,7 +576,7 @@ export function AdminAppealsTab() {
                             <CollapsibleTrigger className="w-full text-[10px] text-muted-foreground/60 font-medium px-2 pt-2 pb-1 flex items-center gap-1 hover:bg-muted/30 rounded cursor-pointer">
                               {noAppealsGroupOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                               <Users className="h-3 w-3" />
-                              Без апеляцій ({teamsWithNoAppeals.length})
+                              {t("admin.noAppeals")} ({teamsWithNoAppeals.length})
                             </CollapsibleTrigger>
                             <CollapsibleContent>
                               {teamsWithNoAppeals.map(renderTeam)}
@@ -606,14 +606,14 @@ export function AdminAppealsTab() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-2 pb-2">
-                <div className="text-[10px] text-muted-foreground mb-2">Останні транзакції:</div>
+                <div className="text-[10px] text-muted-foreground mb-2">{t("admin.lastTransactions")}:</div>
                 {loadingTransactions ? (
                   <div className="flex justify-center py-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
                   </div>
                 ) : transactions.length === 0 ? (
                   <div className="text-center py-2 text-muted-foreground text-[10px]">
-                    Немає транзакцій
+                    {t("admin.noTransactions")}
                   </div>
                 ) : (
                   <ScrollArea className="h-[150px]">
@@ -652,17 +652,17 @@ export function AdminAppealsTab() {
           <div className="flex flex-wrap gap-2">
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
               <Clock className="h-3 w-3 text-yellow-500" />
-              <span className="text-xs text-muted-foreground">Очікують:</span>
+              <span className="text-xs text-muted-foreground">{t("admin.pendingAppeals")}:</span>
               <span className="text-sm font-bold text-yellow-500">{filteredAppeals.filter(a => a.status === "pending").length}</span>
             </div>
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
               <CheckCircle className="h-3 w-3 text-green-500" />
-              <span className="text-xs text-muted-foreground">Схвалено:</span>
+              <span className="text-xs text-muted-foreground">{t("admin.approvedAppeals")}:</span>
               <span className="text-sm font-bold text-green-500">{filteredAppeals.filter(a => a.status === "approved").length}</span>
             </div>
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
               <XCircle className="h-3 w-3 text-destructive" />
-              <span className="text-xs text-muted-foreground">Відхилено:</span>
+              <span className="text-xs text-muted-foreground">{t("admin.rejectedAppeals")}:</span>
               <span className="text-sm font-bold text-destructive">{filteredAppeals.filter(a => a.status === "rejected").length}</span>
             </div>
           </div>
@@ -672,27 +672,27 @@ export function AdminAppealsTab() {
             <CardHeader className="py-2 px-3">
               <CardTitle className="flex items-center gap-1.5 text-sm">
                 <MessageSquare className="h-3.5 w-3.5" />
-                Апеляції ({filteredAppeals.length})
+                {t("admin.appeals")} ({filteredAppeals.length})
                 {selectedTeam && <span className="text-muted-foreground font-normal ml-1">— {selectedTeam.name}</span>}
               </CardTitle>
             </CardHeader>
             <CardContent className="px-3 pb-3">
               {filteredAppeals.length === 0 ? (
                 <div className="text-center py-4 text-muted-foreground text-xs">
-                  Немає апеляцій
+                  {t("admin.noAppeals")}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="text-xs py-1.5">Статус</TableHead>
-                        <TableHead className="text-xs py-1.5">Користувач</TableHead>
-                        <TableHead className="text-xs py-1.5">Команда</TableHead>
-                        <TableHead className="text-xs py-1.5">Сайт</TableHead>
-                        <TableHead className="text-xs py-1.5">Сума</TableHead>
-                        <TableHead className="text-xs py-1.5">Дата</TableHead>
-                        <TableHead className="text-xs py-1.5 text-right">Дії</TableHead>
+                        <TableHead className="text-xs py-1.5">{t("admin.status")}</TableHead>
+                        <TableHead className="text-xs py-1.5">{t("admin.user")}</TableHead>
+                        <TableHead className="text-xs py-1.5">{t("admin.userTeam")}</TableHead>
+                        <TableHead className="text-xs py-1.5">{t("admin.siteName")}</TableHead>
+                        <TableHead className="text-xs py-1.5">{t("admin.amount")}</TableHead>
+                        <TableHead className="text-xs py-1.5">{t("admin.date")}</TableHead>
+                        <TableHead className="text-xs py-1.5 text-right">{t("admin.actions")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -733,7 +733,7 @@ export function AdminAppealsTab() {
                               }}
                             >
                               <Eye className="h-3 w-3 mr-0.5" />
-                              Деталі
+                              {t("common.details")}
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -751,33 +751,33 @@ export function AdminAppealsTab() {
       <Dialog open={!!selectedAppeal} onOpenChange={() => setSelectedAppeal(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Деталі апеляції</DialogTitle>
+            <DialogTitle>{t("admin.appealDetails")}</DialogTitle>
           </DialogHeader>
           
           {selectedAppeal && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Користувач:</span>
+                  <span className="text-muted-foreground">{t("admin.user")}:</span>
                   <p className="font-medium">{selectedAppeal.user_name}</p>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Команда:</span>
+                  <span className="text-muted-foreground">{t("admin.userTeam")}:</span>
                   <p className="font-medium">{selectedAppeal.team_name}</p>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Сайт:</span>
+                  <span className="text-muted-foreground">{t("admin.siteName")}:</span>
                   <p className="font-medium">{selectedAppeal.site_name}</p>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Сума до повернення:</span>
+                  <span className="text-muted-foreground">{t("admin.refundAmount")}:</span>
                   <p className="font-medium text-lg">${selectedAppeal.amount_to_refund.toFixed(2)}</p>
                 </div>
               </div>
 
               {/* Site actions */}
               <div className="flex flex-wrap gap-2 p-3 bg-muted/50 rounded-md">
-                <span className="text-sm text-muted-foreground w-full mb-1">Дії з сайтом:</span>
+                <span className="text-sm text-muted-foreground w-full mb-1">{t("admin.siteActions")}:</span>
                 <Button
                   variant="outline"
                   size="sm"
@@ -785,7 +785,7 @@ export function AdminAppealsTab() {
                   onClick={() => navigate(`/edit/${selectedAppeal.generation_id}`)}
                 >
                   <Eye className="h-3.5 w-3.5 mr-1.5" />
-                  Переглянути
+                  {t("admin.viewSite")}
                 </Button>
                 <Button
                   variant="outline"
@@ -796,7 +796,7 @@ export function AdminAppealsTab() {
                   }}
                 >
                   <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                  Редагувати
+                  {t("admin.editSite")}
                 </Button>
                 <Button
                   variant="outline"
@@ -806,12 +806,12 @@ export function AdminAppealsTab() {
                   disabled={!selectedAppeal.zip_data}
                 >
                   <Download className="h-3.5 w-3.5 mr-1.5" />
-                  Завантажити ZIP
+                  {t("admin.downloadZip")}
                 </Button>
               </div>
 
               <div>
-                <span className="text-muted-foreground text-sm">Причина апеляції:</span>
+                <span className="text-muted-foreground text-sm">{t("admin.appealReason")}:</span>
                 <p className="p-3 bg-muted rounded-md mt-1">{selectedAppeal.reason}</p>
               </div>
 
@@ -819,7 +819,7 @@ export function AdminAppealsTab() {
                 <div>
                   <span className="text-muted-foreground text-sm flex items-center gap-1">
                     <Image className="h-3 w-3" />
-                    Скріншоти ({selectedAppeal.screenshot_urls?.length || 1}):
+                    {t("admin.screenshots")} ({selectedAppeal.screenshot_urls?.length || 1}):
                   </span>
                   <div className="mt-1 grid grid-cols-2 gap-2">
                     {(() => {
@@ -844,7 +844,7 @@ export function AdminAppealsTab() {
 
               {selectedAppeal.prompt && (
                 <div>
-                  <span className="text-muted-foreground text-sm">Оригінальний промпт:</span>
+                  <span className="text-muted-foreground text-sm">{t("admin.prompt")}:</span>
                   <p className="p-3 bg-muted rounded-md mt-1 text-sm max-h-32 overflow-y-auto">
                     {selectedAppeal.prompt}
                   </p>
@@ -854,11 +854,11 @@ export function AdminAppealsTab() {
               {selectedAppeal.status === "pending" ? (
                 <>
                   <div>
-                    <span className="text-muted-foreground text-sm">Коментар адміністратора:</span>
+                    <span className="text-muted-foreground text-sm">{t("admin.adminComment")}:</span>
                     <Textarea
                       value={adminComment}
                       onChange={(e) => setAdminComment(e.target.value)}
-                      placeholder="Додати коментар (необов'язково)..."
+                      placeholder={t("admin.commentPlaceholder")}
                       className="mt-1"
                     />
                   </div>
@@ -870,7 +870,7 @@ export function AdminAppealsTab() {
                       disabled={processing}
                     >
                       {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}
-                      Відхилити
+                      {t("admin.rejectAppeal")}
                     </Button>
                     <Button
                       onClick={() => handleResolve(true)}
@@ -878,7 +878,7 @@ export function AdminAppealsTab() {
                       className="bg-green-600 hover:bg-green-700"
                     >
                       {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-                      Схвалити і повернути ${selectedAppeal.amount_to_refund.toFixed(2)}
+                      {t("admin.approveAppeal")} ${selectedAppeal.amount_to_refund.toFixed(2)}
                     </Button>
                   </DialogFooter>
                 </>
@@ -887,7 +887,7 @@ export function AdminAppealsTab() {
                   <div className="flex items-center gap-2">
                     {getStatusIcon(selectedAppeal.status)}
                     <span className="font-medium">
-                      {selectedAppeal.status === "approved" ? "Схвалено" : "Відхилено"}
+                      {selectedAppeal.status === "approved" ? t("admin.approved") : t("admin.rejected")}
                     </span>
                     <span className="text-muted-foreground text-sm">
                       {selectedAppeal.resolved_at && new Date(selectedAppeal.resolved_at).toLocaleString("uk-UA")}
@@ -895,7 +895,7 @@ export function AdminAppealsTab() {
                   </div>
                   {selectedAppeal.admin_comment && (
                     <div>
-                      <span className="text-muted-foreground text-sm">Коментар адміністратора:</span>
+                      <span className="text-muted-foreground text-sm">{t("admin.adminComment")}:</span>
                       <p className="p-3 bg-muted rounded-md mt-1">{selectedAppeal.admin_comment}</p>
                     </div>
                   )}

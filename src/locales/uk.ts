@@ -902,6 +902,16 @@ export const uk = {
     newAddress: "Нова адреса",
     changeDate: "Дата зміни",
     summary: "коротко",
+    // Teams Dashboard
+    dashboardTeams: "Команд",
+    dashboardBalance: "Баланс",
+    dashboardDebt: "Борг",
+    dashboardSites: "Сайти",
+    dashboardIncome: "Дохід",
+    dashboardByDays: "По дням",
+    dashboardByTeams: "По командах",
+    dashboardSitesCount: "Сайтів",
+    dashboardDays: "д",
   },
 
   dashboard: {
