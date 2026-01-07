@@ -21,6 +21,7 @@ export const uk = {
     and: "та",
     copy: "Копіювати",
     copied: "Скопійовано",
+    selected: "Вибрано",
     download: "Завантажити",
     upload: "Завантажити",
     refresh: "Оновити",

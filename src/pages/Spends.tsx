@@ -15,6 +15,7 @@ import { Loader2, Save, DollarSign, TrendingUp, FileText, ChevronDown, ChevronRi
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { SimplePreview } from "@/components/SimplePreview";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface GeneratedFile {
   path: string;
@@ -57,6 +58,7 @@ type GroupBy = "none" | "language" | "website_type" | "ai_model";
 const Spends = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [generations, setGenerations] = useState<GenerationWithSpend[]>([]);
   const [spendSets, setSpendSets] = useState<SpendSet[]>([]);
   const [loading, setLoading] = useState(true);
@@ -623,7 +625,7 @@ const Spends = () => {
           <TableCell onClick={(e) => e.stopPropagation()}>
             <Input
               type="text"
-              placeholder="Нотатки..."
+              placeholder={t("spends.notes")}
               value={editedSpends[gen.id]?.notes || ""}
               onChange={(e) => handleNotesChange(gen.id, e.target.value)}
               className="w-40"
@@ -657,7 +659,7 @@ const Spends = () => {
                     </div>
                     
                     <div className="text-sm">
-                      <span className="text-muted-foreground">Вартість сайта:</span>
+                      <span className="text-muted-foreground">{t("generator.cost")}:</span>
                       <p className="font-medium">${gen.sale_price?.toFixed(2) || "—"}</p>
                     </div>
                   </div>
@@ -665,7 +667,7 @@ const Spends = () => {
                   <div>
                     <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
                       <Eye className="h-4 w-4" />
-                      Превʼю сайту:
+                      {t("generator.preview")}:
                     </h4>
                     {gen.files_data && gen.files_data.length > 0 ? (
                       <div className="border rounded-lg overflow-hidden bg-white h-[300px]">
@@ -673,7 +675,7 @@ const Spends = () => {
                       </div>
                     ) : (
                       <div className="border rounded-lg h-[300px] flex items-center justify-center text-muted-foreground">
-                        Немає файлів для превʼю
+                        {t("history.empty")}
                       </div>
                     )}
                   </div>
@@ -711,33 +713,33 @@ const Spends = () => {
               # {sortField === "number" && <ArrowUpDown className="h-3 w-3" />}
             </div>
           </TableHead>
-          <TableHead>Назва / Промпт</TableHead>
+          <TableHead>{t("spends.generation")}</TableHead>
           <TableHead className="w-24 cursor-pointer" onClick={() => handleSort("language")}>
             <div className="flex items-center gap-1">
-              Мова {sortField === "language" && <ArrowUpDown className="h-3 w-3" />}
+              {t("history.language")} {sortField === "language" && <ArrowUpDown className="h-3 w-3" />}
             </div>
           </TableHead>
           <TableHead className="w-24 cursor-pointer" onClick={() => handleSort("website_type")}>
             <div className="flex items-center gap-1">
-              Тип {sortField === "website_type" && <ArrowUpDown className="h-3 w-3" />}
+              {t("history.type")} {sortField === "website_type" && <ArrowUpDown className="h-3 w-3" />}
             </div>
           </TableHead>
           <TableHead className="w-24 cursor-pointer" onClick={() => handleSort("ai_model")}>
             <div className="flex items-center gap-1">
-              Модель {sortField === "ai_model" && <ArrowUpDown className="h-3 w-3" />}
+              {t("history.model")} {sortField === "ai_model" && <ArrowUpDown className="h-3 w-3" />}
             </div>
           </TableHead>
           <TableHead className="w-32 cursor-pointer" onClick={() => handleSort("created_at")}>
             <div className="flex items-center gap-1">
-              Дата {sortField === "created_at" && <ArrowUpDown className="h-3 w-3" />}
+              {t("history.date")} {sortField === "created_at" && <ArrowUpDown className="h-3 w-3" />}
             </div>
           </TableHead>
           <TableHead className="w-32 cursor-pointer" onClick={() => handleSort("spend_amount")}>
             <div className="flex items-center gap-1">
-              Спенд ($) {sortField === "spend_amount" && <ArrowUpDown className="h-3 w-3" />}
+              {t("spends.amount")} ($) {sortField === "spend_amount" && <ArrowUpDown className="h-3 w-3" />}
             </div>
           </TableHead>
-          <TableHead className="w-48">Нотатки</TableHead>
+          <TableHead className="w-48">{t("spends.notes")}</TableHead>
           <TableHead className="w-20"></TableHead>
         </TableRow>
       </TableHeader>
@@ -758,8 +760,8 @@ const Spends = () => {
     <AppLayout>
       <div className="p-4 space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">Спенди</h1>
-          <p className="text-muted-foreground">Відстежуйте витрати по кожному згенерованому сайту</p>
+          <h1 className="text-2xl font-bold">{t("spends.title")}</h1>
+          <p className="text-muted-foreground">{t("spends.subtitle")}</p>
         </div>
 
         {/* Stats */}
@@ -771,7 +773,7 @@ const Spends = () => {
                   <DollarSign className="h-5 w-5 text-green-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Загальний спенд</p>
+                  <p className="text-sm text-muted-foreground">{t("spends.totalSpent")}</p>
                   <p className="text-2xl font-bold">${totalSpend.toFixed(2)}</p>
                 </div>
               </div>
@@ -785,7 +787,7 @@ const Spends = () => {
                   <TrendingUp className="h-5 w-5 text-blue-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Середній спенд</p>
+                  <p className="text-sm text-muted-foreground">{t("balance.totalSpent")}</p>
                   <p className="text-2xl font-bold">${avgSpend.toFixed(2)}</p>
                 </div>
               </div>
@@ -799,7 +801,7 @@ const Spends = () => {
                   <FileText className="h-5 w-5 text-purple-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Сайтів з даними</p>
+                  <p className="text-sm text-muted-foreground">{t("sidebar.sites")}</p>
                   <p className="text-2xl font-bold">{sitesWithSpend} / {generations.length}</p>
                 </div>
               </div>
@@ -812,7 +814,7 @@ const Spends = () => {
           <Card className="border-primary">
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Вибрано: {selectedItems.size}</span>
+                <span className="text-sm font-medium">{t("common.selected")}: {selectedItems.size}</span>
                 <div className="flex gap-2">
                   <Button 
                     size="sm" 
@@ -821,7 +823,7 @@ const Spends = () => {
                     disabled={bulkActioning}
                   >
                     {bulkActioning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Star className="h-4 w-4 mr-1" />}
-                    Додати в обрані
+                    {t("spends.favorite")}
                   </Button>
                   <Button 
                     size="sm" 
@@ -830,7 +832,7 @@ const Spends = () => {
                     disabled={bulkActioning}
                   >
                     {bulkActioning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <StarOff className="h-4 w-4 mr-1" />}
-                    Прибрати з обраних
+                    {t("common.remove")}
                   </Button>
                   <Button 
                     size="sm" 
@@ -838,14 +840,14 @@ const Spends = () => {
                     onClick={() => setShowSaveSetDialog(true)}
                   >
                     <FolderPlus className="h-4 w-4 mr-1" />
-                    Зберегти як сет
+                    {t("spends.createSet")}
                   </Button>
                   <Button 
                     size="sm" 
                     variant="ghost"
                     onClick={() => setSelectedItems(new Set())}
                   >
-                    Скасувати
+                    {t("common.cancel")}
                   </Button>
                 </div>
               </div>
@@ -859,11 +861,11 @@ const Spends = () => {
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Фільтри:</span>
+                <span className="text-sm font-medium">{t("common.filter")}:</span>
               </div>
               
               <Input
-                placeholder="Пошук..."
+                placeholder={t("common.search")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-48"
@@ -871,10 +873,10 @@ const Spends = () => {
 
               <Select value={filterLanguage} onValueChange={setFilterLanguage}>
                 <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Мова" />
+                  <SelectValue placeholder={t("history.language")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Всі мови</SelectItem>
+                  <SelectItem value="all">{t("common.all")}</SelectItem>
                   {uniqueLanguages.map(lang => (
                     <SelectItem key={lang} value={lang}>{lang}</SelectItem>
                   ))}
@@ -883,10 +885,10 @@ const Spends = () => {
 
               <Select value={filterType} onValueChange={setFilterType}>
                 <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Тип" />
+                  <SelectValue placeholder={t("history.type")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Всі типи</SelectItem>
+                  <SelectItem value="all">{t("common.all")}</SelectItem>
                   {uniqueTypes.map(type => (
                     <SelectItem key={type} value={type}>{type}</SelectItem>
                   ))}
@@ -895,10 +897,10 @@ const Spends = () => {
 
               <Select value={filterModel} onValueChange={setFilterModel}>
                 <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Модель" />
+                  <SelectValue placeholder={t("history.model")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Всі моделі</SelectItem>
+                  <SelectItem value="all">{t("common.all")}</SelectItem>
                   {uniqueModels.map(model => (
                     <SelectItem key={model} value={model}>{model}</SelectItem>
                   ))}
@@ -907,13 +909,13 @@ const Spends = () => {
 
               <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
                 <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Групувати по" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Без групування</SelectItem>
-                  <SelectItem value="language">По мові</SelectItem>
-                  <SelectItem value="website_type">По типу</SelectItem>
-                  <SelectItem value="ai_model">По моделі</SelectItem>
+                  <SelectItem value="none">{t("common.none")}</SelectItem>
+                  <SelectItem value="language">{t("history.language")}</SelectItem>
+                  <SelectItem value="website_type">{t("history.type")}</SelectItem>
+                  <SelectItem value="ai_model">{t("history.model")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -926,7 +928,7 @@ const Spends = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <FolderOpen className="h-5 w-5" />
-                Збережені сети
+                {t("spends.sets")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -936,7 +938,7 @@ const Spends = () => {
                   variant={activeSetId === null ? "default" : "outline"}
                   onClick={() => setActiveSetId(null)}
                 >
-                  Всі
+                  {t("common.all")}
                 </Button>
                 {spendSets.map(set => (
                   <div key={set.id} className="flex items-center gap-1">
@@ -968,7 +970,7 @@ const Spends = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                Обрані ({favorites.length})
+                {t("spends.favoriteSpends")} ({favorites.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -987,14 +989,14 @@ const Spends = () => {
         {/* Generations Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Генерації ({regularGenerations.length})</CardTitle>
+            <CardTitle>{t("sidebar.history")} ({regularGenerations.length})</CardTitle>
           </CardHeader>
           <CardContent>
             {filteredAndSortedGenerations.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
                 {generations.length === 0 
-                  ? "У вас поки немає завершених генерацій"
-                  : "Немає результатів за вашими фільтрами"
+                  ? t("history.empty")
+                  : t("history.emptySubtitle")
                 }
               </p>
             ) : groupBy === "none" ? (
@@ -1124,28 +1126,28 @@ const Spends = () => {
         <Dialog open={showSaveSetDialog} onOpenChange={setShowSaveSetDialog}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Зберегти сет</DialogTitle>
+              <DialogTitle>{t("spends.createSet")}</DialogTitle>
             </DialogHeader>
             <div className="py-4">
               <Input
-                placeholder="Назва сету..."
+                placeholder={t("spends.setName")}
                 value={newSetName}
                 onChange={(e) => setNewSetName(e.target.value)}
               />
               <p className="text-sm text-muted-foreground mt-2">
-                Буде збережено {selectedItems.size} елементів
+                {selectedItems.size} {t("common.selected")}
               </p>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowSaveSetDialog(false)}>
-                Скасувати
+                {t("common.cancel")}
               </Button>
               <Button 
                 onClick={handleSaveSet} 
                 disabled={savingSet || !newSetName.trim()}
               >
                 {savingSet ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-                Зберегти
+                {t("common.save")}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -9,8 +9,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { format, subDays, eachDayOfInterval } from "date-fns";
-import { uk } from "date-fns/locale";
+import { uk as ukLocale } from "date-fns/locale";
+import { ru as ruLocale } from "date-fns/locale";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { BalanceRequestForm } from "@/components/BalanceRequestForm";
 import { BalanceRequestsList } from "@/components/BalanceRequestsList";
@@ -77,6 +79,8 @@ const Balance = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const { isTeamOwner } = useTeamOwner();
+  const { t, language } = useLanguage();
+  const dateLocale = language === "uk" ? ukLocale : ruLocale;
   const { isAdmin } = useAdmin();
   const [teamInfo, setTeamInfo] = useState<TeamInfo | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -304,7 +308,7 @@ const Balance = () => {
       });
 
       const dailyChartData = Array.from(dailyMap.entries()).map(([date, data]) => ({
-        date: format(new Date(date), "d MMM", { locale: uk }),
+        date: format(new Date(date), "d MMM", { locale: dateLocale }),
         amount: data.amount,
         count: data.count
       }));
@@ -437,9 +441,9 @@ const Balance = () => {
     <AppLayout>
       <div className="p-3 md:p-4 space-y-3">
         <div className="space-y-0.5">
-          <h1 className="text-xl font-bold">Баланс</h1>
+          <h1 className="text-xl font-bold">{t("balance.title")}</h1>
           <p className="text-muted-foreground text-xs">
-            {isTeamOwner ? "Фінансова діяльність команди" : "Ваша фінансова діяльність"}
+            {isTeamOwner ? t("balance.teamBalance") : t("balance.title")}
           </p>
         </div>
 
@@ -454,7 +458,7 @@ const Balance = () => {
               <Card className="p-3">
                 <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
                   <Wallet className="h-3 w-3" />
-                  Баланс
+                  {t("balance.title")}
                 </div>
                 <div className={`text-lg font-bold ${teamInfo && teamInfo.balance < 0 ? "text-destructive" : "text-foreground"}`}>
                   ${teamInfo?.balance.toFixed(2) || "0.00"}
@@ -464,7 +468,7 @@ const Balance = () => {
               <Card className="p-3">
                 <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
                   <TrendingDown className="h-3 w-3" />
-                  Витрачено
+                  {t("balance.totalSpent")}
                 </div>
                 <div className="text-lg font-bold">${totalSpent.toFixed(2)}</div>
               </Card>
@@ -472,7 +476,7 @@ const Balance = () => {
               <Card className="p-3">
                 <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
                   <TrendingUp className="h-3 w-3" />
-                  Повернено
+                  {t("balance.refunded")}
                 </div>
                 <div className="text-lg font-bold text-green-500">${totalRefunded.toFixed(2)}</div>
               </Card>
@@ -480,7 +484,7 @@ const Balance = () => {
               <Card className="p-3">
                 <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
                   <Clock className="h-3 w-3" />
-                  На розгляді
+                  {t("balance.pendingRefund")}
                 </div>
                 <div className="text-lg font-bold text-amber-500">${pendingRefunds.toFixed(2)}</div>
               </Card>
@@ -492,7 +496,7 @@ const Balance = () => {
               <Card className="p-3">
                 <div className="flex items-center gap-1.5 text-xs font-medium mb-2">
                   <CalendarDays className="h-3 w-3" />
-                  По днях
+                  {t("balance.dailyActivity")}
                 </div>
                 {dailyData.some(d => d.amount > 0) ? (
                   <ResponsiveContainer width="100%" height={140}>
@@ -501,7 +505,7 @@ const Balance = () => {
                       <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={2} />
                       <YAxis tick={{ fontSize: 9 }} tickFormatter={(v) => `$${v}`} width={35} />
                       <Tooltip 
-                        formatter={(value: number) => [`$${value.toFixed(2)}`, "Сума"]}
+                        formatter={(value: number) => [`$${value.toFixed(2)}`, t("balance.amount")]}
                         contentStyle={{ fontSize: 11, backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "6px" }}
                       />
                       <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} />
@@ -509,7 +513,7 @@ const Balance = () => {
                   </ResponsiveContainer>
                 ) : (
                   <div className="h-[140px] flex items-center justify-center text-muted-foreground text-xs">
-                    Немає даних
+                    {t("balance.empty")}
                   </div>
                 )}
               </Card>
@@ -519,7 +523,7 @@ const Balance = () => {
                 <Card className="p-3">
                   <div className="flex items-center gap-1.5 text-xs font-medium mb-2">
                     <Users className="h-3 w-3" />
-                    По баєрах
+                    {t("balance.buyerContributions")}
                   </div>
                   {buyerData.length > 0 ? (
                     <ResponsiveContainer width="100%" height={140}>
@@ -553,7 +557,7 @@ const Balance = () => {
                     </ResponsiveContainer>
                   ) : (
                     <div className="h-[140px] flex items-center justify-center text-muted-foreground text-xs">
-                      Немає даних
+                      {t("balance.empty")}
                     </div>
                   )}
                 </Card>
@@ -564,7 +568,7 @@ const Balance = () => {
                 <Card className="p-3">
                   <div className="flex items-center gap-1.5 text-xs font-medium mb-2">
                     <Building2 className="h-3 w-3" />
-                    По командах
+                    {t("balance.teamSpending")}
                   </div>
                   <ResponsiveContainer width="100%" height={140}>
                     <BarChart data={teamSpendingData} layout="vertical">
@@ -572,7 +576,7 @@ const Balance = () => {
                       <XAxis type="number" tick={{ fontSize: 9 }} tickFormatter={(v) => `$${v}`} />
                       <YAxis type="category" dataKey="name" tick={{ fontSize: 9 }} width={60} />
                       <Tooltip 
-                        formatter={(value: number) => [`$${value.toFixed(2)}`, "Витрати"]}
+                        formatter={(value: number) => [`$${value.toFixed(2)}`, t("balance.totalSpent")]}
                         contentStyle={{ fontSize: 11, backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "6px" }}
                       />
                       <Bar dataKey="amount" fill="hsl(var(--chart-2))" radius={[0, 2, 2, 0]} />
@@ -593,14 +597,14 @@ const Balance = () => {
                 <BalanceRequestsList 
                   requests={balanceRequests}
                   loading={false}
-                  title="Мої запити"
+                  title={t("balance.myRequests")}
                 />
                 {isTeamOwner && (
                   <BalanceRequestsList 
                     requests={teamBalanceRequests}
                     loading={false}
                     showUserName={true}
-                    title="Запити команди"
+                    title={t("balance.teamRequests")}
                   />
                 )}
               </div>
@@ -608,11 +612,11 @@ const Balance = () => {
 
             {/* Transactions List */}
             <Card className="p-3">
-              <div className="text-sm font-medium mb-2">Історія транзакцій</div>
+              <div className="text-sm font-medium mb-2">{t("balance.transactionsHistory")}</div>
               {transactions.length === 0 ? (
                 <div className="text-center py-6 text-muted-foreground text-xs">
                   <Wallet className="h-8 w-8 mx-auto mb-1 opacity-50" />
-                  Немає транзакцій
+                  {t("balance.empty")}
                 </div>
               ) : (
                 <ScrollArea className="h-[200px]">
@@ -623,7 +627,7 @@ const Balance = () => {
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-medium truncate">{tx.description}</p>
                           <p className="text-[10px] text-muted-foreground">
-                            {format(new Date(tx.date), "d MMM, HH:mm", { locale: uk })}
+                            {format(new Date(tx.date), "d MMM, HH:mm", { locale: dateLocale })}
                             {tx.user_email && isTeamOwner && <span className="ml-1 text-primary">• {tx.user_email}</span>}
                           </p>
                         </div>
@@ -635,7 +639,7 @@ const Balance = () => {
                           ) : tx.type === "appeal_pending" ? (
                             <Badge variant="outline" className="text-amber-500 border-amber-500/50 text-[10px] px-1 py-0">${tx.amount.toFixed(2)}</Badge>
                           ) : (
-                            <Badge variant="outline" className="text-muted-foreground text-[10px] px-1 py-0">Відхилено</Badge>
+                            <Badge variant="outline" className="text-muted-foreground text-[10px] px-1 py-0">{t("balance.rejected")}</Badge>
                           )}
                         </div>
                       </div>
