@@ -1947,28 +1947,102 @@ export function WebsiteGenerator() {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          // Pick random topic
-                          const topic = randomVipTopics[Math.floor(Math.random() * randomVipTopics.length)];
+                          // Try to detect topic from description
+                          const promptLower = prompt.toLowerCase();
+                          let detectedTopic = "";
                           
-                          // Generate domain from topic
-                          const domainBase = topic.toLowerCase().replace(/[^a-z0-9]/g, '');
+                          // Match topic keywords from description
+                          for (const topic of randomVipTopics) {
+                            const topicWords = topic.toLowerCase().split(/\s+/);
+                            if (topicWords.some(word => promptLower.includes(word))) {
+                              detectedTopic = topic;
+                              break;
+                            }
+                          }
+                          
+                          // Also check for common keywords in description
+                          const topicKeywordMap: Record<string, string> = {
+                            "game": "Video Games", "gaming": "Video Games", "gamer": "Video Games",
+                            "law": "Law Services", "legal": "Law Services", "attorney": "Law Services", "lawyer": "Law Services",
+                            "dental": "Dental Care", "dentist": "Dental Care", "teeth": "Dental Care",
+                            "real estate": "Real Estate", "property": "Real Estate", "house": "Real Estate", "apartment": "Real Estate",
+                            "pet": "Pet Grooming", "dog": "Pet Grooming", "cat": "Pet Grooming", "animal": "Pet Grooming",
+                            "car": "Auto Repair", "auto": "Auto Repair", "mechanic": "Auto Repair", "vehicle": "Auto Repair",
+                            "fitness": "Fitness Training", "gym": "Fitness Training", "workout": "Fitness Training", "training": "Fitness Training",
+                            "photo": "Photography", "photographer": "Photography", "camera": "Photography",
+                            "home": "Home Renovation", "renovation": "Home Renovation", "remodel": "Home Renovation",
+                            "account": "Accounting", "tax": "Accounting", "finance": "Accounting", "bookkeep": "Accounting",
+                            "travel": "Travel Agency", "vacation": "Travel Agency", "trip": "Travel Agency", "tour": "Travel Agency",
+                            "coffee": "Coffee Shop", "cafe": "Coffee Shop", "espresso": "Coffee Shop",
+                            "bakery": "Bakery", "bread": "Bakery", "cake": "Bakery", "pastry": "Bakery",
+                            "flower": "Flower Delivery", "floral": "Flower Delivery", "bouquet": "Flower Delivery",
+                            "it": "IT Consulting", "tech": "IT Consulting", "software": "IT Consulting", "computer": "IT Consulting",
+                            "wedding": "Wedding Planning", "bride": "Wedding Planning", "marry": "Wedding Planning",
+                            "restaurant": "Restaurant", "food": "Restaurant", "dining": "Restaurant", "menu": "Restaurant",
+                            "spa": "Spa & Wellness", "massage": "Spa & Wellness", "wellness": "Spa & Wellness", "relax": "Spa & Wellness",
+                            "plumb": "Plumbing Services", "pipe": "Plumbing Services", "drain": "Plumbing Services",
+                            "insurance": "Insurance Agency", "insur": "Insurance Agency", "policy": "Insurance Agency",
+                            "hair": "Hair Salon", "salon": "Hair Salon", "stylist": "Hair Salon", "haircut": "Hair Salon",
+                            "yoga": "Yoga Studio", "meditation": "Yoga Studio", "mindful": "Yoga Studio",
+                            "dealer": "Car Dealership", "dealership": "Car Dealership",
+                            "clean": "Cleaning Services", "maid": "Cleaning Services", "housekeep": "Cleaning Services"
+                          };
+                          
+                          if (!detectedTopic) {
+                            for (const [keyword, topic] of Object.entries(topicKeywordMap)) {
+                              if (promptLower.includes(keyword)) {
+                                detectedTopic = topic;
+                                break;
+                              }
+                            }
+                          }
+                          
+                          // If still no topic detected, pick random
+                          const topic = detectedTopic || randomVipTopics[Math.floor(Math.random() * randomVipTopics.length)];
+                          
+                          // Generate domain based on topic and first siteName if available
+                          const siteBase = siteNames[0] 
+                            ? siteNames[0].toLowerCase().replace(/[^a-z0-9]/g, '')
+                            : topic.toLowerCase().replace(/[^a-z0-9]/g, '');
                           const randomNum = Math.floor(Math.random() * 900) + 100;
-                          const domain = `${domainBase}${randomNum}.com`;
+                          const domain = `${siteBase}${randomNum}.com`;
                           
-                          // Get geo-specific data
-                          const geoKey = selectedGeo || "default";
-                          const addresses = randomVipAddressesByGeo[geoKey] || randomVipAddressesByGeo["default"];
-                          const phones = randomVipPhonesByGeo[geoKey] || randomVipPhonesByGeo["default"];
+                          // Get geo-specific data - use selected geo or custom geo
+                          const effectiveGeo = isOtherGeoSelected && customGeo 
+                            ? "default" // For custom geo, use default addresses but we'll customize
+                            : (selectedGeo || "default");
                           
-                          const address = addresses[Math.floor(Math.random() * addresses.length)];
-                          const phone = phones[Math.floor(Math.random() * phones.length)];
+                          const addresses = randomVipAddressesByGeo[effectiveGeo] || randomVipAddressesByGeo["default"];
+                          const phones = randomVipPhonesByGeo[effectiveGeo] || randomVipPhonesByGeo["default"];
+                          
+                          let address = addresses[Math.floor(Math.random() * addresses.length)];
+                          let phone = phones[Math.floor(Math.random() * phones.length)];
+                          
+                          // If custom geo is set, try to incorporate it into the address
+                          if (isOtherGeoSelected && customGeo) {
+                            const streetNum = Math.floor(Math.random() * 500) + 1;
+                            const streets = ["Main Street", "Oak Avenue", "Business Boulevard", "Commerce Drive", "Central Road"];
+                            const street = streets[Math.floor(Math.random() * streets.length)];
+                            address = `${streetNum} ${street}, ${customGeo}`;
+                          }
+                          
+                          // Get keywords for the detected/selected topic
                           const keywords = randomVipKeywordsByTopic[topic] || "professional services, quality, expert, trusted";
+                          
+                          // Generate language-aware keywords if language is selected
+                          const langValue = selectedLanguages[0] || (isOtherSelected && customLanguage ? customLanguage : "");
+                          let finalKeywords = keywords;
+                          
+                          // Add language context to topic if needed
+                          const geoLabel = isOtherGeoSelected && customGeo 
+                            ? customGeo 
+                            : (selectedGeo ? geoOptions.find(g => g.value === selectedGeo)?.label || selectedGeo : "");
                           
                           setVipDomain(domain);
                           setVipAddress(address);
                           setVipPhone(phone);
-                          setVipTopic(topic);
-                          setVipKeywords(keywords);
+                          setVipTopic(topic + (geoLabel ? ` in ${geoLabel}` : ""));
+                          setVipKeywords(finalKeywords);
                         }}
                         className="h-7 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-100/50 dark:hover:bg-amber-900/30"
                       >
