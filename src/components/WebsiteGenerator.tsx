@@ -1418,7 +1418,7 @@ export function WebsiteGenerator() {
                           addSiteName();
                         }
                       }}
-                      disabled={isSubmitting || isImproving}
+                      disabled={isImproving}
                       className="h-8 text-sm flex-1"
                     />
                     <Button
@@ -1426,7 +1426,7 @@ export function WebsiteGenerator() {
                       variant="outline"
                       size="sm"
                       onClick={addSiteName}
-                      disabled={isSubmitting || isImproving || !currentSiteNameInput.trim()}
+                      disabled={isImproving || !currentSiteNameInput.trim()}
                       className="h-8 px-2"
                     >
                       <Plus className="h-4 w-4" />
@@ -1561,7 +1561,7 @@ export function WebsiteGenerator() {
                         addSiteName();
                       }
                     }}
-                    disabled={isSubmitting || isImproving}
+                    disabled={isImproving}
                     className="h-8 text-sm flex-1"
                   />
                   <Button
@@ -1569,7 +1569,7 @@ export function WebsiteGenerator() {
                     variant="outline"
                     size="sm"
                     onClick={addSiteName}
-                    disabled={isSubmitting || isImproving || !currentSiteNameInput.trim()}
+                    disabled={isImproving || !currentSiteNameInput.trim()}
                     className="h-8 px-2"
                   >
                     <Plus className="h-4 w-4" />
@@ -1620,7 +1620,7 @@ export function WebsiteGenerator() {
                 }}
                 className="min-h-[60px] text-sm overflow-hidden"
                 style={{ resize: 'none' }}
-                disabled={isSubmitting || isImproving}
+                disabled={isImproving}
               />
               {improvedPromptValue && (
                 <div className="text-xs text-green-600 flex items-center gap-1">
@@ -1634,7 +1634,7 @@ export function WebsiteGenerator() {
                   variant="outline"
                   size="sm"
                   onClick={handleImprovePrompt}
-                  disabled={isSubmitting || isImproving || !prompt.trim()}
+                  disabled={isImproving || !prompt.trim()}
                   className="h-7 text-xs px-2"
                 >
                   {isImproving ? (
@@ -1654,7 +1654,7 @@ export function WebsiteGenerator() {
                     setOriginalPrompt(null);
                     setImprovedPromptValue(null);
                   }}
-                  disabled={isSubmitting || !prompt.trim()}
+                  disabled={!prompt.trim()}
                   className="h-7 text-xs px-2"
                 >
                   <Trash2 className="mr-1 h-3 w-3" />
