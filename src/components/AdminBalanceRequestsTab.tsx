@@ -10,8 +10,9 @@ import { Loader2, CheckCircle, XCircle, Clock, ExternalLink, Wallet, DollarSign 
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { uk } from "date-fns/locale";
+import { uk, ru } from "date-fns/locale";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface BalanceRequest {
   id: string;
@@ -30,11 +31,14 @@ interface BalanceRequest {
 
 export function AdminBalanceRequestsTab() {
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   const [requests, setRequests] = useState<BalanceRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   const [adminComments, setAdminComments] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState("pending");
+
+  const dateLocale = language === "ru" ? ru : uk;
 
   useEffect(() => {
     fetchRequests();
@@ -80,14 +84,14 @@ export function AdminBalanceRequestsTab() {
 
       const enrichedRequests = requestsData.map(r => ({
         ...r,
-        user_display_name: profileMap.get(r.user_id) || "Невідомий",
-        team_name: teamMap.get(r.team_id) || "Невідома"
+        user_display_name: profileMap.get(r.user_id) || t("users.unknown"),
+        team_name: teamMap.get(r.team_id) || t("users.unknown")
       }));
 
       setRequests(enrichedRequests);
     } catch (error) {
       console.error("Error fetching balance requests:", error);
-      toast.error("Помилка завантаження запитів");
+      toast.error(t("common.error"));
     } finally {
       setLoading(false);
     }
@@ -116,7 +120,7 @@ export function AdminBalanceRequestsTab() {
         amount: request.amount,
         balance_before: balanceBefore,
         balance_after: newBalance,
-        note: `Запит #${request.id.slice(0, 8)}: ${request.note}`,
+        note: `${t("admin.balanceRequestsTitle")} #${request.id.slice(0, 8)}: ${request.note}`,
         admin_id: user.id,
       });
 
@@ -146,13 +150,13 @@ export function AdminBalanceRequestsTab() {
       // Create notification for user
       await supabase.from("notifications").insert({
         user_id: request.user_id,
-        title: "Запит на поповнення погоджено",
-        message: `Ваш запит на поповнення балансу на $${request.amount.toFixed(2)} було погоджено. Кошти зараховано на баланс команди.`,
+        title: t("admin.requestApproved"),
+        message: `${t("admin.balanceUpdated")}: $${request.amount.toFixed(2)}`,
         type: "balance_approved",
         data: { request_id: request.id, amount: request.amount }
       });
 
-      toast.success(`Запит на $${request.amount.toFixed(2)} погоджено`);
+      toast.success(`${t("admin.requestApproved")} $${request.amount.toFixed(2)}`);
       setAdminComments(prev => {
         const newComments = { ...prev };
         delete newComments[request.id];
@@ -161,7 +165,7 @@ export function AdminBalanceRequestsTab() {
       fetchRequests();
     } catch (error) {
       console.error("Error approving request:", error);
-      toast.error("Помилка погодження запиту");
+      toast.error(t("admin.approveRequestError"));
     } finally {
       setProcessing(null);
     }
@@ -172,7 +176,7 @@ export function AdminBalanceRequestsTab() {
 
     const comment = adminComments[request.id]?.trim();
     if (!comment) {
-      toast.error("Вкажіть причину відхилення");
+      toast.error(t("admin.rejectionReason"));
       return;
     }
 
@@ -193,13 +197,13 @@ export function AdminBalanceRequestsTab() {
       // Create notification for user
       await supabase.from("notifications").insert({
         user_id: request.user_id,
-        title: "Запит на поповнення відхилено",
-        message: `Ваш запит на поповнення балансу на $${request.amount.toFixed(2)} було відхилено. Причина: ${comment}`,
+        title: t("admin.balanceRequestRejected"),
+        message: `${t("admin.rejectionReason")}: ${comment}`,
         type: "balance_rejected",
         data: { request_id: request.id, amount: request.amount, reason: comment }
       });
 
-      toast.success("Запит відхилено");
+      toast.success(t("admin.balanceRequestRejected"));
       setAdminComments(prev => {
         const newComments = { ...prev };
         delete newComments[request.id];
@@ -208,7 +212,7 @@ export function AdminBalanceRequestsTab() {
       fetchRequests();
     } catch (error) {
       console.error("Error rejecting request:", error);
-      toast.error("Помилка відхилення запиту");
+      toast.error(t("admin.rejectRequestError"));
     } finally {
       setProcessing(null);
     }
@@ -247,14 +251,14 @@ export function AdminBalanceRequestsTab() {
     <div className="space-y-4">
       <AdminPageHeader 
         icon={Wallet} 
-        title="Запити на поповнення" 
-        description="Обробка запитів на поповнення балансу команд" 
+        title={t("admin.balanceRequestsTitle")} 
+        description={t("admin.balanceRequestsDescription")} 
       />
       {/* Summary */}
       <div className="flex flex-wrap gap-2">
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-amber-500/10 border-amber-500/30">
           <Clock className="h-3 w-3 text-amber-500" />
-          <span className="text-xs text-amber-600">Очікують:</span>
+          <span className="text-xs text-amber-600">{t("admin.pendingTab")}:</span>
           <span className="text-sm font-bold text-amber-600">{pendingCount}</span>
           <span className="text-xs text-amber-600">•</span>
           <span className="text-sm font-bold text-amber-600">${pendingTotal.toFixed(2)}</span>
@@ -264,11 +268,11 @@ export function AdminBalanceRequestsTab() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="h-8">
           <TabsTrigger value="pending" className="text-xs h-6 px-3">
-            Очікують {pendingCount > 0 && `(${pendingCount})`}
+            {t("admin.pendingTab")} {pendingCount > 0 && `(${pendingCount})`}
           </TabsTrigger>
-          <TabsTrigger value="approved" className="text-xs h-6 px-3">Погоджені</TabsTrigger>
-          <TabsTrigger value="rejected" className="text-xs h-6 px-3">Відхилені</TabsTrigger>
-          <TabsTrigger value="all" className="text-xs h-6 px-3">Всі</TabsTrigger>
+          <TabsTrigger value="approved" className="text-xs h-6 px-3">{t("admin.approvedTab")}</TabsTrigger>
+          <TabsTrigger value="rejected" className="text-xs h-6 px-3">{t("admin.rejectedTab")}</TabsTrigger>
+          <TabsTrigger value="all" className="text-xs h-6 px-3">{t("admin.allRequests")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-3">
@@ -276,7 +280,7 @@ export function AdminBalanceRequestsTab() {
             <Card className="p-6">
               <div className="text-center text-muted-foreground text-sm">
                 <Wallet className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                Немає запитів
+                {t("admin.noRequests")}
               </div>
             </Card>
           ) : (
@@ -309,10 +313,10 @@ export function AdminBalanceRequestsTab() {
                             }
                           >
                             {request.status === "approved"
-                              ? "Погоджено"
+                              ? t("admin.approvedTab")
                               : request.status === "rejected"
-                              ? "Відхилено"
-                              : "Очікує"}
+                              ? t("admin.rejectedTab")
+                              : t("admin.pendingTab")}
                           </Badge>
                         </div>
 
@@ -321,11 +325,11 @@ export function AdminBalanceRequestsTab() {
                           <span className="mx-1">•</span>
                           <span>{request.team_name}</span>
                           <span className="mx-1">•</span>
-                          <span>{format(new Date(request.created_at), "d MMM yyyy, HH:mm", { locale: uk })}</span>
+                          <span>{format(new Date(request.created_at), "d MMM yyyy, HH:mm", { locale: dateLocale })}</span>
                         </div>
 
                         <div className="text-sm mb-3">
-                          <span className="text-muted-foreground">Примітка: </span>
+                          <span className="text-muted-foreground">{t("admin.requestNote")}: </span>
                           {isUrl(request.note) ? (
                             <a
                               href={request.note}
@@ -333,7 +337,7 @@ export function AdminBalanceRequestsTab() {
                               rel="noopener noreferrer"
                               className="text-primary hover:underline inline-flex items-center gap-1"
                             >
-                              Переглянути квитанцію <ExternalLink className="h-3 w-3" />
+                              {t("balance.viewReceipt")} <ExternalLink className="h-3 w-3" />
                             </a>
                           ) : (
                             <span>{request.note}</span>
@@ -342,7 +346,7 @@ export function AdminBalanceRequestsTab() {
 
                         {request.admin_comment && (
                           <div className="p-2 rounded bg-muted text-sm mb-3">
-                            <span className="font-medium">Коментар адміна: </span>
+                            <span className="font-medium">{t("appeals.adminComment")}: </span>
                             {request.admin_comment}
                           </div>
                         )}
@@ -350,7 +354,7 @@ export function AdminBalanceRequestsTab() {
                         {request.status === "pending" && (
                           <div className="flex items-center gap-2">
                             <Input
-                              placeholder="Коментар (обов'язково для відхилення)"
+                              placeholder={t("admin.rejectionReason")}
                               className="h-8 text-sm"
                               value={adminComments[request.id] || ""}
                               onChange={(e) =>
@@ -372,7 +376,7 @@ export function AdminBalanceRequestsTab() {
                               ) : (
                                 <>
                                   <CheckCircle className="h-4 w-4 mr-1" />
-                                  Погодити
+                                  {t("admin.approveRequest")}
                                 </>
                               )}
                             </Button>
@@ -388,7 +392,7 @@ export function AdminBalanceRequestsTab() {
                               ) : (
                                 <>
                                   <XCircle className="h-4 w-4 mr-1" />
-                                  Відхилити
+                                  {t("admin.rejectRequest")}
                                 </>
                               )}
                             </Button>
