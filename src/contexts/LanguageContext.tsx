@@ -63,10 +63,19 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Default fallback for when context is not available
+const defaultContextValue: LanguageContextType = {
+  language: "uk",
+  setLanguage: () => {},
+  t: (key: string) => key,
+};
+
 export function useLanguage() {
   const context = useContext(LanguageContext);
   if (context === undefined) {
-    throw new Error("useLanguage must be used within a LanguageProvider");
+    // Return fallback instead of throwing - handles edge cases during hydration
+    console.warn("useLanguage used outside LanguageProvider, using fallback");
+    return defaultContextValue;
   }
   return context;
 }
