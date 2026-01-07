@@ -367,6 +367,7 @@ export function WebsiteGenerator() {
   const [vipAddress, setVipAddress] = useState("");
   const [vipPhone, setVipPhone] = useState("");
   const [vipKeywords, setVipKeywords] = useState("");
+  const [vipBannedWords, setVipBannedWords] = useState("");
   const [vipTopic, setVipTopic] = useState("");
   
   const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 });
@@ -1192,6 +1193,7 @@ export function WebsiteGenerator() {
     setVipAddress("");
     setVipPhone("");
     setVipKeywords("");
+    setVipBannedWords("");
     setVipTopic("");
 
     try {
@@ -1820,6 +1822,7 @@ export function WebsiteGenerator() {
                     setVipAddress("");
                     setVipPhone("");
                     setVipKeywords("");
+                    setVipBannedWords("");
                     setVipTopic("");
                   }}
                   disabled={!prompt.trim()}
@@ -2178,6 +2181,20 @@ export function WebsiteGenerator() {
                       />
                     </div>
                     
+                    {/* Banned Words - optional, full width */}
+                    <div className="space-y-1">
+                      <Label className="text-xs flex items-center gap-1">
+                        <X className="h-3 w-3 text-red-500" />
+                        Заборонені слова
+                      </Label>
+                      <Input
+                        placeholder="crypto, free, miracle, profit..."
+                        value={vipBannedWords}
+                        onChange={(e) => setVipBannedWords(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    
                     {/* Generate VIP prompt button */}
                     <Button
                       variant="outline"
@@ -2219,6 +2236,7 @@ export function WebsiteGenerator() {
                               topic: vipTopic || undefined,
                               description: prompt,
                               keywords: vipKeywords || undefined,
+                              bannedWords: vipBannedWords || undefined,
                             }
                           });
                           

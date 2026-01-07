@@ -26,7 +26,7 @@ Description: {description}
 
 Keywords: {keywords}
 
-Banned words: crypto, free, miracle, health, profit, investment, quick gain, earnings, money, price, cost, guarantee, exclusive, top, bonus, 100%, risk-free
+Banned words: {bannedWords}
 
 {pageStructure}
 
@@ -198,6 +198,7 @@ serve(async (req) => {
       topic,
       description,
       keywords,
+      bannedWords,
     } = await req.json();
 
     // Validate required fields
@@ -237,6 +238,7 @@ serve(async (req) => {
       .replace("{typeDescription}", getTypeDescription(topicToUse))
       .replace("{description}", description || `${siteName} is a platform dedicated to ${topicToUse.toLowerCase()}.`)
       .replace("{keywords}", keywords || topicToUse.toLowerCase().split(" ").join(", "))
+      .replace("{bannedWords}", bannedWords || "crypto, free, miracle, health, profit, investment, quick gain, earnings, money, price, cost, guarantee, exclusive, top, bonus, 100%, risk-free")
       .replace("{pageStructure}", pageStructure)
       .replace("{design}", design)
       .replace("{hreflang}", getHreflang(language || "en", geo || "us"));
