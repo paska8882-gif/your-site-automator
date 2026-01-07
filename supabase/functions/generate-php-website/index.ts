@@ -1132,18 +1132,38 @@ async function runGeneration({
 
   // If model returned something parseable but incomplete/empty-ish, retry once with stricter format.
   const v1 = validateFiles(files);
+  let retryAttempted = false;
+  let retryError: string | null = null;
+  
   if (files.length === 0 || v1.missing.length > 0 || v1.tooShort.length > 0) {
     console.warn(
-      `PHP generation invalid on attempt #1. Missing: ${v1.missing.join(", ")}; Too short: ${v1.tooShort.join(", ")}`
+      `PHP generation invalid on attempt #1. Files: ${files.length}, Missing: ${v1.missing.join(", ")}; Too short: ${v1.tooShort.join(", ")}`
     );
+    retryAttempted = true;
 
-    const second = await generateOnce({ strictFormat: true });
-    if (second.ok) {
-      const v2 = validateFiles(second.files);
-      if (second.files.length > 0 && v2.missing.length === 0 && v2.tooShort.length === 0) {
-        files = second.files;
-        generateCost = second.generateCost;
+    try {
+      const second = await generateOnce({ strictFormat: true });
+      if (second.ok) {
+        const v2 = validateFiles(second.files);
+        console.log(`Retry attempt result: ${second.files.length} files, Missing: ${v2.missing.join(", ")}, Too short: ${v2.tooShort.join(", ")}`);
+        
+        // Use second result if it's better (more files or fewer issues)
+        if (second.files.length > files.length || 
+            (v2.missing.length < v1.missing.length) || 
+            (v2.missing.length === 0 && v2.tooShort.length === 0)) {
+          files = second.files;
+          generateCost = second.generateCost;
+          console.log(`Using retry result: ${files.length} files`);
+        } else {
+          console.log(`Keeping first result as it's not worse: ${files.length} files`);
+        }
+      } else {
+        retryError = second.error || "Retry failed";
+        console.error(`Retry failed: ${retryError}`);
       }
+    } catch (retryErr) {
+      retryError = retryErr instanceof Error ? retryErr.message : "Retry exception";
+      console.error(`Retry exception: ${retryError}`);
     }
   }
 
@@ -1153,14 +1173,20 @@ async function runGeneration({
   );
 
   if (files.length === 0) {
-    return { success: false, error: "Failed to parse generated files" };
+    return { success: false, error: `Failed to parse generated files${retryAttempted ? ` (retry also failed: ${retryError})` : ""}` };
   }
 
   const validation = validateFiles(files);
   if (validation.missing.length > 0 || validation.tooShort.length > 0) {
+    // Log detailed info for debugging
+    console.error(`Final validation failed after ${retryAttempted ? "retry" : "first attempt"}:`);
+    console.error(`- Files generated: ${files.length} (${files.map(f => f.path).join(", ")})`);
+    console.error(`- Missing required: ${validation.missing.join(", ")}`);
+    console.error(`- Too short: ${validation.tooShort.join(", ")}`);
+    
     return {
       success: false,
-      error: `Generation output incomplete. Missing: ${validation.missing.join(", ")}. Too short: ${validation.tooShort.join(", ")}.`,
+      error: `Generation output incomplete after ${retryAttempted ? "2 attempts" : "1 attempt"}. Missing: ${validation.missing.join(", ")}. Too short: ${validation.tooShort.join(", ")}.`,
     };
   }
   const normalizePaths = (files: GeneratedFile[]) =>
