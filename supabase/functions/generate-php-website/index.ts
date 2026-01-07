@@ -1042,7 +1042,8 @@ async function runGeneration({
   };
 
   const generateOnce = async (opts: { strictFormat: boolean; timeoutMs?: number }) => {
-    const timeoutMs = opts.timeoutMs ?? 180_000; // 3 minutes default
+    // Reduced timeout: 120s default to leave room for retry within edge function limits
+    const timeoutMs = opts.timeoutMs ?? 120_000; // 2 minutes default
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       console.error(`⏰ Generation timeout after ${timeoutMs / 1000}s`);
@@ -1164,7 +1165,7 @@ async function runGeneration({
 
     try {
       // Retry with shorter timeout (60s) and strict format
-      const second = await generateOnce({ strictFormat: true, timeoutMs: 90_000 });
+      const second = await generateOnce({ strictFormat: true, timeoutMs: 60_000 });
       if (second.ok) {
         const v2 = validateFiles(second.files);
         console.log(`Retry attempt result: ${second.files.length} files, Missing: ${v2.missing.join(", ")}, Too short: ${v2.tooShort.join(", ")}`);
@@ -1189,16 +1190,11 @@ async function runGeneration({
     }
   }
 
-  // Graceful degradation: if we have 8+ files and only 1-2 non-critical files missing, accept with warning
+  // Graceful degradation: accept results with minor issues
   const finalValidation = validateFiles(files);
   const criticalFiles = ["index.php", "includes/header.php", "includes/footer.php", "css/style.css"];
   const missingCritical = finalValidation.missing.filter(f => criticalFiles.includes(f));
   
-  if (files.length >= 8 && missingCritical.length === 0 && finalValidation.missing.length <= 2) {
-    console.warn(`⚠️ Accepting partial result: ${files.length} files, missing non-critical: ${finalValidation.missing.join(", ")}`);
-    // Continue with partial result - warning will be in logs
-  }
-
   const totalCost = refineCost + generateCost;
   console.log(
     `Generation costs: Refine=$${refineCost.toFixed(4)}, Generate=$${generateCost.toFixed(4)}, Total=$${totalCost.toFixed(4)}`
@@ -1208,17 +1204,25 @@ async function runGeneration({
     return { success: false, error: `Failed to parse generated files${retryAttempted ? ` (retry also failed: ${retryError})` : ""}` };
   }
 
-  const validation = validateFiles(files);
-  if (validation.missing.length > 0 || validation.tooShort.length > 0) {
-    // Log detailed info for debugging
+  // If we have 6+ files and no critical files missing, accept with warning
+  if (files.length >= 6 && missingCritical.length === 0) {
+    if (finalValidation.missing.length > 0 || finalValidation.tooShort.length > 0) {
+      console.warn(`⚠️ Accepting partial result: ${files.length} files`);
+      console.warn(`  - Missing non-critical: ${finalValidation.missing.join(", ") || "none"}`);
+      console.warn(`  - Too short: ${finalValidation.tooShort.join(", ") || "none"}`);
+    }
+    // Continue with partial result
+  } else if (missingCritical.length > 0 || files.length < 6) {
+    // Only fail if critical files are missing or very few files generated
     console.error(`Final validation failed after ${retryAttempted ? "retry" : "first attempt"}:`);
     console.error(`- Files generated: ${files.length} (${files.map(f => f.path).join(", ")})`);
-    console.error(`- Missing required: ${validation.missing.join(", ")}`);
-    console.error(`- Too short: ${validation.tooShort.join(", ")}`);
+    console.error(`- Missing critical: ${missingCritical.join(", ")}`);
+    console.error(`- Missing all: ${finalValidation.missing.join(", ")}`);
+    console.error(`- Too short: ${finalValidation.tooShort.join(", ")}`);
     
     return {
       success: false,
-      error: `Generation output incomplete after ${retryAttempted ? "2 attempts" : "1 attempt"}. Missing: ${validation.missing.join(", ")}. Too short: ${validation.tooShort.join(", ")}.`,
+      error: `Generation incomplete. Missing critical files: ${missingCritical.join(", ") || "none"}. Total files: ${files.length}.`,
     };
   }
   const normalizePaths = (files: GeneratedFile[]) =>
