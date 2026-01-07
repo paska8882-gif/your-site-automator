@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 
 export type BackendHealthStatus = "checking" | "healthy" | "degraded";
 
 interface Options {
   timeoutMs?: number;
   intervalMs?: number;
+  failuresBeforeDegraded?: number;
 }
 
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs: number) {
@@ -19,9 +20,11 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, tim
 }
 
 export function useBackendHealth(options: Options = {}) {
-  const { timeoutMs = 6000, intervalMs = 30000 } = options;
+  // Increased timeout to 10 seconds, require 2 consecutive failures before showing degraded
+  const { timeoutMs = 10000, intervalMs = 30000, failuresBeforeDegraded = 2 } = options;
   const [status, setStatus] = useState<BackendHealthStatus>("checking");
   const [lastErrorAt, setLastErrorAt] = useState<number | null>(null);
+  const consecutiveFailures = useRef(0);
 
   const check = useCallback(async () => {
     try {
@@ -32,8 +35,6 @@ export function useBackendHealth(options: Options = {}) {
           method: "GET",
           headers: {
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            // Authorization optional; if present in client it will still work.
-            // We intentionally keep this as a simple health check.
             accept: "application/json",
           },
         },
@@ -41,12 +42,20 @@ export function useBackendHealth(options: Options = {}) {
       );
 
       if (!res.ok) throw new Error(`healthcheck ${res.status}`);
+      
+      // Success - reset failures and set healthy
+      consecutiveFailures.current = 0;
       setStatus("healthy");
     } catch {
-      setStatus("degraded");
-      setLastErrorAt(Date.now());
+      consecutiveFailures.current += 1;
+      
+      // Only show degraded after multiple consecutive failures
+      if (consecutiveFailures.current >= failuresBeforeDegraded) {
+        setStatus("degraded");
+        setLastErrorAt(Date.now());
+      }
     }
-  }, [timeoutMs]);
+  }, [timeoutMs, failuresBeforeDegraded]);
 
   useEffect(() => {
     check();
