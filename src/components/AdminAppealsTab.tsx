@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { 
   Loader2, 
   AlertCircle, 
@@ -79,6 +80,7 @@ interface BalanceTransaction {
 
 export function AdminAppealsTab() {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [appeals, setAppeals] = useState<Appeal[]>([]);

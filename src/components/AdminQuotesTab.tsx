@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +20,7 @@ interface Quote {
 export function AdminQuotesTab() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [newText, setNewText] = useState("");
@@ -40,8 +42,8 @@ export function AdminQuotesTab() {
     } catch (error) {
       console.error("Error fetching quotes:", error);
       toast({
-        title: "Помилка",
-        description: "Не вдалося завантажити цитати",
+        title: t("common.error"),
+        description: t("admin.quotesFetchError"),
         variant: "destructive",
       });
     } finally {
@@ -56,8 +58,8 @@ export function AdminQuotesTab() {
   const addQuote = async () => {
     if (!newText.trim()) {
       toast({
-        title: "Помилка",
-        description: "Введіть текст цитати",
+        title: t("common.error"),
+        description: t("admin.quotesTextPlaceholder"),
         variant: "destructive",
       });
       return;
@@ -79,12 +81,12 @@ export function AdminQuotesTab() {
       setQuotes(prev => [data, ...prev]);
       setNewText("");
       setNewAuthor("");
-      toast({ title: "Цитату додано" });
+      toast({ title: t("admin.quotesAdded") });
     } catch (error) {
       console.error("Error adding quote:", error);
       toast({
-        title: "Помилка",
-        description: "Не вдалося додати цитату",
+        title: t("common.error"),
+        description: t("admin.quotesAddError"),
         variant: "destructive",
       });
     }
@@ -105,8 +107,8 @@ export function AdminQuotesTab() {
     } catch (error) {
       console.error("Error updating quote:", error);
       toast({
-        title: "Помилка",
-        description: "Не вдалося оновити статус",
+        title: t("common.error"),
+        description: t("admin.quotesToggleError"),
         variant: "destructive",
       });
     }
@@ -121,8 +123,8 @@ export function AdminQuotesTab() {
   const saveEdit = async () => {
     if (!editText.trim()) {
       toast({
-        title: "Помилка",
-        description: "Текст цитати не може бути порожнім",
+        title: t("common.error"),
+        description: t("admin.quotesTextPlaceholder"),
         variant: "destructive",
       });
       return;
@@ -147,12 +149,12 @@ export function AdminQuotesTab() {
         )
       );
       setEditingId(null);
-      toast({ title: "Цитату оновлено" });
+      toast({ title: t("admin.quotesUpdated") });
     } catch (error) {
       console.error("Error updating quote:", error);
       toast({
-        title: "Помилка",
-        description: "Не вдалося оновити цитату",
+        title: t("common.error"),
+        description: t("admin.quotesUpdateError"),
         variant: "destructive",
       });
     }
@@ -165,12 +167,12 @@ export function AdminQuotesTab() {
       if (error) throw error;
 
       setQuotes(prev => prev.filter(q => q.id !== id));
-      toast({ title: "Цитату видалено" });
+      toast({ title: t("admin.quotesDeleted") });
     } catch (error) {
       console.error("Error deleting quote:", error);
       toast({
-        title: "Помилка",
-        description: "Не вдалося видалити цитату",
+        title: t("common.error"),
+        description: t("admin.quotesDeleteError"),
         variant: "destructive",
       });
     }
@@ -190,32 +192,32 @@ export function AdminQuotesTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">
-          Цитати{" "}
+          {t("admin.quotesTitle")}{" "}
           <span className="text-sm text-muted-foreground">
-            ({activeCount} активних)
+            ({activeCount} {t("admin.active")})
           </span>
         </h2>
       </div>
 
       {/* Add new quote */}
       <div className="border rounded-lg p-3 space-y-2">
-        <Label className="text-xs">Нова цитата</Label>
+        <Label className="text-xs">{t("admin.quotesTitle")}</Label>
         <Input
-          placeholder="Текст цитати..."
+          placeholder={t("admin.quotesTextPlaceholder")}
           value={newText}
           onChange={e => setNewText(e.target.value)}
           className="text-sm"
         />
         <div className="flex gap-2">
           <Input
-            placeholder="Автор (необов'язково)"
+            placeholder={t("admin.quotesAuthorPlaceholder")}
             value={newAuthor}
             onChange={e => setNewAuthor(e.target.value)}
             className="text-sm flex-1"
           />
           <Button size="sm" onClick={addQuote}>
             <Plus className="h-3.5 w-3.5 mr-1" />
-            Додати
+            {t("admin.quotesAdd")}
           </Button>
         </div>
       </div>
@@ -223,7 +225,7 @@ export function AdminQuotesTab() {
       {/* List of quotes */}
       {quotes.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
-          Цитат ще немає
+          {t("admin.quotesEmpty")}
         </div>
       ) : (
         <div className="space-y-2">

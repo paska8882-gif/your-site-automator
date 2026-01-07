@@ -6,16 +6,19 @@ import { AdminNotificationsManager } from "./AdminNotificationsManager";
 import { AdminSupportTab } from "./AdminSupportTab";
 import { AdminQuotesTab } from "./AdminQuotesTab";
 import { AdminPageHeader } from "./AdminPageHeader";
-
-const tabConfig = {
-  feedback: { icon: MessageCircle, title: "Фідбек", description: "Відгуки від користувачів" },
-  notifications: { icon: Bell, title: "Сповіщення", description: "Масові повідомлення" },
-  support: { icon: Headphones, title: "Підтримка", description: "Чати з користувачами" },
-  quotes: { icon: Quote, title: "Цитати", description: "Мотиваційні цитати" },
-};
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export function AdminCommunicationTab() {
-  const [activeTab, setActiveTab] = useState<keyof typeof tabConfig>("feedback");
+  const { t } = useLanguage();
+  const [activeTab, setActiveTab] = useState<"feedback" | "notifications" | "support" | "quotes">("feedback");
+  
+  const tabConfig = {
+    feedback: { icon: MessageCircle, title: t("admin.communicationTab.feedback"), description: t("admin.communicationTab.feedbackDesc") },
+    notifications: { icon: Bell, title: t("admin.communicationTab.notifications"), description: t("admin.communicationTab.notificationsDesc") },
+    support: { icon: Headphones, title: t("admin.communicationTab.support"), description: t("admin.communicationTab.supportDesc") },
+    quotes: { icon: Quote, title: t("admin.communicationTab.quotes"), description: t("admin.communicationTab.quotesDesc") },
+  };
+  
   const currentConfig = tabConfig[activeTab];
 
   return (
@@ -26,23 +29,23 @@ export function AdminCommunicationTab() {
         description={currentConfig.description} 
       />
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as keyof typeof tabConfig)}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "feedback" | "notifications" | "support" | "quotes")}>
         <TabsList className="grid w-full grid-cols-4 h-8">
           <TabsTrigger value="feedback" className="text-xs gap-1">
             <MessageCircle className="h-3 w-3" />
-            Фідбек
+            {t("admin.communicationTab.feedback")}
           </TabsTrigger>
           <TabsTrigger value="notifications" className="text-xs gap-1">
             <Bell className="h-3 w-3" />
-            Сповіщення
+            {t("admin.communicationTab.notifications")}
           </TabsTrigger>
           <TabsTrigger value="support" className="text-xs gap-1">
             <Headphones className="h-3 w-3" />
-            Підтримка
+            {t("admin.communicationTab.support")}
           </TabsTrigger>
           <TabsTrigger value="quotes" className="text-xs gap-1">
             <Quote className="h-3 w-3" />
-            Цитати
+            {t("admin.communicationTab.quotes")}
           </TabsTrigger>
         </TabsList>
         

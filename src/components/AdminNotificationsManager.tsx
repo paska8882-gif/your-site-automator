@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Bell, Send, Loader2 } from "lucide-react";
 
 interface UserOption {
@@ -15,6 +16,7 @@ interface UserOption {
 
 export const AdminNotificationsManager = () => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [users, setUsers] = useState<UserOption[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [title, setTitle] = useState("");
@@ -45,8 +47,8 @@ export const AdminNotificationsManager = () => {
   const sendNotification = async () => {
     if (!selectedUserId || !title.trim() || !message.trim()) {
       toast({
-        title: "Помилка",
-        description: "Заповніть всі поля",
+        title: t("common.error"),
+        description: t("admin.notificationSelectUser"),
         variant: "destructive",
       });
       return;
@@ -64,8 +66,8 @@ export const AdminNotificationsManager = () => {
       if (error) throw error;
 
       toast({
-        title: "Успішно",
-        description: "Сповіщення надіслано",
+        title: t("common.success"),
+        description: t("admin.notificationSent"),
       });
 
       setTitle("");
@@ -74,8 +76,8 @@ export const AdminNotificationsManager = () => {
     } catch (error) {
       console.error("Error sending notification:", error);
       toast({
-        title: "Помилка",
-        description: "Не вдалося надіслати сповіщення",
+        title: t("common.error"),
+        description: t("admin.notificationError"),
         variant: "destructive",
       });
     } finally {
@@ -86,8 +88,8 @@ export const AdminNotificationsManager = () => {
   const sendToAll = async () => {
     if (!title.trim() || !message.trim()) {
       toast({
-        title: "Помилка",
-        description: "Заповніть заголовок та повідомлення",
+        title: t("common.error"),
+        description: t("admin.notificationFillFields"),
         variant: "destructive",
       });
       return;
@@ -107,8 +109,8 @@ export const AdminNotificationsManager = () => {
       if (error) throw error;
 
       toast({
-        title: "Успішно",
-        description: `Сповіщення надіслано ${users.length} користувачам`,
+        title: t("common.success"),
+        description: t("admin.notificationSentAll"),
       });
 
       setTitle("");
@@ -116,8 +118,8 @@ export const AdminNotificationsManager = () => {
     } catch (error) {
       console.error("Error sending broadcast:", error);
       toast({
-        title: "Помилка",
-        description: "Не вдалося надіслати сповіщення",
+        title: t("common.error"),
+        description: t("admin.notificationError"),
         variant: "destructive",
       });
     } finally {
@@ -130,20 +132,20 @@ export const AdminNotificationsManager = () => {
       <CardHeader className="py-2 px-3">
         <CardTitle className="text-sm flex items-center gap-1.5">
           <Bell className="h-4 w-4" />
-          Надіслати сповіщення
+          {t("admin.sendNotification")}
         </CardTitle>
       </CardHeader>
       <CardContent className="p-3 space-y-3">
         <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Користувач</label>
+          <label className="text-xs text-muted-foreground mb-1 block">{t("admin.user")}</label>
           <Select value={selectedUserId} onValueChange={setSelectedUserId}>
             <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder={fetchingUsers ? "Завантаження..." : "Виберіть користувача"} />
+              <SelectValue placeholder={fetchingUsers ? t("admin.loadingUsers") : t("admin.selectUser")} />
             </SelectTrigger>
             <SelectContent>
               {users.map((user) => (
                 <SelectItem key={user.user_id} value={user.user_id} className="text-xs">
-                  {user.display_name || "Без імені"}
+                  {user.display_name || t("admin.noName")}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -151,21 +153,21 @@ export const AdminNotificationsManager = () => {
         </div>
 
         <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Заголовок</label>
+          <label className="text-xs text-muted-foreground mb-1 block">{t("admin.notificationTitle")}</label>
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Заголовок сповіщення"
+            placeholder={t("admin.notificationTitle")}
             className="h-8 text-xs"
           />
         </div>
 
         <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Повідомлення</label>
+          <label className="text-xs text-muted-foreground mb-1 block">{t("admin.notificationMessage")}</label>
           <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Текст сповіщення"
+            placeholder={t("admin.notificationMessage")}
             className="text-xs min-h-[80px]"
           />
         </div>
@@ -182,7 +184,7 @@ export const AdminNotificationsManager = () => {
             ) : (
               <Send className="h-3 w-3 mr-1" />
             )}
-            Надіслати
+            {t("admin.sendToUser")}
           </Button>
           <Button
             size="sm"
@@ -191,7 +193,7 @@ export const AdminNotificationsManager = () => {
             onClick={sendToAll}
             disabled={loading}
           >
-            Всім користувачам
+            {t("admin.sendToAll")}
           </Button>
         </div>
       </CardContent>
