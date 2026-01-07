@@ -1072,8 +1072,7 @@ export function WebsiteGenerator() {
       const websiteTypesToUse = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes : ["html" as WebsiteType];
       const imageSourcesToUse = selectedImageSources.length > 0 ? selectedImageSources : ["basic" as ImageSource];
       const langs = getAllSelectedLanguages();
-      // If no site names provided, use array with one undefined to generate at least one site
-      const siteNamesToUse = getAllSiteNames().length > 0 ? getAllSiteNames() : [undefined as string | undefined];
+      const siteNamesToUse = getAllSiteNames(); // Site names are required, validated in handleGenerateClick
       const totalCount = siteNamesToUse.length * langs.length * sitesPerLanguage * stylesToUse.length * aiModelsToUse.length * websiteTypesToUse.length * imageSourcesToUse.length;
       
       setGenerationProgress({ completed: 0, total: totalCount });

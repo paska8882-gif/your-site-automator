@@ -1095,12 +1095,14 @@ async function runGeneration({
   aiModel,
   layoutStyle,
   imageSource = "basic",
+  siteName,
 }: {
   prompt: string;
   language?: string;
   aiModel: "junior" | "senior";
   layoutStyle?: string;
   imageSource?: "basic" | "ai";
+  siteName?: string;
 }): Promise<GenerationResult> {
   const isJunior = aiModel === "junior";
   console.log(`Using ${isJunior ? "Junior AI (OpenAI GPT-4o)" : "Senior AI (Lovable AI)"} for HTML generation`);
@@ -1137,10 +1139,10 @@ async function runGeneration({
     body: JSON.stringify({
       model: refineModel,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: SYSTEM_PROMPT + (siteName ? `\n\nCRITICAL SITE NAME REQUIREMENT: The website/business/brand name MUST be "${siteName}". Use this EXACT name in the logo, header, footer, page titles, meta tags, copyright, and all references to the business. Do NOT invent a different name.` : "") },
         {
           role: "user",
-          content: `Create a detailed prompt for static HTML/CSS website generation based on this request:\n\n"${prompt}"\n\nTARGET CONTENT LANGUAGE: ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language || "auto-detect from user's request, default to English"}`,
+          content: `Create a detailed prompt for static HTML/CSS website generation based on this request:\n\n"${prompt}"${siteName ? `\n\nIMPORTANT: The website name/brand MUST be "${siteName}".` : ""}\n\nTARGET CONTENT LANGUAGE: ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language || "auto-detect from user's request, default to English"}`,
         },
       ],
     }),
@@ -1367,7 +1369,8 @@ async function runBackgroundGeneration(
   layoutStyle?: string,
   imageSource: "basic" | "ai" = "basic",
   teamId: string | null = null,
-  salePrice: number = 0
+  salePrice: number = 0,
+  siteName?: string
 ) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -1382,7 +1385,7 @@ async function runBackgroundGeneration(
       .update({ status: "generating" })
       .eq("id", historyId);
 
-    const result = await runGeneration({ prompt, language, aiModel, layoutStyle, imageSource });
+    const result = await runGeneration({ prompt, language, aiModel, layoutStyle, imageSource, siteName });
 
     if (result.success && result.files) {
       // Create zip base64
@@ -1702,7 +1705,7 @@ CRITICAL GEO REQUIREMENTS - ALL CONTENT MUST BE LOCALIZED FOR ${countryName.toUp
     // Start background generation using EdgeRuntime.waitUntil
     // Pass salePrice and teamId for potential refund on error
     EdgeRuntime.waitUntil(
-      runBackgroundGeneration(historyEntry.id, user.id, prompt, language, aiModel, layoutStyle, imageSource, teamId, salePrice)
+      runBackgroundGeneration(historyEntry.id, user.id, prompt, language, aiModel, layoutStyle, imageSource, teamId, salePrice, siteName)
     );
 
     // Return immediately with the history entry ID
