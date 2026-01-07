@@ -14,6 +14,7 @@ import { toast } from "@/hooks/use-toast";
 import { Gift, Settings, Loader2, Check, X, DollarSign, Users, Target, Save, Edit, Plus, Power, ChevronDown, ChevronRight } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { format } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Team {
   id: string;
@@ -64,6 +65,7 @@ interface ReferralInvite {
 }
 
 export function AdminReferralTab() {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<ReferralSettings | null>(null);
@@ -251,14 +253,14 @@ export function AdminReferralTab() {
     
     if (error) {
       toast({
-        title: "Помилка",
-        description: "Не вдалося зберегти налаштування",
+        title: t("common.error"),
+        description: t("admin.referralSaveError"),
         variant: "destructive"
       });
     } else {
       toast({
-        title: "Збережено",
-        description: "Налаштування реферальної програми оновлено"
+        title: t("common.saved"),
+        description: t("admin.referralSettingsSaved")
       });
       setEditingSettings(false);
       fetchData();
@@ -286,8 +288,8 @@ export function AdminReferralTab() {
     
     if (error) {
       toast({
-        title: "Помилка",
-        description: "Не вдалося обробити винагороду",
+        title: t("common.error"),
+        description: t("admin.referralProcessError"),
         variant: "destructive"
       });
     } else {
@@ -314,16 +316,16 @@ export function AdminReferralTab() {
               balance_before: teamData.balance,
               balance_after: teamData.balance + selectedReward.amount,
               admin_id: user?.id,
-              note: `Реферальна винагорода: ${getRewardTypeLabel(selectedReward.reward_type)}`
+              note: `${t("admin.referralRewardPrefix")}: ${getRewardTypeLabel(selectedReward.reward_type)}`
             });
         }
       }
       
       toast({
-        title: action === "approve" ? "Схвалено" : "Відхилено",
+        title: action === "approve" ? t("admin.referralApproved") : t("admin.referralRejected"),
         description: action === "approve" 
-          ? `$${selectedReward.amount} зараховано на баланс команди`
-          : "Винагороду відхилено"
+          ? t("admin.referralAmountCredited").replace("{amount}", selectedReward.amount.toString())
+          : t("admin.referralRewardRejected")
       });
       
       setSelectedReward(null);
@@ -337,11 +339,11 @@ export function AdminReferralTab() {
   const getRewardTypeLabel = (type: string) => {
     switch (type) {
       case "invite":
-        return "Запрошення";
+        return t("admin.referralTypeInvite");
       case "milestone":
-        return "Досягнення";
+        return t("admin.referralTypeMilestone");
       case "new_user_bonus":
-        return "Бонус нового користувача";
+        return t("admin.referralTypeBonus");
       default:
         return type;
     }
@@ -350,11 +352,11 @@ export function AdminReferralTab() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
-        return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30">Очікує</Badge>;
+        return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30">{t("admin.referralPending")}</Badge>;
       case "approved":
-        return <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">Схвалено</Badge>;
+        return <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">{t("admin.referralApprovedStatus")}</Badge>;
       case "rejected":
-        return <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30">Відхилено</Badge>;
+        return <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30">{t("admin.referralRejectedStatus")}</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -370,14 +372,16 @@ export function AdminReferralTab() {
     
     if (error) {
       toast({
-        title: "Помилка",
-        description: "Не вдалося змінити статус коду",
+        title: t("common.error"),
+        description: t("admin.referralStatusChangeError"),
         variant: "destructive"
       });
     } else {
       toast({
-        title: currentStatus ? "Деактивовано" : "Активовано",
-        description: `Інвайт код ${currentStatus ? "деактивовано" : "активовано"}`
+        title: currentStatus ? t("admin.referralDeactivated") : t("admin.referralActivated"),
+        description: currentStatus 
+          ? t("admin.referralCodeDeactivated")
+          : t("admin.referralCodeActivated")
       });
       fetchData();
     }
@@ -397,8 +401,8 @@ export function AdminReferralTab() {
   const createInviteForTeam = async () => {
     if (!selectedTeamId) {
       toast({
-        title: "Помилка",
-        description: "Оберіть команду",
+        title: t("common.error"),
+        description: t("admin.referralSelectTeam"),
         variant: "destructive"
       });
       return;
@@ -409,8 +413,8 @@ export function AdminReferralTab() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       toast({
-        title: "Помилка",
-        description: "Користувач не авторизований",
+        title: t("common.error"),
+        description: t("admin.referralUserNotAuth"),
         variant: "destructive"
       });
       setCreatingInvite(false);
@@ -459,14 +463,14 @@ export function AdminReferralTab() {
     
     if (error) {
       toast({
-        title: "Помилка",
+        title: t("common.error"),
         description: error.message,
         variant: "destructive"
       });
     } else {
       toast({
-        title: "Код створено",
-        description: `Реферальний код ${code} створено для команди`
+        title: t("admin.referralCodeCreated"),
+        description: t("admin.referralCodeCreatedForTeam").replace("{code}", code)
       });
       setShowCreateInviteDialog(false);
       setSelectedTeamId("");
