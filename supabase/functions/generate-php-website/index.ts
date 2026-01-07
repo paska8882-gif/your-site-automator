@@ -814,6 +814,8 @@ const TOKEN_PRICING: Record<string, { input: number; output: number }> = {
   "gpt-4o": { input: 2.5, output: 10 },
   "gpt-4o-mini": { input: 0.15, output: 0.6 },
   "o3-mini": { input: 1.1, output: 4.4 },
+  "google/gemini-2.5-pro": { input: 2.5, output: 15 },
+  "google/gemini-2.5-flash": { input: 0.15, output: 0.6 },
 };
 
 interface GeneratedFile {
@@ -883,16 +885,23 @@ async function runGeneration({
   imageSource?: "basic" | "ai";
   siteName?: string;
 }): Promise<GenerationResult> {
+  const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!openaiKey) {
-    return { success: false, error: "OpenAI API key not configured" };
+  
+  if (!lovableApiKey && !openaiKey) {
+    return { success: false, error: "No API key configured (LOVABLE_API_KEY or OPENAI_API_KEY)" };
   }
 
+  // Use Lovable AI for better quality generation
+  const useLovableAI = !!lovableApiKey;
+  
   // Determine which model to use
-  const refineModel = "gpt-4o-mini";
-  const generateModel = aiModel === "senior" ? "gpt-4o" : "gpt-4o-mini";
+  const refineModel = useLovableAI ? "google/gemini-2.5-flash" : "gpt-4o-mini";
+  const generateModel = useLovableAI 
+    ? (aiModel === "senior" ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash")
+    : (aiModel === "senior" ? "gpt-4o" : "gpt-4o-mini");
 
-  console.log(`PHP Generation using: Refine=${refineModel}, Generate=${generateModel}`);
+  console.log(`PHP Generation using: Refine=${refineModel}, Generate=${generateModel}, Lovable AI=${useLovableAI}`);
 
   // 1. Refine the prompt
   const languageInstruction = language
@@ -904,21 +913,52 @@ async function runGeneration({
     ? `\n\nCRITICAL SITE NAME REQUIREMENT: The website/business/brand name MUST be "${siteName}". Use this EXACT name in the logo, header, footer, page titles, meta tags, copyright, and all references to the business. Do NOT invent a different name.`
     : "";
 
-  const refineResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${openaiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: refineModel,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT + languageInstruction + siteNameInstruction },
-        { role: "user", content: prompt + siteNameInstruction },
-      ],
-      max_tokens: 1000,
-    }),
-  });
+  // API call helper for Lovable AI or OpenAI
+  const makeAPICall = async (systemContent: string, userContent: string, maxTokens: number, temperature = 0.7) => {
+    if (useLovableAI) {
+      const resp = await fetch("https://api.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: refineModel,
+          messages: [
+            { role: "system", content: systemContent },
+            { role: "user", content: userContent },
+          ],
+          max_tokens: maxTokens,
+          temperature,
+        }),
+      });
+      return resp;
+    } else {
+      const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${openaiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: refineModel,
+          messages: [
+            { role: "system", content: systemContent },
+            { role: "user", content: userContent },
+          ],
+          max_tokens: maxTokens,
+          temperature,
+        }),
+      });
+      return resp;
+    }
+  };
+
+  const refineResponse = await makeAPICall(
+    SYSTEM_PROMPT + languageInstruction + siteNameInstruction,
+    prompt + siteNameInstruction,
+    1000
+  );
 
   if (!refineResponse.ok) {
     const errText = await refineResponse.text();
@@ -928,8 +968,10 @@ async function runGeneration({
 
   const refineData = await refineResponse.json();
   const refinedPrompt = refineData.choices?.[0]?.message?.content || prompt;
-  const refineCost = calculateCost(refineData.usage || {}, refineModel);
-
+  const refineUsage = refineData.usage || {};
+  const refineCost = calculateCost(refineUsage, refineModel);
+  
+  console.log(`💰 Token usage for ${refineModel}: ${refineUsage.prompt_tokens || 0} in, ${refineUsage.completion_tokens || 0} out = $${refineCost.toFixed(6)}`);
   console.log("Refined prompt:", refinedPrompt.substring(0, 200) + "...");
 
   // 2. Select layout variation
@@ -983,28 +1025,46 @@ async function runGeneration({
       ? `\n\nSTRICT OUTPUT FORMAT (MANDATORY):\n- Output ONLY file blocks in this exact format. No commentary, no markdown headings.\n\n--- FILE: includes/config.php ---\n<file contents>\n--- END FILE ---\n\n--- FILE: includes/header.php ---\n<file contents>\n--- END FILE ---\n\n(Repeat for every file.)\n\nIf you cannot comply, output nothing.`
       : "";
 
-    const generateResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${openaiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: generateModel,
-        messages: [
-          {
-            role: "system",
-            content: PHP_GENERATION_PROMPT + layoutDescription + "\n\n" + imageStrategy + "\n\n" + IMAGE_CSS,
-          },
-          {
-            role: "user",
-            content: `Create a COMPLETE, FULLY FUNCTIONAL multi-page PHP website based on this brief:\n\n${refinedPrompt}\n\nCRITICAL GENERATION CHECKLIST - YOU MUST INCLUDE ALL:\n✅ includes/config.php - Site constants (SITE_NAME, SITE_EMAIL, SITE_PHONE, SITE_ADDRESS)\n✅ includes/header.php - Full HTML head, navigation with links to ALL pages\n✅ includes/footer.php - Footer with disclaimer, copyright, links\n✅ index.php - Homepage with hero, features, services preview, testimonials, CTA (FULL CONTENT)\n✅ about.php - About page with mission, team, values (FULL CONTENT)\n✅ services.php - Services/Products page with detailed descriptions (FULL CONTENT)\n✅ contact.php - Contact form with method=\"POST\" action=\"form-handler.php\"\n✅ form-handler.php - Form processor that redirects to thank-you.php\n✅ thank-you.php - Thank you page after form submission\n✅ privacy.php - Privacy policy page\n✅ css/style.css - Complete CSS with responsive design, mobile menu\n✅ js/script.js - JavaScript for mobile menu, interactions\n\nEach page MUST have SUBSTANTIAL, UNIQUE content (not placeholders).\nGenerate COMPLETE files with full HTML, CSS, and PHP code.\nUse proper PHP includes on every page.${strictFormatBlock}`,
-          },
-        ],
-        max_tokens: 16000,
-        temperature: opts.strictFormat ? 0.4 : 0.6,
-      }),
-    });
+    const systemContent = PHP_GENERATION_PROMPT + layoutDescription + "\n\n" + imageStrategy + "\n\n" + IMAGE_CSS;
+    const userContent = `Create a COMPLETE, FULLY FUNCTIONAL multi-page PHP website based on this brief:\n\n${refinedPrompt}\n\nCRITICAL GENERATION CHECKLIST - YOU MUST INCLUDE ALL:\n✅ includes/config.php - Site constants (SITE_NAME, SITE_EMAIL, SITE_PHONE, SITE_ADDRESS)\n✅ includes/header.php - Full HTML head, navigation with links to ALL pages\n✅ includes/footer.php - Footer with disclaimer, copyright, links\n✅ index.php - Homepage with hero, features, services preview, testimonials, CTA (FULL CONTENT)\n✅ about.php - About page with mission, team, values (FULL CONTENT)\n✅ services.php - Services/Products page with detailed descriptions (FULL CONTENT)\n✅ contact.php - Contact form with method=\"POST\" action=\"form-handler.php\"\n✅ form-handler.php - Form processor that redirects to thank-you.php\n✅ thank-you.php - Thank you page after form submission\n✅ privacy.php - Privacy policy page\n✅ css/style.css - Complete CSS with responsive design, mobile menu\n✅ js/script.js - JavaScript for mobile menu, interactions\n\nEach page MUST have SUBSTANTIAL, UNIQUE content (not placeholders).\nGenerate COMPLETE files with full HTML, CSS, and PHP code.\nUse proper PHP includes on every page.${strictFormatBlock}`;
+
+    let generateResponse: Response;
+    
+    if (useLovableAI) {
+      generateResponse = await fetch("https://api.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: generateModel,
+          messages: [
+            { role: "system", content: systemContent },
+            { role: "user", content: userContent },
+          ],
+          max_tokens: 32000,
+          temperature: opts.strictFormat ? 0.4 : 0.6,
+        }),
+      });
+    } else {
+      generateResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${openaiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: generateModel,
+          messages: [
+            { role: "system", content: systemContent },
+            { role: "user", content: userContent },
+          ],
+          max_tokens: 16000,
+          temperature: opts.strictFormat ? 0.4 : 0.6,
+        }),
+      });
+    }
 
     if (!generateResponse.ok) {
       const errText = await generateResponse.text();
@@ -1014,7 +1074,10 @@ async function runGeneration({
 
     const generateData = await generateResponse.json();
     const generatedText = generateData.choices?.[0]?.message?.content || "";
-    const generateCost = calculateCost(generateData.usage || {}, generateModel);
+    const genUsage = generateData.usage || {};
+    const generateCost = calculateCost(genUsage, generateModel);
+    
+    console.log(`💰 Token usage for ${generateModel}: ${genUsage.prompt_tokens || 0} in, ${genUsage.completion_tokens || 0} out = $${generateCost.toFixed(6)}`);
 
     // Parse
     const files = parseFilesFromModelText(generatedText);
