@@ -1074,19 +1074,7 @@ export function WebsiteGenerator() {
     const websiteTypesSnapshot = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes : (["html"] as WebsiteType[]);
     const imageSourcesSnapshot = selectedImageSources.length > 0 ? selectedImageSources : (["basic"] as ImageSource[]);
 
-    // Clear prompt + site name(s) immediately after clicking "Generate"
-    setPrompt("");
-    setOriginalPrompt(null);
-    setImprovedPromptValue(null);
-    setSiteNames([]);
-    setCurrentSiteNameInput("");
-    try {
-      localStorage.removeItem(DRAFT_STORAGE_KEY);
-    } catch {
-      // ignore
-    }
-
-    setIsSubmitting(true);
+    // Snapshot inputs, but do NOT clear the UI — let users start another generation immediately
 
     try {
       // Create all generation requests in parallel
@@ -2048,18 +2036,7 @@ export function WebsiteGenerator() {
                       title: "Генерацію запущено",
                       description: `Запущено ${siteNames.length} генерацій на ${seniorMode}${selectedAdminTeamId ? "" : " — без списання коштів"}`,
                     });
-
-                    // Clear inputs after clicking generate
-                    setPrompt("");
-                    setOriginalPrompt(null);
-                    setImprovedPromptValue(null);
-                    setSiteNames([]);
-                    setCurrentSiteNameInput("");
-                    try {
-                      localStorage.removeItem(DRAFT_STORAGE_KEY);
-                    } catch {
-                      // ignore
-                    }
+                    // Don't clear inputs — let users start another generation immediately
                   } catch (error) {
                     toast({
                       title: "Помилка",
