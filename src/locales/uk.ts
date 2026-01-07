@@ -473,6 +473,7 @@ export const uk = {
     creditLimit: "Кредитний ліміт",
     onCredit: "В кредит",
     exceedsLimit: "Перевищує ліміт",
+    clearParams: "Очистити всі параметри",
   },
 
   historyExtra: {
