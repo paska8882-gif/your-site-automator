@@ -1062,48 +1062,89 @@ export function WebsiteGenerator() {
 
   const executeGeneration = async () => {
     setShowConfirmDialog(false);
+
+    // Snapshot current inputs so we can clear the UI immediately without affecting the in-flight generation
+    const promptSnapshot = prompt;
+    const originalPromptSnapshot = originalPrompt;
+    const improvedPromptSnapshot = improvedPromptValue;
+    const langsSnapshot = getAllSelectedLanguages();
+    const siteNamesSnapshot = getAllSiteNames();
+    const stylesSnapshot = allStyles.length > 0 ? allStyles : [undefined];
+    const aiModelsSnapshot = selectedAiModels.length > 0 ? selectedAiModels : (["senior"] as AiModel[]);
+    const websiteTypesSnapshot = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes : (["html"] as WebsiteType[]);
+    const imageSourcesSnapshot = selectedImageSources.length > 0 ? selectedImageSources : (["basic"] as ImageSource[]);
+
+    // Clear prompt + site name(s) immediately after clicking "Generate"
+    setPrompt("");
+    setOriginalPrompt(null);
+    setImprovedPromptValue(null);
+    setSiteNames([]);
+    setCurrentSiteNameInput("");
+    try {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+
     setIsSubmitting(true);
 
     try {
       // Create all generation requests in parallel
       // Combinations: siteNames × languages × sitesPerLanguage × styles × aiModels × websiteTypes × imageSources
-      const stylesToUse = allStyles.length > 0 ? allStyles : [undefined];
-      const aiModelsToUse = selectedAiModels.length > 0 ? selectedAiModels : ["senior" as AiModel];
-      const websiteTypesToUse = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes : ["html" as WebsiteType];
-      const imageSourcesToUse = selectedImageSources.length > 0 ? selectedImageSources : ["basic" as ImageSource];
-      const langs = getAllSelectedLanguages();
-      const siteNamesToUse = getAllSiteNames(); // Site names are required, validated in handleGenerateClick
-      const totalCount = siteNamesToUse.length * langs.length * sitesPerLanguage * stylesToUse.length * aiModelsToUse.length * websiteTypesToUse.length * imageSourcesToUse.length;
-      
+      const totalCount =
+        siteNamesSnapshot.length *
+        langsSnapshot.length *
+        sitesPerLanguage *
+        stylesSnapshot.length *
+        aiModelsSnapshot.length *
+        websiteTypesSnapshot.length *
+        imageSourcesSnapshot.length;
+
       setGenerationProgress({ completed: 0, total: totalCount });
 
       // Create wrapped promises that update progress on completion
-      const createTrackedPromise = async (currentSiteName: string, lang: string, style: string | undefined, model: AiModel, wType: WebsiteType, iSource: ImageSource) => {
+      const createTrackedPromise = async (
+        currentSiteName: string,
+        lang: string,
+        style: string | undefined,
+        model: AiModel,
+        wType: WebsiteType,
+        iSource: ImageSource
+      ) => {
         const currentSeniorMode = model === "senior" ? seniorMode : undefined;
         // For admins, pass selected team ID; for regular users, teamId is undefined (uses their membership)
         const teamIdToUse = isAdmin ? selectedAdminTeamId : undefined;
         // Use original prompt for display, improved prompt for generation (if available)
-        const promptForDisplay = originalPrompt || prompt;
-        const promptForGeneration = improvedPromptValue || prompt;
-        // Pass geo: custom geo if "other" selected, otherwise selected geo (if not empty or "none")
-        const geoToUse = isOtherGeoSelected && customGeo 
-          ? customGeo 
-          : (selectedGeo && selectedGeo !== "none" ? selectedGeo : undefined);
-        // Pass improved prompt only if it was manually improved via the button
-        const result = await startGeneration(promptForDisplay, lang, model, wType, style, currentSiteName, currentSeniorMode, iSource, teamIdToUse, improvedPromptValue || undefined, geoToUse);
-        setGenerationProgress(prev => ({ ...prev, completed: prev.completed + 1 }));
+        const promptForDisplay = originalPromptSnapshot || promptSnapshot;
+        const geoToUse = isOtherGeoSelected && customGeo ? customGeo : (selectedGeo && selectedGeo !== "none" ? selectedGeo : undefined);
+        const result = await startGeneration(
+          promptForDisplay,
+          lang,
+          model,
+          wType,
+          style,
+          currentSiteName,
+          currentSeniorMode,
+          iSource,
+          teamIdToUse,
+          improvedPromptSnapshot || undefined,
+          geoToUse
+        );
+        setGenerationProgress((prev) => ({ ...prev, completed: prev.completed + 1 }));
         return result;
       };
 
       const generationPromises: Promise<any>[] = [];
-      for (const currentSiteName of siteNamesToUse) {
-        for (const lang of langs) {
+      for (const currentSiteName of siteNamesSnapshot) {
+        for (const lang of langsSnapshot) {
           for (let i = 0; i < sitesPerLanguage; i++) {
-            for (const style of stylesToUse) {
-              for (const model of aiModelsToUse) {
-                for (const wType of websiteTypesToUse) {
-                  for (const iSource of imageSourcesToUse) {
-                    generationPromises.push(createTrackedPromise(currentSiteName, lang, style, model, wType, iSource));
+            for (const style of stylesSnapshot) {
+              for (const model of aiModelsSnapshot) {
+                for (const wType of websiteTypesSnapshot) {
+                  for (const iSource of imageSourcesSnapshot) {
+                    generationPromises.push(
+                      createTrackedPromise(currentSiteName, lang, style, model, wType, iSource)
+                    );
                   }
                 }
               }
@@ -1980,16 +2021,17 @@ export function WebsiteGenerator() {
                   }
 
                   setIsSubmitting(true);
+                  const promptSnapshot = prompt;
                   const externalLanguage = selectedLanguages[0] || "uk";
                   // Determine geo value to pass
-                  const geoToUse = isOtherGeoSelected && customGeo 
-                    ? customGeo 
+                  const geoToUse = isOtherGeoSelected && customGeo
+                    ? customGeo
                     : (selectedGeo && selectedGeo !== "none" ? selectedGeo : undefined);
                   try {
                     // Generate for each site name
                     for (const name of siteNames) {
                       await startGeneration(
-                        prompt,
+                        promptSnapshot,
                         externalLanguage,
                         "senior",
                         "html",
@@ -2006,8 +2048,18 @@ export function WebsiteGenerator() {
                       title: "Генерацію запущено",
                       description: `Запущено ${siteNames.length} генерацій на ${seniorMode}${selectedAdminTeamId ? "" : " — без списання коштів"}`,
                     });
+
+                    // Clear inputs after clicking generate
+                    setPrompt("");
+                    setOriginalPrompt(null);
+                    setImprovedPromptValue(null);
                     setSiteNames([]);
                     setCurrentSiteNameInput("");
+                    try {
+                      localStorage.removeItem(DRAFT_STORAGE_KEY);
+                    } catch {
+                      // ignore
+                    }
                   } catch (error) {
                     toast({
                       title: "Помилка",
