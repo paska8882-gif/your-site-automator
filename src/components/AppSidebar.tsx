@@ -46,32 +46,34 @@ import { useSuperAdmin } from "@/hooks/useSuperAdmin";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
 import { useTheme } from "@/hooks/useTheme";
 import { useTaskIndicators } from "@/hooks/useTaskIndicators";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { NotificationBell } from "./NotificationBell";
 import { SupportChat } from "./SupportChat";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
-const mainNavItems = [
-  { title: "Генератор", url: "/", icon: Sparkles },
-  { title: "Історія", url: "/history", icon: History },
-  { title: "Спенди", url: "/spends", icon: TrendingUp },
-  { title: "Баланс", url: "/balance", icon: Wallet },
-  { title: "Команда", url: "/team", icon: Users },
+const getMainNavItems = (t: (key: string) => string) => [
+  { title: t("sidebar.generator"), url: "/", icon: Sparkles },
+  { title: t("sidebar.history"), url: "/history", icon: History },
+  { title: t("sidebar.spends"), url: "/spends", icon: TrendingUp },
+  { title: t("sidebar.balance"), url: "/balance", icon: Wallet },
+  { title: t("sidebar.team"), url: "/team", icon: Users },
 ];
 
-const adminNavItems = [
-  { title: "Завдання", tab: "tasks", icon: ClipboardList },
-  { title: "Команди", tab: "teams", icon: Users },
-  { title: "Сайти", tab: "sites", icon: FileCode },
-  { title: "Користувачі", tab: "users", icon: UserCog },
-  { title: "Апеляції", tab: "appeals", icon: MessageSquare },
-  { title: "Комунікація", tab: "communication", icon: MessageCircle },
-  { title: "Поповнення", tab: "balance-requests", icon: Wallet },
-  { title: "Реферали", tab: "referral", icon: Gift },
-  { title: "Фінанси", tab: "finance", icon: DollarSign },
-  { title: "Адміни", tab: "admin", icon: Settings },
+const getAdminNavItems = (t: (key: string) => string) => [
+  { title: t("sidebar.tasks"), tab: "tasks", icon: ClipboardList },
+  { title: t("sidebar.teams"), tab: "teams", icon: Users },
+  { title: t("sidebar.sites"), tab: "sites", icon: FileCode },
+  { title: t("sidebar.users"), tab: "users", icon: UserCog },
+  { title: t("sidebar.appeals"), tab: "appeals", icon: MessageSquare },
+  { title: t("sidebar.communication"), tab: "communication", icon: MessageCircle },
+  { title: t("sidebar.topUp"), tab: "balance-requests", icon: Wallet },
+  { title: t("sidebar.referrals"), tab: "referral", icon: Gift },
+  { title: t("sidebar.finance"), tab: "finance", icon: DollarSign },
+  { title: t("sidebar.admins"), tab: "admin", icon: Settings },
 ];
 
-const superAdminNavItems = [
-  { title: "Реквізити", tab: "payment-details", icon: CreditCard },
+const getSuperAdminNavItems = (t: (key: string) => string) => [
+  { title: t("sidebar.paymentDetails"), tab: "payment-details", icon: CreditCard },
 ];
 
 export function AppSidebar() {
@@ -84,7 +86,12 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const { theme, toggleTheme } = useTheme();
   const { hasNewTasks, hasProblematic } = useTaskIndicators();
+  const { t } = useLanguage();
   const collapsed = state === "collapsed";
+  
+  const mainNavItems = getMainNavItems(t);
+  const adminNavItems = getAdminNavItems(t);
+  const superAdminNavItems = getSuperAdminNavItems(t);
 
   const handleSignOut = async () => {
     try {
@@ -114,7 +121,7 @@ export function AppSidebar() {
           <button
             onClick={toggleTheme}
             className="relative group cursor-pointer"
-            title={`Тема: ${theme === 'light' ? 'Світла' : theme === 'dark' ? 'Темна' : 'Синя'}`}
+            title={`${t("common.theme")}: ${theme === 'light' ? t("common.themeLight") : theme === 'dark' ? t("common.themeDark") : t("common.themeBlue")}`}
           >
             {/* Glow effect */}
             <div className="absolute inset-0 rounded-lg blur-md animate-pulse opacity-30 pointer-events-none bg-sidebar-primary" />
@@ -138,7 +145,7 @@ export function AppSidebar() {
         {/* Main Navigation */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs text-sidebar-muted px-2">
-            Меню
+            {t("sidebar.menu")}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -162,11 +169,11 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     onClick={() => navigate("/dashboard")}
                     isActive={isActive("/dashboard")}
-                    tooltip="Пульт"
+                    tooltip={t("sidebar.dashboard")}
                     className="transition-colors text-amber-500"
                   >
                     <Gauge className="h-4 w-4" />
-                    <span>Пульт</span>
+                    <span>{t("sidebar.dashboard")}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
@@ -180,7 +187,7 @@ export function AppSidebar() {
           <SidebarGroupLabel className="text-xs text-sidebar-muted px-2">
               <div className="flex items-center gap-1">
                 <Shield className="h-3 w-3" />
-                Адмін панель
+                {t("sidebar.adminPanel")}
               </div>
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -240,6 +247,7 @@ export function AppSidebar() {
         {/* Notifications & Support */}
         {!collapsed && (
           <div className="flex items-center justify-center gap-1 mb-2 px-2">
+            <LanguageSwitcher variant="icon" />
             <NotificationBell />
             <SupportChat />
           </div>
@@ -260,7 +268,7 @@ export function AppSidebar() {
                   </Avatar>
                   {!collapsed && (
                     <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-medium text-xs">Акаунт</span>
+                      <span className="truncate font-medium text-xs">{t("common.account")}</span>
                       <span className="truncate text-[10px] text-muted-foreground">
                         {userEmail}
                       </span>
@@ -288,7 +296,7 @@ export function AppSidebar() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
-                  Вийти
+                  {t("common.logout")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
