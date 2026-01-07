@@ -1116,14 +1116,21 @@ async function runGeneration({
     return { ok: true as const, files, generateCost };
   };
 
-  // 4. Generate the PHP website (retry once with stricter output format if required files are missing)
-  const first = await generateOnce({ strictFormat: false });
+  // 4. Generate the PHP website (retry on JSON errors or incomplete files)
+  let first = await generateOnce({ strictFormat: false });
+
+  // Auto-retry once on invalid JSON error
+  if (!first.ok && first.error?.includes("invalid JSON")) {
+    console.warn("Retrying PHP generation due to invalid JSON response...");
+    first = await generateOnce({ strictFormat: false });
+  }
+
   if (!first.ok) return { success: false, error: first.error };
 
   let files = first.files;
   let generateCost = first.generateCost;
 
-  // If model returned something parseable but incomplete/empty-ish, retry once.
+  // If model returned something parseable but incomplete/empty-ish, retry once with stricter format.
   const v1 = validateFiles(files);
   if (files.length === 0 || v1.missing.length > 0 || v1.tooShort.length > 0) {
     console.warn(
