@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Users, Wallet, TrendingUp, TrendingDown, FileCode2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface AdminTeam {
   id: string;
@@ -23,6 +24,7 @@ interface GenerationData {
 type Period = 7 | 30;
 
 export function AdminTeamsDashboard({ teams }: AdminTeamsDashboardProps) {
+  const { t, language } = useLanguage();
   const [generations, setGenerations] = useState<GenerationData[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>(7);
@@ -83,6 +85,7 @@ export function AdminTeamsDashboard({ teams }: AdminTeamsDashboardProps) {
 
   const dailyData = useMemo(() => {
     const days: { [key: string]: { date: string; count: number; revenue: number } } = {};
+    const locale = language === "ru" ? "ru" : "uk";
     
     // For 7 days show weekday, for 30 days show date
     for (let i = period - 1; i >= 0; i--) {
@@ -90,8 +93,8 @@ export function AdminTeamsDashboard({ teams }: AdminTeamsDashboardProps) {
       d.setDate(d.getDate() - i);
       const key = d.toISOString().split("T")[0];
       const label = period === 7 
-        ? d.toLocaleDateString("uk", { weekday: "short" })
-        : d.toLocaleDateString("uk", { day: "numeric", month: "short" });
+        ? d.toLocaleDateString(locale, { weekday: "short" })
+        : d.toLocaleDateString(locale, { day: "numeric", month: "short" });
       days[key] = { date: label, count: 0, revenue: 0 };
     }
 
@@ -104,14 +107,14 @@ export function AdminTeamsDashboard({ teams }: AdminTeamsDashboardProps) {
     });
 
     return Object.values(days);
-  }, [generations, period]);
+  }, [generations, period, language]);
 
   if (loading) return null;
 
   return (
     <div className="border border-border h-full">
       <div className="p-1.5 border-b border-border flex items-center justify-between">
-        <span className="text-[10px] font-medium text-muted-foreground">{period}д</span>
+        <span className="text-[10px] font-medium text-muted-foreground">{period}{t("admin.dashboardDays")}</span>
         <div className="flex gap-0.5">
           <button
             onClick={() => setPeriod(7)}
@@ -132,31 +135,31 @@ export function AdminTeamsDashboard({ teams }: AdminTeamsDashboardProps) {
         <div className="grid grid-cols-5 gap-1">
           <div className="text-center">
             <div className="text-sm font-bold">{metrics.totalTeams}</div>
-            <div className="text-[8px] text-muted-foreground">Команд</div>
+            <div className="text-[8px] text-muted-foreground">{t("admin.dashboardTeams")}</div>
           </div>
           <div className="text-center">
             <div className={`text-sm font-bold ${metrics.totalBalance < 0 ? "text-destructive" : ""}`}>
               ${metrics.totalBalance.toFixed(0)}
             </div>
-            <div className="text-[8px] text-muted-foreground">Баланс</div>
+            <div className="text-[8px] text-muted-foreground">{t("admin.dashboardBalance")}</div>
           </div>
           <div className="text-center">
             <div className="text-sm font-bold text-destructive">${metrics.totalDebt.toFixed(0)}</div>
-            <div className="text-[8px] text-muted-foreground">Борг</div>
+            <div className="text-[8px] text-muted-foreground">{t("admin.dashboardDebt")}</div>
           </div>
           <div className="text-center">
             <div className="text-sm font-bold">{metrics.totalGenerations}</div>
-            <div className="text-[8px] text-muted-foreground">Сайти</div>
+            <div className="text-[8px] text-muted-foreground">{t("admin.dashboardSites")}</div>
           </div>
           <div className="text-center">
             <div className="text-sm font-bold text-green-600">${metrics.totalRevenue.toFixed(0)}</div>
-            <div className="text-[8px] text-muted-foreground">Дохід</div>
+            <div className="text-[8px] text-muted-foreground">{t("admin.dashboardIncome")}</div>
           </div>
         </div>
 
         {/* Chart - single compact */}
         <div className="border border-border p-1.5">
-          <div className="text-[8px] text-muted-foreground mb-1">По дням</div>
+          <div className="text-[8px] text-muted-foreground mb-1">{t("admin.dashboardByDays")}</div>
           <ResponsiveContainer width="100%" height={60}>
             <LineChart data={dailyData}>
               <XAxis 
@@ -166,7 +169,7 @@ export function AdminTeamsDashboard({ teams }: AdminTeamsDashboardProps) {
               />
               <YAxis hide />
               <Tooltip 
-                formatter={(value: number) => [value, "Сайтів"]}
+                formatter={(value: number) => [value, t("admin.dashboardSitesCount")]}
                 contentStyle={{ fontSize: 9 }}
               />
               <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={1.5} dot={false} />
@@ -177,13 +180,13 @@ export function AdminTeamsDashboard({ teams }: AdminTeamsDashboardProps) {
         {/* Teams chart */}
         {gensByTeam.length > 0 && (
           <div className="border border-border p-1.5">
-            <div className="text-[8px] text-muted-foreground mb-1">По командах</div>
+            <div className="text-[8px] text-muted-foreground mb-1">{t("admin.dashboardByTeams")}</div>
             <ResponsiveContainer width="100%" height={60}>
               <BarChart data={gensByTeam.slice(0, 4)} layout="vertical">
                 <XAxis type="number" hide />
                 <YAxis type="category" dataKey="name" width={50} tick={{ fontSize: 7 }} />
                 <Tooltip 
-                  formatter={(value: number) => [value, "Сайтів"]}
+                  formatter={(value: number) => [value, t("admin.dashboardSitesCount")]}
                   contentStyle={{ fontSize: 9 }}
                 />
                 <Bar dataKey="count" radius={1} fill="hsl(var(--primary))" fillOpacity={0.7} />

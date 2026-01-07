@@ -902,6 +902,16 @@ export const ru = {
     newAddress: "Новый адрес",
     changeDate: "Дата изменения",
     summary: "кратко",
+    // Teams Dashboard
+    dashboardTeams: "Команд",
+    dashboardBalance: "Баланс",
+    dashboardDebt: "Долг",
+    dashboardSites: "Сайты",
+    dashboardIncome: "Доход",
+    dashboardByDays: "По дням",
+    dashboardByTeams: "По командам",
+    dashboardSitesCount: "Сайтов",
+    dashboardDays: "д",
   },
 
   dashboard: {
