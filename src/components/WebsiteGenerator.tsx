@@ -516,7 +516,7 @@ export function WebsiteGenerator() {
       } catch (error) {
         console.error("Failed to fetch quote:", error);
         // Fallback quote
-        setRandomQuote({ text: "Код — це поезія, яку розуміють машини", author: "Генератор мудростей v2.0" });
+        setRandomQuote({ text: t("genForm.fallbackQuote"), author: t("genForm.fallbackAuthor") });
       }
     };
 
@@ -537,15 +537,15 @@ export function WebsiteGenerator() {
       if (error) throw error;
 
       toast({
-        title: "Дякуємо за фідбек!",
-        description: "Ми обов'язково його розглянемо",
+        title: t("generatorExtra.feedbackTitle"),
+        description: t("generatorExtra.feedbackDesc"),
       });
       setFeedbackText("");
     } catch (error) {
       console.error("Error submitting feedback:", error);
       toast({
-        title: "Помилка",
-        description: "Не вдалося надіслати фідбек",
+        title: t("common.error"),
+        description: t("generatorExtra.feedbackError"),
         variant: "destructive",
       });
     } finally {
@@ -625,8 +625,8 @@ export function WebsiteGenerator() {
   const saveCurrentPreset = () => {
     if (!presetName.trim()) {
       toast({
-        title: "Помилка",
-        description: "Введіть назву пресету",
+        title: t("common.error"),
+        description: t("generatorExtra.presetError"),
         variant: "destructive",
       });
       return;
@@ -651,8 +651,8 @@ export function WebsiteGenerator() {
     savePresetsToStorage([...presets, newPreset]);
     setPresetName("");
     toast({
-      title: "Пресет збережено",
-      description: `"${newPreset.name}" збережено для швидкого використання`,
+      title: t("generatorExtra.presetSaved"),
+      description: `"${newPreset.name}" ${t("generatorExtra.presetSavedDesc")}`,
     });
   };
 
@@ -669,8 +669,8 @@ export function WebsiteGenerator() {
     setSelectedImageSources(preset.selectedImageSources);
     setSeniorMode(preset.seniorMode);
     toast({
-      title: "Пресет завантажено",
-      description: `Налаштування "${preset.name}" застосовано`,
+      title: t("generatorExtra.presetLoaded"),
+      description: `${t("generatorExtra.presetLoadedDesc")} "${preset.name}"`,
     });
   };
 
@@ -678,7 +678,7 @@ export function WebsiteGenerator() {
     const newPresets = presets.filter(p => p.id !== presetId);
     savePresetsToStorage(newPresets);
     toast({
-      title: "Пресет видалено",
+      title: t("generatorExtra.presetDeleted"),
     });
   };
 
@@ -698,8 +698,8 @@ export function WebsiteGenerator() {
     setSelectedImageSources([]);
     setSeniorMode(null);
     toast({
-      title: "Параметри очищено",
-      description: "Всі налаштування генерації скинуто",
+      title: t("generatorExtra.paramsClear"),
+      description: t("generatorExtra.paramsClearDesc"),
     });
   };
 
@@ -828,8 +828,8 @@ export function WebsiteGenerator() {
   const handleImprovePrompt = async () => {
     if (!prompt.trim()) {
       toast({
-        title: "Помилка",
-        description: "Спочатку введіть опис сайту",
+        title: t("common.error"),
+        description: t("generatorExtra.promptError"),
         variant: "destructive",
       });
       return;
@@ -841,8 +841,8 @@ export function WebsiteGenerator() {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData?.session) {
         toast({
-          title: "Помилка авторизації",
-          description: "Будь ласка, перезавантажте сторінку або увійдіть знову",
+          title: t("generatorExtra.authError"),
+          description: t("generatorExtra.authErrorDesc"),
           variant: "destructive",
         });
         setIsImproving(false);
@@ -862,11 +862,11 @@ export function WebsiteGenerator() {
       if (error) {
         // Якщо помилка авторизації - показуємо відповідне повідомлення
         if (error.message?.includes('401') || error.message?.includes('JWT')) {
-          throw new Error('Сесія застаріла. Перезавантажте сторінку.');
+          throw new Error(t("generatorExtra.sessionExpired"));
         }
         // Якщо помилка 402 - показуємо повідомлення про кредити
         if (error.message?.includes('402')) {
-          throw new Error('Недостатньо кредитів Lovable AI. Зверніться до адміністратора.');
+          throw new Error(t("generatorExtra.notEnoughCredits"));
         }
         throw error;
       }
@@ -885,15 +885,15 @@ export function WebsiteGenerator() {
         // The improved prompt is used internally for generation but hidden from all users
         // Admins can see improved prompt only in generation history
         toast({
-          title: "Промпт покращено",
-          description: "AI покращив ваш опис сайту. Оригінал збережено для історії.",
+          title: t("generatorExtra.promptImproved"),
+          description: t("generatorExtra.promptImprovedDesc"),
         });
       }
     } catch (error: any) {
       console.error("Error improving prompt:", error);
       toast({
-        title: "Помилка",
-        description: error instanceof Error ? error.message : "Не вдалося покращити промпт",
+        title: t("common.error"),
+        description: error instanceof Error ? error.message : t("generatorExtra.improveError"),
         variant: "destructive",
       });
     } finally {
@@ -1129,8 +1129,8 @@ export function WebsiteGenerator() {
     const siteNames = getAllSiteNames();
     if (siteNames.length === 0) {
       toast({
-        title: "Помилка",
-        description: "Будь ласка, введіть хоча б одну назву/домен сайту",
+        title: t("common.error"),
+        description: t("genForm.enterSiteName"),
         variant: "destructive",
       });
       return;
@@ -1138,8 +1138,8 @@ export function WebsiteGenerator() {
 
     if (!prompt.trim()) {
       toast({
-        title: "Помилка",
-        description: "Будь ласка, введіть опис сайту",
+        title: t("common.error"),
+        description: t("genForm.enterDescription"),
         variant: "destructive",
       });
       return;
@@ -1148,8 +1148,8 @@ export function WebsiteGenerator() {
     // Admin must select a team
     if (isAdmin && !selectedAdminTeamId) {
       toast({
-        title: "Помилка",
-        description: "Оберіть команду для генерації",
+        title: t("common.error"),
+        description: t("genForm.selectTeamForGeneration"),
         variant: "destructive",
       });
       return;
@@ -1157,8 +1157,8 @@ export function WebsiteGenerator() {
 
     if (allLanguages.length === 0) {
       toast({
-        title: "Помилка",
-        description: "Оберіть хоча б одну мову",
+        title: t("common.error"),
+        description: t("genForm.selectAtLeastOneLanguage"),
         variant: "destructive",
       });
       return;
@@ -1178,8 +1178,12 @@ export function WebsiteGenerator() {
         
         if (totalGenerations > currentAvailableSlots) {
           toast({
-            title: "Перевищено ліміт одночасних генерацій",
-            description: `У вас зараз ${count} активних генерацій. Доступно ще ${currentAvailableSlots} слотів (ваш ліміт: ${userMaxGenerations}), а ви хочете запустити ${totalGenerations}. Зачекайте завершення або зменшіть кількість.`,
+            title: t("genForm.concurrentLimitExceeded"),
+            description: t("genForm.concurrentLimitDesc")
+              .replace("{active}", String(count))
+              .replace("{available}", String(currentAvailableSlots))
+              .replace("{max}", String(userMaxGenerations))
+              .replace("{requested}", String(totalGenerations)),
             variant: "destructive",
           });
           return;
@@ -1191,8 +1195,8 @@ export function WebsiteGenerator() {
     if (teamPricing && insufficientBalance && !isAdmin) {
       const totalCost = calculateTotalCost();
       toast({
-        title: "Недостатньо коштів",
-        description: `Потрібно $${totalCost.toFixed(2)}, а на балансі $${teamPricing.balance.toFixed(2)}. Зверніться до власника команди для поповнення.`,
+        title: t("genForm.insufficientFunds"),
+        description: `${t("genForm.fundsNeeded")} $${totalCost.toFixed(2)}, ${t("genForm.fundsBalance")} $${teamPricing.balance.toFixed(2)}. ${t("genForm.insufficientFundsDesc")}`,
         variant: "destructive",
       });
       return;
@@ -1314,24 +1318,24 @@ export function WebsiteGenerator() {
 
       if (successCount > 0) {
         toast({
-          title: "Генерації розпочато",
-          description: `Запущено ${successCount} генерацій${failCount > 0 ? `, ${failCount} помилок` : ""}. Слідкуйте за статусом в історії.`,
+          title: t("genForm.generationsStarted"),
+          description: `${t("genForm.generationsLaunched")} ${successCount} ${t("genForm.generations")}${failCount > 0 ? `, ${failCount} ${t("genForm.errors")}` : ""}. ${t("genForm.trackInHistory")}`,
         });
       }
       
       if (failCount > 0 && successCount === 0) {
         const firstError = results.find((r) => !r.success)?.error;
         toast({
-          title: "Помилка",
-          description: firstError || "Не вдалося запустити жодну генерацію",
+          title: t("common.error"),
+          description: firstError || t("genForm.noGenerationStarted"),
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error("Generation error:", error);
       toast({
-        title: "Помилка",
-        description: error instanceof Error ? error.message : "Невідома помилка",
+        title: t("common.error"),
+        description: error instanceof Error ? error.message : t("genForm.unknownError"),
         variant: "destructive",
       });
     } finally {
@@ -1371,13 +1375,13 @@ export function WebsiteGenerator() {
             {/* Team selection */}
             <div className="flex-1 border border-border">
               <div className="p-2 border-b border-border flex items-center justify-between">
-                <h1 className="text-sm font-medium">Оберіть команду</h1>
+                <h1 className="text-sm font-medium">{t("genForm.teamSelection")}</h1>
                 <button
                   onClick={() => setShowTeamFilters(!showTeamFilters)}
                   className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                 >
                   <Filter className="h-3 w-3" />
-                  <span>Фільтри</span>
+                  <span>{t("genForm.filters")}</span>
                   {showTeamFilters ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                 </button>
               </div>
@@ -1388,11 +1392,11 @@ export function WebsiteGenerator() {
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="flex items-center gap-1">
                       <span className="text-green-500">●</span>
-                      <span className="text-muted-foreground">Плюс: {positiveTeams.length}</span>
+                      <span className="text-muted-foreground">{t("genForm.positive")}: {positiveTeams.length}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-destructive">●</span>
-                      <span className="text-muted-foreground">Мінус: {negativeTeams.length}</span>
+                      <span className="text-muted-foreground">{t("genForm.negative")}: {negativeTeams.length}</span>
                     </div>
                   </div>
                 </div>
@@ -1408,7 +1412,7 @@ export function WebsiteGenerator() {
                     {/* Positive balance column */}
                     <div className="space-y-1 lg:col-span-1">
                       <div className="text-[10px] text-muted-foreground font-medium px-1 flex items-center gap-1">
-                        <span className="text-green-500">●</span> Плюс ({positiveTeams.length})
+                        <span className="text-green-500">●</span> {t("genForm.positive")} ({positiveTeams.length})
                       </div>
                       <div className="max-h-[280px] lg:max-h-[400px] overflow-y-auto space-y-1.5">
                         {positiveTeams.map(team => (
@@ -1422,14 +1426,14 @@ export function WebsiteGenerator() {
                           </button>
                         ))}
                         {positiveTeams.length === 0 && (
-                          <p className="text-[10px] text-muted-foreground text-center py-2">Немає</p>
+                          <p className="text-[10px] text-muted-foreground text-center py-2">{t("common.none")}</p>
                         )}
                       </div>
                     </div>
                     {/* Negative balance column */}
                     <div className="space-y-1 lg:col-span-1">
                       <div className="text-[10px] text-muted-foreground font-medium px-1 flex items-center gap-1">
-                        <span className="text-destructive">●</span> Мінус ({negativeTeams.length})
+                        <span className="text-destructive">●</span> {t("genForm.negative")} ({negativeTeams.length})
                       </div>
                       <div className="max-h-[280px] lg:max-h-[400px] overflow-y-auto space-y-1.5">
                         {negativeTeams.map(team => (
@@ -1443,7 +1447,7 @@ export function WebsiteGenerator() {
                           </button>
                         ))}
                         {negativeTeams.length === 0 && (
-                          <p className="text-[10px] text-muted-foreground text-center py-2">Немає</p>
+                          <p className="text-[10px] text-muted-foreground text-center py-2">{t("common.none")}</p>
                         )}
                       </div>
                     </div>
@@ -1457,10 +1461,10 @@ export function WebsiteGenerator() {
           <div className="border border-border rounded p-3">
             <div className="flex items-center gap-2 mb-2">
               <Sparkles className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">Залишити фідбек</span>
+              <span className="text-sm font-medium">{t("support.newMessage")}</span>
             </div>
             <Textarea 
-              placeholder="Напишіть свої побажання, ідеї або скарги..."
+              placeholder={t("support.messagePlaceholder")}
               className="min-h-[60px] text-sm resize-none"
               value={feedbackText}
               onChange={(e) => setFeedbackText(e.target.value)}
