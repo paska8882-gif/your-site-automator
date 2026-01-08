@@ -204,12 +204,15 @@ serve(async (req) => {
     } = await req.json();
 
     // Validate required fields
-    if (!domain || !siteName || !address || !phone) {
+    if (!domain || !address || !phone) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: domain, siteName, address, phone" }),
+        JSON.stringify({ error: "Missing required fields: domain, address, phone" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Generate siteName from domain if not provided
+    const effectiveSiteName = siteName || domain.split('.')[0] || "MySite";
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -224,21 +227,21 @@ serve(async (req) => {
     
     // Generate page structure and design in parallel
     const [pageStructure, design] = await Promise.all([
-      generatePageStructure(topicToUse, siteName, LOVABLE_API_KEY),
+      generatePageStructure(topicToUse, effectiveSiteName, LOVABLE_API_KEY),
       generateDesign(topicToUse, LOVABLE_API_KEY),
     ]);
 
     // Build the final VIP prompt
     const vipPrompt = VIP_TEMPLATE
       .replace("{domain}", domain)
-      .replace("{siteName}", siteName)
+      .replace("{siteName}", effectiveSiteName)
       .replace("{geo}", geo || "International")
       .replace("{language}", language || "English")
       .replace("{address}", address)
       .replace("{phone}", phone)
       .replace("{topic}", topicToUse)
       .replace("{typeDescription}", getTypeDescription(topicToUse))
-      .replace("{description}", description || `${siteName} is a platform dedicated to ${topicToUse.toLowerCase()}.`)
+      .replace("{description}", description || `${effectiveSiteName} is a platform dedicated to ${topicToUse.toLowerCase()}.`)
       .replace("{keywords}", keywords || topicToUse.toLowerCase().split(" ").join(", "))
       .replace("{bannedWords}", bannedWords || "crypto, free, miracle, health, profit, investment, quick gain, earnings, money, price, cost, guarantee, exclusive, top, bonus, 100%, risk-free")
       .replace("{pageStructure}", pageStructure)
