@@ -221,7 +221,7 @@ export const AdminTeamsManager = () => {
           .select("display_name")
           .eq("user_id", ownerData[0].user_id)
           .maybeSingle();
-        ownerName = ownerProfile?.display_name || "Без імені";
+        ownerName = ownerProfile?.display_name || t("admin.teamsNoName");
       }
 
       return {
@@ -424,7 +424,7 @@ export const AdminTeamsManager = () => {
       
       setTeamMembers(members.map(m => ({
         user_id: m.user_id,
-        display_name: profileMap.get(m.user_id) || "Без імені",
+        display_name: profileMap.get(m.user_id) || t("admin.teamsNoName"),
         role: m.role
       })));
     } else {
@@ -512,9 +512,9 @@ export const AdminTeamsManager = () => {
       });
     
     if (error) {
-      toast({ title: "Помилка", description: "Не вдалося додати члена команди", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("admin.teamsAddMemberError"), variant: "destructive" });
     } else {
-      toast({ title: "Збережено", description: "Члена команди додано" });
+      toast({ title: t("common.saved"), description: t("admin.teamsAddMemberSuccess") });
       setShowAddMemberDialog(false);
       setAddMemberTeam(null);
       fetchTeams();
@@ -546,10 +546,10 @@ export const AdminTeamsManager = () => {
       });
 
     if (error) {
-      toast({ title: "Помилка", description: "Не вдалося створити код", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("admin.teamsInviteError"), variant: "destructive" });
     } else {
       setGeneratedInviteCode(newCode);
-      toast({ title: "Код створено", description: `${newCode} (${inviteRole})` });
+      toast({ title: t("admin.teamsInviteCreated"), description: `${newCode} (${inviteRole})` });
     }
     setGeneratingInvite(false);
   };
@@ -569,7 +569,7 @@ export const AdminTeamsManager = () => {
           <CardTitle className="flex items-center justify-between text-sm">
             <div className="flex items-center gap-1.5">
               <Users className="h-4 w-4" />
-              Команди
+              {t("sidebar.teams")}
             </div>
             <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={fetchTeams} disabled={loading}>
               <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
@@ -581,7 +581,7 @@ export const AdminTeamsManager = () => {
             <div className="relative flex-1">
               <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
               <Input
-                placeholder="Пошук команди..."
+                placeholder={t("admin.teamsSearch")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="h-8 text-xs pl-7"
@@ -589,7 +589,7 @@ export const AdminTeamsManager = () => {
             </div>
             <Button onClick={() => setShowCreateDialog(true)} size="sm" className="h-8 text-xs">
               <Plus className="h-3 w-3 mr-1" />
-              Створити
+              {t("common.create")}
             </Button>
           </div>
 
@@ -599,7 +599,7 @@ export const AdminTeamsManager = () => {
             </div>
           ) : filteredTeams.length === 0 ? (
             <p className="text-center text-muted-foreground py-3 text-xs">
-              {searchQuery ? "Команд не знайдено" : "Немає команд"}
+              {searchQuery ? t("admin.teamsNoTeamsFound") : t("admin.teamsNoTeams")}
             </p>
           ) : (
             <div className="space-y-1.5 flex-1 overflow-y-auto">
@@ -608,20 +608,20 @@ export const AdminTeamsManager = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
                       <span className="font-medium text-xs">{team.name}</span>
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{team.members_count} членів</Badge>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{team.members_count} {t("admin.teamsMembers")}</Badge>
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                         <Wallet className="h-2.5 w-2.5 mr-0.5" />
                         ${team.balance?.toFixed(2) || "0.00"}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => openInviteDialog(team)} title="Створити інвайт-код">
+                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => openInviteDialog(team)} title={t("admin.teamsCreateInvite")}>
                         <Ticket className="h-3.5 w-3.5 mr-1" />
-                        Інвайт
+                        {t("admin.teamsInvite")}
                       </Button>
-                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => openAddMemberDialog(team)} title="Додати члена">
+                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => openAddMemberDialog(team)} title={t("admin.teamsAddMember")}>
                         <UserPlus className="h-3.5 w-3.5 mr-1" />
-                        Додати
+                        {t("admin.teamsAdd")}
                       </Button>
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleViewTeam(team)}>
                         <Eye className="h-4 w-4" />
@@ -635,21 +635,21 @@ export const AdminTeamsManager = () => {
                   {/* Owner section */}
                   <div className="flex items-center gap-1.5 text-xs">
                     <Crown className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-muted-foreground">Власник:</span>
+                    <span className="text-muted-foreground">{t("admin.teamsOwner")}:</span>
                     {team.has_owner ? (
                       <>
                         <Badge variant="default" className="text-[10px] px-1.5 py-0 bg-amber-500/20 text-amber-600 border-amber-500/30">
                           {team.owner_name}
                         </Badge>
                         <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1" onClick={() => openOwnerDialog(team)}>
-                          Змінити
+                          {t("admin.teamsChange")}
                         </Button>
                       </>
                     ) : (
                       <>
-                        <Badge variant="outline" className="text-[10px] px-1 py-0 text-destructive border-destructive/30">Не призначено</Badge>
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 text-destructive border-destructive/30">{t("admin.teamsNotAssigned")}</Badge>
                         <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1" onClick={() => openOwnerDialog(team)}>
-                          Призначити
+                          {t("admin.teamsAssign")}
                         </Button>
                       </>
                     )}
@@ -657,7 +657,7 @@ export const AdminTeamsManager = () => {
 
                   {/* Owner code section */}
                   <div className="flex items-center gap-1.5 text-xs">
-                    <span className="text-muted-foreground">Owner код:</span>
+                    <span className="text-muted-foreground">{t("admin.teamsOwnerCode")}:</span>
                     {team.owner_code ? (
                       <>
                         <code className="font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">{team.owner_code}</code>
@@ -667,9 +667,9 @@ export const AdminTeamsManager = () => {
                       </>
                     ) : (
                       <>
-                        <Badge variant="outline" className="text-[10px] px-1 py-0">Використано</Badge>
+                        <Badge variant="outline" className="text-[10px] px-1 py-0">{t("admin.teamsUsed")}</Badge>
                         <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1" onClick={() => handleGenerateNewOwnerCode(team.id, team.name)}>
-                          Новий код
+                          {t("admin.teamsNewCode")}
                         </Button>
                       </>
                     )}
@@ -677,16 +677,16 @@ export const AdminTeamsManager = () => {
 
                   <div className="flex items-center gap-1.5 text-xs">
                     <UserCog className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-muted-foreground">Адмін:</span>
+                    <span className="text-muted-foreground">{t("admin.teamsAdmin")}:</span>
                     <Select
                       value={team.assigned_admin_id || "none"}
                       onValueChange={(value) => handleAssignAdmin(team.id, value)}
                     >
                       <SelectTrigger className="h-6 w-[140px] text-[10px]">
-                        <SelectValue placeholder="Не призначено" />
+                        <SelectValue placeholder={t("admin.teamsNotAssigned")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none" className="text-xs">Не призначено</SelectItem>
+                        <SelectItem value="none" className="text-xs">{t("admin.teamsNotAssigned")}</SelectItem>
                         {admins.map((admin) => (
                           <SelectItem key={admin.user_id} value={admin.user_id} className="text-xs">
                             {admin.display_name || admin.user_id.slice(0, 8)}
@@ -698,7 +698,7 @@ export const AdminTeamsManager = () => {
 
                   <div className="flex items-center gap-1.5 text-xs">
                     <Wallet className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-muted-foreground">Ліміт кредиту:</span>
+                    <span className="text-muted-foreground">{t("admin.teamsCreditLimit")}:</span>
                     <Input
                       type="number"
                       value={team.credit_limit || 0}
