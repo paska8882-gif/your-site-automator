@@ -1241,7 +1241,6 @@ type GenerationResult = {
   rawResponse?: string;
   totalCost?: number;
   specificModel?: string;
-  hasUnfixedPages?: boolean;
 };
 
 const cleanFileContent = (content: string) => {
@@ -1474,176 +1473,6 @@ async function runGeneration({
     };
   }
 
-  // ===== MANDATORY PAGES VALIDATION =====
-  // Check all required pages and auto-regenerate if empty/missing
-  const MANDATORY_PAGES = [
-    { file: "privacy.html", minChars: 2000, minH2: 8, minP: 12, type: "legal" },
-    { file: "terms.html", minChars: 2000, minH2: 10, minP: 14, type: "legal" },
-    { file: "cookie-policy.html", minChars: 1500, minH2: 5, minP: 8, type: "legal" },
-    { file: "contact.html", minChars: 800, minH2: 2, minP: 3, type: "content" },
-    { file: "thank-you.html", minChars: 400, minH2: 1, minP: 1, type: "content" },
-  ];
-
-  const getFile = (p: string) => files.find((f) => f.path.toLowerCase() === p);
-
-  const isPageEmpty = (content: string, minChars: number, minH2: number, minP: number) => {
-    const c = (content || "").trim();
-    if (c.length < minChars) return true;
-    const h2Count = (c.match(/<h2\b/gi) || []).length;
-    const pCount = (c.match(/<p\b/gi) || []).length;
-    return h2Count < minH2 || pCount < minP;
-  };
-
-  const emptyPages = MANDATORY_PAGES.filter((pg) => {
-    const f = getFile(pg.file);
-    if (!f) return true;
-    return isPageEmpty(f.content, pg.minChars, pg.minH2, pg.minP);
-  });
-
-  let hasUnfixedPages = false;
-
-  if (emptyPages.length > 0) {
-    console.log(`⚠️ Empty/missing mandatory pages: ${emptyPages.map((p) => p.file).join(", ")}. Regenerating...`);
-
-    const legalPages = emptyPages.filter((p) => p.type === "legal").map((p) => p.file);
-    const contentPages = emptyPages.filter((p) => p.type === "content").map((p) => p.file);
-
-    const langText = language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language || "English";
-
-    // Regenerate legal pages (terms, privacy, cookie-policy)
-    if (legalPages.length > 0) {
-      const legalPrompt = `Generate ONLY these pages with FULL legal content (not placeholders): ${legalPages.join(", ")}.
-
-Requirements:
-- Use the SAME design system, header/footer/nav links as the rest of the site (relative links with .html).
-- Language MUST be: ${langText}.
-- Privacy Policy MUST have 12+ sections with detailed GDPR-compliant text.
-- Terms of Service MUST have 14 sections with headings and multiple paragraphs.
-- Cookie Policy MUST include a cookies table (min 6 entries) and detailed sections.
-- Each section MUST have h2/h3 heading and 2-4 paragraphs of real legal text.
-- Include SEO meta title/description.
-
-Context (site brief):
-${refinedPrompt}`;
-
-      let legalResp: Response | null = null;
-      try {
-        legalResp = await fetchWithRetry(apiUrl, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: generateModel,
-            messages: [
-              { role: "system", content: "You are an expert HTML generator. Return ONLY file blocks using exact markers like: <!-- FILE: terms.html -->. No explanations. No markdown." },
-              { role: "user", content: legalPrompt },
-            ],
-            max_tokens: 16000,
-          }),
-        }, 1, 1000, 60000); // 1 retry, 1s delay, 60s timeout for legal regen
-      } catch (fetchError) {
-        console.log("⚠️ Legal regen fetch failed:", (fetchError as Error)?.message);
-        hasUnfixedPages = true;
-      }
-
-      if (legalResp?.ok) {
-        const legalData = await legalResp.json();
-        const legalText = legalData.choices?.[0]?.message?.content || "";
-        const legalUsage = legalData.usage as TokenUsage | undefined;
-        if (legalUsage) totalCost += calculateCost(legalUsage, generateModel);
-
-        const legalFiles = parseFilesFromModelText(legalText);
-        if (legalFiles.length > 0) {
-          const legalMap = new Map(legalFiles.map((f) => [f.path.toLowerCase(), f]));
-          files = files.map((f) => legalMap.get(f.path.toLowerCase()) ?? f);
-          for (const p of legalPages) {
-            if (!files.some((f) => f.path.toLowerCase() === p) && legalMap.get(p)) {
-              files.push(legalMap.get(p)!);
-            }
-          }
-          console.log(`✅ Legal pages regenerated: ${legalFiles.map((f) => f.path).join(", ")}`);
-        } else {
-          console.log("⚠️ Legal regen returned no files");
-          hasUnfixedPages = true;
-        }
-      } else if (legalResp) {
-        console.log("⚠️ Legal regen failed:", legalResp.status);
-        hasUnfixedPages = true;
-      }
-    }
-
-    // Regenerate content pages (contact, thank-you)
-    if (contentPages.length > 0) {
-      const contentPrompt = `Generate ONLY these pages with FULL content: ${contentPages.join(", ")}.
-
-Requirements:
-- Use the SAME design system, header/footer/nav links as the rest of the site (relative links with .html).
-- Language MUST be: ${langText}.
-- Contact page: Hero section + contact form (name, email, message, phone) + Google Map embed placeholder + office info + working hours.
-- Thank-you page: Success icon/animation + thank you message + link back to homepage.
-- Include proper styling matching the site design.
-- Include SEO meta title/description.
-
-Context (site brief):
-${refinedPrompt}`;
-
-      let contentResp: Response | null = null;
-      try {
-        contentResp = await fetchWithRetry(apiUrl, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: generateModel,
-            messages: [
-              { role: "system", content: "You are an expert HTML generator. Return ONLY file blocks using exact markers like: <!-- FILE: contact.html -->. No explanations. No markdown." },
-              { role: "user", content: contentPrompt },
-            ],
-            max_tokens: 8000,
-          }),
-        }, 1, 1000, 45000); // 1 retry, 1s delay, 45s timeout for content regen
-      } catch (fetchError) {
-        console.log("⚠️ Content regen fetch failed:", (fetchError as Error)?.message);
-        hasUnfixedPages = true;
-      }
-
-      if (contentResp?.ok) {
-        const contentData = await contentResp.json();
-        const contentText = contentData.choices?.[0]?.message?.content || "";
-        const contentUsage = contentData.usage as TokenUsage | undefined;
-        if (contentUsage) totalCost += calculateCost(contentUsage, generateModel);
-
-        const contentFiles = parseFilesFromModelText(contentText);
-        if (contentFiles.length > 0) {
-          const contentMap = new Map(contentFiles.map((f) => [f.path.toLowerCase(), f]));
-          files = files.map((f) => contentMap.get(f.path.toLowerCase()) ?? f);
-          for (const p of contentPages) {
-            if (!files.some((f) => f.path.toLowerCase() === p) && contentMap.get(p)) {
-              files.push(contentMap.get(p)!);
-            }
-          }
-          console.log(`✅ Content pages regenerated: ${contentFiles.map((f) => f.path).join(", ")}`);
-        } else {
-          console.log("⚠️ Content regen returned no files");
-          hasUnfixedPages = true;
-        }
-      } else if (contentResp) {
-        console.log("⚠️ Content regen failed:", contentResp.status);
-        hasUnfixedPages = true;
-      }
-    }
-
-    // Final validation after regeneration
-    const stillEmpty = MANDATORY_PAGES.filter((pg) => {
-      const f = getFile(pg.file);
-      if (!f) return true;
-      return isPageEmpty(f.content, pg.minChars, pg.minH2, pg.minP);
-    });
-
-    if (stillEmpty.length > 0) {
-      console.log(`❌ Still empty after regen: ${stillEmpty.map((p) => p.file).join(", ")}`);
-      hasUnfixedPages = true;
-    }
-  }
-
   // MANDATORY: Create separate cookie-banner.js file and include in all HTML files
   const ensureCookieBannerFile = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
     const COOKIE_BANNER_JS = `/**
@@ -1750,7 +1579,6 @@ ${refinedPrompt}`;
     fileList: finalFiles.map((f) => f.path),
     totalCost,
     specificModel: generateModel,
-    hasUnfixedPages, // Flag for marking as problematic
   };
 }
 
@@ -1788,40 +1616,30 @@ async function runBackgroundGeneration(
       result.files.forEach((file) => zip.file(file.path, file.content));
       const zipBase64 = await zip.generateAsync({ type: "base64" });
 
-      // Determine final status: if some pages couldn't be fixed, mark as problematic
-      const finalStatus = result.hasUnfixedPages ? "problematic" : "completed";
-      const warningMessage = result.hasUnfixedPages ? "Деякі обов'язкові сторінки можуть бути неповними" : null;
-
       // Update with success including generation cost and completion time
       const generationCost = result.totalCost || 0;
       await supabase
         .from("generation_history")
         .update({
-          status: finalStatus,
+          status: "completed",
           files_data: result.files,
           zip_data: zipBase64,
           generation_cost: generationCost,
           specific_ai_model: result.specificModel || null,
           completed_at: new Date().toISOString(),
-          error_message: warningMessage,
         })
         .eq("id", historyId);
 
       // Create notification for user
-      const notificationTitle = result.hasUnfixedPages ? "Сайт згенеровано з попередженням" : "Сайт згенеровано";
-      const notificationMessage = result.hasUnfixedPages 
-        ? `HTML сайт створено (${result.files.length} файлів), але деякі сторінки можуть бути неповними`
-        : `HTML сайт успішно створено (${result.files.length} файлів)`;
-
       await supabase.from("notifications").insert({
         user_id: userId,
-        type: result.hasUnfixedPages ? "generation_warning" : "generation_complete",
-        title: notificationTitle,
-        message: notificationMessage,
-        data: { historyId, filesCount: result.files.length, hasWarning: result.hasUnfixedPages }
+        type: "generation_complete",
+        title: "Сайт згенеровано",
+        message: `HTML сайт успішно створено (${result.files.length} файлів)`,
+        data: { historyId, filesCount: result.files.length }
       });
 
-      console.log(`[BG] Generation ${finalStatus} for ${historyId}: ${result.files.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}${result.hasUnfixedPages ? " (HAS UNFIXED PAGES)" : ""}`);
+      console.log(`[BG] Generation completed for ${historyId}: ${result.files.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}`);
     } else {
       // REFUND balance on failure
       if (teamId && salePrice > 0) {
