@@ -2187,12 +2187,13 @@ export function WebsiteGenerator() {
                           // Build final topic with geo context
                           const finalTopic = topic + (geoLabel ? ` in ${geoLabel}` : "");
                           
-                          setVipDomain(domain);
-                          setVipAddress(address);
-                          setVipPhone(phone);
-                          setVipTopic(finalTopic);
-                          setVipKeywords(keywords);
-                          setVipBannedWords(bannedWords);
+                          // Only fill empty fields
+                          if (!vipDomain.trim()) setVipDomain(domain);
+                          if (!vipAddress.trim()) setVipAddress(address);
+                          if (!vipPhone.trim()) setVipPhone(phone);
+                          if (!vipTopic.trim()) setVipTopic(finalTopic);
+                          if (!vipKeywords.trim()) setVipKeywords(keywords);
+                          if (!vipBannedWords.trim()) setVipBannedWords(bannedWords);
                         }}
                         className="h-7 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-100/50 dark:hover:bg-amber-900/30"
                       >
