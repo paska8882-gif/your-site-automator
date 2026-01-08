@@ -1147,6 +1147,73 @@ type TokenUsage = {
   total_tokens: number;
 };
 
+// Retry helper with exponential backoff for AI API calls
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 3,
+  baseDelay = 2000
+): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      console.log(`🔄 Fetch attempt ${attempt + 1}/${maxRetries} to ${url.substring(0, 50)}...`);
+      
+      // Create AbortController with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 min timeout
+      
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      // If we get a response (even error), return it
+      if (response) {
+        console.log(`✅ Fetch successful on attempt ${attempt + 1}, status: ${response.status}`);
+        return response;
+      }
+    } catch (error) {
+      lastError = error as Error;
+      const errorMessage = lastError?.message || String(error);
+      console.error(`❌ Fetch attempt ${attempt + 1} failed: ${errorMessage}`);
+      
+      // Don't retry on abort (timeout)
+      if (errorMessage.includes('aborted')) {
+        console.log('⏱️ Request timed out, retrying with fresh connection...');
+      }
+      
+      // Check if it's a connection error worth retrying
+      const isRetryable = 
+        errorMessage.includes('error reading a body from connection') ||
+        errorMessage.includes('connection') ||
+        errorMessage.includes('network') ||
+        errorMessage.includes('timeout') ||
+        errorMessage.includes('aborted') ||
+        errorMessage.includes('ECONNRESET') ||
+        errorMessage.includes('ETIMEDOUT');
+      
+      if (!isRetryable && attempt === 0) {
+        // Non-retryable error on first attempt
+        throw error;
+      }
+      
+      if (attempt < maxRetries - 1) {
+        // Exponential backoff: 2s, 4s, 8s
+        const delay = baseDelay * Math.pow(2, attempt);
+        console.log(`⏳ Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  // All retries exhausted
+  throw lastError || new Error('All fetch retries exhausted');
+}
+
 // Pricing per 1000 tokens (in USD)
 const TOKEN_PRICING = {
   "gpt-4o-mini": { input: 0.00015, output: 0.0006 },
@@ -1274,24 +1341,31 @@ async function runGeneration({
   const refineModel = isJunior ? "gpt-4o-mini" : "google/gemini-2.5-flash";
   const generateModel = isJunior ? "gpt-4o" : "google/gemini-2.5-pro";
 
-  // Step 1: refined prompt
-  const agentResponse = await fetch(apiUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: refineModel,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT + (siteName ? `\n\nCRITICAL SITE NAME REQUIREMENT: The website/business/brand name MUST be "${siteName}". Use this EXACT name in the logo, header, footer, page titles, meta tags, copyright, and all references to the business. Do NOT invent a different name.` : "") },
-        {
-          role: "user",
-          content: `Create a detailed prompt for static HTML/CSS website generation based on this request:\n\n"${prompt}"${siteName ? `\n\nIMPORTANT: The website name/brand MUST be "${siteName}".` : ""}\n\nTARGET CONTENT LANGUAGE: ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language || "auto-detect from user's request, default to English"}`,
-        },
-      ],
-    }),
-  });
+  // Step 1: refined prompt (with retry logic)
+  let agentResponse: Response;
+  try {
+    agentResponse = await fetchWithRetry(apiUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: refineModel,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT + (siteName ? `\n\nCRITICAL SITE NAME REQUIREMENT: The website/business/brand name MUST be "${siteName}". Use this EXACT name in the logo, header, footer, page titles, meta tags, copyright, and all references to the business. Do NOT invent a different name.` : "") },
+          {
+            role: "user",
+            content: `Create a detailed prompt for static HTML/CSS website generation based on this request:\n\n"${prompt}"${siteName ? `\n\nIMPORTANT: The website name/brand MUST be "${siteName}".` : ""}\n\nTARGET CONTENT LANGUAGE: ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language || "auto-detect from user's request, default to English"}`,
+          },
+        ],
+      }),
+    }, 3, 2000);
+  } catch (fetchError) {
+    const errorMsg = (fetchError as Error)?.message || String(fetchError);
+    console.error("Agent AI fetch failed after retries:", errorMsg);
+    return { success: false, error: errorMsg };
+  }
 
   if (!agentResponse.ok) {
     const errorText = await agentResponse.text();
@@ -1350,14 +1424,22 @@ async function runGeneration({
   // Junior: 16000 tokens, Senior: 32000 tokens for comprehensive multi-page websites
   websiteRequestBody.max_tokens = isJunior ? 16000 : 32000;
 
-  const websiteResponse = await fetch(apiUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(websiteRequestBody),
-  });
+  // Step 2: Website generation with retry logic
+  let websiteResponse: Response;
+  try {
+    websiteResponse = await fetchWithRetry(apiUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(websiteRequestBody),
+    }, 3, 3000); // 3 retries, start with 3s delay for large generation
+  } catch (fetchError) {
+    const errorMsg = (fetchError as Error)?.message || String(fetchError);
+    console.error("Website generation fetch failed after retries:", errorMsg);
+    return { success: false, error: errorMsg, totalCost };
+  }
 
   if (!websiteResponse.ok) {
     const errorText = await websiteResponse.text();
@@ -1448,20 +1530,26 @@ Requirements:
 Context (site brief):
 ${refinedPrompt}`;
 
-      const legalResp = await fetch(apiUrl, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: generateModel,
-          messages: [
-            { role: "system", content: "You are an expert HTML generator. Return ONLY file blocks using exact markers like: <!-- FILE: terms.html -->. No explanations. No markdown." },
-            { role: "user", content: legalPrompt },
-          ],
-          max_tokens: 16000,
-        }),
-      });
+      let legalResp: Response | null = null;
+      try {
+        legalResp = await fetchWithRetry(apiUrl, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: generateModel,
+            messages: [
+              { role: "system", content: "You are an expert HTML generator. Return ONLY file blocks using exact markers like: <!-- FILE: terms.html -->. No explanations. No markdown." },
+              { role: "user", content: legalPrompt },
+            ],
+            max_tokens: 16000,
+          }),
+        }, 3, 2000);
+      } catch (fetchError) {
+        console.log("⚠️ Legal regen fetch failed:", (fetchError as Error)?.message);
+        hasUnfixedPages = true;
+      }
 
-      if (legalResp.ok) {
+      if (legalResp?.ok) {
         const legalData = await legalResp.json();
         const legalText = legalData.choices?.[0]?.message?.content || "";
         const legalUsage = legalData.usage as TokenUsage | undefined;
@@ -1481,7 +1569,7 @@ ${refinedPrompt}`;
           console.log("⚠️ Legal regen returned no files");
           hasUnfixedPages = true;
         }
-      } else {
+      } else if (legalResp) {
         console.log("⚠️ Legal regen failed:", legalResp.status);
         hasUnfixedPages = true;
       }
@@ -1502,20 +1590,26 @@ Requirements:
 Context (site brief):
 ${refinedPrompt}`;
 
-      const contentResp = await fetch(apiUrl, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: generateModel,
-          messages: [
-            { role: "system", content: "You are an expert HTML generator. Return ONLY file blocks using exact markers like: <!-- FILE: contact.html -->. No explanations. No markdown." },
-            { role: "user", content: contentPrompt },
-          ],
-          max_tokens: 8000,
-        }),
-      });
+      let contentResp: Response | null = null;
+      try {
+        contentResp = await fetchWithRetry(apiUrl, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: generateModel,
+            messages: [
+              { role: "system", content: "You are an expert HTML generator. Return ONLY file blocks using exact markers like: <!-- FILE: contact.html -->. No explanations. No markdown." },
+              { role: "user", content: contentPrompt },
+            ],
+            max_tokens: 8000,
+          }),
+        }, 3, 2000);
+      } catch (fetchError) {
+        console.log("⚠️ Content regen fetch failed:", (fetchError as Error)?.message);
+        hasUnfixedPages = true;
+      }
 
-      if (contentResp.ok) {
+      if (contentResp?.ok) {
         const contentData = await contentResp.json();
         const contentText = contentData.choices?.[0]?.message?.content || "";
         const contentUsage = contentData.usage as TokenUsage | undefined;
@@ -1535,7 +1629,7 @@ ${refinedPrompt}`;
           console.log("⚠️ Content regen returned no files");
           hasUnfixedPages = true;
         }
-      } else {
+      } else if (contentResp) {
         console.log("⚠️ Content regen failed:", contentResp.status);
         hasUnfixedPages = true;
       }
