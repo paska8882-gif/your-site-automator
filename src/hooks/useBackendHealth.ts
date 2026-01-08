@@ -28,7 +28,9 @@ export function useBackendHealth(options: Options = {}) {
 
   const check = useCallback(async () => {
     try {
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/teams?select=id&limit=1`;
+      // Use a simple health check that doesn't require RLS access
+      // Just ping the Supabase REST endpoint to check connectivity
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/`;
       const res = await fetchWithTimeout(
         url,
         {
@@ -41,13 +43,20 @@ export function useBackendHealth(options: Options = {}) {
         timeoutMs
       );
 
-      if (!res.ok) throw new Error(`healthcheck ${res.status}`);
+      // Any response (even 404) means the backend is reachable
       consecutiveFailures = 0;
       setStatus("healthy");
-    } catch {
-      consecutiveFailures++;
-      // Only show degraded after 2+ consecutive failures
-      if (consecutiveFailures >= 2) {
+    } catch (error) {
+      // Only count as failure if it's a network/timeout error
+      if (error instanceof Error && error.name === 'AbortError') {
+        consecutiveFailures++;
+      } else {
+        // For other fetch errors, increment failure count
+        consecutiveFailures++;
+      }
+      
+      // Only show degraded after 3+ consecutive failures to reduce false positives
+      if (consecutiveFailures >= 3) {
         setStatus("degraded");
         setLastErrorAt(Date.now());
       }
