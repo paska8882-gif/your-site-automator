@@ -2041,7 +2041,7 @@ export function WebsiteGenerator() {
                         size="sm"
                         onClick={() => {
                           // Try to detect topic from description
-                          const promptLower = prompt.toLowerCase();
+                          const promptLower = prompt.toLowerCase().trim();
                           let detectedTopic = "";
                           
                           // Match topic keywords from description
@@ -2115,13 +2115,26 @@ export function WebsiteGenerator() {
                             }
                           }
                           
-                          // If still no topic detected, pick random
-                          const topic = detectedTopic || randomVipTopics[Math.floor(Math.random() * randomVipTopics.length)];
+                          // IMPORTANT: If prompt exists but no standard topic was detected, 
+                          // use the prompt itself as the topic instead of random
+                          let topic = detectedTopic;
+                          let usePromptAsTopic = false;
+                          
+                          if (!detectedTopic && promptLower.length > 0) {
+                            // Use prompt as topic - capitalize first letter of each word
+                            topic = prompt.trim().split(/\s+/).slice(0, 4).map(word => 
+                              word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                            ).join(" ");
+                            usePromptAsTopic = true;
+                          } else if (!detectedTopic) {
+                            // Only use random if prompt is empty
+                            topic = randomVipTopics[Math.floor(Math.random() * randomVipTopics.length)];
+                          }
                           
                           // Generate domain based on topic and first siteName if available
                           const siteBase = siteNames[0] 
                             ? siteNames[0].toLowerCase().replace(/[^a-z0-9]/g, '')
-                            : topic.toLowerCase().replace(/[^a-z0-9]/g, '');
+                            : topic.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 15);
                           const randomNum = Math.floor(Math.random() * 900) + 100;
                           const domain = `${siteBase}${randomNum}.com`;
                           
@@ -2144,26 +2157,41 @@ export function WebsiteGenerator() {
                             address = `${streetNum} ${street}, ${customGeo}`;
                           }
                           
-                          // Get keywords for the detected/selected topic
-                          const keywords = randomVipKeywordsByTopic[topic] || "professional services, quality, expert, trusted";
-                          
-                          // Generate language-aware keywords if language is selected
-                          const langValue = selectedLanguages[0] || (isOtherSelected && customLanguage ? customLanguage : "");
-                          let finalKeywords = keywords;
-                          
-                          // Add language context to topic if needed
+                          // Get geo label for display
                           const geoLabel = isOtherGeoSelected && customGeo 
                             ? customGeo 
                             : (selectedGeo ? geoOptions.find(g => g.value === selectedGeo)?.label || selectedGeo : "");
                           
+                          // Get language label for context
+                          const langValue = selectedLanguages[0] || (isOtherSelected && customLanguage ? customLanguage : "");
+                          const langLabel = langValue ? languages.find(l => l.value === langValue)?.label || langValue : "";
+                          
+                          // Generate keywords based on topic
+                          let keywords: string;
+                          if (usePromptAsTopic) {
+                            // Generate keywords from the prompt description
+                            const promptWords = prompt.trim().split(/[\s,;.]+/).filter(w => w.length > 2);
+                            const relevantWords = promptWords.slice(0, 6);
+                            keywords = relevantWords.length > 0 
+                              ? `${relevantWords.join(", ")}, professional services, quality, expert`
+                              : "professional services, quality, expert, trusted";
+                          } else {
+                            keywords = randomVipKeywordsByTopic[topic] || "professional services, quality, expert, trusted";
+                          }
+                          
                           // Get banned words for the detected/selected topic
-                          const bannedWords = randomVipBannedWordsByTopic[topic] || defaultBannedWords;
+                          const bannedWords = usePromptAsTopic 
+                            ? defaultBannedWords 
+                            : (randomVipBannedWordsByTopic[topic] || defaultBannedWords);
+                          
+                          // Build final topic with geo context
+                          const finalTopic = topic + (geoLabel ? ` in ${geoLabel}` : "");
                           
                           setVipDomain(domain);
                           setVipAddress(address);
                           setVipPhone(phone);
-                          setVipTopic(topic + (geoLabel ? ` in ${geoLabel}` : ""));
-                          setVipKeywords(finalKeywords);
+                          setVipTopic(finalTopic);
+                          setVipKeywords(keywords);
                           setVipBannedWords(bannedWords);
                         }}
                         className="h-7 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-100/50 dark:hover:bg-amber-900/30"
