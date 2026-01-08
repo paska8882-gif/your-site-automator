@@ -657,16 +657,17 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
   const checkStaleGenerations = async () => {
     const state = staleCheckStateRef.current;
 
-    // Backoff guard
+    // Backoff guard - wait longer between retries after failures
     if (Date.now() < state.nextAllowedAt) return;
 
+    // Skip if offline
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
-      state.nextAllowedAt = Date.now() + 60_000;
+      state.nextAllowedAt = Date.now() + 120_000; // 2 min offline backoff
       return;
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8_000);
+    const timeout = setTimeout(() => controller.abort(), 10_000); // 10s timeout
 
     try {
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cleanup-stale-generations`, {
@@ -678,14 +679,24 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
         signal: controller.signal,
       });
 
+      // 503 = backend temporarily down, don't count as hard failure
+      if (response.status === 503) {
+        state.failureCount += 1;
+        const backoffMs = Math.min(30 * 60_000, 60_000 * state.failureCount); // max 30 min
+        state.nextAllowedAt = Date.now() + backoffMs;
+        console.log(`Backend unavailable (503), backing off for ${backoffMs / 1000}s`);
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(`cleanup-stale-generations failed: ${response.status}`);
       }
 
       const result = await response.json();
 
+      // Success - reset failure count and set normal interval
       state.failureCount = 0;
-      state.nextAllowedAt = Date.now() + 5 * 60_000; // success: don't run often
+      state.nextAllowedAt = Date.now() + 5 * 60_000; // 5 min after success
 
       if (result.processed > 0) {
         console.log(`Stale cleanup: ${result.processed} processed, ${result.refunded} refunded`);
@@ -693,10 +704,12 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
       }
     } catch (error) {
       state.failureCount += 1;
-      const backoffMs = Math.min(30 * 60_000, 30_000 * Math.pow(2, state.failureCount - 1));
+      // Exponential backoff: 1min, 2min, 4min, 8min, ... max 30min
+      const backoffMs = Math.min(30 * 60_000, 60_000 * Math.pow(2, state.failureCount - 1));
       state.nextAllowedAt = Date.now() + backoffMs;
 
-      if (Date.now() - state.lastToastAt > 5 * 60_000) {
+      // Show toast only once every 10 minutes max
+      if (Date.now() - state.lastToastAt > 10 * 60_000) {
         state.lastToastAt = Date.now();
         toast({
           title: t("historyExtra.backendUnavailable"),
