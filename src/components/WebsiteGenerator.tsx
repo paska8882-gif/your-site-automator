@@ -1071,6 +1071,7 @@ export function WebsiteGenerator() {
   // Maximum concurrent generations limit per user (default 30, can be customized per user)
   const [userMaxGenerations, setUserMaxGenerations] = useState(30);
   const [activeGenerationsCount, setActiveGenerationsCount] = useState(0);
+  const fetchActiveGenerationsInFlight = useRef(false);
 
   // Fetch user's max generations limit from profile
   useEffect(() => {
@@ -1099,25 +1100,36 @@ export function WebsiteGenerator() {
   useEffect(() => {
     const fetchActiveGenerations = async () => {
       if (!user) return;
-      
+      if (fetchActiveGenerationsInFlight.current) return;
+
+      fetchActiveGenerationsInFlight.current = true;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 7000);
+
       try {
         const { count, error } = await supabase
           .from("generation_history")
           .select("*", { count: "exact", head: true })
           .eq("user_id", user.id)
-          .eq("status", "generating");
-        
+          .eq("status", "generating")
+          // supabase-js supports abortSignal in v2
+          .abortSignal(controller.signal as any);
+
         if (!error && count !== null) {
           setActiveGenerationsCount(count);
         }
       } catch (e) {
+        // Network hiccups shouldn't freeze UI; we'll retry on next poll
         console.error("Failed to fetch active generations:", e);
+      } finally {
+        clearTimeout(timeout);
+        fetchActiveGenerationsInFlight.current = false;
       }
     };
 
     fetchActiveGenerations();
-    // Poll every 5 seconds to keep count updated
-    const interval = setInterval(fetchActiveGenerations, 5000);
+    // Poll every 10 seconds to reduce load and avoid piling up requests on slow backend
+    const interval = setInterval(fetchActiveGenerations, 10000);
     return () => clearInterval(interval);
   }, [user]);
 
