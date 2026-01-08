@@ -1169,6 +1169,62 @@ type GenerationResult = {
   specificModel?: string;
 };
 
+// Retry helper with exponential backoff for AI API calls
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 2,
+  baseDelay = 1500,
+  timeoutMs = 90000
+): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      console.log(`🔄 Fetch attempt ${attempt + 1}/${maxRetries} (timeout: ${timeoutMs/1000}s)...`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response) {
+        console.log(`✅ Fetch successful on attempt ${attempt + 1}, status: ${response.status}`);
+        return response;
+      }
+    } catch (error) {
+      lastError = error as Error;
+      const errorMessage = lastError?.message || String(error);
+      console.error(`❌ Fetch attempt ${attempt + 1} failed: ${errorMessage}`);
+      
+      const isRetryable = 
+        errorMessage.includes('error reading a body from connection') ||
+        errorMessage.includes('connection') ||
+        errorMessage.includes('network') ||
+        errorMessage.includes('aborted') ||
+        errorMessage.includes('ECONNRESET') ||
+        errorMessage.includes('ETIMEDOUT');
+      
+      if (!isRetryable) {
+        throw error;
+      }
+      
+      if (attempt < maxRetries - 1) {
+        const delay = baseDelay * Math.pow(2, attempt);
+        console.log(`⏳ Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw lastError || new Error('All fetch retries exhausted');
+}
+
 const cleanFileContent = (content: string) => {
   let c = content.trim();
   c = c.replace(/^```[a-z0-9_-]*\s*\n/i, "");
@@ -1260,24 +1316,31 @@ async function runGeneration({
   const refineModel = isJunior ? "gpt-4o-mini" : "google/gemini-2.5-flash";
   const generateModel = isJunior ? "gpt-4o" : "google/gemini-2.5-pro";
 
-  // Step 1: refined prompt
-  const agentResponse = await fetch(apiUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: refineModel,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `Create a detailed prompt for React website generation based on this request:\n\n"${prompt}"\n\nTARGET CONTENT LANGUAGE: ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language || "auto-detect from user's request, default to English"}`,
-        },
-      ],
-    }),
-  });
+  // Step 1: refined prompt with retry
+  let agentResponse: Response;
+  try {
+    agentResponse = await fetchWithRetry(apiUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: refineModel,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: `Create a detailed prompt for React website generation based on this request:\n\n"${prompt}"\n\nTARGET CONTENT LANGUAGE: ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language || "auto-detect from user's request, default to English"}`,
+          },
+        ],
+      }),
+    }, 2, 1000, 30000);
+  } catch (fetchError) {
+    const errorMsg = (fetchError as Error)?.message || String(fetchError);
+    console.error("Agent AI fetch failed:", errorMsg);
+    return { success: false, error: errorMsg };
+  }
 
   if (!agentResponse.ok) {
     const errorText = await agentResponse.text();
@@ -1336,14 +1399,21 @@ async function runGeneration({
     websiteRequestBody.max_tokens = 16000;
   }
 
-  const websiteResponse = await fetch(apiUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(websiteRequestBody),
-  });
+  let websiteResponse: Response;
+  try {
+    websiteResponse = await fetchWithRetry(apiUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(websiteRequestBody),
+    }, 2, 2000, 180000);
+  } catch (fetchError) {
+    const errorMsg = (fetchError as Error)?.message || String(fetchError);
+    console.error("Website generation fetch failed:", errorMsg);
+    return { success: false, error: errorMsg, totalCost };
+  }
 
   if (!websiteResponse.ok) {
     const errorText = await websiteResponse.text();
