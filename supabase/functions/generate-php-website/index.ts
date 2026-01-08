@@ -170,7 +170,9 @@ REQUIRED PAGES (ALL MANDATORY):
 3. services.php - Services/Products page with detailed service descriptions, benefits, process
 4. contact.php - Contact page with WORKING form, map placeholder, contact info, working hours
 5. thank-you.php - Thank you page after form submission
-6. privacy.php - Privacy policy page with full legal text
+6. privacy.php - Privacy policy page with 10+ sections (see Privacy Policy requirements below)
+7. terms.php - Terms of Service page with 14 sections (see Terms of Service requirements below)
+8. cookie-policy.php - Cookie Policy page with cookies table (see Cookie Policy requirements below)
 
 OPTIONAL ADDITIONAL PAGES (add 1-3 based on business type):
 - portfolio.php - For creative/agency businesses
@@ -237,7 +239,9 @@ services.php      - Services page (REQUIRED)
 contact.php       - Contact page with form (REQUIRED)
 form-handler.php  - Form processing (REQUIRED)
 thank-you.php     - Thank you page (REQUIRED)
-privacy.php       - Privacy policy (REQUIRED)
+privacy.php       - Privacy policy with 10+ sections (REQUIRED)
+terms.php         - Terms of Service with 14 sections (REQUIRED)
+cookie-policy.php - Cookie Policy with cookies table (REQUIRED)
 css/
   style.css       - Main stylesheet (REQUIRED)
 js/
@@ -293,6 +297,8 @@ define('SITE_ADDRESS', '123 Main Street, City, Country');
                 <a href="services.php">Services</a>
                 <a href="contact.php">Contact</a>
                 <a href="privacy.php">Privacy Policy</a>
+                <a href="terms.php">Terms of Service</a>
+                <a href="cookie-policy.php">Cookie Policy</a>
             </div>
             <p>&copy; <?php echo date('Y'); ?> <?php echo SITE_NAME; ?>. All rights reserved.</p>
             <p>
@@ -492,6 +498,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 .submit-btn:hover {
     background: var(--primary-dark, #0056b3);
 }
+
+/* Cookies Table Styling */
+.cookies-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 30px 0;
+  font-size: 0.95rem;
+}
+
+.cookies-table thead {
+  background: var(--primary-color, #007bff);
+  color: white;
+}
+
+.cookies-table th,
+.cookies-table td {
+  padding: 15px 20px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.cookies-table tbody tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.cookies-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 768px) {
+  .cookies-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
 \`\`\`
 
 **📸 IMAGE REQUIREMENTS - CRITICAL:**
@@ -530,7 +572,80 @@ Each page MUST have UNIQUE, SUBSTANTIAL content:
 - services.php: 3-6 detailed service descriptions with benefits (minimum 400 words)
 - contact.php: Contact form, address, phone, email, working hours, map placeholder (minimum 200 words)
 - thank-you.php: Confirmation message, next steps, links back to site (minimum 100 words)
-- privacy.php: Full privacy policy text (minimum 300 words)
+
+**📜 PRIVACY POLICY PAGE (privacy.php) - MANDATORY 10+ SECTIONS:**
+Privacy Policy MUST contain AT LEAST 10 distinct sections with full legal text:
+1. Introduction & General Information
+2. Data Controller Contact Information
+3. Types of Personal Data Collected
+4. Purpose of Data Processing
+5. Legal Basis for Processing
+6. Data Retention Periods
+7. Data Sharing with Third Parties
+8. International Data Transfers
+9. User Rights (Access, Rectification, Erasure, Portability, etc.)
+10. Cookie Policy Reference
+11. Security Measures (optional but recommended)
+12. Changes to Privacy Policy (optional but recommended)
+Each section MUST have a heading (h2/h3) and 2-4 paragraphs of detailed legal text.
+
+**📋 TERMS OF SERVICE PAGE (terms.php) - MANDATORY 14 SECTIONS:**
+Terms of Service MUST contain EXACTLY 14 distinct sections with full legal text:
+1. Acceptance of Terms
+2. Definitions
+3. User Eligibility
+4. Account Registration and Security
+5. Permitted Use of Services
+6. Prohibited Activities
+7. Intellectual Property Rights
+8. User-Generated Content
+9. Third-Party Links and Services
+10. Disclaimers and Limitation of Liability
+11. Indemnification
+12. Termination
+13. Governing Law and Dispute Resolution
+14. Contact Information and Notices
+Each section MUST have a heading (h2/h3) and 2-4 paragraphs of detailed legal text.
+
+**🍪 COOKIE POLICY PAGE (cookie-policy.php) - MANDATORY WITH COOKIES TABLE:**
+Cookie Policy MUST contain:
+1. Introduction explaining what cookies are
+2. Why we use cookies
+3. Types of cookies we use (with explanations)
+4. **MANDATORY COOKIES TABLE** with the following columns:
+   - Cookie Name
+   - Provider
+   - Purpose
+   - Expiry
+   - Type (Essential/Analytics/Marketing/Functional)
+   
+Example table structure:
+\`\`\`html
+<table class="cookies-table">
+  <thead>
+    <tr>
+      <th>Cookie Name</th>
+      <th>Provider</th>
+      <th>Purpose</th>
+      <th>Expiry</th>
+      <th>Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>cookieConsent</td>
+      <td><?php echo SITE_NAME; ?></td>
+      <td>Stores user's cookie consent preference</td>
+      <td>1 year</td>
+      <td>Essential</td>
+    </tr>
+    <!-- Add 5-10 more cookie entries -->
+  </tbody>
+</table>
+\`\`\`
+5. How to manage/disable cookies
+6. Contact information for cookie-related inquiries
+The table MUST include AT LEAST 6-10 different cookies commonly used on websites.
 
 **🌍 LANGUAGE COMPLIANCE - ABSOLUTELY MANDATORY:**
 The website MUST be generated in the EXACT language specified in the request. This is NON-NEGOTIABLE:
@@ -1025,6 +1140,8 @@ async function runGeneration({
     "form-handler.php",
     "thank-you.php",
     "privacy.php",
+    "terms.php",
+    "cookie-policy.php",
     "css/style.css",
     "js/script.js",
   ];
@@ -1055,7 +1172,7 @@ async function runGeneration({
       : "";
 
     const systemContent = PHP_GENERATION_PROMPT + layoutDescription + "\n\n" + imageStrategy + "\n\n" + IMAGE_CSS;
-    const userContent = `Create a COMPLETE, FULLY FUNCTIONAL multi-page PHP website based on this brief:\n\n${refinedPrompt}\n\nCRITICAL GENERATION CHECKLIST - YOU MUST INCLUDE ALL:\n✅ includes/config.php - Site constants (SITE_NAME, SITE_EMAIL, SITE_PHONE, SITE_ADDRESS)\n✅ includes/header.php - Full HTML head, navigation with links to ALL pages\n✅ includes/footer.php - Footer with disclaimer, copyright, links\n✅ index.php - Homepage with hero, features, services preview, testimonials, CTA (FULL CONTENT)\n✅ about.php - About page with mission, team, values (FULL CONTENT)\n✅ services.php - Services/Products page with detailed descriptions (FULL CONTENT)\n✅ contact.php - Contact form with method=\"POST\" action=\"form-handler.php\"\n✅ form-handler.php - Form processor that redirects to thank-you.php\n✅ thank-you.php - Thank you page after form submission\n✅ privacy.php - Privacy policy page\n✅ css/style.css - Complete CSS with responsive design, mobile menu\n✅ js/script.js - JavaScript for mobile menu, interactions\n\nEach page MUST have SUBSTANTIAL, UNIQUE content (not placeholders).\nGenerate COMPLETE files with full HTML, CSS, and PHP code.\nUse proper PHP includes on every page.${strictFormatBlock}`;
+    const userContent = `Create a COMPLETE, FULLY FUNCTIONAL multi-page PHP website based on this brief:\n\n${refinedPrompt}\n\nCRITICAL GENERATION CHECKLIST - YOU MUST INCLUDE ALL:\n✅ includes/config.php - Site constants (SITE_NAME, SITE_EMAIL, SITE_PHONE, SITE_ADDRESS)\n✅ includes/header.php - Full HTML head, navigation with links to ALL pages\n✅ includes/footer.php - Footer with disclaimer, copyright, links\n✅ index.php - Homepage with hero, features, services preview, testimonials, CTA (FULL CONTENT)\n✅ about.php - About page with mission, team, values (FULL CONTENT)\n✅ services.php - Services/Products page with detailed descriptions (FULL CONTENT)\n✅ contact.php - Contact form with method=\"POST\" action=\"form-handler.php\"\n✅ form-handler.php - Form processor that redirects to thank-you.php\n✅ thank-you.php - Thank you page after form submission\n✅ privacy.php - Privacy Policy with 10+ sections (Introduction, Data Controller, Data Types, Purpose, Legal Basis, Retention, Sharing, International Transfers, User Rights, Cookie Reference)\n✅ terms.php - Terms of Service with 14 sections (Acceptance, Definitions, Eligibility, Account, Permitted Use, Prohibited, IP Rights, User Content, Third-Party, Disclaimers, Indemnification, Termination, Governing Law, Contact)\n✅ cookie-policy.php - Cookie Policy with cookies table (Cookie Name, Provider, Purpose, Expiry, Type) - minimum 6-10 cookies\n✅ css/style.css - Complete CSS with responsive design, mobile menu, cookies table styling\n✅ js/script.js - JavaScript for mobile menu, interactions\n\nEach page MUST have SUBSTANTIAL, UNIQUE content (not placeholders).\nGenerate COMPLETE files with full HTML, CSS, and PHP code.\nUse proper PHP includes on every page.${strictFormatBlock}`;
 
     try {
       let generateResponse: Response;

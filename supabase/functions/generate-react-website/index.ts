@@ -226,10 +226,82 @@ Each main page component MUST include AT LEAST these sections (in order):
 8. Call-to-Action Section - Final CTA with compelling copy and prominent button
 9. Partners/Clients Section - Logo grid of partner companies (6-12 logos)
 
-**SECONDARY PAGES (Contact.js, Privacy.js, Terms.js) - MINIMUM 2 SCREENS OF CONTENT:**
+**SECONDARY PAGES (Contact.js, Privacy.js, Terms.js, CookiePolicy.js) - MINIMUM 2 SCREENS OF CONTENT:**
 - Contact: Hero + contact form + WORKING GOOGLE MAP (see Google Maps section below) + office info + working hours
-- Privacy: Hero + full privacy policy text (15+ paragraphs covering all standard sections)
-- Terms: Hero + full terms of service text (15+ paragraphs covering all standard sections)
+
+**📜 PRIVACY POLICY PAGE (Privacy.js) - MANDATORY 10+ SECTIONS:**
+Privacy Policy MUST contain AT LEAST 10 distinct sections with full legal text:
+1. Introduction & General Information
+2. Data Controller Contact Information
+3. Types of Personal Data Collected
+4. Purpose of Data Processing
+5. Legal Basis for Processing
+6. Data Retention Periods
+7. Data Sharing with Third Parties
+8. International Data Transfers
+9. User Rights (Access, Rectification, Erasure, Portability, etc.)
+10. Cookie Policy Reference
+11. Security Measures (optional but recommended)
+12. Changes to Privacy Policy (optional but recommended)
+Each section MUST have a heading (h2/h3) and 2-4 paragraphs of detailed legal text.
+
+**📋 TERMS OF SERVICE PAGE (Terms.js) - MANDATORY 14 SECTIONS:**
+Terms of Service MUST contain EXACTLY 14 distinct sections with full legal text:
+1. Acceptance of Terms
+2. Definitions
+3. User Eligibility
+4. Account Registration and Security
+5. Permitted Use of Services
+6. Prohibited Activities
+7. Intellectual Property Rights
+8. User-Generated Content
+9. Third-Party Links and Services
+10. Disclaimers and Limitation of Liability
+11. Indemnification
+12. Termination
+13. Governing Law and Dispute Resolution
+14. Contact Information and Notices
+Each section MUST have a heading (h2/h3) and 2-4 paragraphs of detailed legal text.
+
+**🍪 COOKIE POLICY PAGE (CookiePolicy.js) - MANDATORY WITH COOKIES TABLE:**
+Cookie Policy MUST contain:
+1. Introduction explaining what cookies are
+2. Why we use cookies
+3. Types of cookies we use (with explanations)
+4. **MANDATORY COOKIES TABLE** - Create a React table component with the following columns:
+   - Cookie Name
+   - Provider
+   - Purpose
+   - Expiry
+   - Type (Essential/Analytics/Marketing/Functional)
+   
+Example JSX structure:
+\`\`\`jsx
+<table className="cookies-table">
+  <thead>
+    <tr>
+      <th>Cookie Name</th>
+      <th>Provider</th>
+      <th>Purpose</th>
+      <th>Expiry</th>
+      <th>Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>cookieConsent</td>
+      <td>[Site Name]</td>
+      <td>Stores user's cookie consent preference</td>
+      <td>1 year</td>
+      <td>Essential</td>
+    </tr>
+    {/* Add 5-10 more cookie entries */}
+  </tbody>
+</table>
+\`\`\`
+5. How to manage/disable cookies
+6. Contact information for cookie-related inquiries
+The table MUST include AT LEAST 6-10 different cookies commonly used on websites.
 
 **CONTENT DENSITY REQUIREMENTS:**
 - Each section MUST be at least 300px in height on desktop

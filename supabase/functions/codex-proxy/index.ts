@@ -56,6 +56,40 @@ function declineCookies() {
 OTHER CRITICAL REQUIREMENTS:
 - Include: terms.html, privacy.html, cookie-policy.html
 - robots.txt and sitemap.xml in root directory
+
+**📜 PRIVACY POLICY PAGE (privacy.html) - MANDATORY 10+ SECTIONS:**
+Privacy Policy MUST contain AT LEAST 10 distinct sections:
+1. Introduction & General Information
+2. Data Controller Contact Information
+3. Types of Personal Data Collected
+4. Purpose of Data Processing
+5. Legal Basis for Processing
+6. Data Retention Periods
+7. Data Sharing with Third Parties
+8. International Data Transfers
+9. User Rights (Access, Rectification, Erasure, Portability, etc.)
+10. Cookie Policy Reference
+
+**📋 TERMS OF SERVICE PAGE (terms.html) - MANDATORY 14 SECTIONS:**
+Terms of Service MUST contain EXACTLY 14 distinct sections:
+1. Acceptance of Terms
+2. Definitions
+3. User Eligibility
+4. Account Registration and Security
+5. Permitted Use of Services
+6. Prohibited Activities
+7. Intellectual Property Rights
+8. User-Generated Content
+9. Third-Party Links and Services
+10. Disclaimers and Limitation of Liability
+11. Indemnification
+12. Termination
+13. Governing Law and Dispute Resolution
+14. Contact Information and Notices
+
+**🍪 COOKIE POLICY PAGE (cookie-policy.html) - MANDATORY WITH TABLE:**
+Cookie Policy MUST include a table with columns: Cookie Name, Provider, Purpose, Expiry, Type.
+Include AT LEAST 6-10 different cookies in the table.
 - "Scroll to top" button that resets scroll on navigation
 - NO pricing, costs, or monetary amounts
 - Proper lang attribute matching site language
