@@ -201,6 +201,41 @@ function checkLinks(html: string, files: GeneratedFile[], currentFile: string): 
   return results;
 }
 
+/** Inline CSS files into HTML */
+function inlineCssFiles(html: string, files: GeneratedFile[]): string {
+  let result = html;
+  
+  // Find all CSS link tags
+  const linkRegex = /<link[^>]+rel=["']stylesheet["'][^>]+href=["']([^"']+)["'][^>]*>/gi;
+  const linkRegex2 = /<link[^>]+href=["']([^"']+\.css)["'][^>]*>/gi;
+  
+  const replaceCssLink = (match: string, href: string) => {
+    if (href.startsWith('http://') || href.startsWith('https://')) {
+      return match; // Keep external stylesheets
+    }
+    
+    const normalizedPath = href.replace(/^\.\//, '').replace(/^\//, '');
+    const cssFile = files.find(f => f.path === normalizedPath || f.path === 'css/' + normalizedPath || f.path === 'assets/css/' + normalizedPath);
+    
+    if (cssFile) {
+      return `<style>/* ${cssFile.path} */\n${cssFile.content}</style>`;
+    }
+    
+    return match;
+  };
+  
+  result = result.replace(linkRegex, replaceCssLink);
+  result = result.replace(linkRegex2, replaceCssLink);
+  
+  return result;
+}
+
+/** Inline images as base64 or keep paths */
+function processImages(html: string, files: GeneratedFile[]): string {
+  // For now, just keep image paths - in a real implementation we'd convert to base64
+  return html;
+}
+
 /** Main function: emulate a PHP page and return HTML */
 export function emulatePhpPage(
   pagePath: string,
@@ -252,6 +287,12 @@ export function emulatePhpPage(
   // Clean up any remaining PHP artifacts
   html = html.replace(/<\?php/g, "").replace(/\?>/g, "");
   html = processPhpCode(html, ctx);
+  
+  // Inline CSS files for proper preview
+  html = inlineCssFiles(html, files);
+  
+  // Process images
+  html = processImages(html, files);
   
   // Check for broken links
   const brokenLinks = checkLinks(html, files, pagePath);
