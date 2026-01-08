@@ -1148,21 +1148,23 @@ type TokenUsage = {
 };
 
 // Retry helper with exponential backoff for AI API calls
+// Optimized: shorter timeout (90s), fewer retries (2) to stay within edge function limits
 async function fetchWithRetry(
   url: string,
   options: RequestInit,
-  maxRetries = 3,
-  baseDelay = 2000
+  maxRetries = 2,
+  baseDelay = 1500,
+  timeoutMs = 90000 // 90 seconds default timeout
 ): Promise<Response> {
   let lastError: Error | null = null;
   
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      console.log(`🔄 Fetch attempt ${attempt + 1}/${maxRetries} to ${url.substring(0, 50)}...`);
+      console.log(`🔄 Fetch attempt ${attempt + 1}/${maxRetries} (timeout: ${timeoutMs/1000}s)...`);
       
       // Create AbortController with timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 min timeout
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       
       const response = await fetch(url, {
         ...options,
@@ -1181,28 +1183,22 @@ async function fetchWithRetry(
       const errorMessage = lastError?.message || String(error);
       console.error(`❌ Fetch attempt ${attempt + 1} failed: ${errorMessage}`);
       
-      // Don't retry on abort (timeout)
-      if (errorMessage.includes('aborted')) {
-        console.log('⏱️ Request timed out, retrying with fresh connection...');
-      }
-      
       // Check if it's a connection error worth retrying
       const isRetryable = 
         errorMessage.includes('error reading a body from connection') ||
         errorMessage.includes('connection') ||
         errorMessage.includes('network') ||
-        errorMessage.includes('timeout') ||
         errorMessage.includes('aborted') ||
         errorMessage.includes('ECONNRESET') ||
         errorMessage.includes('ETIMEDOUT');
       
-      if (!isRetryable && attempt === 0) {
-        // Non-retryable error on first attempt
+      if (!isRetryable) {
+        // Non-retryable error - fail immediately
         throw error;
       }
       
       if (attempt < maxRetries - 1) {
-        // Exponential backoff: 2s, 4s, 8s
+        // Quick retry: 1.5s, 3s
         const delay = baseDelay * Math.pow(2, attempt);
         console.log(`⏳ Waiting ${delay}ms before retry...`);
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -1341,7 +1337,7 @@ async function runGeneration({
   const refineModel = isJunior ? "gpt-4o-mini" : "google/gemini-2.5-flash";
   const generateModel = isJunior ? "gpt-4o" : "google/gemini-2.5-pro";
 
-  // Step 1: refined prompt (with retry logic)
+  // Step 1: refined prompt (with retry logic, shorter timeout for refine step)
   let agentResponse: Response;
   try {
     agentResponse = await fetchWithRetry(apiUrl, {
@@ -1360,7 +1356,7 @@ async function runGeneration({
           },
         ],
       }),
-    }, 3, 2000);
+    }, 2, 1000, 30000); // 2 retries, 1s delay, 30s timeout for refine
   } catch (fetchError) {
     const errorMsg = (fetchError as Error)?.message || String(fetchError);
     console.error("Agent AI fetch failed after retries:", errorMsg);
@@ -1424,7 +1420,7 @@ async function runGeneration({
   // Junior: 16000 tokens, Senior: 32000 tokens for comprehensive multi-page websites
   websiteRequestBody.max_tokens = isJunior ? 16000 : 32000;
 
-  // Step 2: Website generation with retry logic
+  // Step 2: Website generation with retry logic (main generation needs longer timeout)
   let websiteResponse: Response;
   try {
     websiteResponse = await fetchWithRetry(apiUrl, {
@@ -1434,7 +1430,7 @@ async function runGeneration({
         "Content-Type": "application/json",
       },
       body: JSON.stringify(websiteRequestBody),
-    }, 3, 3000); // 3 retries, start with 3s delay for large generation
+    }, 2, 2000, 180000); // 2 retries, 2s delay, 3 min timeout for main generation
   } catch (fetchError) {
     const errorMsg = (fetchError as Error)?.message || String(fetchError);
     console.error("Website generation fetch failed after retries:", errorMsg);
@@ -1543,7 +1539,7 @@ ${refinedPrompt}`;
             ],
             max_tokens: 16000,
           }),
-        }, 3, 2000);
+        }, 1, 1000, 60000); // 1 retry, 1s delay, 60s timeout for legal regen
       } catch (fetchError) {
         console.log("⚠️ Legal regen fetch failed:", (fetchError as Error)?.message);
         hasUnfixedPages = true;
@@ -1603,7 +1599,7 @@ ${refinedPrompt}`;
             ],
             max_tokens: 8000,
           }),
-        }, 3, 2000);
+        }, 1, 1000, 45000); // 1 retry, 1s delay, 45s timeout for content regen
       } catch (fetchError) {
         console.log("⚠️ Content regen fetch failed:", (fetchError as Error)?.message);
         hasUnfixedPages = true;
