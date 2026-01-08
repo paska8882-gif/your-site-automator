@@ -726,6 +726,12 @@ export const uk = {
     days14: "14 днів",
     days30: "30 днів",
     unknown: "Невідома",
+    financeNoGenerations: "Немає генерацій",
+    financeNoName: "Без назви",
+    financeAdminFallback: "Адмін",
+    financeUnknownTeam: "Невідома",
+    financeExternalModel: "Зовнішня",
+    financeOf: "з",
     // Referrals tab
     referralsTitle: "Реферальна програма",
     referralPending: "Очікують",

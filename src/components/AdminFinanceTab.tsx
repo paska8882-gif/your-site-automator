@@ -212,9 +212,9 @@ export function AdminFinanceTab() {
     
     const adminProfileMap = new Map(adminProfiles?.map(p => [p.user_id, p.display_name]) || []);
 
-    const enrichedBalanceTx = (balanceTxData || []).map(t => ({
-      ...t,
-      admin_display_name: adminProfileMap.get(t.admin_id) || "Адмін"
+    const enrichedBalanceTx = (balanceTxData || []).map(balanceTx => ({
+      ...balanceTx,
+      admin_display_name: adminProfileMap.get(balanceTx.admin_id) || t("admin.financeAdminFallback")
     }));
     setBalanceTransactions(enrichedBalanceTx);
 
@@ -478,7 +478,7 @@ export function AdminFinanceTab() {
     const teamStats: Record<string, { name: string; income: number; expenses: number }> = {};
     
     filteredGenerations.forEach(g => {
-      const teamName = g.team_name || "Невідома";
+      const teamName = g.team_name || t("admin.financeUnknownTeam");
       if (!teamStats[teamName]) {
         teamStats[teamName] = { name: teamName, income: 0, expenses: 0 };
       }
@@ -533,7 +533,7 @@ export function AdminFinanceTab() {
     return [
       { name: 'Junior AI', cost: juniorCost, count: juniorCount, avgCost: juniorCount > 0 ? juniorCost / juniorCount : 0 },
       { name: 'Senior AI', cost: seniorCost, count: seniorCount, avgCost: seniorCount > 0 ? seniorCost / seniorCount : 0 },
-      { name: 'Зовнішня', cost: externalCost, count: externalCount, avgCost: externalCount > 0 ? externalCost / externalCount : 0 }
+      { name: t("admin.financeExternalModel"), cost: externalCost, count: externalCount, avgCost: externalCount > 0 ? externalCost / externalCount : 0 }
     ];
   }, [filteredGenerations]);
 
@@ -1027,7 +1027,7 @@ export function AdminFinanceTab() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-3 pt-3 border-t">
               <span className="text-[10px] text-muted-foreground">
-                {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredGenerations.length)} з {filteredGenerations.length}
+                {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredGenerations.length)} {t("admin.financeOf")} {filteredGenerations.length}
               </span>
               <Pagination>
                 <PaginationContent className="gap-0.5">
@@ -1158,30 +1158,30 @@ export function AdminFinanceTab() {
                 <Loader2 className="h-4 w-4 animate-spin" />
               </div>
             ) : teamTransactions.length === 0 ? (
-              <p className="text-center text-muted-foreground py-4 text-xs">Немає генерацій</p>
+              <p className="text-center text-muted-foreground py-4 text-xs">{t("admin.financeNoGenerations")}</p>
             ) : (
               <div className="space-y-1 max-h-[200px] overflow-y-auto">
-                {teamTransactions.map((t) => (
-                  <div key={t.id} className="p-2 rounded border bg-card text-xs flex items-center justify-between">
+                {teamTransactions.map((tx) => (
+                  <div key={tx.id} className="p-2 rounded border bg-card text-xs flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-medium truncate">{t.site_name || "Без назви"}</span>
-                        <Badge variant={t.status === "completed" ? "default" : t.status === "failed" ? "destructive" : "secondary"} className="text-[9px] px-1 py-0">
-                          {t.status}
+                        <span className="font-medium truncate">{tx.site_name || t("admin.financeNoName")}</span>
+                        <Badge variant={tx.status === "completed" ? "default" : tx.status === "failed" ? "destructive" : "secondary"} className="text-[9px] px-1 py-0">
+                          {tx.status}
                         </Badge>
                       </div>
                       <div className="text-[10px] text-muted-foreground flex items-center gap-2">
-                        <span>{t.user_display_name}</span>
+                        <span>{tx.user_display_name}</span>
                         <span>•</span>
-                        <span>{t.website_type}</span>
+                        <span>{tx.website_type}</span>
                         <span>•</span>
-                        <span>{t.ai_model}</span>
+                        <span>{tx.ai_model}</span>
                       </div>
                     </div>
                     <div className="text-right ml-2">
-                      <div className="font-medium text-green-600">+${t.sale_price?.toFixed(2) || "0.00"}</div>
+                      <div className="font-medium text-green-600">+${tx.sale_price?.toFixed(2) || "0.00"}</div>
                       <div className="text-[10px] text-muted-foreground">
-                        {new Date(t.created_at).toLocaleDateString("uk-UA")}
+                        {new Date(tx.created_at).toLocaleDateString("uk-UA")}
                       </div>
                     </div>
                   </div>
