@@ -2312,7 +2312,9 @@ export function WebsiteGenerator() {
                         
                         setIsGeneratingVip(true);
                         try {
-                          const siteName = siteNames[0] || vipDomain.split('.')[0];
+                          // Generate domain if empty
+                          const effectiveDomain = vipDomain.trim() || `${(siteNames[0] || 'mysite').toLowerCase().replace(/[^a-z0-9]/g, '')}${Math.floor(Math.random() * 900) + 100}.com`;
+                          const siteName = siteNames[0] || effectiveDomain.split('.')[0];
                           const geoValue = isOtherGeoSelected && customGeo ? customGeo : selectedGeo;
                           const langValue = selectedLanguages[0] || customLanguage || "en";
                           const langLabel = languages.find(l => l.value === langValue)?.label || langValue;
@@ -2320,7 +2322,7 @@ export function WebsiteGenerator() {
                           
                           const { data, error } = await supabase.functions.invoke('generate-vip-prompt', {
                             body: {
-                              domain: vipDomain,
+                              domain: effectiveDomain,
                               siteName,
                               geo: geoLabel,
                               language: langLabel,
