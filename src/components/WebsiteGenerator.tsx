@@ -367,7 +367,7 @@ export function WebsiteGenerator() {
   const { toast } = useToast();
   const { t } = useLanguage();
   const { user } = useAuth();
-  const { isAdmin } = useAdmin();
+  const { isAdmin, loading: adminLoading } = useAdmin();
   const { isTeamOwner } = useTeamOwner();
   const navigate = useNavigate();
   
@@ -706,6 +706,9 @@ export function WebsiteGenerator() {
   // Fetch team pricing on mount (only for non-admins, admins use team selection)
   useEffect(() => {
     const fetchTeamPricing = async () => {
+      // Wait for admin loading to complete before deciding
+      if (adminLoading) return;
+      
       // Skip for admins - they use team selection instead
       if (isAdmin) return;
       
@@ -796,7 +799,7 @@ export function WebsiteGenerator() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isAdmin, playBalanceSound]);
+  }, [isAdmin, adminLoading, playBalanceSound]);
 
   // Show debt popup when team balance is negative (only for non-admins)
   useEffect(() => {
