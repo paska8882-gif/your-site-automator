@@ -1568,8 +1568,159 @@ async function runGeneration({
     });
   };
 
-  const finalFiles = ensureCookieBannerFile(files);
-  console.log(`📁 Final files count (with cookie banner file): ${finalFiles.length}`);
+  // MANDATORY: Ensure all required legal pages exist
+  const ensureMandatoryPages = (generatedFiles: GeneratedFile[], lang: string = "en"): GeneratedFile[] => {
+    const fileMap = new Map(generatedFiles.map(f => [f.path.toLowerCase(), f]));
+    
+    // Extract header/footer from index.html for consistent styling
+    const indexFile = fileMap.get("index.html");
+    let headerHtml = "";
+    let footerHtml = "";
+    let siteName = "Company";
+    
+    if (indexFile) {
+      const content = indexFile.content;
+      // Extract header
+      const headerMatch = content.match(/<header[\s\S]*?<\/header>/i);
+      if (headerMatch) headerHtml = headerMatch[0];
+      // Extract footer
+      const footerMatch = content.match(/<footer[\s\S]*?<\/footer>/i);
+      if (footerMatch) footerHtml = footerMatch[0];
+      // Extract site name from title
+      const titleMatch = content.match(/<title>([^<]+)<\/title>/i);
+      if (titleMatch) siteName = titleMatch[1].split(/[-|]/)[0].trim();
+    }
+    
+    const mandatoryPages = [
+      { file: "privacy.html", title: lang === "uk" ? "Політика конфіденційності" : lang === "ru" ? "Политика конфиденциальности" : lang === "de" ? "Datenschutzerklärung" : "Privacy Policy" },
+      { file: "terms.html", title: lang === "uk" ? "Умови використання" : lang === "ru" ? "Условия использования" : lang === "de" ? "Nutzungsbedingungen" : "Terms of Service" },
+      { file: "cookie-policy.html", title: lang === "uk" ? "Політика cookies" : lang === "ru" ? "Политика cookies" : lang === "de" ? "Cookie-Richtlinie" : "Cookie Policy" },
+      { file: "thank-you.html", title: lang === "uk" ? "Дякуємо" : lang === "ru" ? "Спасибо" : lang === "de" ? "Danke" : "Thank You" },
+    ];
+    
+    for (const page of mandatoryPages) {
+      if (!fileMap.has(page.file)) {
+        console.log(`📁 Adding missing mandatory page: ${page.file}`);
+        const pageContent = generateMandatoryPageContent(page.file, page.title, siteName, headerHtml, footerHtml, lang);
+        generatedFiles.push({ path: page.file, content: pageContent });
+      }
+    }
+    
+    return generatedFiles;
+  };
+
+  const generateMandatoryPageContent = (fileName: string, title: string, siteName: string, header: string, footer: string, lang: string): string => {
+    const backText = lang === "uk" ? "Повернутися на головну" : lang === "ru" ? "Вернуться на главную" : lang === "de" ? "Zurück zur Startseite" : "Back to Home";
+    
+    if (fileName === "thank-you.html") {
+      const thankYouTitle = lang === "uk" ? "Дякуємо за звернення!" : lang === "ru" ? "Спасибо за обращение!" : lang === "de" ? "Danke für Ihre Nachricht!" : "Thank You for Contacting Us!";
+      const thankYouText = lang === "uk" ? "Ми отримали ваше повідомлення і зв'яжемося з вами найближчим часом." : lang === "ru" ? "Мы получили ваше сообщение и свяжемся с вами в ближайшее время." : lang === "de" ? "Wir haben Ihre Nachricht erhalten und werden uns in Kürze bei Ihnen melden." : "We have received your message and will get back to you shortly.";
+      
+      return `<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title} - ${siteName}</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    ${header}
+    <main class="thank-you-page" style="min-height: 60vh; display: flex; align-items: center; justify-content: center; text-align: center; padding: 80px 20px;">
+        <div class="container">
+            <div style="font-size: 80px; margin-bottom: 30px;">✓</div>
+            <h1 style="font-size: 2.5rem; margin-bottom: 20px;">${thankYouTitle}</h1>
+            <p style="font-size: 1.2rem; color: #666; margin-bottom: 40px;">${thankYouText}</p>
+            <a href="index.html" class="btn" style="display: inline-block; padding: 15px 30px; background: #2563eb; color: white; text-decoration: none; border-radius: 8px;">${backText}</a>
+        </div>
+    </main>
+    ${footer}
+    <script src="cookie-banner.js"></script>
+</body>
+</html>`;
+    }
+    
+    // Generate legal page content
+    const legalContent = generateLegalContent(fileName, siteName, lang);
+    
+    return `<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title} - ${siteName}</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    ${header}
+    <main class="legal-page" style="padding: 80px 20px; max-width: 900px; margin: 0 auto;">
+        <h1 style="font-size: 2.5rem; margin-bottom: 40px;">${title}</h1>
+        ${legalContent}
+        <p style="margin-top: 40px;"><a href="index.html">${backText}</a></p>
+    </main>
+    ${footer}
+    <script src="cookie-banner.js"></script>
+</body>
+</html>`;
+  };
+
+  const generateLegalContent = (fileName: string, siteName: string, lang: string): string => {
+    if (fileName === "privacy.html") {
+      if (lang === "uk" || lang === "ru") {
+        return `<section style="margin-bottom: 30px;"><h2>1. Загальні положення</h2><p>Ця Політика конфіденційності описує, як ${siteName} збирає, використовує та захищає вашу особисту інформацію.</p></section>
+<section style="margin-bottom: 30px;"><h2>2. Які дані ми збираємо</h2><p>Ми можемо збирати: контактну інформацію (ім'я, email, телефон), технічні дані (IP-адреса, тип браузера), файли cookies.</p></section>
+<section style="margin-bottom: 30px;"><h2>3. Як ми використовуємо дані</h2><p>Дані використовуються для: надання послуг, покращення сервісу, зв'язку з вами, аналітики.</p></section>
+<section style="margin-bottom: 30px;"><h2>4. Захист даних</h2><p>Ми вживаємо всіх необхідних заходів для захисту ваших персональних даних.</p></section>
+<section style="margin-bottom: 30px;"><h2>5. Ваші права</h2><p>Ви маєте право на доступ, виправлення та видалення ваших даних.</p></section>
+<section style="margin-bottom: 30px;"><h2>6. Контакти</h2><p>З питань конфіденційності зв'яжіться з нами через контактну форму.</p></section>`;
+      }
+      return `<section style="margin-bottom: 30px;"><h2>1. Introduction</h2><p>This Privacy Policy describes how ${siteName} collects, uses, and protects your personal information when you use our website.</p></section>
+<section style="margin-bottom: 30px;"><h2>2. Information We Collect</h2><p>We may collect: contact information (name, email, phone), technical data (IP address, browser type), cookies and usage data.</p></section>
+<section style="margin-bottom: 30px;"><h2>3. How We Use Your Information</h2><p>Your data is used to: provide our services, improve user experience, communicate with you, analyze website usage.</p></section>
+<section style="margin-bottom: 30px;"><h2>4. Data Protection</h2><p>We implement appropriate security measures to protect your personal data from unauthorized access.</p></section>
+<section style="margin-bottom: 30px;"><h2>5. Your Rights</h2><p>You have the right to access, correct, and delete your personal data at any time.</p></section>
+<section style="margin-bottom: 30px;"><h2>6. Contact Us</h2><p>For privacy-related questions, please contact us through our contact form.</p></section>`;
+    }
+    
+    if (fileName === "terms.html") {
+      if (lang === "uk" || lang === "ru") {
+        return `<section style="margin-bottom: 30px;"><h2>1. Прийняття умов</h2><p>Використовуючи наш веб-сайт, ви погоджуєтеся з цими Умовами використання.</p></section>
+<section style="margin-bottom: 30px;"><h2>2. Опис послуг</h2><p>${siteName} надає інформаційні та консультаційні послуги.</p></section>
+<section style="margin-bottom: 30px;"><h2>3. Правила користування</h2><p>Ви погоджуєтеся використовувати сайт лише в законних цілях.</p></section>
+<section style="margin-bottom: 30px;"><h2>4. Інтелектуальна власність</h2><p>Весь контент сайту є власністю ${siteName} і захищений законом.</p></section>
+<section style="margin-bottom: 30px;"><h2>5. Обмеження відповідальності</h2><p>Ми не несемо відповідальності за будь-які прямі чи непрямі збитки.</p></section>
+<section style="margin-bottom: 30px;"><h2>6. Зміни умов</h2><p>Ми залишаємо за собою право змінювати ці умови в будь-який час.</p></section>`;
+      }
+      return `<section style="margin-bottom: 30px;"><h2>1. Acceptance of Terms</h2><p>By using our website, you agree to be bound by these Terms of Service.</p></section>
+<section style="margin-bottom: 30px;"><h2>2. Description of Services</h2><p>${siteName} provides informational and consulting services as described on our website.</p></section>
+<section style="margin-bottom: 30px;"><h2>3. User Conduct</h2><p>You agree to use our website only for lawful purposes and in compliance with all applicable laws.</p></section>
+<section style="margin-bottom: 30px;"><h2>4. Intellectual Property</h2><p>All content on this website is the property of ${siteName} and protected by copyright law.</p></section>
+<section style="margin-bottom: 30px;"><h2>5. Limitation of Liability</h2><p>We shall not be liable for any direct, indirect, incidental, or consequential damages.</p></section>
+<section style="margin-bottom: 30px;"><h2>6. Changes to Terms</h2><p>We reserve the right to modify these terms at any time without prior notice.</p></section>`;
+    }
+    
+    if (fileName === "cookie-policy.html") {
+      if (lang === "uk" || lang === "ru") {
+        return `<section style="margin-bottom: 30px;"><h2>1. Що таке cookies</h2><p>Cookies — це невеликі текстові файли, які зберігаються на вашому пристрої при відвідуванні веб-сайту.</p></section>
+<section style="margin-bottom: 30px;"><h2>2. Як ми використовуємо cookies</h2><p>Ми використовуємо cookies для: запам'ятовування ваших налаштувань, аналітики, покращення функціональності сайту.</p></section>
+<section style="margin-bottom: 30px;"><h2>3. Типи cookies</h2>
+<table style="width:100%; border-collapse: collapse; margin: 20px 0;"><thead><tr style="background:#f5f5f5;"><th style="padding:12px; border:1px solid #ddd;">Назва</th><th style="padding:12px; border:1px solid #ddd;">Тип</th><th style="padding:12px; border:1px solid #ddd;">Термін</th><th style="padding:12px; border:1px solid #ddd;">Призначення</th></tr></thead><tbody><tr><td style="padding:12px; border:1px solid #ddd;">cookieConsent</td><td style="padding:12px; border:1px solid #ddd;">Необхідний</td><td style="padding:12px; border:1px solid #ddd;">1 рік</td><td style="padding:12px; border:1px solid #ddd;">Зберігає згоду на cookies</td></tr></tbody></table></section>
+<section style="margin-bottom: 30px;"><h2>4. Управління cookies</h2><p>Ви можете видалити або заблокувати cookies в налаштуваннях вашого браузера.</p></section>`;
+      }
+      return `<section style="margin-bottom: 30px;"><h2>1. What Are Cookies</h2><p>Cookies are small text files stored on your device when you visit a website.</p></section>
+<section style="margin-bottom: 30px;"><h2>2. How We Use Cookies</h2><p>We use cookies to: remember your preferences, analyze website traffic, improve site functionality.</p></section>
+<section style="margin-bottom: 30px;"><h2>3. Types of Cookies</h2>
+<table style="width:100%; border-collapse: collapse; margin: 20px 0;"><thead><tr style="background:#f5f5f5;"><th style="padding:12px; border:1px solid #ddd;">Name</th><th style="padding:12px; border:1px solid #ddd;">Type</th><th style="padding:12px; border:1px solid #ddd;">Duration</th><th style="padding:12px; border:1px solid #ddd;">Purpose</th></tr></thead><tbody><tr><td style="padding:12px; border:1px solid #ddd;">cookieConsent</td><td style="padding:12px; border:1px solid #ddd;">Essential</td><td style="padding:12px; border:1px solid #ddd;">1 year</td><td style="padding:12px; border:1px solid #ddd;">Stores cookie consent</td></tr></tbody></table></section>
+<section style="margin-bottom: 30px;"><h2>4. Managing Cookies</h2><p>You can delete or block cookies through your browser settings.</p></section>`;
+    }
+    
+    return "";
+  };
+
+  // Apply all mandatory file checks
+  let finalFiles = ensureCookieBannerFile(files);
+  finalFiles = ensureMandatoryPages(finalFiles, language || "en");
+  console.log(`📁 Final files count (with all mandatory files): ${finalFiles.length}`);
 
   return {
     success: true,
