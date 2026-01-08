@@ -1670,8 +1670,34 @@ serve(async (req) => {
 
     const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo } = await req.json();
 
-    // Build prompt with geo context if provided
+    // Build prompt with language and geo context if provided
     let promptForGeneration = prompt;
+    
+    // Add language instruction FIRST (critical for content generation)
+    if (language && language !== "auto") {
+      const languageNames: Record<string, string> = {
+        en: "English", uk: "Ukrainian", ru: "Russian", de: "German", fr: "French",
+        es: "Spanish", it: "Italian", pt: "Portuguese", pl: "Polish", nl: "Dutch",
+        cs: "Czech", bg: "Bulgarian", ro: "Romanian", hu: "Hungarian", tr: "Turkish",
+        ja: "Japanese", vi: "Vietnamese", th: "Thai", id: "Indonesian", hi: "Hindi",
+        ar: "Arabic", el: "Greek", fi: "Finnish", sv: "Swedish", da: "Danish",
+        hr: "Croatian", sk: "Slovak", sl: "Slovenian", et: "Estonian", lv: "Latvian", lt: "Lithuanian"
+      };
+      const langName = languageNames[language] || language;
+      promptForGeneration = `[TARGET LANGUAGE: ${langName}]
+CRITICAL LANGUAGE REQUIREMENT - ALL CONTENT MUST BE IN ${langName.toUpperCase()}:
+- ALL text on ALL pages must be written in ${langName}
+- Navigation menu items in ${langName}
+- All headings, paragraphs, buttons, form labels in ${langName}
+- Footer text, copyright notice in ${langName}
+- Privacy Policy, Terms of Service, Cookie Policy - ALL in ${langName}
+- Meta titles and descriptions in ${langName}
+- Error messages and form validation in ${langName}
+- DO NOT use any other language unless specifically requested
+
+${promptForGeneration}`;
+    }
+    
     if (geo && geo !== "none") {
       const geoNames: Record<string, string> = {
         uk: "United Kingdom", bg: "Bulgaria", cz: "Czech Republic", de: "Germany",
