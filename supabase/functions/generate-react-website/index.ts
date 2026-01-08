@@ -1167,6 +1167,7 @@ type GenerationResult = {
   rawResponse?: string;
   totalCost?: number;
   specificModel?: string;
+  hasUnfixedPages?: boolean;
 };
 
 // Retry helper with exponential backoff for AI API calls
@@ -1439,7 +1440,7 @@ async function runGeneration({
   console.log("React website generated, parsing files...");
   console.log("Raw response length:", rawText.length);
 
-  const files = parseFilesFromModelText(rawText);
+  let files = parseFilesFromModelText(rawText);
   console.log(`📁 Total files parsed: ${files.length}`);
 
   if (files.length === 0) {
@@ -1450,6 +1451,172 @@ async function runGeneration({
       rawResponse: rawText.substring(0, 500),
       totalCost,
     };
+  }
+
+  // ===== MANDATORY PAGES VALIDATION FOR REACT =====
+  // Check all required page components and auto-regenerate if empty/missing
+  const MANDATORY_REACT_PAGES = [
+    { file: "src/pages/Privacy.jsx", altFile: "src/pages/Privacy.js", minChars: 1500, minSections: 8, type: "legal" },
+    { file: "src/pages/Terms.jsx", altFile: "src/pages/Terms.js", minChars: 1500, minSections: 10, type: "legal" },
+    { file: "src/pages/CookiePolicy.jsx", altFile: "src/pages/CookiePolicy.js", minChars: 1000, minSections: 5, type: "legal" },
+    { file: "src/pages/Contact.jsx", altFile: "src/pages/Contact.js", minChars: 600, minSections: 2, type: "content" },
+    { file: "src/pages/ThankYou.jsx", altFile: "src/pages/ThankYou.js", minChars: 300, minSections: 1, type: "content" },
+  ];
+
+  const getReactFile = (primary: string, alt: string) => 
+    files.find((f) => f.path === primary || f.path === alt);
+
+  const isReactPageEmpty = (content: string, minChars: number, minSections: number) => {
+    const c = (content || "").trim();
+    if (c.length < minChars) return true;
+    // Count section markers like <section, <div className="section, or heading tags
+    const sectionCount = (c.match(/<(section|article|div\s+className=["'][^"']*section)/gi) || []).length;
+    const headingCount = (c.match(/<h[1-6]\b/gi) || []).length;
+    return Math.max(sectionCount, headingCount) < minSections;
+  };
+
+  const emptyReactPages = MANDATORY_REACT_PAGES.filter((pg) => {
+    const f = getReactFile(pg.file, pg.altFile);
+    if (!f) return true;
+    return isReactPageEmpty(f.content, pg.minChars, pg.minSections);
+  });
+
+  let hasUnfixedPages = false;
+
+  if (emptyReactPages.length > 0) {
+    console.log(`⚠️ Empty/missing mandatory React pages: ${emptyReactPages.map((p) => p.file).join(", ")}. Regenerating...`);
+
+    const legalPages = emptyReactPages.filter((p) => p.type === "legal");
+    const contentPages = emptyReactPages.filter((p) => p.type === "content");
+
+    const langText = language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language || "English";
+
+    // Regenerate legal pages (Terms, Privacy, CookiePolicy)
+    if (legalPages.length > 0) {
+      const legalPageNames = legalPages.map(p => p.file.split('/').pop()?.replace('.jsx', '').replace('.js', '')).join(", ");
+      const legalPrompt = `Generate ONLY these React page components with FULL legal content: ${legalPageNames}
+
+Requirements:
+- Export default React functional component for each page
+- Use the SAME design patterns as the rest of the site
+- Language MUST be: ${langText}
+- Privacy.jsx MUST have 12+ sections with detailed GDPR-compliant text
+- Terms.jsx MUST have 14 sections with headings and paragraphs
+- CookiePolicy.jsx MUST include a cookies table (min 6 entries) and detailed sections
+- Each section MUST have h2/h3 heading and content paragraphs
+- Use proper CSS classes for styling
+- Return ONLY file blocks like: // FILE: src/pages/Privacy.jsx
+
+Generate these files: ${legalPages.map(p => p.file).join(", ")}`;
+
+      let legalResp: Response | null = null;
+      try {
+        legalResp = await fetchWithRetry(apiUrl, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: generateModel,
+            messages: [
+              { role: "system", content: "You are an expert React generator. Return ONLY file blocks using exact markers like: // FILE: src/pages/Privacy.jsx. No explanations." },
+              { role: "user", content: legalPrompt },
+            ],
+            max_tokens: 16000,
+          }),
+        }, 1, 1000, 60000);
+      } catch (fetchError) {
+        console.log("⚠️ React legal regen fetch failed:", (fetchError as Error)?.message);
+        hasUnfixedPages = true;
+      }
+
+      if (legalResp?.ok) {
+        const legalData = await legalResp.json();
+        const legalText = legalData.choices?.[0]?.message?.content || "";
+        const legalUsage = legalData.usage as TokenUsage | undefined;
+        if (legalUsage) totalCost += calculateCost(legalUsage, generateModel);
+
+        const legalFiles = parseFilesFromModelText(legalText);
+        if (legalFiles.length > 0) {
+          const legalMap = new Map(legalFiles.map((f) => [f.path, f]));
+          // Replace existing files or add new ones
+          files = files.map((f) => legalMap.get(f.path) ?? f);
+          for (const pg of legalPages) {
+            const newFile = legalMap.get(pg.file) || legalMap.get(pg.altFile);
+            if (newFile && !files.some((f) => f.path === newFile.path)) {
+              files.push(newFile);
+            }
+          }
+          console.log(`✅ React legal pages regenerated: ${legalFiles.map((f) => f.path).join(", ")}`);
+        } else {
+          console.log("⚠️ React legal regen returned no files");
+          hasUnfixedPages = true;
+        }
+      } else if (legalResp) {
+        console.log("⚠️ React legal regen failed:", legalResp.status);
+        hasUnfixedPages = true;
+      }
+    }
+
+    // Regenerate content pages (Contact, ThankYou)
+    if (contentPages.length > 0) {
+      const contentPageNames = contentPages.map(p => p.file.split('/').pop()?.replace('.jsx', '').replace('.js', '')).join(", ");
+      const contentPrompt = `Generate ONLY these React page components with FULL content: ${contentPageNames}
+
+Requirements:
+- Export default React functional component for each page
+- Use the SAME design patterns as the rest of the site
+- Language MUST be: ${langText}
+- Contact.jsx: Hero section + contact form (name, email, message, phone) + Google Map placeholder + office info + working hours
+- ThankYou.jsx: Success icon/animation + thank you message + link back to homepage
+- Use proper CSS classes for styling
+- Return ONLY file blocks like: // FILE: src/pages/Contact.jsx
+
+Generate these files: ${contentPages.map(p => p.file).join(", ")}`;
+
+      let contentResp: Response | null = null;
+      try {
+        contentResp = await fetchWithRetry(apiUrl, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: generateModel,
+            messages: [
+              { role: "system", content: "You are an expert React generator. Return ONLY file blocks using exact markers like: // FILE: src/pages/Contact.jsx. No explanations." },
+              { role: "user", content: contentPrompt },
+            ],
+            max_tokens: 8000,
+          }),
+        }, 1, 1000, 45000);
+      } catch (fetchError) {
+        console.log("⚠️ React content regen fetch failed:", (fetchError as Error)?.message);
+        hasUnfixedPages = true;
+      }
+
+      if (contentResp?.ok) {
+        const contentData = await contentResp.json();
+        const contentText = contentData.choices?.[0]?.message?.content || "";
+        const contentUsage = contentData.usage as TokenUsage | undefined;
+        if (contentUsage) totalCost += calculateCost(contentUsage, generateModel);
+
+        const contentFiles = parseFilesFromModelText(contentText);
+        if (contentFiles.length > 0) {
+          const contentMap = new Map(contentFiles.map((f) => [f.path, f]));
+          files = files.map((f) => contentMap.get(f.path) ?? f);
+          for (const pg of contentPages) {
+            const newFile = contentMap.get(pg.file) || contentMap.get(pg.altFile);
+            if (newFile && !files.some((f) => f.path === newFile.path)) {
+              files.push(newFile);
+            }
+          }
+          console.log(`✅ React content pages regenerated: ${contentFiles.map((f) => f.path).join(", ")}`);
+        } else {
+          console.log("⚠️ React content regen returned no files");
+          hasUnfixedPages = true;
+        }
+      } else if (contentResp) {
+        console.log("⚠️ React content regen failed:", contentResp.status);
+        hasUnfixedPages = true;
+      }
+    }
   }
 
   // MANDATORY: Ensure deployment configuration files and cookie banner are always present
@@ -1668,6 +1835,7 @@ Allow: /`
     fileList: finalFiles.map((f) => f.path),
     totalCost,
     specificModel: generateModel,
+    hasUnfixedPages,
   };
 }
 
@@ -1706,28 +1874,41 @@ async function runBackgroundGeneration(
 
       // Update with success including generation cost and completion time
       const generationCost = result.totalCost || 0;
+      
+      // Determine final status based on whether pages were successfully regenerated
+      const finalStatus = result.hasUnfixedPages ? "problematic" : "completed";
+      const warningMessage = result.hasUnfixedPages 
+        ? "Деякі обов'язкові сторінки (Privacy/Terms/Cookie/Contact/ThankYou) можуть бути неповними"
+        : null;
+
       await supabase
         .from("generation_history")
         .update({
-          status: "completed",
+          status: finalStatus,
           files_data: result.files,
           zip_data: zipBase64,
           generation_cost: generationCost,
           specific_ai_model: result.specificModel || null,
           completed_at: new Date().toISOString(),
+          error_message: warningMessage,
         })
         .eq("id", historyId);
 
       // Create notification for user
+      const notificationTitle = result.hasUnfixedPages ? "React сайт згенеровано з попередженням" : "React сайт згенеровано";
+      const notificationMessage = result.hasUnfixedPages 
+        ? `React сайт створено (${result.files.length} файлів), але деякі сторінки можуть бути неповними`
+        : `React сайт успішно створено (${result.files.length} файлів)`;
+
       await supabase.from("notifications").insert({
         user_id: userId,
-        type: "generation_complete",
-        title: "React сайт згенеровано",
-        message: `React сайт успішно створено (${result.files.length} файлів)`,
-        data: { historyId, filesCount: result.files.length }
+        type: result.hasUnfixedPages ? "generation_warning" : "generation_complete",
+        title: notificationTitle,
+        message: notificationMessage,
+        data: { historyId, filesCount: result.files.length, hasWarning: result.hasUnfixedPages }
       });
 
-      console.log(`[BG] React generation completed for ${historyId}: ${result.files.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}`);
+      console.log(`[BG] React generation ${finalStatus} for ${historyId}: ${result.files.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}${result.hasUnfixedPages ? " (HAS UNFIXED PAGES)" : ""}`);
     } else {
       // REFUND balance on failure
       if (teamId && salePrice > 0) {
