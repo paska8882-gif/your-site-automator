@@ -1345,9 +1345,9 @@ async function runGeneration({
     ],
   };
 
-  if (isJunior) {
-    websiteRequestBody.max_tokens = 16000;
-  }
+  // Set max_tokens for both models to ensure complete generation
+  // Junior: 16000 tokens, Senior: 32000 tokens for comprehensive multi-page websites
+  websiteRequestBody.max_tokens = isJunior ? 16000 : 32000;
 
   const websiteResponse = await fetch(apiUrl, {
     method: "POST",
