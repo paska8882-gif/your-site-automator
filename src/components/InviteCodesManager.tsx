@@ -107,7 +107,7 @@ export const InviteCodesManager = () => {
         .from("profiles")
         .select("user_id, display_name")
         .in("user_id", allUserIds);
-      profiles?.forEach(p => profilesMap.set(p.user_id, p.display_name || "Без імені"));
+      profiles?.forEach(p => profilesMap.set(p.user_id, p.display_name || t("admin.inviteCodesNoName")));
     }
 
     // Fetch teams
@@ -486,7 +486,7 @@ export const InviteCodesManager = () => {
                       className="h-3.5 w-3.5"
                     />
                     <span className="text-[10px] text-muted-foreground">
-                      {selectedIds.size > 0 ? `Вибрано: ${selectedIds.size}` : "Вибрати всі"}
+                      {selectedIds.size > 0 ? `${t("common.selected")}: ${selectedIds.size}` : t("admin.inviteCodesSelectAll")}
                     </span>
                   </div>
                   {selectedIds.size > 0 && (
@@ -502,14 +502,14 @@ export const InviteCodesManager = () => {
                       ) : (
                         <XCircle className="h-3 w-3 mr-1" />
                       )}
-                      Деактивувати ({selectedIds.size})
+                      {t("admin.inviteCodesDeactivate")} ({selectedIds.size})
                     </Button>
                   )}
                 </div>
               )}
               <div className="space-y-1 flex-1 overflow-y-auto">
                 {activeCodes.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-2 text-xs">Немає активних кодів</p>
+                  <p className="text-center text-muted-foreground py-2 text-xs">{t("admin.inviteCodesNoActive")}</p>
                 ) : groupByTeam ? (
                   renderGroupedCodes(activeCodes, true)
                 ) : (
@@ -521,7 +521,7 @@ export const InviteCodesManager = () => {
             <TabsContent value="inactive" className="flex-1 overflow-hidden mt-2">
               <div className="space-y-1 flex-1 overflow-y-auto h-full">
                 {inactiveCodes.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-2 text-xs">Немає неактивних кодів</p>
+                  <p className="text-center text-muted-foreground py-2 text-xs">{t("admin.inviteCodesNoInactive")}</p>
                 ) : groupByTeam ? (
                   renderGroupedCodes(inactiveCodes, false)
                 ) : (
