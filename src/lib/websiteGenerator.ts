@@ -137,21 +137,33 @@ export async function startGeneration(
   const promptForGeneration = vipPrompt || improvedPrompt || prompt;
 
   const makeRequest = async (accessToken: string) => {
-    return fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ 
-        prompt: promptForGeneration,
-        originalPrompt: prompt,
-        improvedPrompt: improvedPrompt || null,
-        vipPrompt: vipPrompt || null,
-        language, aiModel, layoutStyle, siteName, seniorMode, imageSource, teamId, geo 
-      }),
-    });
+    // Set a long timeout for generation (10 minutes) to prevent premature connection close
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10 minutes
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ 
+          prompt: promptForGeneration,
+          originalPrompt: prompt,
+          improvedPrompt: improvedPrompt || null,
+          vipPrompt: vipPrompt || null,
+          language, aiModel, layoutStyle, siteName, seniorMode, imageSource, teamId, geo 
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
   };
 
   try {
