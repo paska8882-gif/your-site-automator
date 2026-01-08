@@ -58,9 +58,11 @@ articles.html — Hero; Section 1: Topics ([topic1], [topic2], [topic3]); Sectio
 
 contact.html — Hero; Section 1: Inquiry Form; Section 2: Office Location (map); Section 3: Feedback
 
-terms.html — Terms of service
+terms.html — Terms of Service with EXACTLY 14 sections: 1. Acceptance of Terms; 2. Definitions; 3. User Eligibility; 4. Account Registration and Security; 5. Permitted Use of Services; 6. Prohibited Activities; 7. Intellectual Property Rights; 8. User-Generated Content; 9. Third-Party Links and Services; 10. Disclaimers and Limitation of Liability; 11. Indemnification; 12. Termination; 13. Governing Law and Dispute Resolution; 14. Contact Information and Notices
 
-privacy.html — Privacy policy
+privacy.html — Privacy Policy with 10+ sections: 1. Introduction; 2. Data Controller Contact; 3. Types of Data Collected; 4. Purpose of Processing; 5. Legal Basis; 6. Data Retention; 7. Data Sharing; 8. International Transfers; 9. User Rights; 10. Cookie Policy Reference; 11. Security Measures; 12. Policy Changes
+
+cookie-policy.html — Cookie Policy with: 1. What are cookies; 2. Why we use cookies; 3. Types of cookies; 4. COOKIES TABLE (Cookie Name, Provider, Purpose, Expiry, Type) with 6-10 entries; 5. How to manage cookies; 6. Contact info
 
 Return ONLY the page structure, nothing else.`;
 

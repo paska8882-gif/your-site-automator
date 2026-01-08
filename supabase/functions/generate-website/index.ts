@@ -585,10 +585,89 @@ Each main page MUST include AT LEAST these sections (in order):
 8. Call-to-Action Section - Final CTA with compelling copy and prominent button
 9. Partners/Clients Section - Logo grid of partner companies (6-12 logos)
 
-**SECONDARY PAGES (contact.html, privacy.html, terms.html) - MINIMUM 2 SCREENS OF CONTENT:**
+**SECONDARY PAGES (contact.html, privacy.html, terms.html, cookie-policy.html) - MINIMUM 2 SCREENS OF CONTENT:**
 - Contact: Hero + contact form + WORKING GOOGLE MAP + office info + working hours
-- Privacy: Hero + full privacy policy text (15+ paragraphs covering all standard sections)
-- Terms: Hero + full terms of service text (15+ paragraphs covering all standard sections)
+
+**📜 PRIVACY POLICY PAGE (privacy.html) - MANDATORY 10+ SECTIONS:**
+Privacy Policy MUST contain AT LEAST 10 distinct sections with full legal text:
+1. Introduction & General Information
+2. Data Controller Contact Information
+3. Types of Personal Data Collected
+4. Purpose of Data Processing
+5. Legal Basis for Processing
+6. Data Retention Periods
+7. Data Sharing with Third Parties
+8. International Data Transfers
+9. User Rights (Access, Rectification, Erasure, Portability, etc.)
+10. Cookie Policy Reference
+11. Security Measures (optional but recommended)
+12. Changes to Privacy Policy (optional but recommended)
+Each section MUST have a heading (h2/h3) and 2-4 paragraphs of detailed legal text.
+
+**📋 TERMS OF SERVICE PAGE (terms.html) - MANDATORY 14 SECTIONS:**
+Terms of Service MUST contain EXACTLY 14 distinct sections with full legal text:
+1. Acceptance of Terms
+2. Definitions
+3. User Eligibility
+4. Account Registration and Security
+5. Permitted Use of Services
+6. Prohibited Activities
+7. Intellectual Property Rights
+8. User-Generated Content
+9. Third-Party Links and Services
+10. Disclaimers and Limitation of Liability
+11. Indemnification
+12. Termination
+13. Governing Law and Dispute Resolution
+14. Contact Information and Notices
+Each section MUST have a heading (h2/h3) and 2-4 paragraphs of detailed legal text.
+
+**🍪 COOKIE POLICY PAGE (cookie-policy.html) - MANDATORY WITH COOKIES TABLE:**
+Cookie Policy MUST contain:
+1. Introduction explaining what cookies are
+2. Why we use cookies
+3. Types of cookies we use (with explanations)
+4. **MANDATORY COOKIES TABLE** with the following columns:
+   - Cookie Name
+   - Provider
+   - Purpose
+   - Expiry
+   - Type (Essential/Analytics/Marketing/Functional)
+   
+Example table structure:
+\`\`\`html
+<table class="cookies-table">
+  <thead>
+    <tr>
+      <th>Cookie Name</th>
+      <th>Provider</th>
+      <th>Purpose</th>
+      <th>Expiry</th>
+      <th>Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>cookieConsent</td>
+      <td>[Site Name]</td>
+      <td>Stores user's cookie consent preference</td>
+      <td>1 year</td>
+      <td>Essential</td>
+    </tr>
+    <tr>
+      <td>_ga</td>
+      <td>Google Analytics</td>
+      <td>Distinguishes unique users</td>
+      <td>2 years</td>
+      <td>Analytics</td>
+    </tr>
+    <!-- Add 5-10 more cookie entries -->
+  </tbody>
+</table>
+\`\`\`
+5. How to manage/disable cookies
+6. Contact information for cookie-related inquiries
+The table MUST include AT LEAST 6-10 different cookies commonly used on websites.
 
 **CONTENT DENSITY REQUIREMENTS:**
 - Each section MUST be at least 300px in height on desktop
@@ -647,11 +726,50 @@ Each main page MUST include AT LEAST these sections (in order):
 - Image containers with proper sizing
 - Footer with multi-column layout
 - Cookie banner styling
+- Cookies table styling (for cookie-policy page)
 - Mobile responsive breakpoints
 - Hover/focus states
 - Form styling
 - Active navigation link styling
 - Thank you page styling (success icon, centered content)
+
+**COOKIES TABLE CSS (MANDATORY for cookie-policy page):**
+\`\`\`css
+.cookies-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 30px 0;
+  font-size: 0.95rem;
+}
+
+.cookies-table thead {
+  background: var(--primary-color, #007bff);
+  color: white;
+}
+
+.cookies-table th,
+.cookies-table td {
+  padding: 15px 20px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.cookies-table tbody tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.cookies-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 768px) {
+  .cookies-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+\`\`\`
 
 **THANK YOU PAGE CSS (MANDATORY):**
 \`\`\`css
