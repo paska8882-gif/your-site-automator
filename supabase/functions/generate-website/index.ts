@@ -1382,7 +1382,7 @@ async function runGeneration({
   console.log("HTML website generated, parsing files...");
   console.log("Raw response length:", rawText.length);
 
-  const files = parseFilesFromModelText(rawText);
+  let files = parseFilesFromModelText(rawText);
   console.log(`📁 Total files parsed: ${files.length}`);
 
   if (files.length === 0) {
@@ -1393,6 +1393,79 @@ async function runGeneration({
       rawResponse: rawText.substring(0, 500),
       totalCost,
     };
+  }
+
+  // If legal pages are missing/empty, regenerate just those pages and merge.
+  const legalPagesToCheck = ["terms.html", "cookie-policy.html"];
+  const getFile = (p: string) => files.find((f) => f.path.toLowerCase() === p);
+  const isLikelyEmptyLegalPage = (content: string) => {
+    const c = (content || "").trim();
+    if (c.length < 800) return true;
+    const h2Count = (c.match(/<h2\b/gi) || []).length;
+    const pCount = (c.match(/<p\b/gi) || []).length;
+    return h2Count < 6 || pCount < 10;
+  };
+
+  const needsLegalFix = legalPagesToCheck.filter((p) => {
+    const f = getFile(p);
+    if (!f) return true;
+    return isLikelyEmptyLegalPage(f.content);
+  });
+
+  if (needsLegalFix.length > 0) {
+    console.log(`⚠️ Legal pages are missing/empty: ${needsLegalFix.join(", ")}. Regenerating...`);
+
+    const regenBody: Record<string, unknown> = {
+      model: generateModel,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an expert HTML generator. Return ONLY file blocks using exact markers like: <!-- FILE: terms.html -->. No explanations. No markdown.",
+        },
+        {
+          role: "user",
+          content: `Generate ONLY these pages with FULL content (not placeholders): ${needsLegalFix.join(", ")}.\n\nRequirements:\n- Use the SAME design system, header/footer/nav links as the rest of the site (relative links with .html).\n- Language MUST be: ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language || "English"}.\n- Terms of Service MUST have 14 sections with headings and multiple paragraphs.\n- Cookie Policy MUST include a cookies table (min 6 entries) and detailed sections.\n- Include SEO meta title/description.\n\nContext (site brief):\n${refinedPrompt}`,
+        },
+      ],
+      max_tokens: 12000,
+    };
+
+    const regenResp = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(regenBody),
+    });
+
+    if (regenResp.ok) {
+      const regenData = await regenResp.json();
+      const regenText = regenData.choices?.[0]?.message?.content || "";
+      const regenUsage = regenData.usage as TokenUsage | undefined;
+      if (regenUsage) {
+        totalCost += calculateCost(regenUsage, generateModel);
+      }
+
+      const regenFiles = parseFilesFromModelText(regenText);
+      if (regenFiles.length > 0) {
+        const regenMap = new Map(regenFiles.map((f) => [f.path.toLowerCase(), f]));
+        files = files.map((f) => regenMap.get(f.path.toLowerCase()) ?? f);
+        // Add any missing pages that were regenerated
+        for (const p of needsLegalFix) {
+          if (!files.some((f) => f.path.toLowerCase() === p) && regenMap.get(p)) {
+            files.push(regenMap.get(p)!);
+          }
+        }
+        console.log("✅ Legal pages regenerated and merged.");
+      } else {
+        console.log("⚠️ Legal regen returned no parsable files; keeping original.");
+      }
+    } else {
+      const t = await regenResp.text();
+      console.log("⚠️ Legal regen failed:", regenResp.status, t);
+    }
   }
 
   // MANDATORY: Create separate cookie-banner.js file and include in all HTML files
