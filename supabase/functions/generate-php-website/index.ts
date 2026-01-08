@@ -1590,17 +1590,20 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Validate JWT using getClaims for more reliable token validation
     const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
     
-    if (authError || !user) {
+    if (claimsError || !claimsData?.claims) {
+      console.error("JWT validation failed:", claimsError);
       return new Response(JSON.stringify({ success: false, error: "Invalid token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log("Authenticated PHP generation request from user:", user.id);
+    const userId = claimsData.claims.sub as string;
+    console.log("Authenticated PHP generation request from user:", userId);
 
     const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo } = await req.json();
 
@@ -1698,7 +1701,7 @@ CRITICAL GEO REQUIREMENTS - ALL CONTENT MUST BE LOCALIZED FOR ${countryName.toUp
       const { data: membership } = await supabase
         .from("team_members")
         .select("team_id")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .eq("status", "approved")
         .limit(1)
         .maybeSingle();
@@ -1763,7 +1766,7 @@ CRITICAL GEO REQUIREMENTS - ALL CONTENT MUST BE LOCALIZED FOR ${countryName.toUp
         prompt: promptToSave,
         improved_prompt: improvedPromptToSave,
         language: language || "auto",
-        user_id: user.id,
+        user_id: userId,
         team_id: teamId || null,
         status: "pending",
         ai_model: aiModel,
