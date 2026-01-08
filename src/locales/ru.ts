@@ -726,6 +726,12 @@ export const ru = {
     days14: "14 дней",
     days30: "30 дней",
     unknown: "Неизвестная",
+    financeNoGenerations: "Нет генераций",
+    financeNoName: "Без названия",
+    financeAdminFallback: "Админ",
+    financeUnknownTeam: "Неизвестная",
+    financeExternalModel: "Внешняя",
+    financeOf: "из",
     // Referrals tab
     referralsTitle: "Реферальная программа",
     referralPending: "Ожидают",
