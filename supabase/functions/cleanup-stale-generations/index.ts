@@ -12,13 +12,21 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseKey) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Missing env vars" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Find stale generations (older than 30 minutes)
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-    
+
     const { data: staleItems, error: fetchError } = await supabase
       .from("generation_history")
       .select("id, user_id, sale_price")
@@ -26,11 +34,14 @@ serve(async (req) => {
       .lt("created_at", thirtyMinutesAgo);
 
     if (fetchError) {
-      console.error("Error fetching stale items:", fetchError);
-      return new Response(JSON.stringify({ success: false, error: fetchError.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const errMsg = fetchError.message || String(fetchError);
+      console.error("Error fetching stale items:", errMsg);
+      // Check if it's a connection/timeout error - return 503 for retryable errors
+      const isRetryable = errMsg.includes("timeout") || errMsg.includes("521") || errMsg.includes("server") || errMsg.includes("connection");
+      return new Response(
+        JSON.stringify({ success: false, error: errMsg, retryable: isRetryable }),
+        { status: isRetryable ? 503 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     if (!staleItems || staleItems.length === 0) {
@@ -88,6 +99,7 @@ serve(async (req) => {
         processed++;
       } catch (itemError) {
         console.error(`Error processing stale item ${item.id}:`, itemError);
+        // Continue with next item even if one fails
       }
     }
 
@@ -98,10 +110,13 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Cleanup error:", error);
+    const errMsg = error instanceof Error ? error.message : "Unknown error";
+    console.error("Cleanup error:", errMsg);
+    // Check if it's a retryable error
+    const isRetryable = errMsg.includes("timeout") || errMsg.includes("521") || errMsg.includes("server") || errMsg.includes("connection");
     return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: false, error: errMsg, retryable: isRetryable }),
+      { status: isRetryable ? 503 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
