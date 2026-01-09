@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 
 interface GeneratedFile {
   path: string;
@@ -212,34 +212,109 @@ function buildReactPreviewHtml(files: GeneratedFile[]): string {
 </html>`;
 }
 
+function buildHtmlPreview(files: GeneratedFile[], currentPage: string): string {
+  const htmlFile = files.find(f => f.path === currentPage) || 
+                   files.find(f => f.path.endsWith(".html") || f.path === "index.html");
+  const cssFile = files.find(f => f.path.endsWith(".css") || f.path === "styles.css");
+  const jsFiles = files.filter(f => f.path.endsWith(".js") && !f.path.includes("cookie-banner"));
+  const cookieBannerFile = files.find(f => f.path === "cookie-banner.js");
+  
+  if (!htmlFile) return "";
+  
+  let html = htmlFile.content;
+  
+  // Inline CSS
+  if (cssFile) {
+    const styleTag = `<style>${cssFile.content}</style>`;
+    if (html.includes("</head>")) {
+      html = html.replace("</head>", `${styleTag}</head>`);
+    } else if (html.includes("<body")) {
+      html = html.replace("<body", `${styleTag}<body`);
+    } else {
+      html = styleTag + html;
+    }
+  }
+
+  // Inline JS files
+  for (const jsFile of jsFiles) {
+    if (html.includes(`src="${jsFile.path}"`)) {
+      html = html.replace(
+        new RegExp(`<script\\s+src="${jsFile.path.replace('.', '\\.')}"[^>]*><\\/script>`, 'gi'),
+        `<script>${jsFile.content}</script>`
+      );
+    }
+  }
+
+  // Inline cookie banner
+  if (cookieBannerFile) {
+    html = html.replace(
+      /<script\s+src="cookie-banner\.js"[^>]*><\/script>/gi,
+      `<script>${cookieBannerFile.content}</script>`
+    );
+  }
+
+  // Add navigation handler script to intercept link clicks
+  const navigationScript = `
+    <script>
+      document.addEventListener('click', function(e) {
+        var target = e.target;
+        while (target && target.tagName !== 'A') {
+          target = target.parentElement;
+        }
+        if (target && target.href) {
+          var href = target.getAttribute('href');
+          if (href && href.endsWith('.html') && !href.startsWith('http') && !href.startsWith('//')) {
+            e.preventDefault();
+            var cleanHref = href.replace('./', '').replace(/^\\//, '');
+            window.parent.postMessage({ type: 'html-navigate', href: cleanHref }, '*');
+          }
+        }
+      });
+    </script>
+  `;
+
+  if (html.includes("</body>")) {
+    html = html.replace("</body>", navigationScript + "</body>");
+  } else {
+    html += navigationScript;
+  }
+
+  return html;
+}
+
 export function SimplePreview({ files, websiteType }: SimplePreviewProps) {
   const isReact = websiteType === "react";
+  const [currentPage, setCurrentPage] = useState("index.html");
+
+  // Reset to index when files change
+  useEffect(() => {
+    setCurrentPage("index.html");
+  }, [files]);
+
+  // Listen for navigation messages from iframe
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === "html-navigate" && e.data.href) {
+        const targetPage = e.data.href;
+        // Check if the page exists in files
+        const pageExists = files.some(f => f.path === targetPage);
+        if (pageExists) {
+          setCurrentPage(targetPage);
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [files]);
 
   const getPreviewContent = useMemo(() => {
     if (isReact) {
       return buildReactPreviewHtml(files);
     }
     
-    const htmlFile = files.find(f => f.path.endsWith(".html") || f.path === "index.html");
-    const cssFile = files.find(f => f.path.endsWith(".css") || f.path === "styles.css");
-    
-    if (!htmlFile) return "";
-    
-    let html = htmlFile.content;
-    
-    if (cssFile) {
-      const styleTag = `<style>${cssFile.content}</style>`;
-      if (html.includes("</head>")) {
-        html = html.replace("</head>", `${styleTag}</head>`);
-      } else if (html.includes("<body")) {
-        html = html.replace("<body", `${styleTag}<body`);
-      } else {
-        html = styleTag + html;
-      }
-    }
-    
-    return html;
-  }, [files, isReact]);
+    return buildHtmlPreview(files, currentPage);
+  }, [files, isReact, currentPage]);
 
   return (
     <iframe
