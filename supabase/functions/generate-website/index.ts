@@ -2511,6 +2511,37 @@ textarea.form-control {
   display: none;
 }`;
 
+    // Check if styles.css exists
+    const hasStylesCSS = generatedFiles.some(f => f.path === 'styles.css');
+    
+    // If no styles.css exists at all, CREATE it with baseline CSS
+    if (!hasStylesCSS) {
+      console.log(`🚨 CRITICAL: styles.css NOT FOUND! Creating with full baseline CSS.`);
+      generatedFiles.push({
+        path: 'styles.css',
+        content: BASELINE_CSS
+      });
+      
+      // Also ensure all HTML files link to styles.css
+      generatedFiles = generatedFiles.map(file => {
+        if (!file.path.endsWith('.html')) return file;
+        
+        let content = file.content;
+        // Check if already has stylesheet link
+        if (!content.includes('styles.css') && !content.includes('<link rel="stylesheet"')) {
+          // Add stylesheet link in <head>
+          if (content.includes('</head>')) {
+            content = content.replace('</head>', '  <link rel="stylesheet" href="styles.css">\n</head>');
+            console.log(`📎 Added styles.css link to ${file.path}`);
+          }
+        }
+        return { ...file, content };
+      });
+      
+      return generatedFiles;
+    }
+    
+    // If styles.css exists, check and enhance quality
     return generatedFiles.map(file => {
       if (file.path !== 'styles.css') return file;
       
