@@ -1948,8 +1948,9 @@ CRITICAL GEO REQUIREMENTS - ALL CONTENT MUST BE LOCALIZED FOR ${countryName.toUp
 
     // Start background generation using EdgeRuntime.waitUntil
     // Pass salePrice and teamId for potential refund on error
+    // IMPORTANT: Use promptForGeneration which includes language and geo instructions
     EdgeRuntime.waitUntil(
-      runBackgroundGeneration(historyEntry.id, userId, prompt, language, aiModel, layoutStyle, imageSource, teamId, salePrice, siteName)
+      runBackgroundGeneration(historyEntry.id, userId, promptForGeneration, language, aiModel, layoutStyle, imageSource, teamId, salePrice, siteName)
     );
 
     // Return immediately with the history entry ID
