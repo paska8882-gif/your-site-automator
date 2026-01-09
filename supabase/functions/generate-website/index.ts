@@ -1262,32 +1262,38 @@ async function runGeneration({
   }
 
   // Parse JSON response with error handling for truncated responses
+  // CRITICAL: Clone response before consuming to avoid "Body already consumed" error
   let websiteData: Record<string, unknown>;
   let rawText: string;
+  
+  // First, get the raw text to have a fallback
+  const rawResponse = await websiteResponse.text();
+  console.log("Raw response length:", rawResponse.length);
+  
   try {
-    websiteData = await websiteResponse.json();
+    // Parse the text as JSON
+    websiteData = JSON.parse(rawResponse);
     rawText = (websiteData.choices as Array<{ message?: { content?: string } }>)?.[0]?.message?.content || "";
   } catch (jsonError) {
-    // If JSON parsing fails, try to get raw text and extract content
+    // If JSON parsing fails, try to extract content from partial JSON
     console.error("JSON parsing failed, attempting text extraction:", jsonError);
-    try {
-      const rawResponse = await websiteResponse.text();
-      console.log("Raw response length (fallback):", rawResponse.length);
-      
-      // Try to extract content from partial JSON
-      const contentMatch = rawResponse.match(/"content"\s*:\s*"([\s\S]*?)(?:"\s*[,}]|\s*$)/);
-      if (contentMatch && contentMatch[1]) {
-        rawText = contentMatch[1]
-          .replace(/\\n/g, '\n')
-          .replace(/\\"/g, '"')
-          .replace(/\\\\/g, '\\');
-        console.log("Extracted content from partial JSON, length:", rawText.length);
+    
+    // Try to extract content from partial JSON
+    const contentMatch = rawResponse.match(/"content"\s*:\s*"([\s\S]*?)(?:"\s*[,}]|\s*$)/);
+    if (contentMatch && contentMatch[1]) {
+      rawText = contentMatch[1]
+        .replace(/\\n/g, '\n')
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, '\\');
+      console.log("Extracted content from partial JSON, length:", rawText.length);
+    } else {
+      // Last resort: try to find FILE markers directly in the raw response
+      if (rawResponse.includes("<!-- FILE:") || rawResponse.includes("// FILE:")) {
+        rawText = rawResponse;
+        console.log("Using raw response as text, contains FILE markers");
       } else {
         return { success: false, error: "Failed to parse AI response - incomplete JSON", totalCost };
       }
-    } catch (textError) {
-      console.error("Failed to extract text from response:", textError);
-      return { success: false, error: "Failed to parse AI response", totalCost };
     }
     websiteData = {};
   }
@@ -1411,7 +1417,8 @@ async function runGeneration({
     });
   };
 
-  // MANDATORY: Ensure all required legal pages exist
+  // MANDATORY: Ensure all required legal pages exist and have proper content
+  // Also replaces incomplete/empty pages (less than 2000 chars for legal pages)
   const ensureMandatoryPages = (generatedFiles: GeneratedFile[], lang: string = "en"): GeneratedFile[] => {
     const fileMap = new Map(generatedFiles.map(f => [f.path.toLowerCase(), f]));
     
@@ -1420,6 +1427,7 @@ async function runGeneration({
     let headerHtml = "";
     let footerHtml = "";
     let siteName = "Company";
+    let cssLink = '<link rel="stylesheet" href="styles.css">';
     
     if (indexFile) {
       const content = indexFile.content;
@@ -1432,24 +1440,43 @@ async function runGeneration({
       // Extract site name from title
       const titleMatch = content.match(/<title>([^<]+)<\/title>/i);
       if (titleMatch) siteName = titleMatch[1].split(/[-|]/)[0].trim();
+      // Extract CSS link for consistent styling
+      const cssMatch = content.match(/<link[^>]*stylesheet[^>]*>/i);
+      if (cssMatch) cssLink = cssMatch[0];
     }
     
     const mandatoryPages = [
-      { file: "privacy.html", title: lang === "uk" ? "Політика конфіденційності" : lang === "ru" ? "Политика конфиденциальности" : lang === "de" ? "Datenschutzerklärung" : "Privacy Policy" },
-      { file: "terms.html", title: lang === "uk" ? "Умови використання" : lang === "ru" ? "Условия использования" : lang === "de" ? "Nutzungsbedingungen" : "Terms of Service" },
-      { file: "cookie-policy.html", title: lang === "uk" ? "Політика cookies" : lang === "ru" ? "Политика cookies" : lang === "de" ? "Cookie-Richtlinie" : "Cookie Policy" },
-      { file: "thank-you.html", title: lang === "uk" ? "Дякуємо" : lang === "ru" ? "Спасибо" : lang === "de" ? "Danke" : "Thank You" },
+      { file: "privacy.html", title: lang === "uk" ? "Політика конфіденційності" : lang === "ru" ? "Политика конфиденциальности" : lang === "de" ? "Datenschutzerklärung" : "Privacy Policy", minLength: 2000 },
+      { file: "terms.html", title: lang === "uk" ? "Умови використання" : lang === "ru" ? "Условия использования" : lang === "de" ? "Nutzungsbedingungen" : "Terms of Service", minLength: 2000 },
+      { file: "cookie-policy.html", title: lang === "uk" ? "Політика cookies" : lang === "ru" ? "Политика cookies" : lang === "de" ? "Cookie-Richtlinie" : "Cookie Policy", minLength: 2000 },
+      { file: "thank-you.html", title: lang === "uk" ? "Дякуємо" : lang === "ru" ? "Спасибо" : lang === "de" ? "Danke" : "Thank You", minLength: 500 },
     ];
     
+    // Filter out incomplete mandatory pages and add proper versions
+    const filteredFiles = generatedFiles.filter(f => {
+      const fileName = f.path.toLowerCase();
+      const mandatoryPage = mandatoryPages.find(mp => mp.file === fileName);
+      if (mandatoryPage) {
+        // Check if page is too short (incomplete)
+        if (f.content.length < mandatoryPage.minLength) {
+          console.log(`⚠️ Replacing incomplete page ${f.path} (${f.content.length} chars < ${mandatoryPage.minLength} min)`);
+          return false; // Remove this file, will be regenerated
+        }
+      }
+      return true;
+    });
+    
+    const filteredFileMap = new Map(filteredFiles.map(f => [f.path.toLowerCase(), f]));
+    
     for (const page of mandatoryPages) {
-      if (!fileMap.has(page.file)) {
-        console.log(`📁 Adding missing mandatory page: ${page.file}`);
+      if (!filteredFileMap.has(page.file)) {
+        console.log(`📁 Adding/regenerating mandatory page: ${page.file}`);
         const pageContent = generateMandatoryPageContent(page.file, page.title, siteName, headerHtml, footerHtml, lang);
-        generatedFiles.push({ path: page.file, content: pageContent });
+        filteredFiles.push({ path: page.file, content: pageContent });
       }
     }
     
-    return generatedFiles;
+    return filteredFiles;
   };
 
   const generateMandatoryPageContent = (fileName: string, title: string, siteName: string, header: string, footer: string, lang: string): string => {
