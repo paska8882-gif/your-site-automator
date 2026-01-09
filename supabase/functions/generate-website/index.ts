@@ -605,18 +605,27 @@ Contact page MUST include working Google Maps embed matching the site's location
 Include in footer, adapted to site's industry/theme.
 
 **MANDATORY FILES:**
-- index.html (hero + 5+ sections)
-- about.html
-- services.html  
-- contact.html (with map)
-- thank-you.html
-- privacy.html (10+ sections)
-- terms.html (14 sections)
-- cookie-policy.html (with cookies table)
-- styles.css (500+ lines, all styles)
-- script.js (mobile menu, cookie banner, animations)
+- index.html (hero + 6-8 quality sections with smooth animations)
+- about.html (company story, mission, team, values sections)
+- services.html (detailed services with cards, process steps, benefits)
+- contact.html (form, map embed, working hours, multiple contact methods)
+- thank-you.html (success message, next steps, back to home)
+- privacy.html (EXACTLY 10 detailed sections with substantial content each - Introduction, Data We Collect, How We Use Data, Data Sharing, Data Security, Your Rights, Cookies, Third Parties, Data Retention, Contact & Changes)
+- terms.html (EXACTLY 14 sections - Acceptance, Definitions, Services, User Accounts, Acceptable Use, Intellectual Property, User Content, Privacy, Disclaimers, Limitation of Liability, Indemnification, Termination, Changes, Governing Law)
+- cookie-policy.html (What Are Cookies, Types We Use, Cookie Table with ALL cookies listed, How to Manage, Third-Party Cookies, Policy Updates)
+- styles.css (600+ lines, premium design system with CSS variables, animations, responsive breakpoints)
+- script.js (mobile menu, cookie banner, scroll animations, form validation)
+- cookie-banner.js (separate file for cookie consent logic)
 - robots.txt
 - sitemap.xml
+
+**QUALITY STANDARDS:**
+- Each page must be SUBSTANTIAL - no empty or minimal pages
+- Legal pages (privacy, terms, cookie) must each have 3000+ characters of real content
+- All sections must have proper styling and spacing
+- Mobile-first responsive design throughout
+- Smooth hover effects and transitions
+- Professional typography with proper hierarchy
 
 **CSS MUST INCLUDE:**
 - CSS variables in :root
