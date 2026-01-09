@@ -905,12 +905,47 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
 
   const handleCancel = async (item: HistoryItem) => {
     try {
+      // First, refund balance if there was a sale_price
+      if (item.sale_price && item.sale_price > 0) {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Get user's team membership
+          const { data: membership } = await supabase
+            .from("team_members")
+            .select("team_id")
+            .eq("user_id", user.id)
+            .single();
+
+          if (membership) {
+            // Get current team balance
+            const { data: team } = await supabase
+              .from("teams")
+              .select("balance")
+              .eq("id", membership.team_id)
+              .single();
+
+            if (team) {
+              // Refund the balance
+              await supabase
+                .from("teams")
+                .update({ balance: (team.balance || 0) + item.sale_price })
+                .eq("id", membership.team_id);
+              
+              console.log(`Refunded $${item.sale_price} to team ${membership.team_id} for cancelled generation ${item.id}`);
+            }
+          }
+        }
+      }
+
+      // Update generation status and reset sale_price to indicate refund
       const { error } = await supabase
         .from("generation_history")
         .update({ 
           status: "failed", 
           error_message: t("historyExtra.cancelledByUser"),
-          completed_at: new Date().toISOString()
+          completed_at: new Date().toISOString(),
+          sale_price: 0 // Reset to show as refunded
         })
         .eq("id", item.id);
 
