@@ -159,94 +159,413 @@ const LAYOUT_VARIATIONS = [
   }
 ];
 
-const HTML_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE WEBSITE WITH 10X BETTER UI AND WORKING NAVIGATION
+const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, PROFESSIONAL MULTI-PAGE WEBSITE
+
+**🎨 CRITICAL DESIGN RULES - PREMIUM QUALITY:**
+
+**IMAGE SIZING - ABSOLUTELY CRITICAL (PREVENTS OVERSIZED IMAGES):**
+All images MUST have EXPLICIT width/height in CSS. NEVER let images grow beyond their container.
+
+\`\`\`css
+/* MANDATORY IMAGE CONSTRAINTS */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+}
+
+/* Hero images - constrained height */
+.hero {
+  min-height: 70vh;
+  max-height: 85vh;
+  background-size: cover;
+  background-position: center;
+}
+
+/* Card images - FIXED dimensions */
+.card-image, .service-card img, .feature-img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+/* Larger cards */
+.card-image-lg {
+  height: 280px;
+}
+
+/* Team/testimonial avatars - SMALL and ROUND */
+.avatar, .team-photo, .testimonial-img {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Gallery images - GRID constrained */
+.gallery-item img {
+  width: 100%;
+  height: 250px;
+  object-fit: cover;
+}
+
+/* About section image */
+.about-image {
+  max-width: 500px;
+  height: 350px;
+  object-fit: cover;
+  border-radius: 16px;
+}
+
+/* Partner/client logos - SMALL */
+.partner-logo, .client-logo {
+  height: 40px;
+  width: auto;
+  max-width: 120px;
+  object-fit: contain;
+  filter: grayscale(100%);
+  opacity: 0.7;
+  transition: all 0.3s ease;
+}
+.partner-logo:hover {
+  filter: grayscale(0);
+  opacity: 1;
+}
+\`\`\`
+
+**🦶 PREMIUM FOOTER DESIGN - ABSOLUTELY MANDATORY:**
+Footer MUST be professional, compact, and well-structured:
+
+\`\`\`css
+/* PREMIUM FOOTER STYLES */
+.footer {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #e0e0e0;
+  padding: 60px 0 30px;
+  margin-top: 80px;
+}
+
+.footer-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.5fr;
+  gap: 40px;
+  margin-bottom: 40px;
+}
+
+.footer-brand {
+  max-width: 280px;
+}
+
+.footer-logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.footer-description {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #a0a0a0;
+  margin-bottom: 20px;
+}
+
+.footer-heading {
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.footer-links {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.footer-links li {
+  margin-bottom: 12px;
+}
+
+.footer-links a {
+  color: #a0a0a0;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+
+.footer-links a:hover {
+  color: white;
+}
+
+.footer-contact-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+  color: #a0a0a0;
+}
+
+.footer-contact-item svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--accent-color, #3b82f6);
+}
+
+.footer-social {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.footer-social a {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.footer-social a:hover {
+  background: var(--accent-color, #3b82f6);
+  transform: translateY(-3px);
+}
+
+.footer-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+  margin: 30px 0;
+}
+
+.footer-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.footer-copyright {
+  font-size: 0.85rem;
+  color: #707070;
+}
+
+.footer-legal-links {
+  display: flex;
+  gap: 24px;
+}
+
+.footer-legal-links a {
+  font-size: 0.85rem;
+  color: #707070;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footer-legal-links a:hover {
+  color: white;
+}
+
+@media (max-width: 992px) {
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 576px) {
+  .footer-grid {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .footer-brand {
+    max-width: 100%;
+  }
+  .footer-bottom {
+    flex-direction: column;
+    text-align: center;
+  }
+  .footer-social {
+    justify-content: center;
+  }
+}
+\`\`\`
+
+**FOOTER HTML STRUCTURE (USE THIS EXACT STRUCTURE):**
+\`\`\`html
+<footer class="footer">
+  <div class="footer-container">
+    <div class="footer-grid">
+      <!-- Brand Column -->
+      <div class="footer-brand">
+        <span class="footer-logo">Company Name</span>
+        <p class="footer-description">Brief company description in 2-3 sentences. Professional and concise.</p>
+        <div class="footer-social">
+          <a href="#" aria-label="Facebook"><svg>...</svg></a>
+          <a href="#" aria-label="Instagram"><svg>...</svg></a>
+          <a href="#" aria-label="LinkedIn"><svg>...</svg></a>
+        </div>
+      </div>
+      
+      <!-- Quick Links -->
+      <div>
+        <h4 class="footer-heading">Navigation</h4>
+        <ul class="footer-links">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="about.html">About</a></li>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </div>
+      
+      <!-- Legal Links -->
+      <div>
+        <h4 class="footer-heading">Legal</h4>
+        <ul class="footer-links">
+          <li><a href="privacy.html">Privacy Policy</a></li>
+          <li><a href="terms.html">Terms of Service</a></li>
+          <li><a href="cookie-policy.html">Cookie Policy</a></li>
+        </ul>
+      </div>
+      
+      <!-- Contact Info -->
+      <div>
+        <h4 class="footer-heading">Contact</h4>
+        <div class="footer-contact-item">
+          <svg>location icon</svg>
+          <span>Address line here</span>
+        </div>
+        <div class="footer-contact-item">
+          <svg>phone icon</svg>
+          <a href="tel:+1234567890">+1 (234) 567-890</a>
+        </div>
+        <div class="footer-contact-item">
+          <svg>email icon</svg>
+          <a href="mailto:info@company.com">info@company.com</a>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Disclaimer -->
+    <div class="disclaimer-section">
+      <p><strong>Disclaimer:</strong> Adapted disclaimer text...</p>
+    </div>
+    
+    <div class="footer-divider"></div>
+    
+    <div class="footer-bottom">
+      <p class="footer-copyright">© 2024 Company Name. All rights reserved.</p>
+      <div class="footer-legal-links">
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+      </div>
+    </div>
+  </div>
+</footer>
+\`\`\`
+
+**📐 PAGE STRUCTURE - CLEAN SECTIONS:**
+
+\`\`\`css
+/* CLEAN SECTION STRUCTURE */
+section {
+  padding: 80px 0;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.section-header {
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto 60px;
+}
+
+.section-title {
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--heading-color, #1a1a1a);
+}
+
+.section-subtitle {
+  font-size: 1.1rem;
+  color: var(--text-muted, #666);
+  line-height: 1.6;
+}
+
+/* Cards Grid - CONSTRAINED */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 30px;
+  max-width: 1200px;
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+}
+
+.card-body {
+  padding: 24px;
+}
+
+.card-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.card-text {
+  color: var(--text-muted, #666);
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+\`\`\`
 
 **🌍 LANGUAGE COMPLIANCE - ABSOLUTELY MANDATORY:**
-The website MUST be generated in the EXACT language specified in the request. This is NON-NEGOTIABLE:
+The website MUST be generated in the EXACT language specified:
+- ALL text content MUST be in the specified language
+- Button text, navigation, form labels - EVERYTHING in the correct language
+- NEVER mix languages
+- NEVER default to Ukrainian unless explicitly specified
 
-1. **ALL text content** MUST be in the specified language:
-   - Headings, paragraphs, buttons, links, navigation
-   - Form labels, placeholders, error messages
-   - Footer text, copyright notices
-   - Cookie banner text
-   - Alt text for images
-   - Meta descriptions and page titles
+**NAVIGATION LINKS - USE RELATIVE PATHS:**
+- ALL links MUST use: href="about.html" NOT href="/about"
+- ALWAYS include .html extension
 
-2. **Language code mapping** (use correct language for each code):
-   - EN = English (US/UK)
-   - DE = German (Deutsch)
-   - FR = French (Français)
-   - ES = Spanish (Español)
-   - IT = Italian (Italiano)
-   - PL = Polish (Polski)
-   - NL = Dutch (Nederlands)
-   - UK/UA = Ukrainian (Українська)
-   - PT = Portuguese (Português)
-   - CS/CZ = Czech (Čeština)
-   - SV = Swedish (Svenska)
-   - NO = Norwegian (Norsk)
-   - DA = Danish (Dansk)
-   - FI = Finnish (Suomi)
-   - RU = Russian (Русский)
-   - TR = Turkish (Türkçe)
-   - AR = Arabic (العربية) - RTL layout
-   - HE = Hebrew (עברית) - RTL layout
-   - ZH = Chinese (中文)
-   - JA = Japanese (日本語)
-   - KO = Korean (한국어)
-
-3. **NEVER mix languages** - If the site is in German, ALL text must be German
-4. **NEVER default to Ukrainian** - Only use Ukrainian if explicitly specified as UK/UA
-5. **If language is "EN" or "English"** - Generate ALL content in proper English
-6. **Button text examples by language:**
-   - EN: "Get Started", "Learn More", "Contact Us"
-   - DE: "Jetzt starten", "Mehr erfahren", "Kontakt"
-   - FR: "Commencer", "En savoir plus", "Contactez-nous"
-   - ES: "Comenzar", "Saber más", "Contáctenos"
-   - PL: "Rozpocznij", "Dowiedz się więcej", "Kontakt"
-
-**NAVIGATION LINKS - ABSOLUTELY CRITICAL:**
-- ALL navigation links MUST use RELATIVE paths: href="about.html" NOT href="/about"
-- Header navigation MUST include links to ALL pages
-- Footer MUST include links to key pages
-- EVERY link MUST work when files are in the same folder
-- Example correct links:
-  - href="index.html" - Homepage
-  - href="about.html" - About page
-  - href="services.html" - Services
-  - href="contact.html" - Contact
-  - href="privacy.html" - Privacy policy
-- NEVER use absolute paths like href="/about" or href="/services"
-- ALWAYS use .html extension in ALL links
-
-**DESIGN PHILOSOPHY - 10X BETTER UI:**
-- Start with FUNCTIONAL and BEAUTIFUL base UI - Every pixel must serve a purpose
-- Always make 10X better UI than standard - Go beyond expectations
-- Use advanced CSS patterns - CSS Grid, Flexbox, custom properties, clamp()
-- Add visual hierarchy incrementally - Build up from solid foundation
-- Think like a product designer - Focus on user experience first
-
-**🍪 MANDATORY COOKIE SYSTEM - ABSOLUTELY CRITICAL, NON-NEGOTIABLE:**
-Every website MUST include a REAL, FUNCTIONAL cookie consent system that ACTUALLY COLLECTS AND STORES user choices:
-
-**COOKIE BANNER REQUIREMENTS:**
-1. Cookie banner MUST appear on FIRST visit (check localStorage on page load)
-2. Banner MUST have TWO buttons: "Accept All" and "Decline/Reject"
-3. "Accept" button: localStorage.setItem('cookieConsent', 'accepted') + hide banner
-4. "Decline" button: localStorage.setItem('cookieConsent', 'declined') + hide banner
-5. Banner NEVER shows again after user makes a choice
-6. On every page load: check if localStorage.getItem('cookieConsent') exists, if yes - don't show banner
-
-**COOKIE BANNER STYLING:**
-- Position: fixed at bottom of viewport (position: fixed; bottom: 0; left: 0; right: 0)
-- Background: semi-transparent dark or white with shadow
-- Z-index: 9999 (always on top)
-- Padding: comfortable spacing for text and buttons
-- Buttons: clear visual distinction between Accept and Decline
-- Text: Brief explanation of cookie usage in the site's language
-
-**COOKIE JAVASCRIPT TEMPLATE (MUST INCLUDE ON EVERY PAGE):**
-<script>
+**🍪 COOKIE CONSENT - MANDATORY:**
+Include working cookie banner with localStorage:
+\`\`\`javascript
 document.addEventListener('DOMContentLoaded', function() {
   const cookieConsent = localStorage.getItem('cookieConsent');
   const banner = document.getElementById('cookie-banner');
@@ -262,556 +581,52 @@ function declineCookies() {
   localStorage.setItem('cookieConsent', 'declined');
   document.getElementById('cookie-banner').style.display = 'none';
 }
-</script>
-
-**THIS IS NOT OPTIONAL - EVERY GENERATED WEBSITE MUST HAVE WORKING COOKIE CONSENT!**
-
-**🚫 NUMBERS PROHIBITION - ABSOLUTELY CRITICAL, NON-NEGOTIABLE:**
-NEVER include ANY numerical data anywhere on the website. This is a STRICT requirement:
-
-**FORBIDDEN (NEVER USE):**
-- Prices, costs, monetary figures ($99, €50, £100, ₴500, etc.)
-- Statistics, percentages (95%, 100+, 50% off, etc.)
-- Years of experience ("10 years", "Since 2010", etc.)
-- Client/project counts ("500+ clients", "1000 projects", etc.)
-- Team size numbers ("50 experts", "Team of 20", etc.)
-- Ratings and scores ("4.9/5", "5 stars", etc.)
-- Time frames with numbers ("24/7", "in 48 hours", etc.)
-- Numerical guarantees ("100% satisfaction", "30-day guarantee", etc.)
-- Square meters, distances, capacities
-- Any forecasts, projections, or numerical predictions
-- Countdown timers or numerical deadlines
-
-**ALLOWED ALTERNATIVES (USE THESE INSTEAD):**
-- "Contact us for pricing" instead of prices
-- "Years of experience" instead of "10 years"
-- "Hundreds of satisfied clients" instead of "500+ clients"
-- "Our expert team" instead of "Team of 50"
-- "Top-rated service" instead of "4.9/5 rating"
-- "Fast delivery" instead of "in 24 hours"
-- "Satisfaction guaranteed" instead of "100% guarantee"
-- "Always available" instead of "24/7"
-- "Request a quote" instead of any price
-- "Proven track record" instead of statistics
-
-**THE ONLY ALLOWED NUMBERS:**
-- Phone numbers (required for contact)
-- Postal codes in addresses (required for location)
-
-**⚠️ MANDATORY DISCLAIMER - ABSOLUTELY CRITICAL, NON-NEGOTIABLE:**
-Every website MUST include a disclaimer section adapted to the website's theme. This is REQUIRED for Google Ads compliance:
-
-**DISCLAIMER REQUIREMENTS:**
-1. Place the disclaimer in the footer area, ABOVE the copyright section
-2. The disclaimer MUST be styled to MATCH THE WEBSITE'S DESIGN STYLE:
-   - Use colors that complement the site's color palette (can be accent color, muted tone, or contrasting block)
-   - Match the typography and spacing of the site
-   - Make it visible but harmonious with overall design
-   - Can use borders, subtle backgrounds, or other styling that fits the site aesthetic
-3. The disclaimer text MUST be ADAPTED to match the website's theme/industry:
-   - Keep the core meaning: "content is for general information/education only, not professional advice"
-   - Adapt terminology to the specific industry (e.g., "financial advice" for finance, "medical advice" for health, "legal advice" for law, etc.)
-   - Always include: not professional advice, consult qualified experts, involves risk, we don't sell [relevant products]
-
-**DISCLAIMER TEMPLATE (ADAPT TO SITE THEME AND LANGUAGE):**
-Base text to adapt: "Important Notice (Disclaimer) regarding Google Ads compliance: The content of this website is intended solely for general information and educational purposes. It does not constitute [INDUSTRY-SPECIFIC] advice and cannot replace individual consultations with qualified experts. [RELEVANT RISK WARNING]. We do not sell [RELEVANT PRODUCTS/SERVICES]."
-
-**LANGUAGE EXAMPLES:**
-- EN (Finance theme): "Important Notice (Disclaimer): The content of this website is intended solely for general information and financial education. It does not constitute investment, tax, or legal advice and cannot replace individual consultations with qualified experts. Any investments involve risk. We do not sell financial products."
-- EN (Health theme): "Important Notice (Disclaimer): The content of this website is intended solely for general information and health education. It does not constitute medical advice and cannot replace individual consultations with qualified healthcare professionals. Always consult a doctor before making health decisions. We do not sell medications."
-- EN (Legal theme): "Important Notice (Disclaimer): The content of this website is intended solely for general information and legal education. It does not constitute legal advice and cannot replace individual consultations with qualified attorneys. Every legal situation is unique. We do not provide legal representation."
-- EN (Education/Courses): "Important Notice (Disclaimer): The content of this website and our courses is intended solely for general information and educational purposes. It does not constitute professional advice and cannot replace individual consultations with qualified experts. We do not guarantee specific results."
-- DE (Finance): "Wichtiger Hinweis (Haftungsausschluss): Der Inhalt dieser Website dient ausschließlich der allgemeinen Information und Finanzbildung. Er stellt keine Anlage-, Steuer- oder Rechtsberatung dar und kann individuelle Beratungen durch qualifizierte Experten nicht ersetzen. Jede Investition ist mit Risiken verbunden. Wir verkaufen keine Finanzprodukte."
-- RU (Finance): "Важное уведомление (отказ от ответственности): Контент этого веб-сайта предназначен исключительно для общего ознакомления и финансового образования. Он не является инвестиционной, налоговой или юридической консультацией и не может заменить индивидуальные консультации квалифицированных экспертов. Любые инвестиции сопряжены с риском. Мы не продаем финансовые продукты."
-- UK (Finance): "Важливе повідомлення (відмова від відповідальності): Контент цього веб-сайту призначений виключно для загального ознайомлення та фінансової освіти. Він не є інвестиційною, податковою чи юридичною консультацією і не може замінити індивідуальні консультації кваліфікованих експертів. Будь-які інвестиції пов'язані з ризиком. Ми не продаємо фінансові продукти."
-
-**DISCLAIMER STYLING - ADAPT TO SITE DESIGN:**
-Style the disclaimer to match the overall website aesthetic. Examples:
-- Dark site: use a slightly lighter block or border accent
-- Light site: use a muted background or accent border
-- Colorful site: use the site's accent/secondary color
-- Minimal site: use subtle borders and typography emphasis
-
-\`\`\`css
-/* Example - adapt colors to match site palette */
-.disclaimer-section {
-  background-color: var(--site-accent-muted, rgba(0,0,0,0.05)); /* or use site's secondary color */
-  color: inherit;
-  padding: 20px 30px;
-  margin: 30px 0 0 0;
-  border-radius: 8px;
-  text-align: center;
-  font-size: 14px;
-  line-height: 1.6;
-  border: 1px solid var(--site-border-color, rgba(0,0,0,0.1));
-}
-.disclaimer-section strong {
-  display: block;
-  margin-bottom: 8px;
-}
 \`\`\`
 
-**DISCLAIMER HTML TEMPLATE:**
-\`\`\`html
-<div class="disclaimer-section">
-  <p><strong>Important Notice (Disclaimer) regarding Google Ads compliance:</strong> [ADAPTED DISCLAIMER TEXT FOR SITE THEME]</p>
-</div>
-\`\`\`
+**🚫 NUMBERS PROHIBITION:**
+NEVER include prices, statistics, percentages, years of experience, client counts, etc.
+ALLOWED: Phone numbers, postal codes, copyright year.
+Use alternatives: "Contact for pricing", "Experienced team", "Many satisfied clients"
 
-**THIS IS NOT OPTIONAL - EVERY GENERATED WEBSITE MUST HAVE THE DISCLAIMER ADAPTED TO ITS THEME AND DESIGN!**
-- Years in copyright footer (e.g., "© 2024")
+**📞 PHONE NUMBERS:**
+- Generate realistic phone numbers for the specified country
+- MUST be clickable: <a href="tel:+14155551234">+1 (415) 555-1234</a>
 
-**THIS RULE IS NON-NEGOTIABLE - ANY NUMERICAL DATA OTHER THAN CONTACT INFO WILL MAKE THE WEBSITE INVALID!**
+**📧 EMAILS:**
+- MUST be clickable: <a href="mailto:info@company.com">info@company.com</a>
 
-**📞 PHONE NUMBERS - MANDATORY REQUIREMENTS:**
-All phone numbers MUST be:
-1. **REALISTIC and RANDOM for the specified country** - Generate a unique, realistic phone number using proper country code and format. Pick random digits that look natural:
-   - USA/Canada: +1 (XXX) XXX-XXXX - e.g., +1 (347) 892-4156, +1 (415) 637-8294
-   - UK: +44 XX XXXX XXXX - e.g., +44 20 7839 5471, +44 7842 156 923
-   - Germany: +49 XX XXXXXXXX - e.g., +49 30 25847631, +49 176 48293651
-   - France: +33 X XX XX XX XX - e.g., +33 1 42 86 57 34, +33 6 78 42 91 53
-   - Italy: +39 XX XXXX XXXX - e.g., +39 02 4867 2391, +39 347 892 4156
-   - Spain: +34 XXX XXX XXX - e.g., +34 91 847 2563, +34 628 471 935
-   - Poland: +48 XX XXX XX XX - e.g., +48 22 847 63 91, +48 512 847 293
-   - Netherlands: +31 XX XXX XXXX - e.g., +31 20 847 3926, +31 6 48271935
-   - Ukraine: +380 XX XXX XXXX - e.g., +380 44 892 4731, +380 67 482 9135
-   - Australia: +61 X XXXX XXXX - e.g., +61 2 8471 2936, +61 412 847 293
-   - Switzerland: +41 XX XXX XX XX - e.g., +41 44 847 29 36, +41 79 482 71 93
-   - Austria: +43 X XXX XX XX - e.g., +43 1 847 29 36, +43 664 847 2931
-   - Belgium: +32 X XXX XX XX - e.g., +32 2 847 29 36, +32 470 84 72 93
-   - Portugal: +351 XX XXX XXXX - e.g., +351 21 847 2936, +351 912 847 293
-   - Czech Republic: +420 XXX XXX XXX - e.g., +420 221 847 293, +420 602 847 291
-   - Sweden: +46 X XXX XXX XX - e.g., +46 8 847 293 64, +46 70 847 29 36
-   - Norway: +47 XX XX XX XX - e.g., +47 22 84 72 93, +47 912 84 729
-    - Denmark: +45 XX XX XX XX - e.g., +45 32 84 72 93, +45 20 84 72 93
-    
-2. **CLICKABLE with tel: links - ABSOLUTELY CRITICAL, NON-NEGOTIABLE:**
-   - EVERY phone number MUST be wrapped in an anchor tag with tel: href
-   - This is MANDATORY for mobile users to call directly
-   - CORRECT: <a href="tel:+14155551234" class="phone-link">+1 (415) 555-1234</a>
-   - CORRECT: <a href="tel:+491234567890">+49 123 456 7890</a>
-   - WRONG: <span>+1 (415) 555-1234</span>
-   - WRONG: +1 (415) 555-1234 (plain text)
-   - The tel: href MUST contain ONLY digits and + symbol (no spaces, dashes, or parentheses)
-   - Display text can be formatted nicely: +1 (415) 555-1234
-   - But href MUST be clean: tel:+14155551234
+**🙏 THANK YOU PAGE:**
+Every site needs thank-you.html with success message and link back to homepage.
 
-3. **PHONE LINK STYLING - Include CSS for phone links:**
-   a.phone-link, a[href^="tel:"] {
-     color: inherit;
-     text-decoration: none;
-     cursor: pointer;
-     transition: color 0.2s ease;
-   }
-   a.phone-link:hover, a[href^="tel:"]:hover {
-     color: var(--accent-color, #2563eb);
-     text-decoration: underline;
-   }
+**🗺️ GOOGLE MAPS:**
+Contact page MUST include working Google Maps embed matching the site's location.
 
-4. **NEVER use obviously fake numbers** like 1234567, 0000000, 123-456-7890, or all same digits
-5. **NEVER use placeholder patterns** like 555, 1111, 2222, 1234, 5678 or any repeated/sequential digits
-6. **ALWAYS generate RANDOM, REALISTIC digits** that could be real phone numbers
-7. **Match the country/geo of the website** - If the site is for Germany, use German phone format
+**⚠️ DISCLAIMER:**
+Include in footer, adapted to site's industry/theme.
 
-**⚠️ PHONE CLICKABILITY CHECK - VERIFY BEFORE COMPLETION:**
-Before finalizing EACH HTML file, scan for ANY phone number and ensure it has:
-- An <a> tag wrapper
-- href="tel:+[clean number]" attribute
-- This applies to: header phone, footer phone, contact section phone, ANY phone on ANY page
+**MANDATORY FILES:**
+- index.html (hero + 5+ sections)
+- about.html
+- services.html  
+- contact.html (with map)
+- thank-you.html
+- privacy.html (10+ sections)
+- terms.html (14 sections)
+- cookie-policy.html (with cookies table)
+- styles.css (500+ lines, all styles)
+- script.js (mobile menu, cookie banner, animations)
+- robots.txt
+- sitemap.xml
 
-**🏠 ADDRESSES - MANDATORY REQUIREMENTS:**
-All physical addresses MUST be:
-1. **REALISTIC and from the specified country/city** - Use real street names, real neighborhoods, real postal codes:
-   - USA: 847 Madison Avenue, New York, NY 10065 / 2847 Sunset Boulevard, Los Angeles, CA 90028
-   - UK: 47 King's Road, London SW3 4ND / 128 Princes Street, Edinburgh EH2 4AD
-   - Germany: Friedrichstraße 147, 10117 Berlin / Maximilianstraße 28, 80539 München
-   - France: 47 Rue du Faubourg Saint-Honoré, 75008 Paris / 28 Cours Mirabeau, 13100 Aix-en-Provence
-   - Italy: Via del Corso 147, 00186 Roma / Via Montenapoleone 28, 20121 Milano
-   - Spain: Calle Serrano 47, 28001 Madrid / Passeig de Gràcia 28, 08007 Barcelona
-   - Poland: ul. Nowy Świat 47, 00-042 Warszawa / ul. Floriańska 28, 31-021 Kraków
-   - Netherlands: Herengracht 147, 1015 BH Amsterdam / Coolsingel 47, 3012 AA Rotterdam
-   - Ukraine: вул. Хрещатик 47, Київ 01001 / вул. Дерибасівська 28, Одеса 65026
-   - Australia: 47 Collins Street, Melbourne VIC 3000 / 128 Pitt Street, Sydney NSW 2000
-   - Switzerland: Bahnhofstrasse 47, 8001 Zürich / Rue du Rhône 28, 1204 Genève
-   - Austria: Kärntner Straße 47, 1010 Wien / Getreidegasse 28, 5020 Salzburg
-   - Belgium: Avenue Louise 147, 1050 Bruxelles / Meir 47, 2000 Antwerpen
-   - Portugal: Avenida da Liberdade 147, 1250-096 Lisboa / Rua de Santa Catarina 28, 4000-442 Porto
-   - Czech Republic: Václavské náměstí 47, 110 00 Praha 1 / Masarykova 28, 602 00 Brno
-   - Sweden: Kungsgatan 47, 111 56 Stockholm / Avenyn 28, 411 36 Göteborg
-   - Norway: Karl Johans gate 47, 0162 Oslo / Bryggen 28, 5003 Bergen
-   - Denmark: Strøget 47, 1160 København / Vestergade 28, 8000 Aarhus
-
-2. **Use REAL street names** from the specified city - research or use well-known streets
-3. **Include proper postal/ZIP codes** that match the city format
-4. **NEVER use fake addresses** like "123 Main Street" or "456 Example Ave"
-5. **Match the country/geo of the website** - If site is for Berlin, use a real Berlin address
-
-**📧 EMAIL ADDRESSES - MANDATORY CLICKABLE LINKS:**
-All email addresses MUST be clickable with mailto: links:
-1. **ALWAYS wrap emails in anchor tags:**
-   <a href="mailto:info@company.com">info@company.com</a>
-   <a href="mailto:support@company.com">support@company.com</a>
-
-2. **Use realistic business emails** matching the company name/domain
-3. **NEVER display plain text emails** - they MUST be clickable
-
-**🙏 THANK YOU PAGE - MANDATORY FOR ALL WEBSITES:**
-Every website MUST include a thank-you.html page that users see after submitting ANY form:
-
-1. **Create thank-you.html** with:
-   - Same header/navigation as other pages
-   - Hero section with success message
-   - Thank you heading (in site language):
-     - EN: "Thank You!", "We've Received Your Message"
-     - DE: "Vielen Dank!", "Wir haben Ihre Nachricht erhalten"
-     - UK: "Дякуємо!", "Ми отримали ваше повідомлення"
-     - FR: "Merci!", "Nous avons reçu votre message"
-     - PL: "Dziękujemy!", "Otrzymaliśmy Twoją wiadomość"
-   - Friendly message explaining next steps
-   - Button to return to homepage: <a href="index.html">Return to Home</a>
-   - Same footer as other pages
-
-2. **ALL forms MUST redirect to thank-you.html after submission:**
-   - Contact forms
-   - Newsletter signup forms
-   - Callback request forms
-   - Any other forms
-
-3. **Form submission handler (include in forms):**
-\`\`\`html
-<form action="thank-you.html" method="GET" onsubmit="handleFormSubmit(event)">
-  <!-- form fields -->
-  <button type="submit">Submit</button>
-</form>
-
-<script>
-function handleFormSubmit(event) {
-  event.preventDefault();
-  // Here you would normally send data to server
-  // For static site, redirect to thank you page
-  window.location.href = 'thank-you.html';
-}
-</script>
-\`\`\`
-
-4. **Thank you page content requirements:**
-   - Confirmation icon or checkmark
-   - Clear success message
-   - Information about response time (e.g., "We'll respond within 24 hours")
-   - Contact info for urgent matters
-   - Link back to homepage
-
-**🗺️ GOOGLE MAPS - MANDATORY REQUIREMENTS FOR CONTACT PAGE:**
-Every contact page MUST include a WORKING, PROPERLY DISPLAYED Google Map. This is NON-NEGOTIABLE.
-
-**GOOGLE MAPS EMBED CODE - USE THIS EXACT FORMAT:**
-\`\`\`html
-<div class="map-container">
-  <iframe 
-    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3024.2219901290355!2d-74.00369368400567!3d40.71312937933185!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89c25a23e28c1191%3A0x49f75d3281df052a!2s150%20Park%20Row%2C%20New%20York%2C%20NY%2010007%2C%20USA!5e0!3m2!1sen!2s!4v1635959481000"
-    width="100%" 
-    height="450" 
-    style="border:0;" 
-    allowfullscreen="" 
-    loading="lazy" 
-    referrerpolicy="no-referrer-when-downgrade">
-  </iframe>
-</div>
-\`\`\`
-
-**MAP LOCATION RULES (CRITICAL):**
-1. **Match the country/city from the website content** - If the site mentions Berlin, embed a Berlin map
-2. **Use realistic city center coordinates for the specified location:**
-   - New York: pb=!1m18!1m12!1m3!1d3024.2219901290355!2d-74.00369368400567!3d40.71312937933185
-   - London: pb=!1m18!1m12!1m3!1d2483.5401154424246!2d-0.12775868422771983!3d51.50735079567947
-   - Berlin: pb=!1m18!1m12!1m3!1d2428.4056057920547!2d13.376888015868405!3d52.51628097981411
-   - Paris: pb=!1m18!1m12!1m3!1d2624.991625695787!2d2.2944813156749647!3d48.85837007928746
-   - Kyiv/Київ: pb=!1m18!1m12!1m3!1d2540.858019773429!2d30.520420615745823!3d50.45049547947494
-   - Warsaw: pb=!1m18!1m12!1m3!1d2443.859132285!2d21.01223611576!3d52.22977297975
-   - Vienna: pb=!1m18!1m12!1m3!1d2658.799123456789!2d16.36341!3d48.20817
-   - Amsterdam: pb=!1m18!1m12!1m3!1d2435.123456789!2d4.89707!3d52.37403
-   - Prague: pb=!1m18!1m12!1m3!1d2560.123456789!2d14.42076!3d50.08804
-   - Rome: pb=!1m18!1m12!1m3!1d2969.123456789!2d12.49637!3d41.90278
-   - Madrid: pb=!1m18!1m12!1m3!1d3037.123456789!2d-3.70379!3d40.41678
-   - Munich: pb=!1m18!1m12!1m3!1d2662.123456789!2d11.57549!3d48.13743
-   - Zürich: pb=!1m18!1m12!1m3!1d2702.123456789!2d8.54169!3d47.37689
-   - Sydney: pb=!1m18!1m12!1m3!1d3312.123456789!2d151.20929!3d-33.86882
-   - Toronto: pb=!1m18!1m12!1m3!1d2886.123456789!2d-79.38318!3d43.65107
-3. **If no specific location mentioned** - Use a generic major city that matches the language (e.g., Berlin for German, Paris for French)
-
-**MAP CONTAINER CSS (MANDATORY IN styles.css):**
-\`\`\`css
-.map-container {
-  width: 100%;
-  height: 450px;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  margin: 40px 0;
-}
-
-.map-container iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-}
-
-@media (max-width: 768px) {
-  .map-container {
-    height: 350px;
-    border-radius: 8px;
-  }
-}
-\`\`\`
-
-**NEVER DO:**
-- Never use placeholder text like "[MAP]" or "Map goes here"
-- Never use broken/invalid iframe src URLs
-- Never omit the map from contact page
-- Never use coordinates that don't match the business location
-
-**CRITICAL REQUIREMENT: PAGE CONTENT LENGTH**
-Each page MUST have SUBSTANTIAL content with proper scroll depth:
-
-**MAIN PAGES (index.html, services.html, about.html) - MINIMUM 5 SCREENS OF CONTENT:**
-Each main page MUST include AT LEAST these sections (in order):
-1. Hero Section (100vh) - Full viewport hero with headline, subheadline, CTA button, background image
-2. Features/Benefits Section - 6-9 feature cards in grid (2-3 rows)
-3. About/Story Section - Company story with image, mission statement, values (3-4 paragraphs)
-4. Services/Products Section - Detailed service cards with descriptions, icons, pricing hints
-5. Testimonials Section - 3-6 client testimonials with photos, names, positions
-6. Statistics/Numbers Section - 4-6 key metrics with large numbers and descriptions
-7. FAQ Section - 5-8 frequently asked questions with expandable answers
-8. Call-to-Action Section - Final CTA with compelling copy and prominent button
-9. Partners/Clients Section - Logo grid of partner companies (6-12 logos)
-
-**SECONDARY PAGES (contact.html, privacy.html, terms.html, cookie-policy.html) - MINIMUM 2 SCREENS OF CONTENT:**
-- Contact: Hero + contact form + WORKING GOOGLE MAP + office info + working hours
-
-**📜 PRIVACY POLICY PAGE (privacy.html) - MANDATORY 10+ SECTIONS:**
-Privacy Policy MUST contain AT LEAST 10 distinct sections with full legal text:
-1. Introduction & General Information
-2. Data Controller Contact Information
-3. Types of Personal Data Collected
-4. Purpose of Data Processing
-5. Legal Basis for Processing
-6. Data Retention Periods
-7. Data Sharing with Third Parties
-8. International Data Transfers
-9. User Rights (Access, Rectification, Erasure, Portability, etc.)
-10. Cookie Policy Reference
-11. Security Measures (optional but recommended)
-12. Changes to Privacy Policy (optional but recommended)
-Each section MUST have a heading (h2/h3) and 2-4 paragraphs of detailed legal text.
-
-**📋 TERMS OF SERVICE PAGE (terms.html) - MANDATORY 14 SECTIONS:**
-Terms of Service MUST contain EXACTLY 14 distinct sections with full legal text:
-1. Acceptance of Terms
-2. Definitions
-3. User Eligibility
-4. Account Registration and Security
-5. Permitted Use of Services
-6. Prohibited Activities
-7. Intellectual Property Rights
-8. User-Generated Content
-9. Third-Party Links and Services
-10. Disclaimers and Limitation of Liability
-11. Indemnification
-12. Termination
-13. Governing Law and Dispute Resolution
-14. Contact Information and Notices
-Each section MUST have a heading (h2/h3) and 2-4 paragraphs of detailed legal text.
-
-**🍪 COOKIE POLICY PAGE (cookie-policy.html) - MANDATORY WITH COOKIES TABLE:**
-Cookie Policy MUST contain:
-1. Introduction explaining what cookies are
-2. Why we use cookies
-3. Types of cookies we use (with explanations)
-4. **MANDATORY COOKIES TABLE** with the following columns:
-   - Cookie Name
-   - Provider
-   - Purpose
-   - Expiry
-   - Type (Essential/Analytics/Marketing/Functional)
-   
-Example table structure:
-\`\`\`html
-<table class="cookies-table">
-  <thead>
-    <tr>
-      <th>Cookie Name</th>
-      <th>Provider</th>
-      <th>Purpose</th>
-      <th>Expiry</th>
-      <th>Type</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>cookieConsent</td>
-      <td>[Site Name]</td>
-      <td>Stores user's cookie consent preference</td>
-      <td>1 year</td>
-      <td>Essential</td>
-    </tr>
-    <tr>
-      <td>_ga</td>
-      <td>Google Analytics</td>
-      <td>Distinguishes unique users</td>
-      <td>2 years</td>
-      <td>Analytics</td>
-    </tr>
-    <!-- Add 5-10 more cookie entries -->
-  </tbody>
-</table>
-\`\`\`
-5. How to manage/disable cookies
-6. Contact information for cookie-related inquiries
-The table MUST include AT LEAST 6-10 different cookies commonly used on websites.
-
-**CONTENT DENSITY REQUIREMENTS:**
-- Each section MUST be at least 300px in height on desktop
-- Use generous padding (80px-120px vertical padding per section)
-- Include detailed, realistic placeholder text (not Lorem Ipsum - write real business content)
-- Every service/feature needs title, description (2-3 sentences), and icon/image
-
-**CRITICAL REQUIREMENT: STATIC HEADER AND FOOTER ACROSS ALL PAGES**
-- HEADER/FOOTER MUST BE IDENTICAL ON EVERY PAGE
-- Same structure, same navigation items, same positioning
-- Navigation links must point to correct corresponding pages using RELATIVE .html paths
-- Active page indicator should update based on current page (add 'active' class)
-- Logo, menu items, CTAs remain in identical positions
-- Footer content, layout, and styling must be identical
-
-**HEADER NAVIGATION TEMPLATE (USE ON EVERY PAGE):**
-<nav class="main-nav">
-  <a href="index.html" class="logo">Logo</a>
-  <ul class="nav-links">
-    <li><a href="index.html">Home</a></li>
-    <li><a href="about.html">About</a></li>
-    <li><a href="services.html">Services</a></li>
-    <li><a href="contact.html">Contact</a></li>
-  </ul>
-</nav>
-
-**VISUAL EXCELLENCE GUIDELINES:**
-- Whitespace is king - Generous spacing (1.5x standard)
-- Clean typography system - Hierarchy: H1 > H2 > H3 > Body > Small
-- Strategic color use - 60% primary, 30% secondary, 10% accent
-- Consistent spacing scale - 4px, 8px, 16px, 24px, 32px, 48px, 64px, 80px, 120px
-- Subtle depth - Minimal shadows, clean borders
-- Smooth transitions - 300ms ease-in-out for interactions
-
-**MODERN CSS TECHNIQUES (MANDATORY IN styles.css):**
-- CSS Grid for main layouts
-- Flexbox for components
-- CSS Custom Properties for theming (:root with variables)
-- clamp() for fluid typography
-- aspect-ratio for responsive media
-- gap instead of margins where possible
-- min-height: 100vh for hero sections
-- position: sticky for navigation
-- Section padding: 80px 0 minimum
-
-**CSS MUST BE AT LEAST 500 LINES with complete styling for:**
-- Reset/normalize styles
-- CSS variables in :root (colors, spacing, fonts)
-- Header with sticky navigation
-- Hero section with image overlay/background (min-height: 100vh)
-- Multiple section variations with different backgrounds
-- Card/grid layouts for services/features
-- Testimonial cards with photos
-- Statistics section with large numbers
-- FAQ accordion styling
-- Image containers with proper sizing
-- Footer with multi-column layout
-- Cookie banner styling
-- Cookies table styling (for cookie-policy page)
+**CSS MUST INCLUDE:**
+- CSS variables in :root
+- Image size constraints (CRITICAL!)
+- Premium footer styles
 - Mobile responsive breakpoints
-- Hover/focus states
+- Card hover effects
 - Form styling
-- Active navigation link styling
-- Thank you page styling (success icon, centered content)
-
-**COOKIES TABLE CSS (MANDATORY for cookie-policy page):**
-\`\`\`css
-.cookies-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 30px 0;
-  font-size: 0.95rem;
-}
-
-.cookies-table thead {
-  background: var(--primary-color, #007bff);
-  color: white;
-}
-
-.cookies-table th,
-.cookies-table td {
-  padding: 15px 20px;
-  text-align: left;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.cookies-table tbody tr:nth-child(even) {
-  background: rgba(0, 0, 0, 0.02);
-}
-
-.cookies-table tbody tr:hover {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-@media (max-width: 768px) {
-  .cookies-table {
-    display: block;
-    overflow-x: auto;
-    white-space: nowrap;
-  }
-}
-\`\`\`
-
-**THANK YOU PAGE CSS (MANDATORY):**
-\`\`\`css
-.thank-you-section {
-  min-height: 60vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 80px 20px;
-}
-
-.thank-you-icon {
-  width: 80px;
-  height: 80px;
-  background: var(--primary-color);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 30px;
-}
-
-.thank-you-icon svg {
-  width: 40px;
-  height: 40px;
-  color: white;
-}
-
-.thank-you-section h1 {
-  font-size: clamp(2rem, 5vw, 3.5rem);
-  margin-bottom: 20px;
-}
-
-.thank-you-section p {
-  font-size: 1.2rem;
-  color: var(--text-muted);
-  max-width: 600px;
-  margin-bottom: 30px;
-}
-\`\`\`
+- Cookie banner
+- Smooth transitions
 
 `.trim();
 
