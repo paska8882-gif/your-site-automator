@@ -1446,13 +1446,41 @@ async function runGeneration({
     return { success: false, error: "Website generation failed", totalCost };
   }
 
-  const websiteData = await websiteResponse.json();
-  const rawText = websiteData.choices?.[0]?.message?.content || "";
+  // Parse JSON response with error handling for truncated responses
+  let websiteData: Record<string, unknown>;
+  let rawText: string;
+  try {
+    websiteData = await websiteResponse.json();
+    rawText = (websiteData.choices as Array<{ message?: { content?: string } }>)?.[0]?.message?.content || "";
+  } catch (jsonError) {
+    // If JSON parsing fails, try to get raw text and extract content
+    console.error("JSON parsing failed, attempting text extraction:", jsonError);
+    try {
+      const rawResponse = await websiteResponse.text();
+      console.log("Raw response length (fallback):", rawResponse.length);
+      
+      // Try to extract content from partial JSON
+      const contentMatch = rawResponse.match(/"content"\s*:\s*"([\s\S]*?)(?:"\s*[,}]|\s*$)/);
+      if (contentMatch && contentMatch[1]) {
+        rawText = contentMatch[1]
+          .replace(/\\n/g, '\n')
+          .replace(/\\"/g, '"')
+          .replace(/\\\\/g, '\\');
+        console.log("Extracted content from partial JSON, length:", rawText.length);
+      } else {
+        return { success: false, error: "Failed to parse AI response - incomplete JSON", totalCost };
+      }
+    } catch (textError) {
+      console.error("Failed to extract text from response:", textError);
+      return { success: false, error: "Failed to parse AI response", totalCost };
+    }
+    websiteData = {};
+  }
 
-  // Track token usage for generation step
-  const websiteUsage = websiteData.usage as TokenUsage | undefined;
+  // Track token usage for generation step (if available)
+  const websiteUsage = (websiteData.usage as { prompt_tokens?: number; completion_tokens?: number }) || undefined;
   if (websiteUsage) {
-    totalCost += calculateCost(websiteUsage, generateModel);
+    totalCost += calculateCost(websiteUsage as TokenUsage, generateModel);
   }
   
   console.log(`💰 Total generation cost: $${totalCost.toFixed(6)}`);
