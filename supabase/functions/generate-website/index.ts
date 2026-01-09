@@ -2737,30 +2737,38 @@ serve(async (req) => {
       });
     }
 
-    // Validate JWT using getClaims - pass the token to the client via Authorization header
+    // Validate JWT (server-side) using auth.getUser(token). This is more reliable than local verification.
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    
-    const token = authHeader.replace("Bearer ", "");
-    
+
+    if (!authHeader.startsWith("Bearer ")) {
+      console.warn("Request rejected: invalid authorization header format");
+      return new Response(JSON.stringify({ code: 401, message: "Invalid Authorization header" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const token = authHeader.replace("Bearer ", "").trim();
+
     // Create client with user's token for validation
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
+      global: { headers: { Authorization: authHeader } },
     });
-    
-    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
-    
-    if (claimsError || !claimsData?.claims) {
-      console.error("JWT validation failed:", claimsError);
+
+    const { data: userData, error: userError } = await supabaseAuth.auth.getUser(token);
+
+    if (userError || !userData?.user) {
+      console.error("JWT validation failed (getUser):", userError);
       return new Response(JSON.stringify({ code: 401, message: "Invalid JWT" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const userId = claimsData.claims.sub as string;
-    
+    const userId = userData.user.id;
+
     // Use service role key for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     console.log("Authenticated request from user:", userId);
