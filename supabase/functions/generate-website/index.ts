@@ -1920,8 +1920,10 @@ async function runGeneration({
   };
 
   // QUALITY CSS ENFORCEMENT: Ensure styles.css has proper quality and all required styles
+  // Reference: Based on professional site examples with 600+ lines of comprehensive CSS
   const ensureQualityCSS = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
-    const MINIMUM_CSS_LINES = 400; // Minimum lines for quality CSS
+    const MINIMUM_CSS_LINES = 500; // Minimum lines for quality CSS (increased from 400)
+    const MINIMUM_QUALITY_SCORE = 6; // Minimum quality score out of 10 indicators
     
     // Premium baseline CSS that is ALWAYS applied/merged
     const BASELINE_CSS = `:root {
@@ -2509,6 +2511,260 @@ textarea.form-control {
   padding: 1.5rem;
   z-index: 10000;
   display: none;
+}
+
+/* TWO COLUMN LAYOUTS */
+.two-col-section, .two-column-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  align-items: center;
+}
+
+.two-col-section.reverse .two-col-image,
+.two-column-layout.reverse .column-image {
+  order: -1;
+}
+
+.two-col-image img, .column-image img {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  height: auto;
+}
+
+.about-image {
+  max-width: 500px;
+  width: 100%;
+  height: 350px;
+  object-fit: cover;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ARTICLE STYLES */
+.article-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.article-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.article-title {
+  font-size: clamp(2rem, 6vw, 3.5rem);
+  font-weight: 800;
+  margin-bottom: 1rem;
+}
+
+.article-subtitle {
+  font-size: 1.3rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.article-hero-image {
+  width: 100%;
+  height: auto;
+  max-height: 500px;
+  object-fit: cover;
+  border-radius: var(--radius-lg);
+  margin: 2rem 0 3rem;
+  box-shadow: var(--shadow-lg);
+}
+
+.article-body {
+  font-size: 1.1rem;
+  line-height: 1.8;
+}
+
+.article-body h2 {
+  font-size: 1.8rem;
+  margin: 2.5rem 0 1rem;
+}
+
+.article-body h3 {
+  font-size: 1.4rem;
+  margin: 2rem 0 1rem;
+}
+
+.article-body p, .article-body ul, .article-body ol {
+  margin-bottom: 1.5rem;
+}
+
+.article-body blockquote {
+  border-left: 4px solid var(--accent-color);
+  padding-left: 1.5rem;
+  margin: 2rem 0;
+  font-style: italic;
+  font-size: 1.2rem;
+  color: var(--heading-color);
+}
+
+.article-meta {
+  margin-top: auto;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* PAGE HEADER */
+.page-header {
+  background: var(--primary-color);
+  color: var(--white);
+  padding: 5rem 0;
+  text-align: center;
+}
+
+.page-title {
+  font-size: clamp(2.2rem, 5vw, 3.5rem);
+  font-weight: 800;
+  color: var(--white);
+  margin-bottom: 0.5rem;
+}
+
+.page-subtitle {
+  font-size: 1.1rem;
+  color: rgba(255,255,255,0.8);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* TABLES */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 30px 0;
+  font-size: 0.95rem;
+  background-color: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+thead {
+  background: var(--light-gray);
+}
+
+th, td {
+  padding: 15px 20px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+tbody tr:hover {
+  background: var(--light-gray);
+}
+
+/* THANK YOU PAGE */
+.thank-you-section {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 80px 20px;
+}
+
+.thank-you-icon {
+  width: 80px;
+  height: 80px;
+  background: var(--accent-color);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 30px;
+  color: var(--white);
+  font-size: 2.5rem;
+}
+
+/* CONTACT GRID */
+.contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 3rem;
+  background-color: var(--white);
+  padding: 3rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.contact-info h2 { margin-bottom: 1.5rem; }
+.contact-info p { color: var(--text-muted); margin-bottom: 2rem; }
+
+.contact-details li {
+  list-style: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.contact-details .icon {
+  color: var(--accent-color);
+  font-size: 1.5rem;
+}
+
+/* MAP CONTAINER */
+.map-container {
+  width: 100%;
+  height: 450px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  margin-top: 4rem;
+}
+
+.map-container iframe { 
+  width: 100%; 
+  height: 100%; 
+  border: none; 
+}
+
+/* DISCLAIMER SECTION */
+.disclaimer-section {
+  background-color: var(--light-gray);
+  color: var(--text-muted);
+  padding: 20px 30px;
+  margin: 3rem auto;
+  border-radius: var(--radius-md);
+  text-align: center;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  max-width: 900px;
+}
+
+.disclaimer-section strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--heading-color);
+}
+
+/* ADDITIONAL RESPONSIVE */
+@media (max-width: 992px) {
+  .two-col-section, .two-column-layout {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  .two-col-section.reverse .two-col-image,
+  .two-column-layout.reverse .column-image {
+    order: 0;
+  }
+  .contact-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .map-container { height: 350px; }
+  .contact-grid { padding: 2rem; }
 }`;
 
     // Check if styles.css exists
@@ -2547,28 +2803,44 @@ textarea.form-control {
       
       const existingCSS = file.content;
       const lineCount = existingCSS.split('\n').length;
+      const charCount = existingCSS.length;
       
-      // Check for critical CSS patterns that indicate quality
-      const hasRootVars = existingCSS.includes(':root');
-      const hasContainer = existingCSS.includes('.container');
-      const hasFooter = existingCSS.includes('.footer');
-      const hasCard = existingCSS.includes('.card');
-      const hasResponsive = existingCSS.includes('@media');
+      // Expanded quality indicators (10 total) for comprehensive check
+      const qualityIndicators = {
+        hasRootVars: existingCSS.includes(':root'),
+        hasContainer: existingCSS.includes('.container'),
+        hasFooter: existingCSS.includes('.footer') || existingCSS.includes('footer'),
+        hasCard: existingCSS.includes('.card'),
+        hasResponsive: existingCSS.includes('@media'),
+        hasHeader: existingCSS.includes('.header') || existingCSS.includes('header'),
+        hasHero: existingCSS.includes('.hero'),
+        hasButton: existingCSS.includes('.btn'),
+        hasForm: existingCSS.includes('.form') || existingCSS.includes('input'),
+        hasNav: existingCSS.includes('.nav') || existingCSS.includes('nav-links'),
+      };
       
-      const qualityScore = [hasRootVars, hasContainer, hasFooter, hasCard, hasResponsive].filter(Boolean).length;
+      const qualityScore = Object.values(qualityIndicators).filter(Boolean).length;
+      const hasMinimumLength = lineCount >= MINIMUM_CSS_LINES || charCount >= 15000;
       
-      console.log(`📊 CSS Quality Check: ${lineCount} lines, quality score: ${qualityScore}/5`);
+      console.log(`📊 CSS Quality Check: ${lineCount} lines, ${charCount} chars, quality score: ${qualityScore}/10`);
+      console.log(`📋 Quality indicators:`, JSON.stringify(qualityIndicators));
       
-      // If CSS is too short or missing critical patterns, prepend baseline
-      if (lineCount < MINIMUM_CSS_LINES || qualityScore < 3) {
-        console.log(`⚠️ CSS quality insufficient (${lineCount} lines, score ${qualityScore}). Enhancing with baseline CSS.`);
+      // Enhanced logic: Apply baseline if CSS is too short OR missing critical patterns
+      // Using stricter thresholds to ensure professional quality
+      const needsEnhancement = !hasMinimumLength || qualityScore < MINIMUM_QUALITY_SCORE;
+      
+      if (needsEnhancement) {
+        console.log(`⚠️ CSS quality insufficient (${lineCount} lines, score ${qualityScore}/${MINIMUM_QUALITY_SCORE} min). ENHANCING with baseline CSS.`);
         
         // Merge: baseline first, then generated CSS (generated can override)
-        const enhancedCSS = BASELINE_CSS + '\n\n/* ===== GENERATED STYLES ===== */\n\n' + existingCSS;
+        const enhancedCSS = BASELINE_CSS + '\n\n/* ===== SITE-SPECIFIC STYLES ===== */\n\n' + existingCSS;
+        
+        console.log(`✅ Enhanced CSS: ${enhancedCSS.split('\n').length} lines, ${enhancedCSS.length} chars`);
         
         return { ...file, content: enhancedCSS };
       }
       
+      console.log(`✅ CSS quality sufficient - no enhancement needed`);
       return file;
     });
   };
