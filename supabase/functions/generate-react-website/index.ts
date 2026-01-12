@@ -164,8 +164,8 @@ const REACT_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE REACT W
 📞📧🚨 CONTACT INFO - READ THIS FIRST! ABSOLUTELY MANDATORY! 🚨📧📞
 EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
 
-**PHONE NUMBER - REQUIRED ON EVERY PAGE:**
-- MUST appear in header AND footer on ALL pages
+**PHONE NUMBER - REQUIRED IN FOOTER ONLY:**
+- MUST appear in FOOTER on ALL pages (NOT in header!)
 - MUST be realistic for the country/GEO (see examples below)
 - MUST be clickable: <a href="tel:+491234567890">+49 123 456 7890</a>
 - NEVER use fake numbers like 123456, 555-1234, XXX, or placeholders
@@ -182,8 +182,8 @@ EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
   * Ukraine: +380 44 456 7890
   * Austria: +43 1 234 5678
 
-**EMAIL - REQUIRED ON EVERY PAGE:**
-- MUST appear in header AND footer on ALL pages  
+**EMAIL - REQUIRED IN FOOTER ONLY:**
+- MUST appear in FOOTER on ALL pages (NOT in header!)
 - MUST use the site's domain: info@<sitename>.com, contact@<sitename>.com
 - Extract domain from business name (lowercase, no spaces)
 - MUST be clickable: <a href="mailto:info@sitename.com">info@sitename.com</a>
