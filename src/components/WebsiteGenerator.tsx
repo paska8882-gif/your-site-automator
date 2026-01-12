@@ -229,26 +229,128 @@ const randomVipAddressesByGeo: Record<string, string[]> = {
   "default": ["123 Business Center, Downtown", "456 Commerce Blvd, City Center", "789 Enterprise Ave, Business District"]
 };
 
-const randomVipPhonesByGeo: Record<string, string[]> = {
-  "us": ["+1 (555) 123-4567", "+1 (212) 555-7890", "+1 (310) 555-2345", "+1 (312) 555-6789"],
-  "uk": ["+44 20 7946 0958", "+44 161 555 1234", "+44 121 555 5678"],
-  "de": ["+49 30 12345678", "+49 89 87654321", "+49 711 55512345"],
-  "ca": ["+1 (416) 555-1234", "+1 (604) 555-5678", "+1 (514) 555-9012"],
-  "au": ["+61 2 9876 5432", "+61 3 8765 4321", "+61 7 5555 1234"],
-  "fr": ["+33 1 42 86 82 00", "+33 4 93 16 64 00"],
-  "es": ["+34 91 123 4567", "+34 93 987 6543"],
-  "it": ["+39 06 1234 5678", "+39 02 8765 4321"],
-  "nl": ["+31 20 123 4567", "+31 10 234 5678", "+31 30 345 6789"],
-  "be": ["+32 2 123 45 67", "+32 3 234 56 78"],
-  "at": ["+43 1 234 5678", "+43 662 345 678"],
-  "ch": ["+41 44 123 45 67", "+41 22 234 56 78"],
-  "pl": ["+48 22 123 45 67", "+48 12 234 56 78"],
-  "se": ["+46 8 123 45 67", "+46 31 234 56 78"],
-  "no": ["+47 21 12 34 56", "+47 55 23 45 67"],
-  "dk": ["+45 33 12 34 56", "+45 87 23 45 67"],
-  "pt": ["+351 21 123 4567", "+351 22 234 5678"],
-  "default": ["+1 (555) 000-1234", "+44 20 1234 5678", "+49 30 55512345"]
-};
+// Generate realistic phone number by geo
+function generateRealisticPhoneByGeo(geo: string): string {
+  const randomDigits = (count: number) => Array.from({ length: count }, () => Math.floor(Math.random() * 10)).join('');
+  const randomDigit = (min = 1, max = 9) => Math.floor(Math.random() * (max - min + 1)) + min;
+  
+  switch (geo) {
+    case "us":
+    case "ca": {
+      // North America: +1 (XXX) XXX-XXXX - area codes don't start with 0 or 1
+      const areaCode = `${randomDigit(2, 9)}${randomDigits(2)}`;
+      const exchange = `${randomDigit(2, 9)}${randomDigits(2)}`;
+      return `+1 (${areaCode}) ${exchange}-${randomDigits(4)}`;
+    }
+    case "uk": {
+      // UK: +44 XX XXXX XXXX
+      const areaCodes = ["20", "21", "23", "24", "28", "29", "113", "114", "115", "116", "117", "118", "121", "131", "141", "151", "161"];
+      const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
+      return `+44 ${areaCode} ${randomDigits(4)} ${randomDigits(4)}`;
+    }
+    case "de": {
+      // Germany: +49 XXX XXXXXXXX
+      const areaCodes = ["30", "40", "69", "89", "221", "211", "711", "621", "511"];
+      const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
+      return `+49 ${areaCode} ${randomDigits(8)}`;
+    }
+    case "au": {
+      // Australia: +61 X XXXX XXXX
+      const areaCodes = ["2", "3", "7", "8"];
+      const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
+      return `+61 ${areaCode} ${randomDigits(4)} ${randomDigits(4)}`;
+    }
+    case "fr": {
+      // France: +33 X XX XX XX XX
+      const prefixes = ["1", "2", "3", "4", "5"];
+      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+      return `+33 ${prefix} ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)}`;
+    }
+    case "es": {
+      // Spain: +34 XXX XXX XXX
+      const prefixes = ["91", "93", "94", "95", "96"];
+      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+      return `+34 ${prefix}${randomDigit()} ${randomDigits(3)} ${randomDigits(3)}`;
+    }
+    case "it": {
+      // Italy: +39 XX XXXX XXXX
+      const areaCodes = ["02", "06", "011", "041", "055", "081"];
+      const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
+      return `+39 ${areaCode} ${randomDigits(4)} ${randomDigits(4)}`;
+    }
+    case "nl": {
+      // Netherlands: +31 XX XXX XXXX
+      const areaCodes = ["20", "10", "30", "70", "40"];
+      const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
+      return `+31 ${areaCode} ${randomDigits(3)} ${randomDigits(4)}`;
+    }
+    case "be": {
+      // Belgium: +32 X XXX XX XX
+      const areaCodes = ["2", "3", "4", "9"];
+      const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
+      return `+32 ${areaCode} ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
+    }
+    case "at": {
+      // Austria: +43 X XXXXXXXX
+      const areaCodes = ["1", "662", "512", "732", "316"];
+      const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
+      return `+43 ${areaCode} ${randomDigits(7)}`;
+    }
+    case "ch": {
+      // Switzerland: +41 XX XXX XX XX
+      const areaCodes = ["44", "22", "31", "61", "21"];
+      const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
+      return `+41 ${areaCode} ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
+    }
+    case "pl": {
+      // Poland: +48 XX XXX XX XX
+      const areaCodes = ["22", "12", "71", "61", "58"];
+      const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
+      return `+48 ${areaCode} ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
+    }
+    case "se": {
+      // Sweden: +46 X XXX XXX XX
+      const areaCodes = ["8", "31", "40", "46", "90"];
+      const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
+      return `+46 ${areaCode} ${randomDigits(3)} ${randomDigits(3)} ${randomDigits(2)}`;
+    }
+    case "no": {
+      // Norway: +47 XX XX XX XX
+      return `+47 ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)}`;
+    }
+    case "dk": {
+      // Denmark: +45 XX XX XX XX
+      return `+45 ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)}`;
+    }
+    case "pt": {
+      // Portugal: +351 XXX XXX XXX
+      const areaCodes = ["21", "22", "23", "24", "25"];
+      const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
+      return `+351 ${areaCode}${randomDigit()} ${randomDigits(3)} ${randomDigits(3)}`;
+    }
+    case "ua": {
+      // Ukraine: +380 XX XXX XX XX
+      const areaCodes = ["44", "50", "66", "67", "68", "73", "93", "95", "96", "97", "98", "99"];
+      const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
+      return `+380 ${areaCode} ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
+    }
+    case "ru": {
+      // Russia: +7 XXX XXX-XX-XX
+      const areaCodes = ["495", "499", "812", "383", "343", "846", "831"];
+      const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
+      return `+7 ${areaCode} ${randomDigits(3)}-${randomDigits(2)}-${randomDigits(2)}`;
+    }
+    default: {
+      // Default: random international format
+      const formats = [
+        () => `+1 (${randomDigit(2, 9)}${randomDigits(2)}) ${randomDigit(2, 9)}${randomDigits(2)}-${randomDigits(4)}`,
+        () => `+44 ${randomDigit(1, 2)}${randomDigits(1)} ${randomDigits(4)} ${randomDigits(4)}`,
+        () => `+49 ${randomDigit(2, 9)}${randomDigits(1)} ${randomDigits(8)}`,
+      ];
+      return formats[Math.floor(Math.random() * formats.length)]();
+    }
+  }
+}
 
 const randomVipKeywordsByTopic: Record<string, string> = {
   "Video Games": "gaming reviews, gameplay tips, PC games, console gaming, esports",
@@ -2147,10 +2249,9 @@ export function WebsiteGenerator() {
                             : (selectedGeo || "default");
                           
                           const addresses = randomVipAddressesByGeo[effectiveGeo] || randomVipAddressesByGeo["default"];
-                          const phones = randomVipPhonesByGeo[effectiveGeo] || randomVipPhonesByGeo["default"];
                           
                           let address = addresses[Math.floor(Math.random() * addresses.length)];
-                          let phone = phones[Math.floor(Math.random() * phones.length)];
+                          let phone = generateRealisticPhoneByGeo(effectiveGeo);
                           
                           // If custom geo is set, try to incorporate it into the address
                           if (isOtherGeoSelected && customGeo) {
