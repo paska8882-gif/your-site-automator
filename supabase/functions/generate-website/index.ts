@@ -1541,12 +1541,33 @@ NEVER include prices, statistics, percentages, years of experience, client count
 ALLOWED: Phone numbers, postal codes, copyright year.
 Use alternatives: "Contact for pricing", "Experienced team", "Many satisfied clients"
 
-**📞 PHONE NUMBERS:**
-- Generate realistic phone numbers for the specified country
-- MUST be clickable: <a href="tel:+14155551234">+1 (415) 555-1234</a>
+**📞 PHONE NUMBERS - MUST BE REALISTIC BY COUNTRY:**
+- NEVER use fake numbers like 123456, 555-1234, or placeholder XXX
+- Generate REALISTIC phone numbers based on GEO/COUNTRY:
+  * Germany: +49 30 2897 6543, +49 89 4521 7890
+  * Poland: +48 22 456 78 90, +48 12 345 67 89
+  * Spain: +34 912 456 789, +34 932 876 543
+  * France: +33 1 42 68 53 00, +33 4 93 45 67 89
+  * Italy: +39 06 8745 6321, +39 02 7654 3210
+  * UK: +44 20 7946 0958, +44 161 496 0753
+  * USA: +1 (212) 555-0147, +1 (415) 555-0198
+  * Netherlands: +31 20 794 5682, +31 10 456 7890
+  * Czech Republic: +420 221 456 789, +420 257 891 234
+  * Ukraine: +380 44 456 7890, +380 67 123 4567
+  * Russia: +7 495 123 4567, +7 812 456 7890
+  * Default international: Use the country code + realistic local format
+- MUST be clickable: <a href="tel:+14155550147">+1 (415) 555-0147</a>
 
-**📧 EMAILS:**
-- MUST be clickable: <a href="mailto:info@company.com">info@company.com</a>
+**📧 EMAILS - MUST MATCH SITE DOMAIN:**
+- Email MUST use the site's domain name
+- Format: info@<sitename>.com, contact@<sitename>.com, support@<sitename>.com
+- Extract sitename from the business name (lowercase, no spaces, no special chars)
+- Examples:
+  * Business "Green Garden Services" → info@greengarden.com
+  * Business "Auto Pro Center" → contact@autoprocenter.com
+  * Business "Dr. Smith Clinic" → info@drsmithclinic.com
+- MUST be clickable: <a href="mailto:info@sitename.com">info@sitename.com</a>
+- NEVER use generic emails like info@company.com or test@example.com
 
 **🙏 THANK YOU PAGE:**
 Every site needs thank-you.html with success message and link back to homepage.
@@ -4693,20 +4714,27 @@ CRITICAL GEO REQUIREMENTS - ALL CONTENT MUST BE LOCALIZED FOR ${countryName.toUp
      * Czech Republic: Václavské náměstí 47, 110 00 Praha 1
      * Portugal: Avenida da Liberdade 147, 1250-096 Lisboa
 
-2. **PHONE NUMBER**: Use ${countryName} phone format with correct country code:
-   - Germany: +49 30 XXXXXXXX
-   - Poland: +48 XX XXX XX XX
-   - Spain: +34 XXX XXX XXX
-   - France: +33 X XX XX XX XX
-   - Italy: +39 XX XXXX XXXX
-   - UK: +44 XX XXXX XXXX
-   - USA: +1 (XXX) XXX-XXXX
-   - Netherlands: +31 XX XXX XXXX
-   - Czech Republic: +420 XXX XXX XXX
+2. **PHONE NUMBER**: Generate REALISTIC phone number (NOT placeholders like XXXXXXXX or 12345):
+   - Germany: +49 30 2897 6543 or +49 89 4521 7890
+   - Poland: +48 22 456 78 90 or +48 12 345 67 89
+   - Spain: +34 912 456 789 or +34 932 876 543
+   - France: +33 1 42 68 53 00 or +33 4 93 45 67 89
+   - Italy: +39 06 8745 6321 or +39 02 7654 3210
+   - UK: +44 20 7946 0958 or +44 161 496 0753
+   - USA: +1 (212) 555-0147 or +1 (415) 555-0198
+   - Netherlands: +31 20 794 5682 or +31 10 456 7890
+   - Czech Republic: +420 221 456 789 or +420 257 891 234
+   - Ukraine: +380 44 456 7890 or +380 67 123 4567
+   - Russia: +7 495 123 4567 or +7 812 456 7890
+   - Portugal: +351 21 456 7890 or +351 22 345 6789
 
-3. **BUSINESS CONTEXT**: All content should feel native to ${countryName} market
-4. **DO NOT** use addresses or phone numbers from other countries
-5. The address MUST appear in the contact section and footer`;
+3. **EMAIL**: Create email based on business name/domain:
+   - Format: info@<businessname>.com (lowercase, no spaces)
+   - Example: "Green Garden" → info@greengarden.com
+
+4. **BUSINESS CONTEXT**: All content should feel native to ${countryName} market
+5. **DO NOT** use addresses or phone numbers from other countries
+6. The address MUST appear in the contact section and footer`;
       }
     }
     
