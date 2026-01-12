@@ -87,25 +87,43 @@ function appendGeoToPrompt(prompt: string, geo?: string): string {
 // Helper to get a valid access token.
 // - Prefer current session token if it's not close to expiring
 // - Otherwise attempt a refresh
-// - If refresh fails, return null (do NOT fall back to an expired token)
+// - If refresh fails, sign out and return null (do NOT fall back to an expired token)
 async function getFreshAccessToken(): Promise<string | null> {
-  const { data: { session } } = await supabase.auth.getSession();
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
 
-  // If we have a session and the token is still valid for at least ~60s, use it.
-  // (expires_at is in seconds)
-  const expiresAtMs = (session?.expires_at ?? 0) * 1000;
-  const msLeft = expiresAtMs - Date.now();
-  if (session?.access_token && msLeft > 60_000) {
-    return session.access_token;
+    // If we have a session and the token is still valid for at least ~2 minutes, use it.
+    // (expires_at is in seconds)
+    const expiresAtMs = (session?.expires_at ?? 0) * 1000;
+    const msLeft = expiresAtMs - Date.now();
+    if (session?.access_token && msLeft > 120_000) {
+      return session.access_token;
+    }
+
+    // Token is close to expiring or already expired - force refresh
+    console.log("Token expired or expiring soon, refreshing...");
+    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+    
+    if (refreshError) {
+      console.error("Failed to refresh session:", refreshError.message);
+      // Sign out to clear invalid session state
+      await supabase.auth.signOut();
+      return null;
+    }
+    
+    if (refreshData?.session?.access_token) {
+      console.log("Token refreshed successfully");
+      return refreshData.session.access_token;
+    }
+
+    // No valid session after refresh attempt - sign out
+    await supabase.auth.signOut();
+    return null;
+  } catch (error) {
+    console.error("Error getting fresh token:", error);
+    await supabase.auth.signOut();
+    return null;
   }
-
-  // Otherwise, attempt to refresh
-  const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-  if (!refreshError && refreshData?.session?.access_token) {
-    return refreshData.session.access_token;
-  }
-
-  return null;
 }
 
 export async function startGeneration(
