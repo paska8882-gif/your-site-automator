@@ -163,6 +163,41 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, CONTENT-RICH PROFESS
 
 🚨🚨🚨 REFERENCE QUALITY STANDARD - FOLLOW THIS STRUCTURE 🚨🚨🚨
 
+📞📧🚨 CONTACT INFO - ABSOLUTELY MANDATORY - READ FIRST! 🚨📧📞
+EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
+
+**PHONE NUMBER - REQUIRED ON EVERY PAGE:**
+- MUST appear in header AND footer on ALL pages
+- MUST be realistic for the country/GEO (see examples below)
+- MUST be clickable: <a href="tel:+491234567890">+49 123 456 7890</a>
+- NEVER use fake numbers like 123456, 555-1234, XXX, or placeholders
+- Examples by country:
+  * Germany: +49 30 2897 6543, +49 89 4521 7890, +49 221 456 7891
+  * Poland: +48 22 456 78 90, +48 12 345 67 89, +48 71 234 56 78
+  * Spain: +34 912 456 789, +34 932 876 543, +34 954 321 654
+  * France: +33 1 42 68 53 00, +33 4 93 45 67 89
+  * Italy: +39 06 8745 6321, +39 02 7654 3210
+  * UK: +44 20 7946 0958, +44 161 496 0753
+  * USA: +1 (212) 456-7890, +1 (415) 789-0123
+  * Netherlands: +31 20 794 5682, +31 10 456 7890
+  * Czech Republic: +420 221 456 789, +420 257 891 234
+  * Ukraine: +380 44 456 7890, +380 67 123 4567
+  * Russia: +7 495 123 4567, +7 812 456 7890
+  * Austria: +43 1 234 5678, +43 512 345 678
+
+**EMAIL - REQUIRED ON EVERY PAGE:**
+- MUST appear in header AND footer on ALL pages
+- MUST use the site's domain: info@<sitename>.com, contact@<sitename>.com
+- Extract domain from business name (lowercase, no spaces, no special chars)
+- MUST be clickable: <a href="mailto:info@sitename.com">info@sitename.com</a>
+- Examples:
+  * "Green Garden" → info@greengarden.com
+  * "Auto Pro" → contact@autopro.com
+  * "Dr. Smith Clinic" → info@drsmithclinic.com
+- NEVER use generic emails like info@company.com or test@example.com
+
+⚠️ IF NO PHONE/EMAIL IN OUTPUT = SITE IS BROKEN! ALWAYS INCLUDE THEM!
+
 **🎯 CENTERING & LAYOUT - ABSOLUTELY CRITICAL:**
 ALL content MUST be centered on the page:
 - Use max-width: 1200px for main container
@@ -173,14 +208,14 @@ ALL content MUST be centered on the page:
 - Section headers centered with text-align: center
 
 **MANDATORY PAGE STRUCTURE (index.html must have ALL of these):**
-1. Header with navigation (centered nav, max-width container)
+1. Header with navigation + PHONE NUMBER + EMAIL (centered nav, max-width container)
 2. Hero section (split layout: text + image side by side, centered)
 3. Stats/metrics section with big numbers (3-4 stats, centered)
 4. Featured cards section (6 cards in 3x2 grid, CENTERED, with "Read More" buttons)
 5. Media object section (text + image side by side, centered)
 6. Timeline/process steps section (4 numbered steps, centered)
-7. Contact/CTA form section (centered)
-8. Footer (centered content)
+7. Contact/CTA form section (centered) - WITH PHONE AND EMAIL displayed
+8. Footer with PHONE, EMAIL, ADDRESS (centered content)
 
 **EVERY SECTION MUST HAVE:**
 - Section label (small badge above title): <span class="section-label">Section Topic</span>
@@ -195,6 +230,7 @@ ALL content MUST be centered on the page:
 - Cards MUST have title + description + meta info + "Read More" button
 - Lists MUST have 3+ bullet points with full sentences
 - Stats MUST have 3+ metrics with numbers and labels
+- CONTACT INFO (phone + email) MUST be visible on every page
 
 **MANDATORY HERO STRUCTURE (SPLIT LAYOUT) - FOLLOW EXACTLY:**
 \`\`\`html
@@ -1287,20 +1323,22 @@ Footer MUST be professional, compact, and well-structured:
         </ul>
       </div>
       
-      <!-- Contact Info -->
+      <!-- Contact Info - PHONE AND EMAIL ARE MANDATORY -->
       <div>
         <h4 class="footer-heading">Contact</h4>
         <div class="footer-contact-item">
           <svg>location icon</svg>
-          <span>Address line here</span>
+          <span>123 Business Street, City</span>
         </div>
         <div class="footer-contact-item">
           <svg>phone icon</svg>
-          <a href="tel:+1234567890">+1 (234) 567-890</a>
+          <!-- REPLACE WITH REALISTIC PHONE FOR YOUR GEO! Examples: +49 30 2897 6543, +48 22 456 78 90, +34 912 456 789 -->
+          <a href="tel:+493028976543">+49 30 2897 6543</a>
         </div>
         <div class="footer-contact-item">
           <svg>email icon</svg>
-          <a href="mailto:info@company.com">info@company.com</a>
+          <!-- REPLACE WITH DOMAIN-BASED EMAIL! Use sitename from business name -->
+          <a href="mailto:info@companyname.com">info@companyname.com</a>
         </div>
       </div>
     </div>

@@ -161,6 +161,36 @@ const LAYOUT_VARIATIONS = [
 
 const REACT_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE REACT WEBSITE WITH 10X BETTER UI
 
+📞📧🚨 CONTACT INFO - READ THIS FIRST! ABSOLUTELY MANDATORY! 🚨📧📞
+EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
+
+**PHONE NUMBER - REQUIRED ON EVERY PAGE:**
+- MUST appear in header AND footer on ALL pages
+- MUST be realistic for the country/GEO (see examples below)
+- MUST be clickable: <a href="tel:+491234567890">+49 123 456 7890</a>
+- NEVER use fake numbers like 123456, 555-1234, XXX, or placeholders
+- Examples by country:
+  * Germany: +49 30 2897 6543, +49 89 4521 7890
+  * Poland: +48 22 456 78 90, +48 12 345 67 89
+  * Spain: +34 912 456 789, +34 932 876 543
+  * France: +33 1 42 68 53 00, +33 4 93 45 67 89
+  * Italy: +39 06 8745 6321, +39 02 7654 3210
+  * UK: +44 20 7946 0958, +44 161 496 0753
+  * USA: +1 (212) 456-7890, +1 (415) 789-0123
+  * Netherlands: +31 20 794 5682
+  * Czech Republic: +420 221 456 789
+  * Ukraine: +380 44 456 7890
+  * Austria: +43 1 234 5678
+
+**EMAIL - REQUIRED ON EVERY PAGE:**
+- MUST appear in header AND footer on ALL pages  
+- MUST use the site's domain: info@<sitename>.com, contact@<sitename>.com
+- Extract domain from business name (lowercase, no spaces)
+- MUST be clickable: <a href="mailto:info@sitename.com">info@sitename.com</a>
+- NEVER use generic emails like info@company.com or test@example.com
+
+⚠️ IF NO PHONE/EMAIL IN OUTPUT = SITE IS BROKEN! ALWAYS INCLUDE THEM!
+
 **🌍 LANGUAGE COMPLIANCE - ABSOLUTELY MANDATORY:**
 The website MUST be generated in the EXACT language specified in the request. This is NON-NEGOTIABLE:
 
