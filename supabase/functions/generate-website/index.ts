@@ -2079,20 +2079,25 @@ function extractKeywordsFallback(prompt: string): string {
 function buildPexelsImageStrategy(pexelsUrls: string[]): string {
   if (pexelsUrls.length === 0) {
     return `
-**IMAGE STRATEGY - RELIABLE RANDOM PHOTOS:**
-Use picsum.photos for ALL images - it's reliable and always loads:
+**IMAGE STRATEGY - RELIABLE STOCK PHOTOS:**
+Use images.unsplash.com for ALL images - it's reliable, fast and always loads:
 
-**Hero background:** url('https://picsum.photos/1920/1080?random=1')
-**Content images:** <img src="https://picsum.photos/800/600?random=2" alt="[Description]" loading="lazy">
-**Card images:** <img src="https://picsum.photos/600/400?random=3" alt="[Description]" loading="lazy">
-**Portrait images:** <img src="https://picsum.photos/400/400?random=4" alt="[Description]" loading="lazy">
+**Hero images:** <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&h=800&fit=crop" alt="[Description]" loading="lazy">
+**Content images:** <img src="https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=800&h=600&fit=crop" alt="[Description]" loading="lazy">
+**Card images:** <img src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&h=400&fit=crop" alt="[Description]" loading="lazy">
+**Portrait images:** <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop" alt="[Description]" loading="lazy">
 
-Use DIFFERENT random= numbers for each image!
+IMPORTANT: Change the photo ID (number after photo-) for each different image!
+Example photo IDs for variety:
+- Business: 1497366216548-37526070297c, 1560179707-f14e90ef3623, 1454165804606-c3d57bc86b40
+- Office: 1497366811353-6870744d04b2, 1497366754146-60ec025e3a30, 1497215842964-4b71f27eda52
+- Team: 1522202176988-66273c2fd55f, 1552664730-d307ca884978, 1600880292203-757bb62b4baf
+- Portrait: 1507003211169-0a1dd7228f2d, 1438761681033-6461ffad8d80, 1472099645785-5658abf4ff4e
 `.trim();
   }
 
   // Distribute URLs for different purposes
-  const heroUrl = pexelsUrls[0] || "https://picsum.photos/1920/1080?random=1";
+  const heroUrl = pexelsUrls[0] || "https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&h=800&fit=crop";
   const contentUrls = pexelsUrls.slice(1, 6);
   const cardUrls = pexelsUrls.slice(6, 12);
   const portraitUrls = pexelsUrls.slice(12, 15);
@@ -2101,8 +2106,8 @@ Use DIFFERENT random= numbers for each image!
 **IMAGE STRATEGY - HIGH QUALITY STOCK PHOTOS FROM PEXELS:**
 Use these PRE-SELECTED high-quality Pexels photos. Each URL is unique and themed to the website topic.
 
-**HERO BACKGROUND (use this exact URL):**
-url('${heroUrl}')
+**HERO IMAGE (use this exact URL):**
+${heroUrl}
 
 **CONTENT IMAGES (use these for main sections, about page, features):**
 ${contentUrls.map((url, i) => `Image ${i + 1}: ${url}`).join("\n")}
@@ -2111,15 +2116,15 @@ ${contentUrls.map((url, i) => `Image ${i + 1}: ${url}`).join("\n")}
 ${cardUrls.map((url, i) => `Card ${i + 1}: ${url}`).join("\n")}
 
 **PORTRAIT/TEAM IMAGES (use these for testimonials, team members):**
-${portraitUrls.length > 0 ? portraitUrls.map((url, i) => `Portrait ${i + 1}: ${url}`).join("\n") : "Use https://picsum.photos/400/400?random=X with different numbers"}
+${portraitUrls.length > 0 ? portraitUrls.map((url, i) => `Portrait ${i + 1}: ${url}`).join("\n") : "Use https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop with different photo IDs"}
 
-**FALLBACK:** If you need more images than provided above, use: https://picsum.photos/{width}/{height}?random={unique_number}
+**FALLBACK:** If you need more images than provided above, use: https://images.unsplash.com/photo-{photo-id}?w={width}&h={height}&fit=crop
+Change the photo-id for each image!
 
 **IMPORTANT:**
 - Use EACH Pexels URL only ONCE (they are unique photos)
 - Alt text MUST be in the same language as the website content
 - Add loading="lazy" to all images
-- For CSS backgrounds: url('...') format
 - For img tags: <img src="..." alt="[Description in site language]" loading="lazy">
 `.trim();
 }
@@ -4504,11 +4509,40 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
   const fixPlaceholderImages = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
     let imageCounter = 1;
     
+    // Pre-defined reliable Unsplash photo IDs for fallbacks
+    const UNSPLASH_PHOTOS = [
+      "1497366216548-37526070297c", // office
+      "1560179707-f14e90ef3623", // business
+      "1454165804606-c3d57bc86b40", // meeting
+      "1497366811353-6870744d04b2", // workspace
+      "1522202176988-66273c2fd55f", // teamwork
+      "1552664730-d307ca884978", // presentation
+      "1600880292203-757bb62b4baf", // collaboration
+      "1507003211169-0a1dd7228f2d", // portrait male
+      "1438761681033-6461ffad8d80", // portrait female
+      "1472099645785-5658abf4ff4e", // portrait professional
+    ];
+    
+    const getUnsplashUrl = (width: number, height: number) => {
+      const photoId = UNSPLASH_PHOTOS[imageCounter % UNSPLASH_PHOTOS.length];
+      imageCounter++;
+      return `https://images.unsplash.com/photo-${photoId}?w=${width}&h=${height}&fit=crop`;
+    };
+    
     return generatedFiles.map(file => {
       if (!file.path.endsWith('.html')) return file;
       
       let content = file.content;
       let fixedCount = 0;
+      
+      // Fix 0: Replace ALL picsum.photos URLs with Unsplash (picsum is unreliable)
+      content = content.replace(
+        /https?:\/\/picsum\.photos(?:\/seed\/[^\/]+)?\/(\d+)\/(\d+)(?:\?[^"'\s)]*)?/gi,
+        (match, w, h) => {
+          fixedCount++;
+          return getUnsplashUrl(parseInt(w) || 800, parseInt(h) || 600);
+        }
+      );
       
       // Fix 1: Replace SVG/placeholder src in img tags
       const badImagePatterns = [
@@ -4522,20 +4556,17 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
         if (pattern.test(content)) {
           content = content.replace(pattern, () => {
             fixedCount++;
-            const randomNum = 100 + imageCounter++;
-            return 'src="https://picsum.photos/600/400?random=' + randomNum + '"';
+            return `src="${getUnsplashUrl(600, 400)}"`;
           });
         }
       }
       
       // Fix 2: Replace large inline SVGs that are used as hero/main images (not small icons)
-      // Match SVG elements with width/height > 100 or viewBox suggesting large size
       const largeSvgPattern = /<svg[^>]*(?:width=["'](?:[2-9]\d{2}|[1-9]\d{3,})["']|height=["'](?:[2-9]\d{2}|[1-9]\d{3,})["']|class=["'][^"']*(?:hero|banner|main|feature)[^"']*["'])[^>]*>[\s\S]*?<\/svg>/gi;
       if (largeSvgPattern.test(content)) {
         content = content.replace(largeSvgPattern, () => {
           fixedCount++;
-          const randomNum = 100 + imageCounter++;
-          return '<img src="https://picsum.photos/600/400?random=' + randomNum + '" alt="Feature image" loading="lazy" class="feature-image">';
+          return `<img src="${getUnsplashUrl(600, 400)}" alt="Feature image" loading="lazy" class="feature-image">`;
         });
       }
       

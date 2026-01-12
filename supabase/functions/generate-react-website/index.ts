@@ -107,12 +107,53 @@ function fixPhoneNumbersInContent(content: string, geo?: string): { content: str
   return { content: result, fixed };
 }
 
+// Pre-defined reliable Unsplash photo IDs for fallbacks
+const UNSPLASH_PHOTOS = [
+  "1497366216548-37526070297c", "1560179707-f14e90ef3623", "1454165804606-c3d57bc86b40",
+  "1497366811353-6870744d04b2", "1522202176988-66273c2fd55f", "1552664730-d307ca884978",
+  "1600880292203-757bb62b4baf", "1507003211169-0a1dd7228f2d", "1438761681033-6461ffad8d80",
+];
+let imageCounter = 0;
+
+function getUnsplashUrl(width: number, height: number): string {
+  const photoId = UNSPLASH_PHOTOS[imageCounter % UNSPLASH_PHOTOS.length];
+  imageCounter++;
+  return `https://images.unsplash.com/photo-${photoId}?w=${width}&h=${height}&fit=crop`;
+}
+
+function fixImagesInContent(content: string): { content: string; fixed: number } {
+  let fixed = 0;
+  let result = content;
+  
+  // Replace ALL picsum.photos URLs with Unsplash (picsum is unreliable)
+  result = result.replace(
+    /https?:\/\/picsum\.photos(?:\/seed\/[^\/]+)?\/(\d+)\/(\d+)(?:\?[^"'\s)]*)?/gi,
+    (match, w, h) => {
+      fixed++;
+      return getUnsplashUrl(parseInt(w) || 800, parseInt(h) || 600);
+    }
+  );
+  
+  return { content: result, fixed };
+}
+
 function fixPhoneNumbersInFiles(files: Array<{ path: string; content: string }>, geo?: string): { files: Array<{ path: string; content: string }>; totalFixed: number } {
   let totalFixed = 0;
   const fixedFiles = files.map(file => {
-    if (!/\.(html?|php|jsx?|tsx?)$/i.test(file.path)) return file;
-    const { content, fixed } = fixPhoneNumbersInContent(file.content, geo);
-    totalFixed += fixed;
+    if (!/\.(html?|php|jsx?|tsx?|css)$/i.test(file.path)) return file;
+    
+    let content = file.content;
+    
+    // Fix phones
+    const { content: phoneFixed, fixed: phonesFixed } = fixPhoneNumbersInContent(content, geo);
+    content = phoneFixed;
+    totalFixed += phonesFixed;
+    
+    // Fix images (replace picsum with unsplash)
+    const { content: imgFixed, fixed: imagesFixed } = fixImagesInContent(content);
+    content = imgFixed;
+    totalFixed += imagesFixed;
+    
     return { ...file, content };
   });
   return { files: fixedFiles, totalFixed };
