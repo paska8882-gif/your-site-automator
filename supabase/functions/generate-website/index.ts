@@ -193,26 +193,40 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, PROFESSIONAL MULTI-P
 - ❌ Hero section without background-image
 - ❌ Empty hero with just icons
 
-**🎨 CRITICAL DESIGN RULES - PREMIUM QUALITY:**
+**🎨 CRITICAL DESIGN RULES - UNIQUE STYLING FOR EACH SITE:**
 
-**CSS VARIABLES - USE AT THE TOP OF styles.css:**
+**IMPORTANT: Each website MUST have UNIQUE visual identity!**
+- Generate a UNIQUE color palette based on the industry/theme (medical = blues/greens, food = warm colors, tech = modern blues, luxury = golds/blacks)
+- Choose border-radius style that fits the brand (corporate = subtle 8-12px, playful = 20px+, brutalist = 0px, modern = 16px)
+- Vary shadow styles (soft subtle shadows for elegance, sharp shadows for modern, no shadows for minimalist)
+- Mix up section backgrounds (some sites: alternating white/gray, others: gradient sections, others: solid color accents)
+
+**CSS VARIABLES - GENERATE UNIQUE PALETTE BASED ON THEME:**
 \`\`\`css
 :root {
-  --primary-color: #2563eb;
-  --primary-dark: #1d4ed8;
-  --secondary-color: #f97316;
+  /* Generate UNIQUE colors based on industry/theme! Examples: */
+  /* Medical/Health: --primary-color: #0891b2; --accent-color: #06b6d4; */
+  /* Legal/Finance: --primary-color: #1e3a5f; --accent-color: #3b82f6; */
+  /* Food/Restaurant: --primary-color: #b91c1c; --accent-color: #ef4444; */
+  /* Eco/Nature: --primary-color: #166534; --accent-color: #22c55e; */
+  /* Tech/Startup: --primary-color: #4f46e5; --accent-color: #818cf8; */
+  /* Luxury/Premium: --primary-color: #78350f; --accent-color: #d97706; */
+  
+  --primary-color: [CHOOSE BASED ON THEME];
+  --primary-dark: [DARKER VARIANT];
+  --secondary-color: [COMPLEMENTARY];
   --text-dark: #1a1a1a;
   --text-light: #666666;
   --text-muted: #888888;
-  --bg-light: #f8fafc;
+  --bg-light: [LIGHT TINT OF PRIMARY];
   --bg-white: #ffffff;
-  --border-color: #e5e7eb;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
-  --shadow-md: 0 4px 15px rgba(0,0,0,0.1);
-  --shadow-lg: 0 10px 40px rgba(0,0,0,0.15);
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
+  --border-color: [SUBTLE BORDER];
+  --shadow-sm: [CHOOSE STYLE];
+  --shadow-md: [CHOOSE STYLE];
+  --shadow-lg: [CHOOSE STYLE];
+  --radius-sm: [8px OR 0 OR 16px - CHOOSE];
+  --radius-md: [12px OR 0 OR 20px - CHOOSE];
+  --radius-lg: [20px OR 0 OR 30px - CHOOSE];
   --transition: all 0.3s ease;
   --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
@@ -2153,24 +2167,63 @@ async function runGeneration({
     const MINIMUM_CSS_LINES = 500; // Minimum lines for quality CSS (increased from 400)
     const MINIMUM_QUALITY_SCORE = 6; // Minimum quality score out of 10 indicators
     
-    // Premium baseline CSS that is ALWAYS applied/merged
+    // 10 unique color schemes for variety
+    const COLOR_SCHEMES = [
+      { name: 'ocean', primary: '#0d4f8b', secondary: '#1a365d', accent: '#3182ce', heading: '#1a202c', text: '#4a5568', bgLight: '#ebf8ff', border: '#bee3f8' },
+      { name: 'forest', primary: '#276749', secondary: '#22543d', accent: '#38a169', heading: '#1a202c', text: '#4a5568', bgLight: '#f0fff4', border: '#9ae6b4' },
+      { name: 'sunset', primary: '#c53030', secondary: '#9b2c2c', accent: '#e53e3e', heading: '#1a202c', text: '#4a5568', bgLight: '#fff5f5', border: '#feb2b2' },
+      { name: 'royal', primary: '#553c9a', secondary: '#44337a', accent: '#805ad5', heading: '#1a202c', text: '#4a5568', bgLight: '#faf5ff', border: '#d6bcfa' },
+      { name: 'slate', primary: '#2d3748', secondary: '#1a202c', accent: '#4a5568', heading: '#1a202c', text: '#4a5568', bgLight: '#f7fafc', border: '#e2e8f0' },
+      { name: 'teal', primary: '#234e52', secondary: '#1d4044', accent: '#319795', heading: '#1a202c', text: '#4a5568', bgLight: '#e6fffa', border: '#81e6d9' },
+      { name: 'coral', primary: '#c05621', secondary: '#9c4221', accent: '#dd6b20', heading: '#1a202c', text: '#4a5568', bgLight: '#fffaf0', border: '#fbd38d' },
+      { name: 'midnight', primary: '#1a1a2e', secondary: '#16213e', accent: '#2563eb', heading: '#1a202c', text: '#4a5568', bgLight: '#f7fafc', border: '#e2e8f0' },
+      { name: 'rose', primary: '#97266d', secondary: '#702459', accent: '#d53f8c', heading: '#1a202c', text: '#4a5568', bgLight: '#fff5f7', border: '#fbb6ce' },
+      { name: 'emerald', primary: '#047857', secondary: '#065f46', accent: '#10b981', heading: '#1a202c', text: '#4a5568', bgLight: '#ecfdf5', border: '#6ee7b7' },
+    ];
+    
+    // 5 unique border-radius styles
+    const RADIUS_STYLES = [
+      { sm: '4px', md: '8px', lg: '12px' },      // Sharp
+      { sm: '8px', md: '12px', lg: '20px' },     // Rounded
+      { sm: '12px', md: '16px', lg: '24px' },    // Soft
+      { sm: '0', md: '0', lg: '0' },             // Square/Brutalist
+      { sm: '50px', md: '50px', lg: '50px' },    // Pill
+    ];
+    
+    // 5 unique shadow styles
+    const SHADOW_STYLES = [
+      { sm: '0 1px 3px rgba(0,0,0,0.08)', md: '0 4px 12px rgba(0,0,0,0.1)', lg: '0 12px 35px rgba(0,0,0,0.12)' },
+      { sm: '0 2px 8px rgba(0,0,0,0.06)', md: '0 8px 25px rgba(0,0,0,0.08)', lg: '0 20px 50px rgba(0,0,0,0.1)' },
+      { sm: '0 1px 2px rgba(0,0,0,0.05)', md: '0 3px 10px rgba(0,0,0,0.08)', lg: '0 8px 30px rgba(0,0,0,0.12)' },
+      { sm: 'none', md: '0 4px 20px rgba(0,0,0,0.05)', lg: '0 10px 40px rgba(0,0,0,0.08)' },
+      { sm: '2px 2px 0 rgba(0,0,0,0.1)', md: '4px 4px 0 rgba(0,0,0,0.15)', lg: '8px 8px 0 rgba(0,0,0,0.2)' }, // Brutalist
+    ];
+    
+    // Randomly select style variations
+    const colorScheme = COLOR_SCHEMES[Math.floor(Math.random() * COLOR_SCHEMES.length)];
+    const radiusStyle = RADIUS_STYLES[Math.floor(Math.random() * RADIUS_STYLES.length)];
+    const shadowStyle = SHADOW_STYLES[Math.floor(Math.random() * SHADOW_STYLES.length)];
+    
+    console.log(`🎨 Selected style: ${colorScheme.name} theme, radius: ${radiusStyle.md}, shadow style: ${shadowStyle.md.substring(0, 20)}...`);
+    
+    // Premium baseline CSS with randomized variables
     const BASELINE_CSS = `:root {
-  --primary-color: #1a1a2e;
-  --secondary-color: #16213e;
-  --accent-color: #2563eb;
-  --heading-color: #1a202c;
-  --text-color: #4a5568;
+  --primary-color: ${colorScheme.primary};
+  --secondary-color: ${colorScheme.secondary};
+  --accent-color: ${colorScheme.accent};
+  --heading-color: ${colorScheme.heading};
+  --text-color: ${colorScheme.text};
   --text-muted: #718096;
   --bg-color: #f7fafc;
   --white: #ffffff;
-  --light-gray: #edf2f7;
-  --border-color: #e2e8f0;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
-  --shadow-md: 0 4px 15px rgba(0,0,0,0.1);
-  --shadow-lg: 0 10px 40px rgba(0,0,0,0.15);
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
+  --light-gray: ${colorScheme.bgLight};
+  --border-color: ${colorScheme.border};
+  --shadow-sm: ${shadowStyle.sm};
+  --shadow-md: ${shadowStyle.md};
+  --shadow-lg: ${shadowStyle.lg};
+  --radius-sm: ${radiusStyle.sm};
+  --radius-md: ${radiusStyle.md};
+  --radius-lg: ${radiusStyle.lg};
   --transition: all 0.3s ease;
   --font-family-body: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-family-heading: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
