@@ -411,8 +411,18 @@ a:hover {
 }
 \`\`\`
 
-**IMAGE SIZING - ABSOLUTELY CRITICAL:**
+**🚨🚨🚨 IMAGE SIZING - ABSOLUTELY CRITICAL - NEVER FULL-SCREEN 🚨🚨🚨:**
+
+**RULES FOR IMAGE SIZES (STRICTLY FOLLOW):**
+1. Images must NEVER be full-width or full-screen (no 100vw, no width: 100%)
+2. All images must be CONTEXTUAL - sized appropriately for their content role
+3. Card images: max 400px height, contained within card boundaries
+4. Hero: background-image with overlay, NOT full-screen photos
+5. Section images: max-width 600px, centered or alongside text
+6. Gallery images: uniform size in grid, max 350px each
+
 \`\`\`css
+/* BASE IMAGE CONSTRAINTS - NEVER REMOVE */
 img {
   max-width: 100%;
   height: auto;
@@ -420,9 +430,10 @@ img {
   object-fit: cover;
 }
 
+/* HERO - CONTROLLED HEIGHT, NEVER FULL-SCREEN PHOTO */
 .hero {
-  min-height: 80vh;
-  max-height: 90vh;
+  min-height: 60vh;
+  max-height: 70vh; /* STRICT LIMIT - never full viewport */
   background-size: cover;
   background-position: center;
   display: flex;
@@ -444,13 +455,25 @@ img {
   max-width: 700px;
 }
 
+/* CARD IMAGES - FIXED HEIGHT, NEVER OVERSIZED */
 .card-image, .service-card img, .feature-img {
   width: 100%;
-  height: 220px;
+  height: 200px; /* FIXED - never bigger */
+  max-height: 200px;
   object-fit: cover;
   border-radius: var(--radius-md);
 }
 
+/* SECTION IMAGES - CONSTRAINED */
+.section-image, .about-image, .content-image {
+  max-width: 500px;
+  height: auto;
+  max-height: 350px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+}
+
+/* AVATARS - SMALL AND UNIFORM */
 .avatar, .team-photo, .testimonial-img {
   width: 70px;
   height: 70px;
@@ -458,13 +481,16 @@ img {
   object-fit: cover;
 }
 
+/* GALLERY - UNIFORM GRID */
 .gallery-item img {
   width: 100%;
-  height: 250px;
+  height: 220px; /* FIXED height */
+  max-height: 220px;
   object-fit: cover;
   border-radius: var(--radius-md);
 }
 
+/* PARTNER LOGOS - SMALL */
 .partner-logo, .client-logo {
   height: 40px;
   width: auto;
@@ -479,7 +505,147 @@ img {
   filter: grayscale(0);
   opacity: 1;
 }
+
+/* PREVENT OVERSIZED IMAGES */
+section img:not(.avatar):not(.partner-logo):not(.client-logo) {
+  max-height: 400px;
+}
 \`\`\`
+
+**🎨 CONSISTENT STYLING - ALL SECTIONS MUST MATCH:**
+
+**CRITICAL RULE: Every page section must follow the SAME design language:**
+1. ALL cards must have IDENTICAL styling (same border-radius, shadow, padding)
+2. ALL sections must have UNIFORM spacing (80px padding top/bottom)
+3. ALL text elements must follow typography hierarchy
+4. NO mixing of styled cards with plain lists - use cards OR styled lists
+5. Newsletter/CTA sections must have proper background styling
+
+\`\`\`css
+/* CONSISTENT SECTION STYLING */
+.section {
+  padding: 80px 0;
+}
+
+.section.bg-light {
+  background: var(--bg-light);
+}
+
+.section.bg-dark {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: white;
+}
+
+/* CONSISTENT CARD STYLING - ALL CARDS IDENTICAL */
+.card, .service-card, .feature-card, .category-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: 1px solid rgba(0,0,0,0.05);
+}
+
+.card:hover, .service-card:hover, .feature-card:hover, .category-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+}
+
+/* CATEGORY/LIST SECTIONS - MUST BE STYLED AS CARDS */
+.category-list, .services-list, .features-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.category-item, .service-item, .feature-item {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  border-left: 4px solid var(--primary-color);
+  transition: all 0.3s ease;
+}
+
+.category-item:hover, .service-item:hover, .feature-item:hover {
+  transform: translateX(8px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.category-item h3, .service-item h3, .feature-item h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-dark);
+}
+
+.category-item p, .service-item p, .feature-item p {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* NEWSLETTER/CTA SECTIONS - PROPERLY STYLED */
+.newsletter-section, .cta-section, .subscribe-section {
+  background: linear-gradient(135deg, var(--bg-light) 0%, #e8f4f8 100%);
+  padding: 60px 0;
+  text-align: center;
+  border-radius: 0;
+}
+
+.newsletter-section .container, .cta-section .container {
+  max-width: 700px;
+}
+
+.newsletter-form, .subscribe-form {
+  display: flex;
+  gap: 12px;
+  max-width: 500px;
+  margin: 24px auto 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.newsletter-form input, .subscribe-form input {
+  flex: 1;
+  min-width: 250px;
+  padding: 14px 20px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+}
+
+.newsletter-form button, .subscribe-form button {
+  padding: 14px 28px;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.newsletter-form button:hover, .subscribe-form button:hover {
+  background: var(--primary-dark);
+  transform: translateY(-2px);
+}
+\`\`\`
+
+**❌ WHAT NOT TO DO (NEVER GENERATE LIKE THIS):**
+- Plain text lists without styling (Energy, Infrastructure, Technology as plain text)
+- Sections with inconsistent backgrounds
+- Cards with different border-radius values
+- Images that are too large or too small
+- Newsletter sections with basic unstyled inputs
+- Mixed styling within same page
+
+**✅ WHAT TO DO:**
+- All categories/services in styled cards with icons or borders
+- Consistent 80px section padding throughout
+- Uniform card styling with shadows and hover effects
+- Properly sized images (200-400px height max)
+- Styled newsletter with gradient background
 
 **SECTIONS & CONTAINERS:**
 \`\`\`css
@@ -2827,6 +2993,146 @@ tbody tr:hover {
 @media (max-width: 768px) {
   .map-container { height: 350px; }
   .contact-grid { padding: 2rem; }
+}
+
+/* CATEGORY LIST - STYLED CARDS */
+.category-list, .services-list, .features-list, .sector-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.category-item, .service-item, .feature-item, .sector-item {
+  background: var(--white);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  border-left: 4px solid var(--accent-color);
+  transition: all 0.3s ease;
+}
+
+.category-item:hover, .service-item:hover, .feature-item:hover, .sector-item:hover {
+  transform: translateX(8px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.category-item h3, .service-item h3, .feature-item h3, .sector-item h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--heading-color);
+}
+
+.category-item p, .service-item p, .feature-item p, .sector-item p {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.category-item a, .service-item a, .feature-item a, .sector-item a {
+  color: var(--accent-color);
+  text-decoration: none;
+}
+
+.category-item a:hover, .service-item a:hover {
+  text-decoration: underline;
+}
+
+/* NEWSLETTER/CTA SECTIONS - PROPERLY STYLED */
+.newsletter-section, .cta-section, .subscribe-section {
+  background: linear-gradient(135deg, var(--light-gray) 0%, #e8f4f8 100%);
+  padding: 60px 20px;
+  text-align: center;
+  border-radius: 0;
+}
+
+.newsletter-section h2, .cta-section h2, .subscribe-section h2 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  margin-bottom: 12px;
+}
+
+.newsletter-section p, .cta-section p, .subscribe-section p {
+  color: var(--text-muted);
+  margin-bottom: 24px;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.newsletter-form, .subscribe-form {
+  display: flex;
+  gap: 12px;
+  max-width: 500px;
+  margin: 0 auto;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.newsletter-form input, .subscribe-form input {
+  flex: 1;
+  min-width: 250px;
+  padding: 14px 20px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  background: var(--white);
+}
+
+.newsletter-form input:focus, .subscribe-form input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.newsletter-form button, .subscribe-form button {
+  padding: 14px 28px;
+  background: var(--accent-color);
+  color: var(--white);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.newsletter-form button:hover, .subscribe-form button:hover {
+  background: #1d4ed8;
+  transform: translateY(-2px);
+}
+
+/* PREVENT OVERSIZED IMAGES */
+section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-img):not(.team-photo) {
+  max-height: 400px;
+}
+
+/* CONSISTENT SECTION BACKGROUNDS */
+.bg-light, .section-light {
+  background: var(--light-gray);
+}
+
+.bg-dark, .section-dark {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #e0e0e0;
+}
+
+.bg-dark h2, .bg-dark h3, .section-dark h2, .section-dark h3 {
+  color: var(--white);
+}
+
+@media (max-width: 576px) {
+  .newsletter-form, .subscribe-form {
+    flex-direction: column;
+  }
+  .newsletter-form input, .subscribe-form input {
+    min-width: 100%;
+  }
+  .category-list, .services-list, .features-list {
+    grid-template-columns: 1fr;
+  }
 }`;
 
     // Check if styles.css exists
@@ -2907,7 +3213,7 @@ tbody tr:hover {
     });
   };
 
-  // NEW: Fix placeholder images and ensure proper hero backgrounds
+  // NEW: Fix placeholder images, ensure proper hero backgrounds, and fix styling issues
   const fixPlaceholderImages = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
     let imageCounter = 1;
     
@@ -2930,7 +3236,7 @@ tbody tr:hover {
           content = content.replace(pattern, () => {
             fixedCount++;
             const randomNum = 100 + imageCounter++;
-            return 'src="https://picsum.photos/800/600?random=' + randomNum + '"';
+            return 'src="https://picsum.photos/600/400?random=' + randomNum + '"';
           });
         }
       }
@@ -2942,7 +3248,7 @@ tbody tr:hover {
         content = content.replace(largeSvgPattern, () => {
           fixedCount++;
           const randomNum = 100 + imageCounter++;
-          return '<img src="https://picsum.photos/800/600?random=' + randomNum + '" alt="Feature image" loading="lazy" class="feature-image">';
+          return '<img src="https://picsum.photos/600/400?random=' + randomNum + '" alt="Feature image" loading="lazy" class="feature-image">';
         });
       }
       
@@ -2977,8 +3283,45 @@ tbody tr:hover {
         }
       }
       
+      // Fix 5: Constrain image sizes - add max-height to any images missing it
+      // Replace full-width images with constrained versions
+      content = content.replace(
+        /<img([^>]*)(style=["'][^"']*)(width:\s*100vw|width:\s*100%[^;]*;[^"']*height:\s*100vh)([^"']*["'])/gi,
+        '<img$1$2max-height: 400px; object-fit: cover$4'
+      );
+      
+      // Fix 6: Add proper class to unstyled sections with lists (category-like sections)
+      // Convert plain dt/dd lists to styled format
+      content = content.replace(
+        /<dl([^>]*)>\s*(<dt>)/gi,
+        '<dl$1 class="category-list"><$2'
+      );
+      
+      // Fix 7: Wrap unstyled h3+p combinations in cards
+      // This targets patterns like: <h3>Energy</h3><p>Oil, gas...</p>
+      const unstyledListPattern = /<section[^>]*>[\s\S]*?(<h3>[^<]+<\/h3>\s*<p>[^<]+<\/p>\s*){3,}/gi;
+      if (unstyledListPattern.test(content)) {
+        console.log("🎨 Detected unstyled list section in " + file.path + " - adding style classes");
+        
+        // Add container class to sections without it
+        content = content.replace(
+          /<section([^>]*)>\s*<h2([^>]*)>([^<]+)<\/h2>/gi,
+          '<section$1 class="section"><div class="container"><div class="section-header"><h2$2 class="section-title">$3</h2></div>'
+        );
+      }
+      
+      // Fix 8: Ensure newsletter sections have proper styling
+      const newsletterPattern = /<section[^>]*class=["'][^"']*(?:newsletter|subscribe|cta)[^"']*["'][^>]*>/gi;
+      if (!newsletterPattern.test(content)) {
+        // Find newsletter-like sections by content and add class
+        content = content.replace(
+          /<section([^>]*)>([\s\S]*?(?:newsletter|subscribe|email address|inbox)[\s\S]*?)<\/section>/gi,
+          '<section$1 class="newsletter-section">$2</section>'
+        );
+      }
+      
       if (fixedCount > 0) {
-        console.log("🔧 Fixed " + fixedCount + " placeholder images in " + file.path);
+        console.log("🔧 Fixed " + fixedCount + " issues in " + file.path);
       }
       
       return { ...file, content };
