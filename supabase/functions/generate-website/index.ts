@@ -2326,18 +2326,18 @@ async function runGeneration({
     const MINIMUM_CSS_LINES = 500; // Minimum lines for quality CSS (increased from 400)
     const MINIMUM_QUALITY_SCORE = 6; // Minimum quality score out of 10 indicators
     
-    // 10 unique color schemes for variety
+    // 10 unique color schemes for variety (with RGB values for rgba usage)
     const COLOR_SCHEMES = [
-      { name: 'ocean', primary: '#0d4f8b', secondary: '#1a365d', accent: '#3182ce', heading: '#1a202c', text: '#4a5568', bgLight: '#ebf8ff', border: '#bee3f8' },
-      { name: 'forest', primary: '#276749', secondary: '#22543d', accent: '#38a169', heading: '#1a202c', text: '#4a5568', bgLight: '#f0fff4', border: '#9ae6b4' },
-      { name: 'sunset', primary: '#c53030', secondary: '#9b2c2c', accent: '#e53e3e', heading: '#1a202c', text: '#4a5568', bgLight: '#fff5f5', border: '#feb2b2' },
-      { name: 'royal', primary: '#553c9a', secondary: '#44337a', accent: '#805ad5', heading: '#1a202c', text: '#4a5568', bgLight: '#faf5ff', border: '#d6bcfa' },
-      { name: 'slate', primary: '#2d3748', secondary: '#1a202c', accent: '#4a5568', heading: '#1a202c', text: '#4a5568', bgLight: '#f7fafc', border: '#e2e8f0' },
-      { name: 'teal', primary: '#234e52', secondary: '#1d4044', accent: '#319795', heading: '#1a202c', text: '#4a5568', bgLight: '#e6fffa', border: '#81e6d9' },
-      { name: 'coral', primary: '#c05621', secondary: '#9c4221', accent: '#dd6b20', heading: '#1a202c', text: '#4a5568', bgLight: '#fffaf0', border: '#fbd38d' },
-      { name: 'midnight', primary: '#1a1a2e', secondary: '#16213e', accent: '#2563eb', heading: '#1a202c', text: '#4a5568', bgLight: '#f7fafc', border: '#e2e8f0' },
-      { name: 'rose', primary: '#97266d', secondary: '#702459', accent: '#d53f8c', heading: '#1a202c', text: '#4a5568', bgLight: '#fff5f7', border: '#fbb6ce' },
-      { name: 'emerald', primary: '#047857', secondary: '#065f46', accent: '#10b981', heading: '#1a202c', text: '#4a5568', bgLight: '#ecfdf5', border: '#6ee7b7' },
+      { name: 'ocean', primary: '#0d4f8b', primaryRgb: '13, 79, 139', secondary: '#1a365d', accent: '#3182ce', heading: '#1a202c', text: '#4a5568', bgLight: '#ebf8ff', border: '#bee3f8' },
+      { name: 'forest', primary: '#276749', primaryRgb: '39, 103, 73', secondary: '#22543d', accent: '#38a169', heading: '#1a202c', text: '#4a5568', bgLight: '#f0fff4', border: '#9ae6b4' },
+      { name: 'sunset', primary: '#c53030', primaryRgb: '197, 48, 48', secondary: '#9b2c2c', accent: '#e53e3e', heading: '#1a202c', text: '#4a5568', bgLight: '#fff5f5', border: '#feb2b2' },
+      { name: 'royal', primary: '#553c9a', primaryRgb: '85, 60, 154', secondary: '#44337a', accent: '#805ad5', heading: '#1a202c', text: '#4a5568', bgLight: '#faf5ff', border: '#d6bcfa' },
+      { name: 'slate', primary: '#2d3748', primaryRgb: '45, 55, 72', secondary: '#1a202c', accent: '#4a5568', heading: '#1a202c', text: '#4a5568', bgLight: '#f7fafc', border: '#e2e8f0' },
+      { name: 'teal', primary: '#234e52', primaryRgb: '35, 78, 82', secondary: '#1d4044', accent: '#319795', heading: '#1a202c', text: '#4a5568', bgLight: '#e6fffa', border: '#81e6d9' },
+      { name: 'coral', primary: '#c05621', primaryRgb: '192, 86, 33', secondary: '#9c4221', accent: '#dd6b20', heading: '#1a202c', text: '#4a5568', bgLight: '#fffaf0', border: '#fbd38d' },
+      { name: 'midnight', primary: '#1a1a2e', primaryRgb: '26, 26, 46', secondary: '#16213e', accent: '#2563eb', heading: '#1a202c', text: '#4a5568', bgLight: '#f7fafc', border: '#e2e8f0' },
+      { name: 'rose', primary: '#97266d', primaryRgb: '151, 38, 109', secondary: '#702459', accent: '#d53f8c', heading: '#1a202c', text: '#4a5568', bgLight: '#fff5f7', border: '#fbb6ce' },
+      { name: 'emerald', primary: '#047857', primaryRgb: '4, 120, 87', secondary: '#065f46', accent: '#10b981', heading: '#1a202c', text: '#4a5568', bgLight: '#ecfdf5', border: '#6ee7b7' },
     ];
     
     // 5 unique border-radius styles
@@ -2368,12 +2368,14 @@ async function runGeneration({
     // Premium baseline CSS with randomized variables
     const BASELINE_CSS = `:root {
   --primary-color: ${colorScheme.primary};
+  --primary-color-rgb: ${colorScheme.primaryRgb};
   --secondary-color: ${colorScheme.secondary};
   --accent-color: ${colorScheme.accent};
   --heading-color: ${colorScheme.heading};
   --text-color: ${colorScheme.text};
   --text-muted: #718096;
   --bg-color: #f7fafc;
+  --bg-light: ${colorScheme.bgLight};
   --white: #ffffff;
   --light-gray: ${colorScheme.bgLight};
   --border-color: ${colorScheme.border};
@@ -2837,19 +2839,104 @@ section.light, .section.light {
   text-decoration: none;
 }
 
+/* TAG PILLS / FILTER BUTTONS - THEMED STYLING */
 .tag-pills {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
+  margin-top: 24px;
 }
 
 .tag-pills span {
-  background: var(--light-gray);
-  color: var(--heading-color);
-  padding: 6px 14px;
-  border-radius: 16px;
-  font-size: 0.85rem;
+  font-family: var(--font-family-body);
+  background: linear-gradient(135deg, rgba(var(--primary-color-rgb, 37, 99, 235), 0.08) 0%, rgba(var(--primary-color-rgb, 37, 99, 235), 0.15) 100%);
+  color: var(--primary-color);
+  border: 1px solid rgba(var(--primary-color-rgb, 37, 99, 235), 0.25);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.875rem;
   font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(4px);
+}
+
+.tag-pills span:hover {
+  background: var(--primary-color);
+  color: var(--white);
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(var(--primary-color-rgb, 37, 99, 235), 0.25);
+}
+
+.tag-pills span.active {
+  background: var(--primary-color);
+  color: var(--white);
+  border-color: var(--primary-color);
+}
+
+/* FILTER TABS - Alternative styled tabs for filtering */
+.filter-tabs, .category-tabs, .service-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px;
+  background: var(--bg-light);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.filter-tabs button, .category-tabs button, .service-tabs button,
+.filter-tabs a, .category-tabs a, .service-tabs a {
+  font-family: var(--font-family-body);
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  text-decoration: none;
+}
+
+.filter-tabs button:hover, .category-tabs button:hover, .service-tabs button:hover,
+.filter-tabs a:hover, .category-tabs a:hover, .service-tabs a:hover {
+  background: rgba(var(--primary-color-rgb, 37, 99, 235), 0.1);
+  color: var(--primary-color);
+}
+
+.filter-tabs button.active, .category-tabs button.active, .service-tabs button.active,
+.filter-tabs a.active, .category-tabs a.active, .service-tabs a.active {
+  background: var(--primary-color);
+  color: var(--white);
+  box-shadow: 0 2px 8px rgba(var(--primary-color-rgb, 37, 99, 235), 0.3);
+}
+
+/* BADGE/CHIP STYLING */
+.badge, .chip, .tag {
+  font-family: var(--font-family-body);
+  display: inline-block;
+  padding: 6px 14px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+  color: var(--white);
+}
+
+.badge.outline, .chip.outline, .tag.outline {
+  background: transparent;
+  border: 1px solid var(--primary-color);
+  color: var(--primary-color);
+}
+
+.badge.secondary, .chip.secondary, .tag.secondary {
+  background: var(--bg-light);
+  color: var(--text-muted);
 }
 
 .hero-visual img {
