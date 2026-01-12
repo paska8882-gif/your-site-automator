@@ -2092,6 +2092,23 @@ CRITICAL GEO REQUIREMENTS - ALL CONTENT MUST BE LOCALIZED FOR ${countryName.toUp
       }
     }
     
+    // Add siteName to the prompt if provided
+    if (siteName && siteName.trim()) {
+      promptForGeneration = `[SITE NAME: ${siteName}]
+CRITICAL SITE NAME REQUIREMENT:
+- The website/business/brand name MUST be "${siteName}"
+- Use this EXACT name "${siteName}" in:
+  * The logo in header
+  * The page titles (e.g., "Home - ${siteName}")
+  * The footer copyright (e.g., "© 2024 ${siteName}. All rights reserved.")
+  * The meta title tags
+  * Any references to the company/brand/business
+- DO NOT invent a different name
+- DO NOT use generic names like "Company" or "Business"
+
+${promptForGeneration}`;
+    }
+    
     // Store the original prompt (what user submitted) and improved prompt separately
     const promptToSave = originalPrompt || prompt;
     const improvedPromptToSave = improvedPrompt || null;
