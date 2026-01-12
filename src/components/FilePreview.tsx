@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { GeneratedFile } from "@/lib/websiteGenerator";
+import { inlineLocalImages } from "@/lib/inlineAssets";
 import { useState, useEffect, useRef } from "react";
 import { ImageIcon, Check } from "lucide-react";
 
@@ -328,6 +329,11 @@ export function FilePreview({ file, cssFile, allFiles, websiteType, viewMode }: 
       } else {
         html = styleTag + html;
       }
+    }
+
+    // Fix local SVGs (icons) referenced from HTML
+    if (allFiles && allFiles.length > 0) {
+      html = inlineLocalImages(html, allFiles);
     }
     
     // Inject tracking script before </body>

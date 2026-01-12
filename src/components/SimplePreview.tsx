@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { inlineLocalImages } from "@/lib/inlineAssets";
 
 interface GeneratedFile {
   path: string;
@@ -252,6 +253,9 @@ function buildHtmlPreview(files: GeneratedFile[], currentPage: string): string {
       `<script>${cookieBannerFile.content}</script>`
     );
   }
+
+  // Fix local SVGs (icons) referenced from HTML
+  html = inlineLocalImages(html, files);
 
   // Add navigation handler script to intercept link clicks
   const navigationScript = `
