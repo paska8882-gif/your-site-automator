@@ -84,18 +84,28 @@ function appendGeoToPrompt(prompt: string, geo?: string): string {
   return `${prompt}\n\n[TARGET COUNTRY: ${countryName}. The website is specifically designed for the ${countryName} market. Use local phone number formats, address formats, currency, and cultural preferences appropriate for ${countryName}.]`;
 }
 
-// Helper to get fresh access token (refresh if needed)
+// Helper to get a valid access token.
+// - Prefer current session token if it's not close to expiring
+// - Otherwise attempt a refresh
+// - If refresh fails, return null (do NOT fall back to an expired token)
 async function getFreshAccessToken(): Promise<string | null> {
-  // First try to refresh the session
+  const { data: { session } } = await supabase.auth.getSession();
+
+  // If we have a session and the token is still valid for at least ~60s, use it.
+  // (expires_at is in seconds)
+  const expiresAtMs = (session?.expires_at ?? 0) * 1000;
+  const msLeft = expiresAtMs - Date.now();
+  if (session?.access_token && msLeft > 60_000) {
+    return session.access_token;
+  }
+
+  // Otherwise, attempt to refresh
   const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-  
   if (!refreshError && refreshData?.session?.access_token) {
     return refreshData.session.access_token;
   }
-  
-  // If refresh fails, try getting current session
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token || null;
+
+  return null;
 }
 
 export async function startGeneration(
