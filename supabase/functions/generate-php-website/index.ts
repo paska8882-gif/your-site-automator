@@ -79,9 +79,38 @@ function generateRealisticPhone(geo?: string): string {
   return `+49 30 ${randomDigits(3)} ${randomDigits(4)}`;
 }
 
+// Fix broken image URLs that contain phone numbers (AI hallucination issue)
+function fixBrokenImageUrls(content: string): { content: string; fixed: number } {
+  let fixed = 0;
+  let result = content;
+  
+  // Pattern: image URLs containing phone-like patterns (+XX, spaces in URL, etc.)
+  const BROKEN_IMG_URL_REGEX = /src=["'](https?:\/\/[^"']*\+\d+[^"']*|https?:\/\/images\.pexels\.com\/photos\/[^"']*\s+[^"']*)["']/gi;
+  
+  result = result.replace(BROKEN_IMG_URL_REGEX, () => {
+    fixed++;
+    const randomId = Math.floor(Math.random() * 5000000) + 1000000;
+    return `src="https://images.pexels.com/photos/${randomId}/pexels-photo-${randomId}.jpeg?auto=compress&cs=tinysrgb&w=800"`;
+  });
+  
+  const BROKEN_PICSUM_REGEX = /src=["'](https?:\/\/picsum\.photos\/[^"']*\+[^"']*)["']/gi;
+  result = result.replace(BROKEN_PICSUM_REGEX, () => {
+    fixed++;
+    const seed = Math.random().toString(36).substring(7);
+    return `src="https://picsum.photos/seed/${seed}/800/600"`;
+  });
+  
+  return { content: result, fixed };
+}
+
 function fixPhoneNumbersInContent(content: string, geo?: string): { content: string; fixed: number } {
   let fixed = 0;
   let result = content;
+  
+  // 0) FIRST: Fix broken image URLs that contain phone numbers
+  const imgFix = fixBrokenImageUrls(result);
+  result = imgFix.content;
+  fixed += imgFix.fixed;
 
   // 1) Replace obvious placeholder patterns first
   for (const pattern of INVALID_PHONE_PATTERNS) {
@@ -106,9 +135,11 @@ function fixPhoneNumbersInContent(content: string, geo?: string): { content: str
     return match;
   });
 
-  // 3) Fix any visible phone-like strings with leading +
+  // 3) Fix any visible phone-like strings with leading + (skip if in src="")
   const PLUS_PHONE_REGEX = /\+\d[\d\s().-]{7,}\d/g;
-  result = result.replace(PLUS_PHONE_REGEX, (match) => {
+  result = result.replace(PLUS_PHONE_REGEX, (match, offset) => {
+    const before = result.substring(Math.max(0, offset - 50), offset);
+    if (/src=["'][^"']*$/i.test(before)) return match;
     if (!isValidPhone(match)) {
       fixed++;
       return generateRealisticPhone(geo);
@@ -117,7 +148,6 @@ function fixPhoneNumbersInContent(content: string, geo?: string): { content: str
   });
 
   // 4) Fix bare local phone-like sequences ONLY when near phone/contact labels
-  // Avoid replacing arbitrary IDs/years/etc. (this could break JS/CSS and lead to blank sites).
   const CONTEXTUAL_BARE_PHONE_REGEX = /(phone|tel|telephone|call|contact|контакт|телефон|тел\.?)[^\n\r]{0,25}\b(\d{8,12})\b/gi;
   result = result.replace(CONTEXTUAL_BARE_PHONE_REGEX, (fullMatch, _label, digits) => {
     fixed++;

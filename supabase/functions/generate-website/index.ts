@@ -150,10 +150,42 @@ function generateRealisticPhone(geo?: string): string {
   return `+49 30 ${randomDigits(3)} ${randomDigits(4)}`;
 }
 
+// Fix broken image URLs that contain phone numbers (AI hallucination issue)
+function fixBrokenImageUrls(content: string): { content: string; fixed: number } {
+  let fixed = 0;
+  let result = content;
+  
+  // Pattern: image URLs containing phone-like patterns (+XX, spaces in URL, etc.)
+  // Matches: src="https://images.pexels.com/photos/+49 30 435 7446/pexels-photo-+49 30 217 9592.jpeg"
+  const BROKEN_IMG_URL_REGEX = /src=["'](https?:\/\/[^"']*\+\d+[^"']*|https?:\/\/images\.pexels\.com\/photos\/[^"']*\s+[^"']*)["']/gi;
+  
+  result = result.replace(BROKEN_IMG_URL_REGEX, () => {
+    fixed++;
+    // Generate a valid Pexels image URL with random ID
+    const randomId = Math.floor(Math.random() * 5000000) + 1000000;
+    return `src="https://images.pexels.com/photos/${randomId}/pexels-photo-${randomId}.jpeg?auto=compress&cs=tinysrgb&w=800"`;
+  });
+  
+  // Also fix picsum URLs that might be broken
+  const BROKEN_PICSUM_REGEX = /src=["'](https?:\/\/picsum\.photos\/[^"']*\+[^"']*)["']/gi;
+  result = result.replace(BROKEN_PICSUM_REGEX, () => {
+    fixed++;
+    const seed = Math.random().toString(36).substring(7);
+    return `src="https://picsum.photos/seed/${seed}/800/600"`;
+  });
+  
+  return { content: result, fixed };
+}
+
 // Fix phone numbers in file content
 function fixPhoneNumbersInContent(content: string, geo?: string): { content: string; fixed: number } {
   let fixed = 0;
   let result = content;
+  
+  // 0) FIRST: Fix broken image URLs that contain phone numbers
+  const imgFix = fixBrokenImageUrls(result);
+  result = imgFix.content;
+  fixed += imgFix.fixed;
 
   // 1) Replace obvious placeholder patterns first
   for (const pattern of INVALID_PHONE_PATTERNS) {
@@ -179,10 +211,15 @@ function fixPhoneNumbersInContent(content: string, geo?: string): { content: str
     return match;
   });
 
-  // 3) Fix any visible phone-like strings with a leading + (covers “+49 ... 4567890”, etc.)
-  // Example matches: +49 30 2897 6543, +1 (212) 647-3812, +380 44 239 4187
+  // 3) Fix any visible phone-like strings with a leading + (covers "+49 ... 4567890", etc.)
+  // BUT SKIP if inside src="..." to avoid double-fixing images
   const PLUS_PHONE_REGEX = /\+\d[\d\s().-]{7,}\d/g;
-  result = result.replace(PLUS_PHONE_REGEX, (match) => {
+  result = result.replace(PLUS_PHONE_REGEX, (match, offset) => {
+    // Check if this match is inside an src="" attribute (skip if so)
+    const before = result.substring(Math.max(0, offset - 50), offset);
+    if (/src=["'][^"']*$/i.test(before)) {
+      return match; // Skip - inside image URL
+    }
     if (!isValidPhone(match)) {
       fixed++;
       return generateRealisticPhone(geo);
@@ -191,7 +228,6 @@ function fixPhoneNumbersInContent(content: string, geo?: string): { content: str
   });
 
   // 4) Fix bare local phone-like sequences ONLY when near phone/contact labels
-  // Avoid replacing arbitrary IDs/years/etc. (this could break JS/CSS and lead to blank sites).
   const CONTEXTUAL_BARE_PHONE_REGEX = /(phone|tel|telephone|call|contact|контакт|телефон|тел\.?)[^\n\r]{0,25}\b(\d{8,12})\b/gi;
   result = result.replace(CONTEXTUAL_BARE_PHONE_REGEX, (fullMatch, _label, digits) => {
     fixed++;
@@ -378,6 +414,23 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, CONTENT-RICH PROFESS
 📞📧🚨 CONTACT INFO - ABSOLUTELY MANDATORY - READ FIRST! 🚨📧📞
 EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
 
+🚨🚨🚨 PHONE NUMBERS - WHERE THEY BELONG (CRITICAL!) 🚨🚨🚨
+Phone numbers should ONLY appear in these locations:
+1. Footer contact section (visible text + tel: link)
+2. Contact page contact info
+3. Inside <a href="tel:..."> links
+
+⛔⛔⛔ PHONE NUMBERS MUST NEVER APPEAR IN: ⛔⛔⛔
+- Image URLs (src="https://..." MUST NEVER contain phone-like digits!)
+- CSS classes or IDs
+- JavaScript code
+- File names
+- Pexels/Unsplash URLs (use proper photo IDs like "3184418", NOT phone numbers!)
+- Any URL or path
+
+CORRECT IMAGE URL: src="https://images.pexels.com/photos/3184418/pexels-photo-3184418.jpeg"
+WRONG IMAGE URL: src="https://images.pexels.com/photos/+49 30 435/pexels-photo-+49 30 217.jpeg" ❌
+
 **PHONE NUMBER - REQUIRED IN FOOTER ONLY:**
 - MUST appear in FOOTER on ALL pages (NOT in header!)
 - MUST be realistic for the country/GEO (see examples below)
@@ -386,7 +439,10 @@ EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
 - MUST be at least 10 digits total (excluding spaces, parentheses, dashes)
 - NEVER output only the local part like "4567890" or "123456" (this is INVALID)
 - NEVER use fake/placeholder patterns: 123456, 4567890, 555-1234, XXX, 000000, 999999, (555)
-- ⚠️ CRITICAL: NEVER DUPLICATE THE COUNTRY CODE! Wrong: "+49 +49 30...", Correct: "+49 30..."
+- ⚠️ CRITICAL: NEVER DUPLICATE THE COUNTRY CODE! 
+  * WRONG: "+49 +49 30...", "+353 1 +49 30...", "++49", "+353+353"
+  * CORRECT: "+49 30 2897 6543" (ONE country code only!)
+- ⚠️ NEVER MIX COUNTRY CODES! Pick ONE country code and use it consistently!
 - Examples by country (pick ONE and format similarly):
   * Germany: +49 30 2897 6543, +49 89 4521 7892
   * Poland: +48 22 593 27 41, +48 12 784 63 19
@@ -397,6 +453,7 @@ EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
   * USA: +1 (212) 647-3812, +1 (415) 781-2046
   * Netherlands: +31 20 794 5682, +31 10 593 2741
   * Czech Republic: +420 221 643 781, +420 257 815 604
+  * Ireland: +353 1 234 5678, +353 21 987 6543
   * Ukraine: +380 44 239 4187, +380 67 381 2046
   * Russia: +7 495 239 4187, +7 812 381 2046
   * Austria: +43 1 239 4187, +43 512 381 204
