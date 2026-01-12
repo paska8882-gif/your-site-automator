@@ -2416,9 +2416,11 @@ export function WebsiteGenerator() {
                         
                         setIsGeneratingVip(true);
                         try {
+                          // Use siteName from array or from current input field
+                          const currentSiteName = siteNames[0] || currentSiteNameInput.trim() || 'mysite';
                           // Generate domain if empty
-                          const effectiveDomain = vipDomain.trim() || `${(siteNames[0] || 'mysite').toLowerCase().replace(/[^a-z0-9]/g, '')}${Math.floor(Math.random() * 900) + 100}.com`;
-                          const siteName = siteNames[0] || effectiveDomain.split('.')[0];
+                          const effectiveDomain = vipDomain.trim() || `${currentSiteName.toLowerCase().replace(/[^a-z0-9]/g, '')}${Math.floor(Math.random() * 900) + 100}.com`;
+                          const siteName = currentSiteName;
                           const geoValue = isOtherGeoSelected && customGeo ? customGeo : selectedGeo;
                           const langValue = selectedLanguages[0] || customLanguage || "en";
                           const langLabel = languages.find(l => l.value === langValue)?.label || langValue;
