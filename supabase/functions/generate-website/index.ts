@@ -124,52 +124,52 @@ function generateRealisticPhone(geo?: string): string {
 function fixPhoneNumbersInContent(content: string, geo?: string): { content: string; fixed: number } {
   let fixed = 0;
   let result = content;
-  
-  // Pattern to find phone numbers in href="tel:..." and in visible text
-  // Look for patterns that are likely phone numbers
-  const phonePatterns = [
-    // tel: links with invalid numbers
-    /href=["']tel:([^"']+)["']/gi,
-    // Visible phone patterns (7 digits without country code)
-    /(?<!\+\d{1,3}\s*)(?<!\d)\b(\d{3}[-.\s]?\d{4})\b(?!\d)/g,
-    // Patterns like (XXX) XXX-XXXX without proper country code
-    /(?<!\+\d{1,3}\s*)\(\d{3}\)\s*\d{3}[-.\s]?\d{4}/g,
-  ];
-  
-  // First, check if there are any invalid phone patterns
+
+  // 1) Replace obvious placeholder patterns first
   for (const pattern of INVALID_PHONE_PATTERNS) {
     const matches = result.match(pattern);
     if (matches) {
-      const replacement = generateRealisticPhone(geo);
       for (const match of matches) {
+        const replacement = generateRealisticPhone(geo);
         result = result.replace(match, replacement);
         fixed++;
       }
     }
   }
-  
-  // Check tel: links for invalid numbers
+
+  // 2) Fix tel: links (validate what is inside tel:)
   result = result.replace(/href=["']tel:([^"']+)["']/gi, (match, phone) => {
-    if (!isValidPhone(phone)) {
+    if (!isValidPhone(String(phone))) {
       const newPhone = generateRealisticPhone(geo);
       fixed++;
-      return `href="tel:${newPhone.replace(/[\s()-]/g, '')}"`;
+      // tel: should be digits-only (+ + digits)
+      const tel = newPhone.replace(/[^\d+]/g, "");
+      return `href="tel:${tel}"`;
     }
     return match;
   });
-  
-  // Find and fix visible phone numbers that look like just local parts (7 digits)
-  result = result.replace(/>(\s*\+?\s*)(\d{3}[-.\s]?\d{4})(\s*)</g, (match, before, phone, after) => {
-    const fullMatch = before + phone;
-    // Check if this looks like just a local number without country code
-    if (!/\+\d{1,3}/.test(fullMatch)) {
-      const newPhone = generateRealisticPhone(geo);
+
+  // 3) Fix any visible phone-like strings with a leading + (covers “+49 ... 4567890”, etc.)
+  // Example matches: +49 30 2897 6543, +1 (212) 647-3812, +380 44 239 4187
+  const PLUS_PHONE_REGEX = /\+\d[\d\s().-]{7,}\d/g;
+  result = result.replace(PLUS_PHONE_REGEX, (match) => {
+    if (!isValidPhone(match)) {
       fixed++;
-      return `>${before}${newPhone}${after}<`;
+      return generateRealisticPhone(geo);
     }
     return match;
   });
-  
+
+  // 4) Fix common “almost-phone” patterns in visible text that still slip through
+  // e.g. 8-10 digits without country code
+  const BARE_PHONE_REGEX = /\b\d{8,12}\b/g;
+  result = result.replace(BARE_PHONE_REGEX, (match) => {
+    // If it's already part of something like an ID, we still can't know; but user explicitly wants no bare locals.
+    // Treat as invalid and replace.
+    fixed++;
+    return generateRealisticPhone(geo);
+  });
+
   return { content: result, fixed };
 }
 
