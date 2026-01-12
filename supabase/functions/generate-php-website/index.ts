@@ -116,11 +116,12 @@ function fixPhoneNumbersInContent(content: string, geo?: string): { content: str
     return match;
   });
 
-  // 4) Catch bare 8-12 digit sequences (still considered invalid for output)
-  const BARE_PHONE_REGEX = /\b\d{8,12}\b/g;
-  result = result.replace(BARE_PHONE_REGEX, () => {
+  // 4) Fix bare local phone-like sequences ONLY when near phone/contact labels
+  // Avoid replacing arbitrary IDs/years/etc. (this could break JS/CSS and lead to blank sites).
+  const CONTEXTUAL_BARE_PHONE_REGEX = /(phone|tel|telephone|call|contact|контакт|телефон|тел\.?)[^\n\r]{0,25}\b(\d{8,12})\b/gi;
+  result = result.replace(CONTEXTUAL_BARE_PHONE_REGEX, (fullMatch, _label, digits) => {
     fixed++;
-    return generateRealisticPhone(geo);
+    return String(fullMatch).replace(String(digits), generateRealisticPhone(geo));
   });
 
   return { content: result, fixed };
