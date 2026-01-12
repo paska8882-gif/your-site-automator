@@ -9,6 +9,105 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ============ PHONE NUMBER VALIDATION & FIXING ============
+const INVALID_PHONE_PATTERNS = [
+  /\b\d{3}[-.\s]?\d{4}\b(?!\d)/g,
+  /\b\(?555\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/gi,
+  /\b123[-.\s]?456[-.\s]?7890\b/g,
+  /\b0{6,}\b/g,
+  /\b9{6,}\b/g,
+  /\b1{6,}\b/g,
+  /\bXXX[-.\s]?XXX[-.\s]?XXXX\b/gi,
+];
+
+function isValidPhone(phone: string): boolean {
+  const cleaned = phone.replace(/[^\d+]/g, '');
+  if (!cleaned.startsWith('+')) return false;
+  const digits = cleaned.replace(/\D/g, '');
+  if (digits.length < 10) return false;
+  if (/^(\d)\1{6,}$/.test(digits)) return false;
+  if (/123456|654321|4567890|7654321/.test(digits)) return false;
+  if (/555\d{7}/.test(digits)) return false;
+  return true;
+}
+
+function generateRealisticPhone(geo?: string): string {
+  const geoLower = (geo || '').toLowerCase();
+  const randomDigits = (count: number) => {
+    let result = '';
+    for (let i = 0; i < count; i++) result += Math.floor(Math.random() * 10).toString();
+    if (/^(\d)\1+$/.test(result)) return randomDigits(count);
+    return result;
+  };
+  
+  if (geoLower.includes('germany') || geoLower.includes('deutschland') || geoLower.includes('de')) {
+    const areaCodes = ['30', '40', '69', '89', '221', '211', '351'];
+    return `+49 ${areaCodes[Math.floor(Math.random() * areaCodes.length)]} ${randomDigits(3)} ${randomDigits(4)}`;
+  }
+  if (geoLower.includes('austria') || geoLower.includes('österreich')) return `+43 1 ${randomDigits(3)} ${randomDigits(4)}`;
+  if (geoLower.includes('switzerland') || geoLower.includes('schweiz')) return `+41 44 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
+  if (geoLower.includes('uk') || geoLower.includes('britain') || geoLower.includes('england')) return `+44 20 ${randomDigits(4)} ${randomDigits(4)}`;
+  if (geoLower.includes('france')) return `+33 1 ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)}`;
+  if (geoLower.includes('spain') || geoLower.includes('españa')) return `+34 91 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
+  if (geoLower.includes('italy') || geoLower.includes('italia')) return `+39 06 ${randomDigits(4)} ${randomDigits(4)}`;
+  if (geoLower.includes('netherlands')) return `+31 20 ${randomDigits(3)} ${randomDigits(4)}`;
+  if (geoLower.includes('poland') || geoLower.includes('polska')) return `+48 22 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
+  if (geoLower.includes('usa') || geoLower.includes('america') || geoLower.includes('canada')) {
+    const areaCodes = ['212', '310', '415', '312', '617', '305', '404', '416', '604'];
+    return `+1 (${areaCodes[Math.floor(Math.random() * areaCodes.length)]}) ${randomDigits(3)}-${randomDigits(4)}`;
+  }
+  if (geoLower.includes('ukrain') || geoLower.includes('україн')) return `+380 44 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
+  return `+49 30 ${randomDigits(3)} ${randomDigits(4)}`;
+}
+
+function fixPhoneNumbersInContent(content: string, geo?: string): { content: string; fixed: number } {
+  let fixed = 0;
+  let result = content;
+  
+  for (const pattern of INVALID_PHONE_PATTERNS) {
+    const matches = result.match(pattern);
+    if (matches) {
+      const replacement = generateRealisticPhone(geo);
+      for (const match of matches) {
+        result = result.replace(match, replacement);
+        fixed++;
+      }
+    }
+  }
+  
+  result = result.replace(/href=["']tel:([^"']+)["']/gi, (match, phone) => {
+    if (!isValidPhone(phone)) {
+      const newPhone = generateRealisticPhone(geo);
+      fixed++;
+      return `href="tel:${newPhone.replace(/[\s()-]/g, '')}"`;
+    }
+    return match;
+  });
+  
+  result = result.replace(/>(\s*\+?\s*)(\d{3}[-.\s]?\d{4})(\s*)</g, (match, before, phone, after) => {
+    if (!/\+\d{1,3}/.test(before + phone)) {
+      const newPhone = generateRealisticPhone(geo);
+      fixed++;
+      return `>${before}${newPhone}${after}<`;
+    }
+    return match;
+  });
+  
+  return { content: result, fixed };
+}
+
+function fixPhoneNumbersInFiles(files: Array<{ path: string; content: string }>, geo?: string): { files: Array<{ path: string; content: string }>; totalFixed: number } {
+  let totalFixed = 0;
+  const fixedFiles = files.map(file => {
+    if (!/\.(html?|php|jsx?|tsx?)$/i.test(file.path)) return file;
+    const { content, fixed } = fixPhoneNumbersInContent(file.content, geo);
+    totalFixed += fixed;
+    return { ...file, content };
+  });
+  return { files: fixedFiles, totalFixed };
+}
+// ============ END PHONE NUMBER VALIDATION ============
+
 const SYSTEM_PROMPT = `You are a prompt refiner for professional, multi-page React websites.
 
 Your job:
@@ -1742,10 +1841,20 @@ async function runBackgroundGeneration(
     const result = await runGeneration({ prompt, language, aiModel, layoutStyle, imageSource });
 
     if (result.success && result.files) {
-      // Create zip base64
+      // Extract geo from prompt for phone number generation
+      const geoMatch = prompt.match(/(?:geo|country|страна|країна|гео)[:\s]*([^\n,;]+)/i);
+      const geo = geoMatch ? geoMatch[1].trim() : undefined;
+      
+      // Fix invalid/placeholder phone numbers
+      const { files: fixedFiles, totalFixed } = fixPhoneNumbersInFiles(result.files, geo);
+      if (totalFixed > 0) {
+        console.log(`[BG] Fixed ${totalFixed} invalid phone number(s) in React files`);
+      }
+      
+      // Create zip base64 with fixed files
       const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");
       const zip = new JSZip();
-      result.files.forEach((file) => zip.file(file.path, file.content));
+      fixedFiles.forEach((file) => zip.file(file.path, file.content));
       const zipBase64 = await zip.generateAsync({ type: "base64" });
 
       // Update with success including generation cost and completion time
@@ -1755,7 +1864,7 @@ async function runBackgroundGeneration(
         .from("generation_history")
         .update({
           status: "completed",
-          files_data: result.files,
+          files_data: fixedFiles,
           zip_data: zipBase64,
           generation_cost: generationCost,
           specific_ai_model: result.specificModel || null,
@@ -1768,11 +1877,11 @@ async function runBackgroundGeneration(
         user_id: userId,
         type: "generation_complete",
         title: "React сайт згенеровано",
-        message: `React сайт успішно створено (${result.files.length} файлів)`,
-        data: { historyId, filesCount: result.files.length }
+        message: `React сайт успішно створено (${fixedFiles.length} файлів)`,
+        data: { historyId, filesCount: fixedFiles.length }
       });
 
-      console.log(`[BG] React generation completed for ${historyId}: ${result.files.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}`);
+      console.log(`[BG] React generation completed for ${historyId}: ${fixedFiles.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}`);
     } else {
       // REFUND balance on failure
       if (teamId && salePrice > 0) {
