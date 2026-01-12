@@ -10,6 +10,26 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Normalize duplicate country code patterns produced by the model.
+  // Examples:
+  // - "+353+353 1 234 5678" -> "+353 1 234 5678"
+  // - "+353 353 1 234 5678" -> "+353 1 234 5678"
+  // - "tel:+3533531234567" -> "tel:+3531234567"
+  const normalizeDuplicateCountryCodes = (text: string) => {
+    let out = text;
+
+    // 1) Two explicit +codes
+    out = out.replace(/\+(\d{1,3})\s*\+\s*\1\b/g, (_m, code) => `+${code}`);
+
+    // 2) "+code code" (second code without +)
+    out = out.replace(/\+(\d{1,3})\s+\1\b/g, (_m, code) => `+${code}`);
+
+    // 3) Digits form: "+353353..." (code repeated immediately)
+    out = out.replace(/\+(\d{1,3})\1(\d{6,})\b/g, (_m, code, rest) => `+${code}${rest}`);
+
+    return out;
+  };
+
   try {
     const { prompt } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -130,12 +150,12 @@ serve(async (req) => {
 - Пиши конкретно та професійно
 - Кожен пункт має бути змістовним
 - Без зайвих пробілів, переносів та спецсимволів
-- Одразу починай з технічного завдання без вступних фраз`
+- Одразу починай з технічного завдання без вступних фраз`,
           },
           {
             role: "user",
-            content: prompt.trim()
-          }
+            content: prompt.trim(),
+          },
         ],
       }),
     });
@@ -146,7 +166,7 @@ serve(async (req) => {
 
     if (!response.ok) {
       console.error("AI gateway error:", response.status, responseText.substring(0, 500));
-      
+
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Занадто багато запитів. Спробуйте пізніше." }),
@@ -159,7 +179,7 @@ serve(async (req) => {
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      
+
       throw new Error(`AI gateway error: ${response.status}`);
     }
 
@@ -179,12 +199,14 @@ serve(async (req) => {
       throw new Error("Помилка парсингу відповіді AI. Спробуйте ще раз.");
     }
 
-    const improvedPrompt = data.choices?.[0]?.message?.content;
+    const improvedPromptRaw = data.choices?.[0]?.message?.content;
 
-    if (!improvedPrompt) {
+    if (!improvedPromptRaw) {
       console.error("No content in AI response:", JSON.stringify(data).substring(0, 500));
       throw new Error("AI не повернув результат. Спробуйте ще раз.");
     }
+
+    const improvedPrompt = normalizeDuplicateCountryCodes(String(improvedPromptRaw));
 
     console.log("Prompt improved successfully, length:", improvedPrompt.length);
 
