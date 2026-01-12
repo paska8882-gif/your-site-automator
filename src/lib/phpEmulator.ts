@@ -3,7 +3,13 @@
  * Supports: includes, config constants, echo, date(), simple if conditions
  */
 
+/**
+ * PHP Emulator - client-side parsing of PHP files for preview
+ * Supports: includes, config constants, echo, date(), simple if conditions
+ */
+
 import { GeneratedFile } from "./websiteGenerator";
+import { inlineLocalImages } from "@/lib/inlineAssets";
 
 export interface PhpEmulatorContext {
   files: GeneratedFile[];
@@ -230,10 +236,9 @@ function inlineCssFiles(html: string, files: GeneratedFile[]): string {
   return result;
 }
 
-/** Inline images as base64 or keep paths */
+/** Inline images (SVGs) so preview doesn't show "broken image" icons */
 function processImages(html: string, files: GeneratedFile[]): string {
-  // For now, just keep image paths - in a real implementation we'd convert to base64
-  return html;
+  return inlineLocalImages(html, files);
 }
 
 /** Main function: emulate a PHP page and return HTML */
