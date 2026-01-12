@@ -326,12 +326,22 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, CONTENT-RICH PROFESS
 </section>
 \`\`\`
 
-🚨 **IMAGE RULES:**
-- Hero: Use <img> inside hero-visual div, max 820x580
-- Section images: max 760x560
+🚨 **IMAGE RULES - CRITICAL FOR PREVENTING OVERLAP:**
+- Hero: Use SINGLE <img> inside hero-visual div, max 820x580
+- Section images: SINGLE <img> inside media-visual div, max 760x560
 - Card images: NOT required, cards are text-based
 - Use picsum.photos/seed/[unique-name]/WxH for consistent images
 - NEVER full-screen images (no 100vw, 100vh)
+- NEVER use position:absolute on images
+- NEVER place multiple images in the same container
+- NEVER use background-image combined with <img> tag in same element
+- Each image container (.hero-visual, .media-visual) must have ONLY ONE <img> child
+
+🚫 **ABSOLUTE PROHIBITION - IMAGE OVERLAP:**
+- NEVER generate an <img> tag on top of another <img>
+- NEVER use CSS that positions one image over another
+- NEVER use ::before or ::after pseudo-elements with background-image near <img> tags
+- Each visual container must have exactly ONE image source, not multiple
 
 **❌ WHAT NEVER TO DO:**
 - Empty pages or sections
@@ -342,6 +352,8 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, CONTENT-RICH PROFESS
 - Lists with only 1-2 items
 - Sections without section-header
 - Images without proper sizing constraints
+- MULTIPLE IMAGES IN SAME CONTAINER
+- OVERLAPPING IMAGES
 
 **🎨 CRITICAL DESIGN RULES - UNIQUE STYLING FOR EACH SITE:**
 
@@ -2939,12 +2951,36 @@ section.light, .section.light {
   color: var(--text-muted);
 }
 
+/* HERO VISUAL - PREVENT IMAGE OVERLAP */
+.hero-visual {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  z-index: 1;
+  isolation: isolate;
+}
+
 .hero-visual img {
+  position: relative !important;
+  display: block;
   width: 100%;
   max-width: 820px;
   height: auto;
+  max-height: 580px;
+  object-fit: cover;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
+  z-index: 1;
+}
+
+/* Prevent any absolute positioned elements inside hero-visual */
+.hero-visual::before,
+.hero-visual::after {
+  display: none !important;
+}
+
+.hero-visual * {
+  position: relative !important;
 }
 
 /* STATS SECTION */
@@ -3090,12 +3126,36 @@ section.light, .section.light {
   flex-wrap: wrap;
 }
 
+/* MEDIA VISUAL - PREVENT IMAGE OVERLAP */
+.media-visual {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  z-index: 1;
+  isolation: isolate;
+}
+
 .media-visual img {
+  position: relative !important;
+  display: block;
   width: 100%;
   max-width: 760px;
   height: auto;
+  max-height: 560px;
+  object-fit: cover;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
+  z-index: 1;
+}
+
+/* Prevent any absolute positioned elements inside media-visual */
+.media-visual::before,
+.media-visual::after {
+  display: none !important;
+}
+
+.media-visual * {
+  position: relative !important;
 }
 
 /* TIMELINE */
