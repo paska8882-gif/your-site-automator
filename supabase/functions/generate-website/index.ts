@@ -186,7 +186,7 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, CONTENT-RICH PROFESS
 - Lists MUST have 3+ bullet points with full sentences
 - Stats MUST have 3+ metrics with numbers and labels
 
-**MANDATORY HERO STRUCTURE (SPLIT LAYOUT):**
+**MANDATORY HERO STRUCTURE (SPLIT LAYOUT) - FOLLOW EXACTLY:**
 \`\`\`html
 <section class="page-hero homepage-hero">
   <div class="hero-inner">
@@ -211,6 +211,13 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, CONTENT-RICH PROFESS
   </div>
 </section>
 \`\`\`
+
+🚨 **HERO CRITICAL RULES - NO EXCEPTIONS:**
+- The page-hero section MUST NOT have style="" attribute
+- The page-hero section MUST NOT have background-image
+- ONLY ONE class="" attribute per element - NEVER duplicate class attributes
+- The ONLY image in hero is inside hero-visual div as an <img> tag
+- hero-visual MUST contain EXACTLY ONE <img> element, nothing else
 
 **MANDATORY STATS SECTION:**
 \`\`\`html
@@ -343,7 +350,7 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, CONTENT-RICH PROFESS
 - NEVER use ::before or ::after pseudo-elements with background-image near <img> tags
 - Each visual container must have exactly ONE image source, not multiple
 
-**❌ WHAT NEVER TO DO:**
+**❌ WHAT NEVER TO DO - ABSOLUTE PROHIBITIONS:**
 - Empty pages or sections
 - Plain unstyled text without structure
 - Missing section labels
@@ -354,6 +361,16 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, CONTENT-RICH PROFESS
 - Images without proper sizing constraints
 - MULTIPLE IMAGES IN SAME CONTAINER
 - OVERLAPPING IMAGES
+- Using style="background-image:..." on page-hero section
+- Duplicate class="" attributes on any element (class="x" class="y" is INVALID HTML)
+- Adding inline styles to hero sections
+- Using background-image AND <img> tag in the same visual context
+
+**🚫 HTML SYNTAX RULES - NEVER VIOLATE:**
+- Each HTML element can have ONLY ONE class attribute
+- WRONG: <section class="page-hero" style="..." class="another">
+- CORRECT: <section class="page-hero homepage-hero">
+- page-hero sections must NOT have style="" attribute at all
 
 **🎨 CRITICAL DESIGN RULES - UNIQUE STYLING FOR EACH SITE:**
 
@@ -4034,48 +4051,48 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
         });
       }
       
-      // Fix 3: Ensure hero section has background-image (SAFE VERSION - no breaking HTML)
-      // Only add background-image if hero section exists AND has style attribute with space for it
-      // OR add as inline style properly
-      const heroWithoutBgPattern = /<section([^>]*class=["'][^"']*hero[^"']*["'])([^>]*)>/gi;
-      let heroMatch;
-      const heroMatches: string[] = [];
-      const heroOriginal = content;
-      
-      // Collect all hero matches first to avoid regex issues during replacement
-      while ((heroMatch = heroWithoutBgPattern.exec(heroOriginal)) !== null) {
-        heroMatches.push(heroMatch[0]);
-      }
-      
-      for (const match of heroMatches) {
-        // Skip if already has background-image
-        if (match.includes('background-image')) continue;
-        
-        const heroRandomNum = 50 + imageCounter++;
-        const bgUrl = `https://picsum.photos/1920/1080?random=${heroRandomNum}`;
-        
-        // Check if has existing style attribute
-        if (match.includes('style="') || match.includes("style='")) {
-          // Append to existing style
-          const newMatch = match.replace(
-            /style=["']([^"']*)["']/i, 
-            `style="$1 background-image: url('${bgUrl}'); background-size: cover; background-position: center;"`
-          );
-          content = content.replace(match, newMatch);
-        } else {
-          // Add new style attribute before closing >
-          const newMatch = match.replace(
-            />$/,
-            ` style="background-image: url('${bgUrl}'); background-size: cover; background-position: center;">`
-          );
-          content = content.replace(match, newMatch);
+      // Fix 3: REMOVE background-image from hero sections that have <img> inside hero-visual
+      // This prevents image overlap issues
+      const heroSectionPattern = /<section([^>]*class=["'][^"']*(?:page-hero|homepage-hero)[^"']*["'])([^>]*)>/gi;
+      content = content.replace(heroSectionPattern, (match, classAttr, restAttrs) => {
+        // Remove style attribute with background-image
+        if (restAttrs.includes('background-image')) {
+          console.log(`🧹 Removing background-image from hero section in ${file.path} (conflicts with hero-visual img)`);
+          restAttrs = restAttrs.replace(/\s*style=["'][^"']*background-image[^"']*["']/gi, '');
+          fixedCount++;
         }
-        fixedCount++;
-        console.log(`🖼️ Added background-image to hero section in ${file.path}`);
-      }
+        return `<section${classAttr}${restAttrs}>`;
+      });
       
-      // Fix 4: If index.html has no hero with background AND no hero at all, skip
-      // (Don't add background to non-hero sections)
+      // Fix 4: Fix duplicate class="" attributes (CRITICAL - invalid HTML)
+      // Pattern: class="something" followed by another class="something"
+      content = content.replace(
+        /<([a-z][a-z0-9]*)\s+([^>]*class=["'][^"']*["'])([^>]*)(class=["'][^"']*["'])([^>]*)>/gi,
+        (match, tag, firstClass, middle, duplicateClass, rest) => {
+          // Merge the classes
+          const class1Match = firstClass.match(/class=["']([^"']*)["']/);
+          const class2Match = duplicateClass.match(/class=["']([^"']*)["']/);
+          
+          if (class1Match && class2Match) {
+            const mergedClasses = `${class1Match[1]} ${class2Match[1]}`.trim();
+            console.log(`🔧 Fixed duplicate class attributes in ${file.path}: merging "${class1Match[1]}" + "${class2Match[1]}"`);
+            fixedCount++;
+            return `<${tag} class="${mergedClasses}"${middle}${rest}>`;
+          }
+          return match;
+        }
+      );
+      
+      // Fix 5: Remove background-image from style if section contains hero-visual with img
+      // More aggressive cleanup for hero sections
+      const heroWithBgAndImg = /<section([^>]*class=["'][^"']*hero[^"']*["'][^>]*style=["'][^"']*background-image[^"']*["'][^>]*)>([\s\S]*?<div[^>]*class=["'][^"']*hero-visual[^"']*["'][^>]*>[\s\S]*?<img[\s\S]*?<\/div>)/gi;
+      content = content.replace(heroWithBgAndImg, (match, sectionAttrs, innerContent) => {
+        // Remove background-image from section style
+        const cleanedAttrs = sectionAttrs.replace(/style=["'][^"']*["']/gi, '');
+        console.log(`🧹 Removed conflicting background-image from hero with img in ${file.path}`);
+        fixedCount++;
+        return `<section${cleanedAttrs}>${innerContent}`;
+      });
       
       // Fix 5: Constrain image sizes - add max-height to any images missing it
       // Replace full-width images with constrained versions
