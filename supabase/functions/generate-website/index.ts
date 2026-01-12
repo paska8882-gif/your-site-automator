@@ -159,54 +159,189 @@ const LAYOUT_VARIATIONS = [
   }
 ];
 
-const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, PROFESSIONAL MULTI-PAGE WEBSITE
+const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, CONTENT-RICH PROFESSIONAL WEBSITE
 
-🚨🚨🚨 ABSOLUTE CRITICAL - MUST NOT GENERATE EMPTY PAGES 🚨🚨🚨
+🚨🚨🚨 REFERENCE QUALITY STANDARD - FOLLOW THIS STRUCTURE 🚨🚨🚨
 
-**EVERY PAGE MUST HAVE VISIBLE CONTENT:**
-- index.html MUST have: header, hero with background image, at least 5 content sections, footer
-- All pages MUST have proper text content visible to users
-- NEVER generate pages with only whitespace or empty sections
-- Body content must be at least 2000 characters on main pages
+**MANDATORY PAGE STRUCTURE (index.html must have ALL of these):**
+1. Header with navigation
+2. Hero section (split layout: text + image side by side)
+3. Stats/metrics section with big numbers (3-4 stats)
+4. Featured cards section (4 cards with titles, descriptions, meta)
+5. Media object section (text + image side by side)
+6. Timeline/process steps section (4 numbered steps)
+7. Contact/CTA form section
+8. Footer
 
-🚨🚨🚨 IMAGE RULES (VIOLATING = FAILURE) 🚨🚨🚨
+**EVERY SECTION MUST HAVE:**
+- Section label (small badge above title): <span class="section-label">Section Topic</span>
+- Main heading: <h2>Clear compelling title</h2>
+- Description paragraph: <p>Detailed explanation...</p>
+- Actual content (lists, cards, stats, forms)
 
-**IMAGE SIZING - NEVER FULL-SCREEN IMAGES:**
-- Hero: Use background-image (NOT <img>), min-height 60vh, max-height 70vh
-- Card images: max-width 100%, max-height 300px, object-fit: cover
-- Section images: max-width 500px, height auto
-- NEVER use: width: 100vw, height: 100vh on images
-- All images must be contextual and sized appropriately
+🎯 **CONTENT DENSITY REQUIREMENTS:**
+- Homepage MUST have 6+ content sections
+- Each section MUST have 100+ words of real text
+- Cards MUST have title + description + meta info
+- Lists MUST have 3+ bullet points with full sentences
+- Stats MUST have 3+ metrics with numbers and labels
 
-**YOU MUST USE REAL PHOTOS - NEVER ICONS OR PLACEHOLDERS:**
-- HERO SECTION MUST have background-image with picsum.photos URL
-- ALL <img> tags MUST use picsum.photos URLs with DIFFERENT random numbers
-- NEVER use inline SVG icons as main images
-- NEVER use data:image URLs
-
-**CORRECT HERO EXAMPLE (MANDATORY STRUCTURE):**
+**MANDATORY HERO STRUCTURE (SPLIT LAYOUT):**
 \`\`\`html
-<section class="hero" style="background-image: url('https://picsum.photos/1920/1080?random=1'); min-height: 60vh; max-height: 70vh; background-size: cover; background-position: center;">
-  <div class="hero-overlay"></div>
-  <div class="hero-content container">
-    <h1>Site Title</h1>
-    <p>Subtitle text here</p>
-    <a href="contact.html" class="btn btn-primary">Contact Us</a>
+<section class="page-hero homepage-hero">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <span class="badge">Tagline here</span>
+      <h1>Main headline that explains value proposition clearly.</h1>
+      <p>Detailed paragraph explaining what you do, who you help, and why it matters. This should be 2-3 sentences minimum.</p>
+      <div class="hero-actions">
+        <a class="cta-button" href="contact.html">Primary Action</a>
+        <a class="button-outline" href="services.html">Secondary Action</a>
+      </div>
+      <div class="tag-pills">
+        <span>Feature 1</span>
+        <span>Feature 2</span>
+        <span>Feature 3</span>
+        <span>Feature 4</span>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <img src="https://picsum.photos/seed/hero-main/820/580" alt="Hero visual">
+    </div>
   </div>
 </section>
 \`\`\`
 
-**CORRECT IMAGE EXAMPLE (CONSTRAINED SIZE):**
+**MANDATORY STATS SECTION:**
 \`\`\`html
-<img src="https://picsum.photos/600/400?random=2" alt="Description" loading="lazy" style="max-height: 300px; object-fit: cover;">
+<section class="section">
+  <div class="section-inner">
+    <div class="section-header">
+      <span class="section-label">Key Metrics</span>
+      <h2>Compelling headline about achievements</h2>
+      <p>Brief description of what these numbers mean.</p>
+    </div>
+    <div class="stats-highlight">
+      <ul class="highlight-list">
+        <li>First key point with detailed explanation.</li>
+        <li>Second key point with detailed explanation.</li>
+        <li>Third key point with detailed explanation.</li>
+      </ul>
+      <div class="stats-numbers">
+        <div><div class="stat-number">€4.6B</div><div class="stat-caption">Metric description</div></div>
+        <div><div class="stat-number">72 hrs</div><div class="stat-caption">Metric description</div></div>
+        <div><div class="stat-number">98%</div><div class="stat-caption">Metric description</div></div>
+      </div>
+    </div>
+  </div>
+</section>
 \`\`\`
 
-**WRONG (NEVER DO THIS):**
-- ❌ <img src="placeholder.svg"> 
-- ❌ <img style="width: 100vw; height: 100vh;"> - TOO BIG!
-- ❌ <svg>...</svg> as main content image
-- ❌ Hero section without background-image
-- ❌ Empty pages with no visible content
+**MANDATORY CARDS GRID:**
+\`\`\`html
+<section class="section light">
+  <div class="section-inner">
+    <div class="section-header">
+      <span class="section-label">Services</span>
+      <h2>What we offer</h2>
+      <p>Brief intro to services.</p>
+    </div>
+    <div class="grid featured-grid">
+      <article class="card">
+        <h3>Service Title</h3>
+        <p>Detailed description of service with real information.</p>
+        <div class="card-meta">Additional info</div>
+      </article>
+      <!-- 3-4 more cards -->
+    </div>
+  </div>
+</section>
+\`\`\`
+
+**MANDATORY MEDIA OBJECT (TEXT + IMAGE):**
+\`\`\`html
+<section class="section">
+  <div class="section-inner">
+    <div class="media-object">
+      <div class="media-copy">
+        <span class="section-label">About</span>
+        <h3>Compelling headline about approach</h3>
+        <p>Detailed paragraph about methodology and approach.</p>
+        <ul>
+          <li>Key benefit with explanation.</li>
+          <li>Second benefit with explanation.</li>
+          <li>Third benefit with explanation.</li>
+        </ul>
+        <div class="cta-buttons">
+          <a class="cta-button" href="about.html">Learn More</a>
+        </div>
+      </div>
+      <div class="media-visual">
+        <img src="https://picsum.photos/seed/about-img/760/560" alt="Description">
+      </div>
+    </div>
+  </div>
+</section>
+\`\`\`
+
+**MANDATORY TIMELINE/PROCESS:**
+\`\`\`html
+<section class="section light">
+  <div class="section-inner">
+    <div class="section-header">
+      <span class="section-label">Process</span>
+      <h2>How we work</h2>
+    </div>
+    <div class="timeline">
+      <div class="timeline-step">
+        <h3>1 · Step Title</h3>
+        <p>Detailed description of this step.</p>
+      </div>
+      <!-- 3-4 steps -->
+    </div>
+  </div>
+</section>
+\`\`\`
+
+**MANDATORY CONTACT FORM:**
+\`\`\`html
+<section class="section">
+  <div class="section-inner">
+    <div class="section-header">
+      <span class="section-label">Contact</span>
+      <h2>Get in touch</h2>
+      <p>Description of what happens when they contact.</p>
+    </div>
+    <div class="form-card">
+      <form class="form-grid">
+        <div class="form-grid two-columns">
+          <div class="form-group"><label>Name</label><input type="text" required></div>
+          <div class="form-group"><label>Email</label><input type="email" required></div>
+        </div>
+        <div class="form-group"><label>Message</label><textarea required></textarea></div>
+        <button type="submit" class="cta-button">Submit</button>
+      </form>
+    </div>
+  </div>
+</section>
+\`\`\`
+
+🚨 **IMAGE RULES:**
+- Hero: Use <img> inside hero-visual div, max 820x580
+- Section images: max 760x560
+- Card images: NOT required, cards are text-based
+- Use picsum.photos/seed/[unique-name]/WxH for consistent images
+- NEVER full-screen images (no 100vw, 100vh)
+
+**❌ WHAT NEVER TO DO:**
+- Empty pages or sections
+- Plain unstyled text without structure
+- Missing section labels
+- Cards without descriptions
+- Forms without proper labels
+- Lists with only 1-2 items
+- Sections without section-header
+- Images without proper sizing constraints
 
 **🎨 CRITICAL DESIGN RULES - UNIQUE STYLING FOR EACH SITE:**
 
@@ -2573,14 +2708,34 @@ textarea {
 }
 
 /* SECTIONS */
-section {
+section, .section {
   padding: 80px 0;
+}
+
+section.light, .section.light {
+  background: var(--light-gray);
+}
+
+.section-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
 }
 
 .section-header {
   text-align: center;
   max-width: 700px;
   margin: 0 auto 60px;
+}
+
+.section-label {
+  display: inline-block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent-color);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
 }
 
 .section-title {
@@ -2593,6 +2748,328 @@ section {
   font-size: 1.1rem;
   color: var(--text-muted);
   line-height: 1.7;
+}
+
+/* HERO - SPLIT LAYOUT */
+.page-hero, .homepage-hero {
+  padding: 100px 0 80px;
+  background: var(--white);
+}
+
+.hero-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+}
+
+.hero-copy {
+  max-width: 560px;
+}
+
+.hero-copy .badge {
+  display: inline-block;
+  background: linear-gradient(135deg, var(--light-gray), #e8f4f8);
+  color: var(--heading-color);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 20px;
+}
+
+.hero-copy h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 20px;
+}
+
+.hero-copy > p {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin-bottom: 28px;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.cta-button {
+  display: inline-block;
+  background: var(--accent-color);
+  color: var(--white);
+  padding: 14px 28px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.cta-button:hover {
+  background: #1d4ed8;
+  transform: translateY(-2px);
+  text-decoration: none;
+}
+
+.button-outline {
+  display: inline-block;
+  background: transparent;
+  color: var(--accent-color);
+  padding: 14px 28px;
+  border: 2px solid var(--accent-color);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.button-outline:hover {
+  background: var(--accent-color);
+  color: var(--white);
+  text-decoration: none;
+}
+
+.tag-pills {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tag-pills span {
+  background: var(--light-gray);
+  color: var(--heading-color);
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.hero-visual img {
+  width: 100%;
+  max-width: 820px;
+  height: auto;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* STATS SECTION */
+.stats-highlight {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: start;
+}
+
+.highlight-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.highlight-list li {
+  position: relative;
+  padding-left: 28px;
+  margin-bottom: 20px;
+  line-height: 1.7;
+  color: var(--text-color);
+}
+
+.highlight-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 8px;
+  height: 8px;
+  background: var(--accent-color);
+  border-radius: 50%;
+}
+
+.stats-numbers {
+  display: grid;
+  gap: 24px;
+}
+
+.stat-number {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  color: var(--accent-color);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.stat-caption {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+/* FEATURED GRID */
+.featured-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px;
+}
+
+.featured-grid .card {
+  background: var(--white);
+  padding: 28px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  transition: var(--transition);
+}
+
+.featured-grid .card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-4px);
+}
+
+.featured-grid .card h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.featured-grid .card p {
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.card-meta {
+  font-size: 0.85rem;
+  color: var(--accent-color);
+  font-weight: 500;
+}
+
+/* MEDIA OBJECT */
+.media-object {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+}
+
+.media-copy {
+  max-width: 520px;
+}
+
+.media-copy h3 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.media-copy > p {
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+
+.media-copy ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+}
+
+.media-copy ul li {
+  position: relative;
+  padding-left: 24px;
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.media-copy ul li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  background: var(--accent-color);
+  border-radius: 50%;
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.media-visual img {
+  width: 100%;
+  max-width: 760px;
+  height: auto;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+/* TIMELINE */
+.timeline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 32px;
+}
+
+.timeline-step {
+  position: relative;
+  padding: 24px;
+  background: var(--white);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.timeline-step h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--heading-color);
+}
+
+.timeline-step p {
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* FORM CARD */
+.form-card {
+  background: var(--white);
+  padding: 40px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-grid.two-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 992px) {
+  .hero-inner, .media-object, .stats-highlight {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  
+  .form-grid.two-columns {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* CARDS & GRIDS */
