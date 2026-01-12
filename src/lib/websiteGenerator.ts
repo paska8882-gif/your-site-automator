@@ -178,16 +178,12 @@ export async function startGeneration(
 
   try {
     // Always try to get a fresh token first to avoid expired token issues
-    let accessToken = await getFreshAccessToken();
-    
-    if (!accessToken) {
-      // Fallback to current session if refresh fails
-      const { data: { session } } = await supabase.auth.getSession();
-      accessToken = session?.access_token || null;
-    }
+    const accessToken = await getFreshAccessToken();
 
+    // IMPORTANT: Do NOT fall back to a potentially expired session token.
+    // If refresh fails, force the UI to re-authenticate.
     if (!accessToken) {
-      return { success: false, error: "Необхідна авторизація. Будь ласка, увійдіть знову." };
+      return { success: false, error: "Сесія закінчилась. Будь ласка, увійдіть знову." };
     }
 
     let resp = await makeRequest(accessToken);
