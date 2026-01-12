@@ -668,6 +668,8 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo) {
 - Images that are too large or too small
 - Newsletter sections with basic unstyled inputs
 - Mixed styling within same page
+- **PLAIN/UNSTYLED FORM FIELDS** (raw input, select, textarea without styling)
+- Browser-default form elements without custom borders/backgrounds/radius
 
 **✅ WHAT TO DO:**
 - All categories/services in styled cards with icons or borders
@@ -675,6 +677,13 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo) {
 - Uniform card styling with shadows and hover effects
 - Properly sized images (200-400px height max)
 - Styled newsletter with gradient background
+- **ALL form elements (input, select, textarea) MUST have:**
+  - Custom border (1px solid with theme color)
+  - Rounded corners (border-radius from theme)
+  - Padding (12-16px)
+  - Background color (white or theme background)
+  - Focus state with box-shadow
+  - Consistent font-family and font-size
 
 **SECTIONS & CONTAINERS:**
 \`\`\`css
@@ -2286,6 +2295,87 @@ img {
   height: auto;
   display: block;
   object-fit: cover;
+}
+
+/* FORM ELEMENTS - ALWAYS STYLED, NEVER PLAIN */
+input, select, textarea {
+  font-family: var(--font-family-body);
+  font-size: 1rem;
+  padding: 12px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--text-color);
+  transition: var(--transition);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted);
+}
+
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23718096' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+  cursor: pointer;
+}
+
+textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+/* Form layouts */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--heading-color);
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.form-row .form-group {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* Search forms */
+.search-form, .filter-form {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.search-form input[type="search"],
+.search-form input[type="text"] {
+  flex: 1;
+  min-width: 250px;
+}
+
+.search-form select,
+.filter-form select {
+  min-width: 180px;
+  width: auto;
 }
 
 .container {
