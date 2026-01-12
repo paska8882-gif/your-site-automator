@@ -32,6 +32,26 @@ function isValidPhone(phone: string): boolean {
   const digits = cleaned.replace(/\D/g, '');
   if (digits.length < 10) return false;
   
+  // Check for DUPLICATE country codes (e.g., +353+353, +49+49, etc.)
+  // This catches patterns like "+353 +353 1 234 5678" or "+49 +49 30 1234"
+  if (/\+\d+.*\+\d+/.test(phone)) return false; // Multiple + signs = duplicate codes
+  
+  // Check for repeated country code at start of digits (e.g., 353353..., 4949...)
+  // Common codes: 1-3 digits. If first 2-3 digits repeat immediately, it's likely duplicate
+  const digitsOnly = cleaned.replace(/[^\d]/g, '');
+  for (let codeLen = 1; codeLen <= 3; codeLen++) {
+    const potentialCode = digitsOnly.substring(0, codeLen);
+    const afterCode = digitsOnly.substring(codeLen);
+    if (afterCode.startsWith(potentialCode) && potentialCode.length >= 1) {
+      // Could be false positive for valid numbers, so be careful
+      // Only flag if the duplicate is at the very start
+      const doubleCode = potentialCode + potentialCode;
+      if (digitsOnly.startsWith(doubleCode)) {
+        return false; // Likely duplicate country code
+      }
+    }
+  }
+  
   // Check for placeholder patterns
   if (/^(\d)\1{6,}$/.test(digits)) return false; // All same digit
   if (/123456|654321|4567890|7654321/.test(digits)) return false; // Sequential
@@ -114,6 +134,16 @@ function generateRealisticPhone(geo?: string): string {
   // Ukraine
   if (geoLower.includes('ukrain') || geoLower.includes('україн') || geoLower.includes('ua')) {
     return `+380 44 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
+  }
+  
+  // Ireland
+  if (geoLower.includes('ireland') || geoLower.includes('ie') || geoLower.includes('irl') || geoLower.includes('éire')) {
+    return `+353 1 ${randomDigits(3)} ${randomDigits(4)}`;
+  }
+  
+  // Czech Republic
+  if (geoLower.includes('czech') || geoLower.includes('cz') || geoLower.includes('česk')) {
+    return `+420 2 ${randomDigits(4)} ${randomDigits(4)}`;
   }
   
   // Default: European format

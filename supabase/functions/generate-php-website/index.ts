@@ -25,6 +25,23 @@ function isValidPhone(phone: string): boolean {
   if (!cleaned.startsWith('+')) return false;
   const digits = cleaned.replace(/\D/g, '');
   if (digits.length < 10) return false;
+  
+  // Check for DUPLICATE country codes (e.g., +353+353, +49+49, etc.)
+  if (/\+\d+.*\+\d+/.test(phone)) return false; // Multiple + signs = duplicate codes
+  
+  // Check for repeated country code at start of digits
+  const digitsOnly = cleaned.replace(/[^\d]/g, '');
+  for (let codeLen = 1; codeLen <= 3; codeLen++) {
+    const potentialCode = digitsOnly.substring(0, codeLen);
+    const afterCode = digitsOnly.substring(codeLen);
+    if (afterCode.startsWith(potentialCode) && potentialCode.length >= 1) {
+      const doubleCode = potentialCode + potentialCode;
+      if (digitsOnly.startsWith(doubleCode)) {
+        return false; // Likely duplicate country code
+      }
+    }
+  }
+  
   if (/^(\d)\1{6,}$/.test(digits)) return false;
   if (/123456|654321|4567890|7654321/.test(digits)) return false;
   if (/555\d{7}/.test(digits)) return false;
@@ -57,6 +74,8 @@ function generateRealisticPhone(geo?: string): string {
     return `+1 (${areaCodes[Math.floor(Math.random() * areaCodes.length)]}) ${randomDigits(3)}-${randomDigits(4)}`;
   }
   if (geoLower.includes('ukrain') || geoLower.includes('україн')) return `+380 44 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
+  if (geoLower.includes('ireland') || geoLower.includes('ie') || geoLower.includes('éire')) return `+353 1 ${randomDigits(3)} ${randomDigits(4)}`;
+  if (geoLower.includes('czech') || geoLower.includes('cz')) return `+420 2 ${randomDigits(4)} ${randomDigits(4)}`;
   return `+49 30 ${randomDigits(3)} ${randomDigits(4)}`;
 }
 
