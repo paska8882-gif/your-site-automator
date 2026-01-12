@@ -166,21 +166,24 @@ EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
 
 **PHONE NUMBER - REQUIRED IN FOOTER ONLY:**
 - MUST appear in FOOTER on ALL pages (NOT in header!)
-- MUST be realistic for the country/GEO (see examples below)
-- MUST be clickable: <a href="tel:+491234567890">+49 123 456 7890</a>
-- NEVER use fake numbers like 123456, 555-1234, XXX, or placeholders
+- MUST be realistic for the country/GEO
+- MUST be clickable (tel:): <a href="tel:+493028976543">+49 30 2897 6543</a>
+- The visible text MUST include the country code with "+" and spacing (never a bare local number)
+- MUST be at least 10 digits total (excluding spaces, parentheses, dashes)
+- NEVER output only the local part like "4567890" (INVALID)
+- NEVER use placeholder patterns: 123456, 4567890, 555-1234, XXX, 000000, 999999, (555)
 - Examples by country:
-  * Germany: +49 30 2897 6543, +49 89 4521 7890
-  * Poland: +48 22 456 78 90, +48 12 345 67 89
-  * Spain: +34 912 456 789, +34 932 876 543
-  * France: +33 1 42 68 53 00, +33 4 93 45 67 89
-  * Italy: +39 06 8745 6321, +39 02 7654 3210
+  * Germany: +49 30 2897 6543, +49 89 4521 7892
+  * Poland: +48 22 593 27 41, +48 12 784 63 19
+  * Spain: +34 912 643 781, +34 932 815 604
+  * France: +33 1 42 68 53 21, +33 4 93 45 67 12
+  * Italy: +39 06 8745 6321, +39 02 7654 3219
   * UK: +44 20 7946 0958, +44 161 496 0753
-  * USA: +1 (212) 456-7890, +1 (415) 789-0123
+  * USA: +1 (212) 647-3812, +1 (415) 781-2046
   * Netherlands: +31 20 794 5682
-  * Czech Republic: +420 221 456 789
-  * Ukraine: +380 44 456 7890
-  * Austria: +43 1 234 5678
+  * Czech Republic: +420 221 643 781
+  * Ukraine: +380 44 239 4187
+  * Austria: +43 1 239 4187
 
 **EMAIL - REQUIRED IN FOOTER ONLY:**
 - MUST appear in FOOTER on ALL pages (NOT in header!)

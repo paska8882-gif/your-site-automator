@@ -169,31 +169,30 @@ EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
 **PHONE NUMBER - REQUIRED IN FOOTER ONLY:**
 - MUST appear in FOOTER on ALL pages (NOT in header!)
 - MUST be realistic for the country/GEO (see examples below)
-- MUST be clickable: <a href="tel:+491234567890">+49 123 456 7890</a>
-- NEVER use fake numbers like 123456, 555-1234, XXX, or placeholders
-- Examples by country:
-  * Germany: +49 30 2897 6543, +49 89 4521 7890, +49 221 456 7891
-  * Poland: +48 22 456 78 90, +48 12 345 67 89, +48 71 234 56 78
-  * Spain: +34 912 456 789, +34 932 876 543, +34 954 321 654
-  * France: +33 1 42 68 53 00, +33 4 93 45 67 89
-  * Italy: +39 06 8745 6321, +39 02 7654 3210
+- MUST be clickable (tel:): <a href="tel:+493028976543">+49 30 2897 6543</a>
+- The visible text MUST include the country code with "+" and spacing (never a bare local number)
+- MUST be at least 10 digits total (excluding spaces, parentheses, dashes)
+- NEVER output only the local part like "4567890" or "123456" (this is INVALID)
+- NEVER use fake/placeholder patterns: 123456, 4567890, 555-1234, XXX, 000000, 999999, (555)
+- Examples by country (pick ONE and format similarly):
+  * Germany: +49 30 2897 6543, +49 89 4521 7892
+  * Poland: +48 22 593 27 41, +48 12 784 63 19
+  * Spain: +34 912 643 781, +34 932 815 604
+  * France: +33 1 42 68 53 21, +33 4 93 45 67 12
+  * Italy: +39 06 8745 6321, +39 02 7654 3219
   * UK: +44 20 7946 0958, +44 161 496 0753
-  * USA: +1 (212) 456-7890, +1 (415) 789-0123
-  * Netherlands: +31 20 794 5682, +31 10 456 7890
-  * Czech Republic: +420 221 456 789, +420 257 891 234
-  * Ukraine: +380 44 456 7890, +380 67 123 4567
-  * Russia: +7 495 123 4567, +7 812 456 7890
-  * Austria: +43 1 234 5678, +43 512 345 678
+  * USA: +1 (212) 647-3812, +1 (415) 781-2046
+  * Netherlands: +31 20 794 5682, +31 10 593 2741
+  * Czech Republic: +420 221 643 781, +420 257 815 604
+  * Ukraine: +380 44 239 4187, +380 67 381 2046
+  * Russia: +7 495 239 4187, +7 812 381 2046
+  * Austria: +43 1 239 4187, +43 512 381 204
 
 **EMAIL - REQUIRED IN FOOTER ONLY:**
 - MUST appear in FOOTER on ALL pages (NOT in header!)
 - MUST use the site's domain: info@<sitename>.com, contact@<sitename>.com
 - Extract domain from business name (lowercase, no spaces, no special chars)
 - MUST be clickable: <a href="mailto:info@sitename.com">info@sitename.com</a>
-- Examples:
-  * "Green Garden" → info@greengarden.com
-  * "Auto Pro" → contact@autopro.com
-  * "Dr. Smith Clinic" → info@drsmithclinic.com
 - NEVER use generic emails like info@company.com or test@example.com
 
 ⚠️ IF NO PHONE/EMAIL IN OUTPUT = SITE IS BROKEN! ALWAYS INCLUDE THEM!
