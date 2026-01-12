@@ -166,8 +166,8 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, CONTENT-RICH PROFESS
 📞📧🚨 CONTACT INFO - ABSOLUTELY MANDATORY - READ FIRST! 🚨📧📞
 EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
 
-**PHONE NUMBER - REQUIRED ON EVERY PAGE:**
-- MUST appear in header AND footer on ALL pages
+**PHONE NUMBER - REQUIRED IN FOOTER ONLY:**
+- MUST appear in FOOTER on ALL pages (NOT in header!)
 - MUST be realistic for the country/GEO (see examples below)
 - MUST be clickable: <a href="tel:+491234567890">+49 123 456 7890</a>
 - NEVER use fake numbers like 123456, 555-1234, XXX, or placeholders
@@ -185,8 +185,8 @@ EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
   * Russia: +7 495 123 4567, +7 812 456 7890
   * Austria: +43 1 234 5678, +43 512 345 678
 
-**EMAIL - REQUIRED ON EVERY PAGE:**
-- MUST appear in header AND footer on ALL pages
+**EMAIL - REQUIRED IN FOOTER ONLY:**
+- MUST appear in FOOTER on ALL pages (NOT in header!)
 - MUST use the site's domain: info@<sitename>.com, contact@<sitename>.com
 - Extract domain from business name (lowercase, no spaces, no special chars)
 - MUST be clickable: <a href="mailto:info@sitename.com">info@sitename.com</a>
@@ -208,7 +208,7 @@ ALL content MUST be centered on the page:
 - Section headers centered with text-align: center
 
 **MANDATORY PAGE STRUCTURE (index.html must have ALL of these):**
-1. Header with navigation + PHONE NUMBER + EMAIL (centered nav, max-width container)
+1. Header with navigation ONLY (NO phone/email in header! centered nav, max-width container)
 2. Hero section (split layout: text + image side by side, centered)
 3. Stats/metrics section with big numbers (3-4 stats, centered)
 4. Featured cards section (6 cards in 3x2 grid, CENTERED, with "Read More" buttons)
