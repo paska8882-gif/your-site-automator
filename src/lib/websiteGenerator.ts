@@ -167,22 +167,27 @@ export async function startGeneration(
   };
 
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    // Always try to get a fresh token first to avoid expired token issues
+    let accessToken = await getFreshAccessToken();
+    
+    if (!accessToken) {
+      // Fallback to current session if refresh fails
+      const { data: { session } } = await supabase.auth.getSession();
+      accessToken = session?.access_token || null;
+    }
 
-    if (!session?.access_token) {
+    if (!accessToken) {
       return { success: false, error: "Необхідна авторизація. Будь ласка, увійдіть знову." };
     }
 
-    let resp = await makeRequest(session.access_token);
+    let resp = await makeRequest(accessToken);
 
-    // If 401 error, try to refresh token and retry once
+    // If 401 error, try to refresh token again and retry once
     if (resp.status === 401) {
       console.log("Got 401, attempting to refresh token...");
       const freshToken = await getFreshAccessToken();
       
-      if (freshToken) {
+      if (freshToken && freshToken !== accessToken) {
         console.log("Token refreshed, retrying request...");
         resp = await makeRequest(freshToken);
       } else {
