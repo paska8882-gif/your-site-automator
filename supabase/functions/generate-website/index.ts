@@ -1012,7 +1012,7 @@ section {
 .card {
   background: white;
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  overflow: visible;
   box-shadow: var(--shadow-sm);
   transition: var(--transition);
 }
@@ -1024,16 +1024,21 @@ section {
 
 .card-body {
   padding: 24px;
+  overflow: visible;
 }
 
 .card-title {
   font-size: 1.2rem;
   margin-bottom: 12px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .card-text {
   color: var(--text-light);
   font-size: 0.95rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 \`\`\`
 
@@ -3485,7 +3490,7 @@ section.light, .section.light {
 .card {
   background: var(--white);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  overflow: visible;
   box-shadow: var(--shadow-md);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
@@ -3497,6 +3502,7 @@ section.light, .section.light {
 
 .card-body {
   padding: 24px;
+  overflow: visible;
 }
 
 .card-title {
@@ -3504,12 +3510,17 @@ section.light, .section.light {
   font-weight: 700;
   margin-bottom: 12px;
   color: var(--heading-color);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .card-text {
   color: var(--text-muted);
   line-height: 1.6;
   font-size: 0.95rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 /* FORMS */
