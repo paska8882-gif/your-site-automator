@@ -14,17 +14,26 @@ serve(async (req) => {
   // Examples:
   // - "+353+353 1 234 5678" -> "+353 1 234 5678"
   // - "+353 353 1 234 5678" -> "+353 1 234 5678"
+  // - "+353-353-1-234-5678" -> "+353-1-234-5678"
+  // - "+353 (0) 353 1 234 5678" -> "+353 1 234 5678"
   // - "tel:+3533531234567" -> "tel:+3531234567"
   const normalizeDuplicateCountryCodes = (text: string) => {
     let out = text;
 
-    // 1) Two explicit +codes
-    out = out.replace(/\+(\d{1,3})\s*\+\s*\1\b/g, (_m, code) => `+${code}`);
+    // 1) Two explicit +codes, allowing separators and optional (0)
+    out = out.replace(
+      /\+(\d{1,3})[\s\-]*?(?:\(0\)[\s\-]*?)?\+[\s\-]*?\1\b/g,
+      (_m, code) => `+${code}`
+    );
 
-    // 2) "+code code" (second code without +)
-    out = out.replace(/\+(\d{1,3})\s+\1\b/g, (_m, code) => `+${code}`);
+    // 2) "+code code" (second code without +), allowing separators and optional (0)
+    out = out.replace(
+      /\+(\d{1,3})[\s\-]*?(?:\(0\)[\s\-]*?)?\b\1\b/g,
+      (_m, code) => `+${code}`
+    );
 
     // 3) Digits form: "+353353..." (code repeated immediately)
+    // Keep the first country code and the rest of the number.
     out = out.replace(/\+(\d{1,3})\1(\d{6,})\b/g, (_m, code, rest) => `+${code}${rest}`);
 
     return out;
