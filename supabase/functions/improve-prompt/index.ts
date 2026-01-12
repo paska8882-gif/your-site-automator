@@ -140,9 +140,12 @@ serve(async (req) => {
       }),
     });
 
+    // Get response text first to safely handle empty/truncated responses
+    const responseText = await response.text();
+    console.log("AI response length:", responseText.length, "chars");
+
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      console.error("AI gateway error:", response.status, responseText.substring(0, 500));
       
       if (response.status === 429) {
         return new Response(
@@ -160,14 +163,30 @@ serve(async (req) => {
       throw new Error(`AI gateway error: ${response.status}`);
     }
 
-    const data = await response.json();
+    // Handle empty response
+    if (!responseText || responseText.trim().length === 0) {
+      console.error("Empty response from AI gateway");
+      throw new Error("Порожня відповідь від AI. Спробуйте ще раз.");
+    }
+
+    // Parse JSON safely
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error("Failed to parse AI response:", parseError);
+      console.error("Raw response (first 500 chars):", responseText.substring(0, 500));
+      throw new Error("Помилка парсингу відповіді AI. Спробуйте ще раз.");
+    }
+
     const improvedPrompt = data.choices?.[0]?.message?.content;
 
     if (!improvedPrompt) {
-      throw new Error("No response from AI");
+      console.error("No content in AI response:", JSON.stringify(data).substring(0, 500));
+      throw new Error("AI не повернув результат. Спробуйте ще раз.");
     }
 
-    console.log("Prompt improved successfully");
+    console.log("Prompt improved successfully, length:", improvedPrompt.length);
 
     return new Response(
       JSON.stringify({ improvedPrompt }),
