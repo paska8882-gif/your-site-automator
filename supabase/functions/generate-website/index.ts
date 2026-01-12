@@ -358,6 +358,7 @@ EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
 - MUST be at least 10 digits total (excluding spaces, parentheses, dashes)
 - NEVER output only the local part like "4567890" or "123456" (this is INVALID)
 - NEVER use fake/placeholder patterns: 123456, 4567890, 555-1234, XXX, 000000, 999999, (555)
+- ⚠️ CRITICAL: NEVER DUPLICATE THE COUNTRY CODE! Wrong: "+49 +49 30...", Correct: "+49 30..."
 - Examples by country (pick ONE and format similarly):
   * Germany: +49 30 2897 6543, +49 89 4521 7892
   * Poland: +48 22 593 27 41, +48 12 784 63 19
@@ -4976,19 +4977,20 @@ CRITICAL GEO REQUIREMENTS - ALL CONTENT MUST BE LOCALIZED FOR ${countryName.toUp
      * Czech Republic: Václavské náměstí 47, 110 00 Praha 1
      * Portugal: Avenida da Liberdade 147, 1250-096 Lisboa
 
-2. **PHONE NUMBER**: Generate REALISTIC phone number (NOT placeholders like XXXXXXXX or 12345):
-   - Germany: +49 30 2897 6543 or +49 89 4521 7890
-   - Poland: +48 22 456 78 90 or +48 12 345 67 89
-   - Spain: +34 912 456 789 or +34 932 876 543
-   - France: +33 1 42 68 53 00 or +33 4 93 45 67 89
-   - Italy: +39 06 8745 6321 or +39 02 7654 3210
+2. **PHONE NUMBER**: Use the EXACT phone format for ${countryName} - ONLY ONE COUNTRY CODE:
+   - NEVER duplicate the country code (e.g., WRONG: "+49 +49", CORRECT: "+49")
+   - Germany: +49 30 2897 6543 or +49 89 4521 7892
+   - Poland: +48 22 593 27 41 or +48 12 784 63 18
+   - Spain: +34 912 643 781 or +34 932 815 694
+   - France: +33 1 42 68 53 21 or +33 4 93 78 62 14
+   - Italy: +39 06 8745 6329 or +39 02 7698 3214
    - UK: +44 20 7946 0958 or +44 161 496 0753
-   - USA: +1 (212) 555-0147 or +1 (415) 555-0198
-   - Netherlands: +31 20 794 5682 or +31 10 456 7890
-   - Czech Republic: +420 221 456 789 or +420 257 891 234
-   - Ukraine: +380 44 456 7890 or +380 67 123 4567
-   - Russia: +7 495 123 4567 or +7 812 456 7890
-   - Portugal: +351 21 456 7890 or +351 22 345 6789
+   - USA: +1 (212) 647-3812 or +1 (415) 781-2946
+   - Netherlands: +31 20 794 5682 or +31 10 593 2741
+   - Czech Republic: +420 221 643 781 or +420 257 891 643
+   - Ukraine: +380 44 239 4187 or +380 67 381 2946
+   - Russia: +7 495 239 4187 or +7 812 381 2946
+   - Portugal: +351 21 938 4672 or +351 22 847 6391
 
 3. **EMAIL**: Create email based on business name/domain:
    - Format: info@<businessname>.com (lowercase, no spaces)
