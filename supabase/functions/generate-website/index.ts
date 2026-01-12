@@ -161,18 +161,32 @@ const LAYOUT_VARIATIONS = [
 
 const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, PROFESSIONAL MULTI-PAGE WEBSITE
 
-🚨🚨🚨 ABSOLUTE CRITICAL - IMAGE RULES (VIOLATING = FAILURE) 🚨🚨🚨
+🚨🚨🚨 ABSOLUTE CRITICAL - MUST NOT GENERATE EMPTY PAGES 🚨🚨🚨
+
+**EVERY PAGE MUST HAVE VISIBLE CONTENT:**
+- index.html MUST have: header, hero with background image, at least 5 content sections, footer
+- All pages MUST have proper text content visible to users
+- NEVER generate pages with only whitespace or empty sections
+- Body content must be at least 2000 characters on main pages
+
+🚨🚨🚨 IMAGE RULES (VIOLATING = FAILURE) 🚨🚨🚨
+
+**IMAGE SIZING - NEVER FULL-SCREEN IMAGES:**
+- Hero: Use background-image (NOT <img>), min-height 60vh, max-height 70vh
+- Card images: max-width 100%, max-height 300px, object-fit: cover
+- Section images: max-width 500px, height auto
+- NEVER use: width: 100vw, height: 100vh on images
+- All images must be contextual and sized appropriately
 
 **YOU MUST USE REAL PHOTOS - NEVER ICONS OR PLACEHOLDERS:**
-- HERO SECTION MUST have background-image with picsum.photos or Pexels URL
-- ALL <img> tags MUST use picsum.photos or Pexels URLs - NEVER SVG icons, NEVER placeholder.svg
+- HERO SECTION MUST have background-image with picsum.photos URL
+- ALL <img> tags MUST use picsum.photos URLs with DIFFERENT random numbers
 - NEVER use inline SVG icons as main images
 - NEVER use data:image URLs
-- NEVER leave images empty or with broken src
 
 **CORRECT HERO EXAMPLE (MANDATORY STRUCTURE):**
 \`\`\`html
-<section class="hero" style="background-image: url('https://picsum.photos/1920/1080?random=1');">
+<section class="hero" style="background-image: url('https://picsum.photos/1920/1080?random=1'); min-height: 60vh; max-height: 70vh; background-size: cover; background-position: center;">
   <div class="hero-overlay"></div>
   <div class="hero-content container">
     <h1>Site Title</h1>
@@ -182,16 +196,17 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, PROFESSIONAL MULTI-P
 </section>
 \`\`\`
 
-**CORRECT IMAGE EXAMPLE:**
+**CORRECT IMAGE EXAMPLE (CONSTRAINED SIZE):**
 \`\`\`html
-<img src="https://picsum.photos/800/600?random=2" alt="Description" loading="lazy">
+<img src="https://picsum.photos/600/400?random=2" alt="Description" loading="lazy" style="max-height: 300px; object-fit: cover;">
 \`\`\`
 
 **WRONG (NEVER DO THIS):**
 - ❌ <img src="placeholder.svg"> 
+- ❌ <img style="width: 100vw; height: 100vh;"> - TOO BIG!
 - ❌ <svg>...</svg> as main content image
 - ❌ Hero section without background-image
-- ❌ Empty hero with just icons
+- ❌ Empty pages with no visible content
 
 **🎨 CRITICAL DESIGN RULES - UNIQUE STYLING FOR EACH SITE:**
 
@@ -3305,36 +3320,48 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
         });
       }
       
-      // Fix 3: Ensure hero section has background-image
-      const heroSectionPattern = /<section[^>]*class=["'][^"']*hero[^"']*["'][^>]*>/gi;
-      const matches = content.match(heroSectionPattern);
+      // Fix 3: Ensure hero section has background-image (SAFE VERSION - no breaking HTML)
+      // Only add background-image if hero section exists AND has style attribute with space for it
+      // OR add as inline style properly
+      const heroWithoutBgPattern = /<section([^>]*class=["'][^"']*hero[^"']*["'])([^>]*)>/gi;
+      let heroMatch;
+      const heroMatches: string[] = [];
+      const heroOriginal = content;
       
-      if (matches) {
-        for (const match of matches) {
-          // Check if this hero already has background-image
-          if (!match.includes('background-image')) {
-            const heroRandomNum = 50 + imageCounter++;
-            const newHeroTag = match.replace('>', " style=\"background-image: url('https://picsum.photos/1920/1080?random=" + heroRandomNum + "');\">");
-            content = content.replace(match, newHeroTag);
-            fixedCount++;
-            console.log("🖼️ Added background-image to hero section in " + file.path);
-          }
-        }
+      // Collect all hero matches first to avoid regex issues during replacement
+      while ((heroMatch = heroWithoutBgPattern.exec(heroOriginal)) !== null) {
+        heroMatches.push(heroMatch[0]);
       }
       
-      // Fix 4: If index.html has no hero with background, add proper hero CSS
-      if (file.path === 'index.html' && !content.includes('background-image')) {
-        // Check if there's a hero section at all
-        if (content.includes('class="hero"') || content.includes("class='hero'")) {
-          // Add inline style to first hero
-          content = content.replace(
-            /(<section[^>]*class=["']hero["'][^>]*)>/i,
-            "$1 style=\"background-image: url('https://picsum.photos/1920/1080?random=1');\">"
+      for (const match of heroMatches) {
+        // Skip if already has background-image
+        if (match.includes('background-image')) continue;
+        
+        const heroRandomNum = 50 + imageCounter++;
+        const bgUrl = `https://picsum.photos/1920/1080?random=${heroRandomNum}`;
+        
+        // Check if has existing style attribute
+        if (match.includes('style="') || match.includes("style='")) {
+          // Append to existing style
+          const newMatch = match.replace(
+            /style=["']([^"']*)["']/i, 
+            `style="$1 background-image: url('${bgUrl}'); background-size: cover; background-position: center;"`
           );
-          fixedCount++;
-          console.log("🖼️ Fixed hero background-image in index.html");
+          content = content.replace(match, newMatch);
+        } else {
+          // Add new style attribute before closing >
+          const newMatch = match.replace(
+            />$/,
+            ` style="background-image: url('${bgUrl}'); background-size: cover; background-position: center;">`
+          );
+          content = content.replace(match, newMatch);
         }
+        fixedCount++;
+        console.log(`🖼️ Added background-image to hero section in ${file.path}`);
       }
+      
+      // Fix 4: If index.html has no hero with background AND no hero at all, skip
+      // (Don't add background to non-hero sections)
       
       // Fix 5: Constrain image sizes - add max-height to any images missing it
       // Replace full-width images with constrained versions
@@ -3381,10 +3408,56 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
     });
   };
 
+  // NEW: Validate HTML content is not empty/broken
+  const validateHtmlContent = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
+    return generatedFiles.map(file => {
+      if (!file.path.endsWith('.html')) return file;
+      
+      let content = file.content;
+      
+      // Check for common signs of broken HTML
+      const hasBody = content.includes('<body') && content.includes('</body>');
+      const hasHtml = content.includes('<html') && content.includes('</html>');
+      const hasHead = content.includes('<head') && content.includes('</head>');
+      const contentLength = content.length;
+      
+      // If HTML structure is fundamentally broken, log warning
+      if (!hasBody || !hasHtml || !hasHead) {
+        console.log(`⚠️ WARNING: ${file.path} has broken HTML structure (body: ${hasBody}, html: ${hasHtml}, head: ${hasHead})`);
+      }
+      
+      // If page is too short (likely empty/broken), log warning
+      if (contentLength < 500 && file.path === 'index.html') {
+        console.log(`⚠️ WARNING: ${file.path} is suspiciously short (${contentLength} chars)`);
+      }
+      
+      // Check for content inside body (not just structure)
+      const bodyMatch = content.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      if (bodyMatch) {
+        const bodyContent = bodyMatch[1].trim();
+        // Remove scripts and whitespace to check actual content
+        const cleanBody = bodyContent.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\s+/g, ' ').trim();
+        
+        if (cleanBody.length < 200 && file.path === 'index.html') {
+          console.log(`⚠️ WARNING: ${file.path} has very little content in body (${cleanBody.length} chars after cleanup)`);
+        }
+      }
+      
+      // Ensure proper encoding for Cyrillic if detected
+      if (/[а-яА-ЯїЇєЄіІґҐёЁ]/.test(content) && !content.includes('charset=')) {
+        content = content.replace('<head>', '<head>\n    <meta charset="UTF-8">');
+        console.log(`📝 Added charset UTF-8 to ${file.path} for Cyrillic support`);
+      }
+      
+      return { ...file, content };
+    });
+  };
+
   // Apply all mandatory file checks
   let finalFiles = ensureCookieBannerFile(files);
   finalFiles = ensureQualityCSS(finalFiles);
-  finalFiles = fixPlaceholderImages(finalFiles); // NEW: Fix placeholder images
+  finalFiles = fixPlaceholderImages(finalFiles); // Fix placeholder images
+  finalFiles = validateHtmlContent(finalFiles); // Validate HTML content
   finalFiles = ensureMandatoryPages(finalFiles, language || "en");
   console.log(`📁 Final files count (with all mandatory files): ${finalFiles.length}`);
 
