@@ -161,6 +161,38 @@ const LAYOUT_VARIATIONS = [
 
 const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, PROFESSIONAL MULTI-PAGE WEBSITE
 
+🚨🚨🚨 ABSOLUTE CRITICAL - IMAGE RULES (VIOLATING = FAILURE) 🚨🚨🚨
+
+**YOU MUST USE REAL PHOTOS - NEVER ICONS OR PLACEHOLDERS:**
+- HERO SECTION MUST have background-image with picsum.photos or Pexels URL
+- ALL <img> tags MUST use picsum.photos or Pexels URLs - NEVER SVG icons, NEVER placeholder.svg
+- NEVER use inline SVG icons as main images
+- NEVER use data:image URLs
+- NEVER leave images empty or with broken src
+
+**CORRECT HERO EXAMPLE (MANDATORY STRUCTURE):**
+\`\`\`html
+<section class="hero" style="background-image: url('https://picsum.photos/1920/1080?random=1');">
+  <div class="hero-overlay"></div>
+  <div class="hero-content container">
+    <h1>Site Title</h1>
+    <p>Subtitle text here</p>
+    <a href="contact.html" class="btn btn-primary">Contact Us</a>
+  </div>
+</section>
+\`\`\`
+
+**CORRECT IMAGE EXAMPLE:**
+\`\`\`html
+<img src="https://picsum.photos/800/600?random=2" alt="Description" loading="lazy">
+\`\`\`
+
+**WRONG (NEVER DO THIS):**
+- ❌ <img src="placeholder.svg"> 
+- ❌ <svg>...</svg> as main content image
+- ❌ Hero section without background-image
+- ❌ Empty hero with just icons
+
 **🎨 CRITICAL DESIGN RULES - PREMIUM QUALITY:**
 
 **CSS VARIABLES - USE AT THE TOP OF styles.css:**
@@ -964,23 +996,53 @@ Include in footer, adapted to site's industry/theme.
 
 // Image strategy - Basic (reliable random photos)
 const IMAGE_STRATEGY_BASIC = `
-**IMAGE STRATEGY - RELIABLE RANDOM PHOTOS:**
-Use picsum.photos for ALL images - it's reliable and always loads:
+🚨🚨🚨 CRITICAL IMAGE RULES - MANDATORY 🚨🚨🚨
 
-**Hero background:** 
-url('https://picsum.photos/1920/1080?random=1')
+**USE picsum.photos FOR ALL IMAGES - THIS IS NON-NEGOTIABLE:**
 
-**Content images:**
-<img src="https://picsum.photos/800/600?random=2" alt="[Descriptive alt text in site language]" loading="lazy">
+**1. HERO SECTION - MUST HAVE BACKGROUND IMAGE:**
+\`\`\`html
+<section class="hero" style="background-image: url('https://picsum.photos/1920/1080?random=1');">
+  <div class="hero-overlay"></div>
+  <div class="hero-content container">
+    <h1>Title</h1>
+    <p>Subtitle</p>
+    <a href="contact.html" class="btn btn-primary">CTA Button</a>
+  </div>
+</section>
+\`\`\`
 
-**Card images:**
+**2. CONTENT IMAGES:**
+<img src="https://picsum.photos/800/600?random=2" alt="[Description in site language]" loading="lazy">
+
+**3. CARD IMAGES:**
 <img src="https://picsum.photos/600/400?random=3" alt="[Description]" loading="lazy">
 
-**Portrait images:**
-<img src="https://picsum.photos/400/400?random=4" alt="[Name or role]" loading="lazy">
+**4. TEAM/PORTRAIT IMAGES:**
+<img src="https://picsum.photos/400/400?random=4" alt="[Person name]" loading="lazy">
 
-**IMPORTANT:** Use DIFFERENT random= numbers for each image (random=1, random=2, random=3, etc.) so images are unique!
-**Alt text MUST be in the same language as the website content!**
+**5. GALLERY/FEATURE IMAGES:**
+<img src="https://picsum.photos/500/350?random=5" alt="[Description]" loading="lazy">
+
+⚠️ MANDATORY RULES:
+- Use DIFFERENT random= numbers for EACH image (random=1, random=2, random=3... up to random=20+)
+- NEVER use SVG icons as main content images
+- NEVER use placeholder.svg or any placeholder images
+- NEVER use data:image URLs
+- EVERY <img> tag MUST have src with picsum.photos or Pexels URL
+- Hero section MUST have inline style with background-image URL
+- Alt text MUST be in the same language as website content
+
+**WRONG (NEVER DO):**
+❌ <img src="placeholder.svg">
+❌ <svg class="hero-icon">...</svg>
+❌ Hero without background-image
+❌ <img src="">
+❌ <img src="icon.svg">
+
+**CORRECT:**
+✅ <img src="https://picsum.photos/800/600?random=7" alt="Professional service">
+✅ style="background-image: url('https://picsum.photos/1920/1080?random=1');"
 
 **🏢 BRAND LOGOS - USE REAL LOGOS, NOT PLACEHOLDERS:**
 For partner logos, client logos, certification badges, or any brand logos - ALWAYS use real logos from CDN services:
@@ -2845,9 +2907,88 @@ tbody tr:hover {
     });
   };
 
+  // NEW: Fix placeholder images and ensure proper hero backgrounds
+  const fixPlaceholderImages = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
+    let imageCounter = 1;
+    
+    return generatedFiles.map(file => {
+      if (!file.path.endsWith('.html')) return file;
+      
+      let content = file.content;
+      let fixedCount = 0;
+      
+      // Fix 1: Replace SVG/placeholder src in img tags
+      const badImagePatterns = [
+        /src=["'](?:placeholder\.svg|icon\.svg|logo\.svg|image\.svg)["']/gi,
+        /src=["'](?:data:image\/svg\+xml[^"']*)["']/gi,
+        /src=["'](?:#|javascript:|about:blank)["']/gi,
+        /src=["'][\s]*["']/g, // empty src
+      ];
+      
+      for (const pattern of badImagePatterns) {
+        if (pattern.test(content)) {
+          content = content.replace(pattern, () => {
+            fixedCount++;
+            const randomNum = 100 + imageCounter++;
+            return 'src="https://picsum.photos/800/600?random=' + randomNum + '"';
+          });
+        }
+      }
+      
+      // Fix 2: Replace large inline SVGs that are used as hero/main images (not small icons)
+      // Match SVG elements with width/height > 100 or viewBox suggesting large size
+      const largeSvgPattern = /<svg[^>]*(?:width=["'](?:[2-9]\d{2}|[1-9]\d{3,})["']|height=["'](?:[2-9]\d{2}|[1-9]\d{3,})["']|class=["'][^"']*(?:hero|banner|main|feature)[^"']*["'])[^>]*>[\s\S]*?<\/svg>/gi;
+      if (largeSvgPattern.test(content)) {
+        content = content.replace(largeSvgPattern, () => {
+          fixedCount++;
+          const randomNum = 100 + imageCounter++;
+          return '<img src="https://picsum.photos/800/600?random=' + randomNum + '" alt="Feature image" loading="lazy" class="feature-image">';
+        });
+      }
+      
+      // Fix 3: Ensure hero section has background-image
+      const heroSectionPattern = /<section[^>]*class=["'][^"']*hero[^"']*["'][^>]*>/gi;
+      const matches = content.match(heroSectionPattern);
+      
+      if (matches) {
+        for (const match of matches) {
+          // Check if this hero already has background-image
+          if (!match.includes('background-image')) {
+            const heroRandomNum = 50 + imageCounter++;
+            const newHeroTag = match.replace('>', " style=\"background-image: url('https://picsum.photos/1920/1080?random=" + heroRandomNum + "');\">");
+            content = content.replace(match, newHeroTag);
+            fixedCount++;
+            console.log("🖼️ Added background-image to hero section in " + file.path);
+          }
+        }
+      }
+      
+      // Fix 4: If index.html has no hero with background, add proper hero CSS
+      if (file.path === 'index.html' && !content.includes('background-image')) {
+        // Check if there's a hero section at all
+        if (content.includes('class="hero"') || content.includes("class='hero'")) {
+          // Add inline style to first hero
+          content = content.replace(
+            /(<section[^>]*class=["']hero["'][^>]*)>/i,
+            "$1 style=\"background-image: url('https://picsum.photos/1920/1080?random=1');\">"
+          );
+          fixedCount++;
+          console.log("🖼️ Fixed hero background-image in index.html");
+        }
+      }
+      
+      if (fixedCount > 0) {
+        console.log("🔧 Fixed " + fixedCount + " placeholder images in " + file.path);
+      }
+      
+      return { ...file, content };
+    });
+  };
+
   // Apply all mandatory file checks
   let finalFiles = ensureCookieBannerFile(files);
   finalFiles = ensureQualityCSS(finalFiles);
+  finalFiles = fixPlaceholderImages(finalFiles); // NEW: Fix placeholder images
   finalFiles = ensureMandatoryPages(finalFiles, language || "en");
   console.log(`📁 Final files count (with all mandatory files): ${finalFiles.length}`);
 
