@@ -107,12 +107,53 @@ function fixPhoneNumbersInContent(content: string, geo?: string): { content: str
   return { content: result, fixed };
 }
 
+// Pre-defined reliable Unsplash photo IDs for fallbacks
+const UNSPLASH_PHOTOS = [
+  "1497366216548-37526070297c", "1560179707-f14e90ef3623", "1454165804606-c3d57bc86b40",
+  "1497366811353-6870744d04b2", "1522202176988-66273c2fd55f", "1552664730-d307ca884978",
+  "1600880292203-757bb62b4baf", "1507003211169-0a1dd7228f2d", "1438761681033-6461ffad8d80",
+];
+let imageCounter = 0;
+
+function getUnsplashUrl(width: number, height: number): string {
+  const photoId = UNSPLASH_PHOTOS[imageCounter % UNSPLASH_PHOTOS.length];
+  imageCounter++;
+  return `https://images.unsplash.com/photo-${photoId}?w=${width}&h=${height}&fit=crop`;
+}
+
+function fixImagesInContent(content: string): { content: string; fixed: number } {
+  let fixed = 0;
+  let result = content;
+  
+  // Replace ALL picsum.photos URLs with Unsplash (picsum is unreliable)
+  result = result.replace(
+    /https?:\/\/picsum\.photos(?:\/seed\/[^\/]+)?\/(\d+)\/(\d+)(?:\?[^"'\s)]*)?/gi,
+    (match, w, h) => {
+      fixed++;
+      return getUnsplashUrl(parseInt(w) || 800, parseInt(h) || 600);
+    }
+  );
+  
+  return { content: result, fixed };
+}
+
 function fixPhoneNumbersInFiles(files: Array<{ path: string; content: string }>, geo?: string): { files: Array<{ path: string; content: string }>; totalFixed: number } {
   let totalFixed = 0;
   const fixedFiles = files.map(file => {
-    if (!/\.(html?|php|jsx?|tsx?)$/i.test(file.path)) return file;
-    const { content, fixed } = fixPhoneNumbersInContent(file.content, geo);
-    totalFixed += fixed;
+    if (!/\.(html?|php|jsx?|tsx?|css)$/i.test(file.path)) return file;
+    
+    let content = file.content;
+    
+    // Fix phones
+    const { content: phoneFixed, fixed: phonesFixed } = fixPhoneNumbersInContent(content, geo);
+    content = phoneFixed;
+    totalFixed += phonesFixed;
+    
+    // Fix images (replace picsum with unsplash)
+    const { content: imgFixed, fixed: imagesFixed } = fixImagesInContent(content);
+    content = imgFixed;
+    totalFixed += imagesFixed;
+    
     return { ...file, content };
   });
   return { files: fixedFiles, totalFixed };
@@ -1999,11 +2040,14 @@ REMEMBER: MINIMUM 6 SEPARATE PHP PAGE FILES ARE REQUIRED!
 `.trim();
 
 const IMAGE_STRATEGY_BASIC = `
-IMAGE STRATEGY: Basic (Picsum)
-- Use https://picsum.photos/WIDTH/HEIGHT for all images
-- Example: <img src="https://picsum.photos/800/600" alt="Description">
-- Add random seed for variety: https://picsum.photos/seed/unique-id/800/600
-- Use appropriate dimensions for each use case (hero: 1920x1080, cards: 600x400, icons: 200x200)
+IMAGE STRATEGY: Unsplash (Reliable)
+- Use https://images.unsplash.com/photo-{id}?w=WIDTH&h=HEIGHT&fit=crop for all images
+- Example: <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=600&fit=crop" alt="Description">
+- Change the photo ID for variety. Use these IDs:
+  - Business: 1497366216548-37526070297c, 1560179707-f14e90ef3623, 1454165804606-c3d57bc86b40
+  - Office: 1497366811353-6870744d04b2, 1497366754146-60ec025e3a30
+  - Team: 1522202176988-66273c2fd55f, 1552664730-d307ca884978
+  - Portrait: 1507003211169-0a1dd7228f2d, 1438761681033-6461ffad8d80
 
 **🏢 BRAND LOGOS - USE REAL LOGOS, NOT PLACEHOLDERS:**
 For partner logos, client logos, certification badges, or any brand logos - ALWAYS use real logos from CDN services:
@@ -2016,9 +2060,6 @@ For partner logos, client logos, certification badges, or any brand logos - ALWA
 - Tech/Software: google.com, microsoft.com, aws.amazon.com, github.com, stripe.com, slack.com
 - E-commerce/Payments: visa.com, mastercard.com, paypal.com, shopify.com, amazon.com
 - Shipping/Logistics: dhl.com, fedex.com, ups.com, dpd.com
-- Cloud/Hosting: cloudflare.com, digitalocean.com, heroku.com, vercel.com
-- Certifications: iso.org, tuv.com, bsigroup.com
-- Social: facebook.com, instagram.com, twitter.com, linkedin.com, youtube.com
 
 **Usage in PHP:**
 <img src="https://logo.clearbit.com/stripe.com" alt="Stripe" class="partner-logo" loading="lazy">
@@ -2027,9 +2068,6 @@ For partner logos, client logos, certification badges, or any brand logos - ALWA
 **RULES:**
 - NEVER use placeholder logos or generic icons for brand logos
 - Choose logos that make sense for the website's industry
-- Use 4-8 partner/client logos in "Partners" or "Trusted By" sections
-- Include relevant payment logos on e-commerce sites
-- Add certification logos for professional services
 `;
 
 async function fetchPexelsPhotos(query: string, count = 5): Promise<string[]> {
@@ -2113,7 +2151,7 @@ IMAGE STRATEGY: Pexels (High Quality)
 Use these SPECIFIC image URLs throughout the website:
 ${allUrls.map((url, i) => `- Image ${i + 1}: ${url}`).join("\n")}
 
-For additional images beyond these, use https://picsum.photos/WIDTH/HEIGHT
+For additional images beyond these, use: https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=600&fit=crop (change photo ID for variety)
 `;
 }
 
