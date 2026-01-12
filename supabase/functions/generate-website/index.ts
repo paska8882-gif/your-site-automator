@@ -1593,49 +1593,59 @@ const IMAGE_STRATEGY_BASIC = `
 
 **USE picsum.photos FOR ALL IMAGES - THIS IS NON-NEGOTIABLE:**
 
-**1. HERO SECTION - MUST HAVE BACKGROUND IMAGE:**
+**1. HERO VISUAL (NO background-image, NO inline style on hero section):**
+Use the split hero with a single <img> inside .hero-visual:
+
 \`\`\`html
-<section class="hero" style="background-image: url('https://picsum.photos/1920/1080?random=1');">
-  <div class="hero-overlay"></div>
-  <div class="hero-content container">
-    <h1>Title</h1>
-    <p>Subtitle</p>
-    <a href="contact.html" class="btn btn-primary">CTA Button</a>
+<section class="page-hero homepage-hero">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <span class="badge">Tagline here</span>
+      <h1>Title</h1>
+      <p>Subtitle</p>
+      <div class="hero-actions">
+        <a href="contact.html" class="cta-button">CTA Button</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <img src="https://picsum.photos/seed/hero-main/820/580" alt="Hero visual" loading="lazy">
+    </div>
   </div>
 </section>
 \`\`\`
 
-**2. CONTENT IMAGES:**
-<img src="https://picsum.photos/800/600?random=2" alt="[Description in site language]" loading="lazy">
+**2. CONTENT IMAGES (single <img>):**
+<img src="https://picsum.photos/seed/section-1/800/600" alt="[Description in site language]" loading="lazy">
 
-**3. CARD IMAGES:**
-<img src="https://picsum.photos/600/400?random=3" alt="[Description]" loading="lazy">
+**3. CARD IMAGES (optional):**
+<img src="https://picsum.photos/seed/card-1/600/400" alt="[Description]" loading="lazy">
 
 **4. TEAM/PORTRAIT IMAGES:**
-<img src="https://picsum.photos/400/400?random=4" alt="[Person name]" loading="lazy">
+<img src="https://picsum.photos/seed/team-1/400/400" alt="[Person name]" loading="lazy">
 
 **5. GALLERY/FEATURE IMAGES:**
-<img src="https://picsum.photos/500/350?random=5" alt="[Description]" loading="lazy">
+<img src="https://picsum.photos/seed/gallery-1/500/350" alt="[Description]" loading="lazy">
 
 ⚠️ MANDATORY RULES:
-- Use DIFFERENT random= numbers for EACH image (random=1, random=2, random=3... up to random=20+)
+- Prefer stable /seed URLs: https://picsum.photos/seed/<unique>/WxH
 - NEVER use SVG icons as main content images
 - NEVER use placeholder.svg or any placeholder images
 - NEVER use data:image URLs
-- EVERY <img> tag MUST have src with picsum.photos or Pexels URL
-- Hero section MUST have inline style with background-image URL
+- EVERY <img> tag MUST have src with picsum.photos or a real photo URL
+- NEVER set background-image on hero sections (or any element that also contains an <img>)
+- NEVER position images absolutely
 - Alt text MUST be in the same language as website content
 
 **WRONG (NEVER DO):**
 ❌ <img src="placeholder.svg">
 ❌ <svg class="hero-icon">...</svg>
-❌ Hero without background-image
 ❌ <img src="">
 ❌ <img src="icon.svg">
+❌ <section class="page-hero" style="background-image: ..."> ... <img ...> ...
 
 **CORRECT:**
-✅ <img src="https://picsum.photos/800/600?random=7" alt="Professional service">
-✅ style="background-image: url('https://picsum.photos/1920/1080?random=1');"
+✅ <img src="https://picsum.photos/seed/service-7/800/600" alt="Professional service" loading="lazy">
+✅ <section class="page-hero homepage-hero"> ... <div class="hero-visual"><img ...></div> ...
 
 **🏢 BRAND LOGOS - USE REAL LOGOS, NOT PLACEHOLDERS:**
 For partner logos, client logos, certification badges, or any brand logos - ALWAYS use real logos from CDN services:
