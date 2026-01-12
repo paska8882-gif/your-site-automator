@@ -163,26 +163,36 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, CONTENT-RICH PROFESS
 
 🚨🚨🚨 REFERENCE QUALITY STANDARD - FOLLOW THIS STRUCTURE 🚨🚨🚨
 
+**🎯 CENTERING & LAYOUT - ABSOLUTELY CRITICAL:**
+ALL content MUST be centered on the page:
+- Use max-width: 1200px for main container
+- Use margin: 0 auto for centering
+- All grids must be centered within container
+- Cards should be in clean 3-column grid (2 on tablet, 1 on mobile)
+- Light background (#f0f9f0 or similar) for card sections
+- Section headers centered with text-align: center
+
 **MANDATORY PAGE STRUCTURE (index.html must have ALL of these):**
-1. Header with navigation
-2. Hero section (split layout: text + image side by side)
-3. Stats/metrics section with big numbers (3-4 stats)
-4. Featured cards section (4 cards with titles, descriptions, meta)
-5. Media object section (text + image side by side)
-6. Timeline/process steps section (4 numbered steps)
-7. Contact/CTA form section
-8. Footer
+1. Header with navigation (centered nav, max-width container)
+2. Hero section (split layout: text + image side by side, centered)
+3. Stats/metrics section with big numbers (3-4 stats, centered)
+4. Featured cards section (6 cards in 3x2 grid, CENTERED, with "Read More" buttons)
+5. Media object section (text + image side by side, centered)
+6. Timeline/process steps section (4 numbered steps, centered)
+7. Contact/CTA form section (centered)
+8. Footer (centered content)
 
 **EVERY SECTION MUST HAVE:**
 - Section label (small badge above title): <span class="section-label">Section Topic</span>
 - Main heading: <h2>Clear compelling title</h2>
 - Description paragraph: <p>Detailed explanation...</p>
 - Actual content (lists, cards, stats, forms)
+- ALL CONTENT CENTERED IN max-width CONTAINER
 
 🎯 **CONTENT DENSITY REQUIREMENTS:**
 - Homepage MUST have 6+ content sections
 - Each section MUST have 100+ words of real text
-- Cards MUST have title + description + meta info
+- Cards MUST have title + description + meta info + "Read More" button
 - Lists MUST have 3+ bullet points with full sentences
 - Stats MUST have 3+ metrics with numbers and labels
 
@@ -244,25 +254,129 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, CONTENT-RICH PROFESS
 </section>
 \`\`\`
 
-**MANDATORY CARDS GRID:**
+**MANDATORY CARDS GRID (CENTERED, BEAUTIFUL):**
 \`\`\`html
 <section class="section light">
-  <div class="section-inner">
-    <div class="section-header">
+  <div class="section-inner centered">
+    <div class="section-header centered">
       <span class="section-label">Services</span>
       <h2>What we offer</h2>
       <p>Brief intro to services.</p>
     </div>
-    <div class="grid featured-grid">
+    <div class="cards-grid">
       <article class="card">
         <h3>Service Title</h3>
         <p>Detailed description of service with real information.</p>
-        <div class="card-meta">Additional info</div>
+        <div class="card-meta"><span class="meta-tag">Category</span> | <span class="meta-date">Published Date</span></div>
+        <a href="#" class="card-button">Read More</a>
       </article>
-      <!-- 3-4 more cards -->
+      <!-- 5 more cards for 6 total, or 3x2 grid -->
     </div>
   </div>
 </section>
+\`\`\`
+
+**🎯 CARD GRID CENTERING - CRITICAL CSS:**
+\`\`\`css
+/* CENTERED CONTAINER FOR ALL CONTENT */
+.section-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.section-inner.centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.section-header.centered {
+  text-align: center;
+  max-width: 700px;
+  margin-bottom: 48px;
+}
+
+/* BEAUTIFUL CENTERED CARD GRID */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+@media (max-width: 992px) {
+  .cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 576px) {
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* BEAUTIFUL CARD STYLING */
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  border: 1px solid rgba(0,0,0,0.04);
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+}
+
+.card h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text-dark);
+}
+
+.card p {
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 16px;
+  flex-grow: 1;
+}
+
+.card-meta {
+  font-size: 0.85rem;
+  color: var(--primary-color);
+  margin-bottom: 16px;
+}
+
+.meta-tag, .meta-date {
+  font-weight: 500;
+}
+
+.card-button {
+  display: inline-block;
+  padding: 12px 24px;
+  border: 2px solid var(--primary-color);
+  border-radius: 8px;
+  color: var(--primary-color);
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+  transition: all 0.3s ease;
+  align-self: flex-start;
+}
+
+.card-button:hover {
+  background: var(--primary-color);
+  color: white;
+}
 \`\`\`
 
 **MANDATORY MEDIA OBJECT (TEXT + IMAGE):**
@@ -1204,24 +1318,46 @@ Footer MUST be professional, compact, and well-structured:
 </footer>
 \`\`\`
 
-**📐 PAGE STRUCTURE - CLEAN SECTIONS:**
+**📐 PAGE STRUCTURE - CENTERED SECTIONS (CRITICAL):**
 
 \`\`\`css
+/* GLOBAL CENTERING - APPLY TO ALL PAGES */
+body {
+  background: #f8faf8;
+}
+
+/* MAIN CONTAINER - ALWAYS CENTERED */
+.container, .section-inner, .page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
 /* CLEAN SECTION STRUCTURE */
 section {
   padding: 80px 0;
 }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
+section.light {
+  background: #f0f9f0;
 }
 
+/* CENTERED SECTION HEADER */
 .section-header {
   text-align: center;
   max-width: 700px;
-  margin: 0 auto 60px;
+  margin: 0 auto 48px;
+}
+
+.section-label {
+  display: inline-block;
+  background: var(--primary-color, #059669);
+  color: white;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 16px;
 }
 
 .section-title {
@@ -1237,41 +1373,130 @@ section {
   line-height: 1.6;
 }
 
-/* Cards Grid - CONSTRAINED */
-.cards-grid {
+/* CARDS GRID - CENTERED 3-COLUMN LAYOUT */
+.cards-grid, .featured-grid, .articles-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 30px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
   max-width: 1200px;
+  margin: 0 auto;
 }
 
+@media (max-width: 992px) {
+  .cards-grid, .featured-grid, .articles-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 576px) {
+  .cards-grid, .featured-grid, .articles-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* BEAUTIFUL CARD STYLING */
 .card {
   background: white;
   border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  padding: 28px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  border: 1px solid rgba(0,0,0,0.04);
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .card:hover {
-  transform: translateY(-8px);
+  transform: translateY(-6px);
   box-shadow: 0 12px 40px rgba(0,0,0,0.12);
 }
 
-.card-body {
-  padding: 24px;
-}
-
-.card-title {
-  font-size: 1.2rem;
-  font-weight: 600;
+.card h3, .card-title {
+  font-size: 1.25rem;
+  font-weight: 700;
   margin-bottom: 12px;
+  color: var(--text-dark, #1a1a1a);
 }
 
-.card-text {
+.card p, .card-text {
   color: var(--text-muted, #666);
   line-height: 1.6;
   font-size: 0.95rem;
+  margin-bottom: 16px;
+  flex-grow: 1;
+}
+
+.card-meta {
+  font-size: 0.85rem;
+  color: var(--primary-color, #059669);
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+/* READ MORE BUTTON */
+.card-button, .read-more {
+  display: inline-block;
+  padding: 12px 24px;
+  border: 2px solid var(--primary-color, #059669);
+  border-radius: 8px;
+  color: var(--primary-color, #059669);
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+  transition: all 0.3s ease;
+  align-self: flex-start;
+}
+
+.card-button:hover, .read-more:hover {
+  background: var(--primary-color, #059669);
+  color: white;
+}
+
+/* SEARCH/FILTER SECTION */
+.search-section {
+  max-width: 600px;
+  margin: 0 auto 48px;
+  text-align: center;
+}
+
+.search-input {
+  width: 100%;
+  padding: 16px 24px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  margin-bottom: 16px;
+}
+
+.search-button {
+  padding: 14px 32px;
+  background: var(--primary-color, #059669);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* PAGINATION */
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 48px;
+}
+
+.pagination a {
+  padding: 8px 16px;
+  color: var(--primary-color, #059669);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.pagination a.active {
+  background: var(--primary-color, #059669);
+  color: white;
+  border-radius: 6px;
 }
 \`\`\`
 
