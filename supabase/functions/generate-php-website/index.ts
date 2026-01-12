@@ -63,36 +63,47 @@ function generateRealisticPhone(geo?: string): string {
 function fixPhoneNumbersInContent(content: string, geo?: string): { content: string; fixed: number } {
   let fixed = 0;
   let result = content;
-  
+
+  // 1) Replace obvious placeholder patterns first
   for (const pattern of INVALID_PHONE_PATTERNS) {
     const matches = result.match(pattern);
     if (matches) {
-      const replacement = generateRealisticPhone(geo);
       for (const match of matches) {
+        const replacement = generateRealisticPhone(geo);
         result = result.replace(match, replacement);
         fixed++;
       }
     }
   }
-  
+
+  // 2) Fix tel: links
   result = result.replace(/href=["']tel:([^"']+)["']/gi, (match, phone) => {
-    if (!isValidPhone(phone)) {
+    if (!isValidPhone(String(phone))) {
       const newPhone = generateRealisticPhone(geo);
       fixed++;
-      return `href="tel:${newPhone.replace(/[\s()-]/g, '')}"`;
+      const tel = newPhone.replace(/[^\d+]/g, "");
+      return `href="tel:${tel}"`;
     }
     return match;
   });
-  
-  result = result.replace(/>(\s*\+?\s*)(\d{3}[-.\s]?\d{4})(\s*)</g, (match, before, phone, after) => {
-    if (!/\+\d{1,3}/.test(before + phone)) {
-      const newPhone = generateRealisticPhone(geo);
+
+  // 3) Fix any visible phone-like strings with leading +
+  const PLUS_PHONE_REGEX = /\+\d[\d\s().-]{7,}\d/g;
+  result = result.replace(PLUS_PHONE_REGEX, (match) => {
+    if (!isValidPhone(match)) {
       fixed++;
-      return `>${before}${newPhone}${after}<`;
+      return generateRealisticPhone(geo);
     }
     return match;
   });
-  
+
+  // 4) Catch bare 8-12 digit sequences (still considered invalid for output)
+  const BARE_PHONE_REGEX = /\b\d{8,12}\b/g;
+  result = result.replace(BARE_PHONE_REGEX, () => {
+    fixed++;
+    return generateRealisticPhone(geo);
+  });
+
   return { content: result, fixed };
 }
 
