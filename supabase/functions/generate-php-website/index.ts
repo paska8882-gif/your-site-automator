@@ -229,7 +229,13 @@ function enforcePhoneInFiles(
     );
 
     if (!hadTelLink && !hadPlusPhone && !hadPhoneLabel && /\.(html?|php)$/i.test(f.path)) {
-      const phoneBlock = `\n<div class="contact-phone" style="margin-top:12px">\n  <a href="tel:${desiredTel}">${desiredPhone}</a>\n</div>\n`;
+      const phoneLink = `<a href="tel:${desiredTel}" class="contact-phone-link">${desiredPhone}</a>`;
+      const phoneBlock = `\n<div class="contact-phone" style="margin-top:12px">${phoneLink}</div>\n`;
+
+      if (/<section[^>]*id=["']contact["'][^>]*>/i.test(content)) {
+        content = content.replace(/(<section[^>]*id=["']contact["'][^>]*>)/i, `$1${phoneBlock}`);
+      }
+
       if (/<footer\b[\s\S]*?<\/footer>/i.test(content)) {
         content = content.replace(/<\/footer>/i, `${phoneBlock}</footer>`);
       } else if (/<\/body>/i.test(content)) {
