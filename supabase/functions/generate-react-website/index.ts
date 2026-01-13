@@ -1966,7 +1966,9 @@ async function runBackgroundGeneration(
   layoutStyle?: string,
   imageSource: "basic" | "ai" = "basic",
   teamId: string | null = null,
-  salePrice: number = 0
+  salePrice: number = 0,
+  siteName?: string,
+  geo?: string
 ) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -1986,14 +1988,15 @@ async function runBackgroundGeneration(
     if (result.success && result.files) {
       // Extract geo from prompt for phone number generation
       const geoMatch = prompt.match(/(?:geo|country|страна|країна|гео)[:\s]*([^\n,;]+)/i);
-      const geo = geoMatch ? geoMatch[1].trim() : undefined;
+      const geoFromPrompt = geoMatch ? geoMatch[1].trim() : undefined;
+      const geoToUse = geo || geoFromPrompt;
 
       const explicit = extractExplicitBrandingFromPrompt(prompt);
-      const desiredSiteName = explicit.siteName;
+      const desiredSiteName = explicit.siteName || siteName;
       const desiredPhone = explicit.phone;
       
       // Fix invalid/placeholder phone numbers
-      const { files: fixedFiles, totalFixed } = fixPhoneNumbersInFiles(result.files, geo);
+      const { files: fixedFiles, totalFixed } = fixPhoneNumbersInFiles(result.files, geoToUse);
       if (totalFixed > 0) {
         console.log(`[BG] Fixed ${totalFixed} invalid phone number(s) in React files`);
       }
@@ -2372,7 +2375,7 @@ ${promptForGeneration}`;
     // Start background generation using EdgeRuntime.waitUntil
     // Pass salePrice and teamId for potential refund on error
     EdgeRuntime.waitUntil(
-      runBackgroundGeneration(historyEntry.id, userId, prompt, language, aiModel, layoutStyle, imageSource, teamId, salePrice)
+      runBackgroundGeneration(historyEntry.id, userId, prompt, language, aiModel, layoutStyle, imageSource, teamId, salePrice, siteName, geo)
     );
 
     // Return immediately with the history entry ID

@@ -3246,11 +3246,23 @@ ${promptForGeneration}`;
       });
     }
 
+    // Enforce siteName / phone from prompt/params
+    const explicit = extractExplicitBrandingFromPrompt(promptForGeneration);
+    const desiredSiteName = explicit.siteName || siteName;
+    const desiredPhone = explicit.phone;
+    const geoToUse = geo;
+
+    // Fix phones first
+    const { files: fixedFiles } = fixPhoneNumbersInFiles(result.files, geoToUse);
+    // Then enforce exact values
+    let enforcedFiles = enforcePhoneInFiles(fixedFiles, desiredPhone);
+    enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
+
     // Save completed result into history for later downloads
     try {
       const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");
       const zip = new JSZip();
-      for (const file of result.files) {
+      for (const file of enforcedFiles) {
         zip.file(file.path, file.content);
       }
       const zipBase64 = await zip.generateAsync({ type: "base64" });
@@ -3259,7 +3271,7 @@ ${promptForGeneration}`;
         .from("generation_history")
         .update({
           status: "completed",
-          files_data: result.files,
+          files_data: enforcedFiles,
           zip_data: zipBase64,
           error_message: null,
           completed_at: new Date().toISOString(),
@@ -3269,6 +3281,9 @@ ${promptForGeneration}`;
       console.warn("Failed to persist zip/files_data for PHP generation:", e);
       // Still return files to client even if persistence fails
     }
+
+    // Return enforced files to client
+    result.files = enforcedFiles;
 
     return new Response(
       JSON.stringify({

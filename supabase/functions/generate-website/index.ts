@@ -4902,7 +4902,8 @@ async function runBackgroundGeneration(
   imageSource: "basic" | "ai" = "basic",
   teamId: string | null = null,
   salePrice: number = 0,
-  siteName?: string
+  siteName?: string,
+  geo?: string
 ) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -4923,7 +4924,7 @@ async function runBackgroundGeneration(
       // Prefer explicit geo passed from client, fallback to extracting from prompt
       const geoMatch = prompt.match(/(?:geo|country|страна|країна|гео)[:\s]*([^\n,;]+)/i);
       const geoFromPrompt = geoMatch ? geoMatch[1].trim() : undefined;
-      const geoToUse = geoFromPrompt; // (generate-website doesn't receive geo separately in BG mode)
+      const geoToUse = geo || geoFromPrompt;
 
       const explicit = extractExplicitBrandingFromPrompt(prompt);
       const desiredSiteName = explicit.siteName || siteName;
@@ -5327,7 +5328,7 @@ ${promptForGeneration}`;
     // Pass salePrice and teamId for potential refund on error
     // IMPORTANT: Use promptForGeneration which includes language and geo instructions
     EdgeRuntime.waitUntil(
-      runBackgroundGeneration(historyEntry.id, userId, promptForGeneration, language, aiModel, layoutStyle, imageSource, teamId, salePrice, siteName)
+      runBackgroundGeneration(historyEntry.id, userId, promptForGeneration, language, aiModel, layoutStyle, imageSource, teamId, salePrice, siteName, geo)
     );
 
     // Return immediately with the history entry ID
