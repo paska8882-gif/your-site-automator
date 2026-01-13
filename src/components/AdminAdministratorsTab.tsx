@@ -26,8 +26,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const SUPER_ADMIN_EMAIL = "paska8882@gmail.com";
-
 interface Admin {
   user_id: string;
   display_name: string | null;
@@ -97,20 +95,38 @@ export const AdminAdministratorsTab = () => {
     setLoading(false);
   };
 
+  // Secure server-side verification using edge function
   const verifySuperAdminPassword = async (password: string): Promise<boolean> => {
     try {
-      // Try to sign in with super admin credentials
-      const { error } = await supabase.auth.signInWithPassword({
-        email: SUPER_ADMIN_EMAIL,
-        password: password
-      });
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token;
       
-      if (error) {
+      if (!accessToken) {
+        console.error("No access token available");
         return false;
       }
-      
-      return true;
-    } catch {
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-super-admin`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ password }),
+        }
+      );
+
+      if (!response.ok) {
+        console.error("Verification request failed:", response.status);
+        return false;
+      }
+
+      const data = await response.json();
+      return data.valid === true;
+    } catch (error) {
+      console.error("Error verifying super admin:", error);
       return false;
     }
   };
@@ -249,7 +265,7 @@ export const AdminAdministratorsTab = () => {
           <div>
             <p className="font-medium text-yellow-500">{t("appeals.attention")}</p>
             <p className="text-sm text-muted-foreground">
-              {t("admin.superAdminNote")} ({SUPER_ADMIN_EMAIL}).
+              {t("admin.superAdminNote")}
             </p>
           </div>
         </CardContent>
