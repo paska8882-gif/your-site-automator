@@ -290,9 +290,9 @@ function enforcePhoneInFiles(
 
     let content = f.content;
 
+    // Check for existing phone presence BEFORE modifications
     const hadTelLink = /href=["']tel:/i.test(content);
-    const plusPhoneRegex = /\+\d[\d\s().-]{7,}\d/g;
-    const hadPlusPhone = plusPhoneRegex.test(content);
+    const hadPlusPhone = /\+\d[\d\s().-]{7,}\d/.test(content); // NO global flag for test!
     const hadPhoneLabel = /(Phone|Tel|Telephone|Контакт|Телефон)\s*:/i.test(content);
 
     // Always enforce tel: links to match desired phone
@@ -300,7 +300,8 @@ function enforcePhoneInFiles(
 
     // Replace visible international phone patterns with desired phone
     // (Skip if inside src="..." or http(s):// links)
-    content = content.replace(plusPhoneRegex, (match, offset) => {
+    // Use fresh regex with global flag for replace
+    content = content.replace(/\+\d[\d\s().-]{7,}\d/g, (match, offset) => {
       const before = content.substring(Math.max(0, offset - 80), offset);
       if (/src=["'][^"']*$/i.test(before)) return match;
       if (/https?:\/\/[\w\W]*$/i.test(before) && /href=["'][^"']*$/i.test(before)) return match;
@@ -316,7 +317,7 @@ function enforcePhoneInFiles(
       }
     );
 
-    // If the site contains no phone at all, inject one (HTML/PHP only)
+    // If the site originally contained no phone at all, inject one (HTML/PHP only)
     if (!hadTelLink && !hadPlusPhone && !hadPhoneLabel && /\.(html?|php)$/i.test(f.path)) {
       const phoneBlock = `\n<div class="contact-phone" style="margin-top:12px">\n  <a href="tel:${desiredTel}">${desiredPhone}</a>\n</div>\n`;
 
@@ -4974,14 +4975,20 @@ async function runBackgroundGeneration(
       const desiredSiteName = explicit.siteName || siteName;
       const desiredPhone = explicit.phone;
 
-      // Fix invalid/placeholder phone numbers
+      console.log(`[BG] Extracted branding - siteName: "${desiredSiteName}", phone: "${desiredPhone}"`);
+
+      // Fix invalid/placeholder phone numbers but PRESERVE the explicit phone from prompt
       const { files: fixedFiles, totalFixed } = fixPhoneNumbersInFiles(result.files, geoToUse);
       if (totalFixed > 0) {
         console.log(`[BG] Fixed ${totalFixed} invalid phone number(s) in generated files`);
       }
 
       // Enforce exact site name + phone if they were explicitly provided by user (VIP/structured prompt)
+      // This MUST run AFTER fixPhoneNumbersInFiles to put back the correct phone
       let enforcedFiles = enforcePhoneInFiles(fixedFiles, desiredPhone);
+      if (desiredPhone) {
+        console.log(`[BG] Enforced phone "${desiredPhone}" across all files`);
+      }
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
 

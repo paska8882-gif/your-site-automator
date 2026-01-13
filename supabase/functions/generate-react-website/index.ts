@@ -205,14 +205,15 @@ function enforcePhoneInFiles(
 
     let content = f.content;
 
+    // Check for existing phone presence BEFORE modifications - NO global flag!
     const hadTelLink = /href=["']tel:/i.test(content);
-    const plusPhoneRegex = /\+\d[\d\s().-]{7,}\d/g;
-    const hadPlusPhone = plusPhoneRegex.test(content);
+    const hadPlusPhone = /\+\d[\d\s().-]{7,}\d/.test(content);
     const hadPhoneLabel = /(Phone|Tel|Telephone|Контакт|Телефон)\s*:/i.test(content);
 
     content = content.replace(/href=["']tel:([^"']+)["']/gi, () => `href="tel:${desiredTel}"`);
 
-    content = content.replace(plusPhoneRegex, (match, offset) => {
+    // Use fresh regex with global flag for replace
+    content = content.replace(/\+\d[\d\s().-]{7,}\d/g, (match, offset) => {
       const before = content.substring(Math.max(0, offset - 80), offset);
       if (/src=["'][^"']*$/i.test(before)) return match;
       if (/https?:\/\/[\w\W]*$/i.test(before) && /href=["'][^"']*$/i.test(before)) return match;
@@ -2034,13 +2035,19 @@ async function runBackgroundGeneration(
       const desiredSiteName = explicit.siteName || siteName;
       const desiredPhone = explicit.phone;
       
+      console.log(`[BG] React - Extracted branding - siteName: "${desiredSiteName}", phone: "${desiredPhone}"`);
+      
       // Fix invalid/placeholder phone numbers
       const { files: fixedFiles, totalFixed } = fixPhoneNumbersInFiles(result.files, geoToUse);
       if (totalFixed > 0) {
         console.log(`[BG] Fixed ${totalFixed} invalid phone number(s) in React files`);
       }
 
+      // Enforce exact site name + phone if they were explicitly provided
       let enforcedFiles = enforcePhoneInFiles(fixedFiles, desiredPhone);
+      if (desiredPhone) {
+        console.log(`[BG] React - Enforced phone "${desiredPhone}" across all files`);
+      }
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
       
