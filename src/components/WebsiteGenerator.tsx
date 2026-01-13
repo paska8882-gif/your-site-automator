@@ -58,7 +58,7 @@ interface AdminTeam {
   credit_limit: number;
 }
 
-const SUPER_ADMIN_EMAIL = "paska8882@gmail.com";
+// Super admin email is now stored securely in edge function environment
 
 interface GenerationPreset {
   id: string;
@@ -531,7 +531,50 @@ export function WebsiteGenerator() {
   const [showTeamFilters, setShowTeamFilters] = useState(false);
   const prevAdminBalancesRef = useRef<Record<string, number>>({});
   const { playBalanceSound } = useBalanceSound();
-  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  // Check super admin status via edge function
+  useEffect(() => {
+    const checkSuperAdmin = async () => {
+      if (!user) {
+        setIsSuperAdmin(false);
+        return;
+      }
+      
+      try {
+        const session = await supabase.auth.getSession();
+        const accessToken = session.data.session?.access_token;
+        
+        if (!accessToken) {
+          setIsSuperAdmin(false);
+          return;
+        }
+
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-super-admin`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          setIsSuperAdmin(data.isSuperAdmin === true);
+        } else {
+          setIsSuperAdmin(false);
+        }
+      } catch (error) {
+        console.error("Error checking super admin status:", error);
+        setIsSuperAdmin(false);
+      }
+    };
+
+    checkSuperAdmin();
+  }, [user]);
 
   // Save selected team to localStorage when changed
   useEffect(() => {
