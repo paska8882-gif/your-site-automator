@@ -255,6 +255,90 @@ function fixPhoneNumbersInFiles(files: Array<{ path: string; content: string }>,
   
   return { files: fixedFiles, totalFixed };
 }
+
+// Extract explicit SITE NAME / PHONE from VIP prompt (or other structured prompts)
+function extractExplicitBrandingFromPrompt(prompt: string): { siteName?: string; phone?: string } {
+  const out: { siteName?: string; phone?: string } = {};
+
+  // VIP prompt format: "Name: ..." / "Phone: ..."
+  const nameMatch = prompt.match(/^(?:Name|SITE_NAME)\s*:\s*(.+)$/mi);
+  if (nameMatch?.[1]) out.siteName = nameMatch[1].trim();
+
+  const phoneMatch = prompt.match(/^(?:Phone|PHONE)\s*:\s*(.+)$/mi);
+  if (phoneMatch?.[1]) out.phone = phoneMatch[1].trim();
+
+  // Fallback: CONTACT block: "- phone: ..."
+  if (!out.phone) {
+    const phoneMatch2 = prompt.match(/^\s*-\s*phone\s*:\s*(.+)$/mi);
+    if (phoneMatch2?.[1]) out.phone = phoneMatch2[1].trim();
+  }
+
+  return out;
+}
+
+function enforcePhoneInFiles(
+  files: Array<{ path: string; content: string }>,
+  desiredPhoneRaw: string | undefined
+): Array<{ path: string; content: string }> {
+  if (!desiredPhoneRaw) return files;
+
+  const desiredPhone = desiredPhoneRaw.trim();
+  const desiredTel = desiredPhone.replace(/[^\d+]/g, "");
+
+  return files.map((f) => {
+    if (!/\.(html?|php|jsx?|tsx?)$/i.test(f.path)) return f;
+
+    let content = f.content;
+
+    // Always enforce tel: links to match desired phone
+    content = content.replace(/href=["']tel:([^"']+)["']/gi, () => `href="tel:${desiredTel}"`);
+
+    // Replace visible international phone patterns with desired phone
+    // (Skip if inside src="..." or http(s):// links)
+    const PLUS_PHONE_REGEX = /\+\d[\d\s().-]{7,}\d/g;
+    content = content.replace(PLUS_PHONE_REGEX, (match, offset) => {
+      const before = content.substring(Math.max(0, offset - 80), offset);
+      if (/src=["'][^"']*$/i.test(before)) return match;
+      if (/https?:\/\/[\w\W]*$/i.test(before) && /href=["'][^"']*$/i.test(before)) return match;
+      return desiredPhone;
+    });
+
+    // Replace common contextual "Phone:" labels
+    content = content.replace(/(Phone|Tel|Telephone|Контакт|Телефон)\s*:\s*[^<\n\r]{6,}/gi, (m) => {
+      const label = m.split(":")[0];
+      return `${label}: ${desiredPhone}`;
+    });
+
+    return { ...f, content };
+  });
+}
+
+function enforceSiteNameInFiles(
+  files: Array<{ path: string; content: string }>,
+  desiredSiteNameRaw: string | undefined
+): Array<{ path: string; content: string }> {
+  if (!desiredSiteNameRaw) return files;
+  const desiredSiteName = desiredSiteNameRaw.trim();
+
+  return files.map((f) => {
+    if (!/\.(html?|php)$/i.test(f.path)) return f;
+
+    let content = f.content;
+
+    // Enforce <title>
+    if (/<title>[^<]*<\/title>/i.test(content)) {
+      content = content.replace(/<title>[\s\S]*?<\/title>/i, `<title>${desiredSiteName}</title>`);
+    }
+
+    // Enforce og:site_name where present
+    content = content.replace(
+      /<meta\s+property=["']og:site_name["']\s+content=["'][^"']*["']\s*\/?\s*>/i,
+      `<meta property="og:site_name" content="${desiredSiteName}" />`
+    );
+
+    return { ...f, content };
+  });
+}
 // ============ END PHONE NUMBER VALIDATION ============
 
 const SYSTEM_PROMPT = `You are a prompt refiner for professional, multi-page websites.
@@ -4836,35 +4920,44 @@ async function runBackgroundGeneration(
     const result = await runGeneration({ prompt, language, aiModel, layoutStyle, imageSource, siteName });
 
     if (result.success && result.files) {
-      // Extract geo from prompt for phone number generation
+      // Prefer explicit geo passed from client, fallback to extracting from prompt
       const geoMatch = prompt.match(/(?:geo|country|страна|країна|гео)[:\s]*([^\n,;]+)/i);
-      const geo = geoMatch ? geoMatch[1].trim() : undefined;
-      
+      const geoFromPrompt = geoMatch ? geoMatch[1].trim() : undefined;
+      const geoToUse = geoFromPrompt; // (generate-website doesn't receive geo separately in BG mode)
+
+      const explicit = extractExplicitBrandingFromPrompt(prompt);
+      const desiredSiteName = explicit.siteName || siteName;
+      const desiredPhone = explicit.phone;
+
       // Fix invalid/placeholder phone numbers
-      const { files: fixedFiles, totalFixed } = fixPhoneNumbersInFiles(result.files, geo);
+      const { files: fixedFiles, totalFixed } = fixPhoneNumbersInFiles(result.files, geoToUse);
       if (totalFixed > 0) {
         console.log(`[BG] Fixed ${totalFixed} invalid phone number(s) in generated files`);
       }
-      
+
+      // Enforce exact site name + phone if they were explicitly provided by user (VIP/structured prompt)
+      let enforcedFiles = enforcePhoneInFiles(fixedFiles, desiredPhone);
+      enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
+
       // Create zip base64 with fixed files
       const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");
       const zip = new JSZip();
-      fixedFiles.forEach((file) => zip.file(file.path, file.content));
+      enforcedFiles.forEach((file) => zip.file(file.path, file.content));
       const zipBase64 = await zip.generateAsync({ type: "base64" });
 
       // Update with success including generation cost and completion time
       const generationCost = result.totalCost || 0;
-      await supabase
-        .from("generation_history")
-        .update({
-          status: "completed",
-          files_data: fixedFiles,
-          zip_data: zipBase64,
-          generation_cost: generationCost,
-          specific_ai_model: result.specificModel || null,
-          completed_at: new Date().toISOString(),
-        })
-        .eq("id", historyId);
+        await supabase
+          .from("generation_history")
+          .update({
+            status: "completed",
+            files_data: enforcedFiles,
+            zip_data: zipBase64,
+            generation_cost: generationCost,
+            specific_ai_model: result.specificModel || null,
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", historyId);
 
       // Create notification for user
       await supabase.from("notifications").insert({

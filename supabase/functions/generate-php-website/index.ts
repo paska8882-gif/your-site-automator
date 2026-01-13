@@ -173,6 +173,81 @@ function fixPhoneNumbersInFiles(files: Array<{ path: string; content: string }>,
   });
   return { files: fixedFiles, totalFixed };
 }
+
+// Extract explicit SITE NAME / PHONE from VIP prompt (or other structured prompts)
+function extractExplicitBrandingFromPrompt(prompt: string): { siteName?: string; phone?: string } {
+  const out: { siteName?: string; phone?: string } = {};
+  const nameMatch = prompt.match(/^(?:Name|SITE_NAME)\s*:\s*(.+)$/mi);
+  if (nameMatch?.[1]) out.siteName = nameMatch[1].trim();
+
+  const phoneMatch = prompt.match(/^(?:Phone|PHONE)\s*:\s*(.+)$/mi);
+  if (phoneMatch?.[1]) out.phone = phoneMatch[1].trim();
+
+  if (!out.phone) {
+    const phoneMatch2 = prompt.match(/^\s*-\s*phone\s*:\s*(.+)$/mi);
+    if (phoneMatch2?.[1]) out.phone = phoneMatch2[1].trim();
+  }
+
+  return out;
+}
+
+function enforcePhoneInFiles(
+  files: Array<{ path: string; content: string }>,
+  desiredPhoneRaw: string | undefined
+): Array<{ path: string; content: string }> {
+  if (!desiredPhoneRaw) return files;
+
+  const desiredPhone = desiredPhoneRaw.trim();
+  const desiredTel = desiredPhone.replace(/[^\d+]/g, "");
+
+  return files.map((f) => {
+    if (!/\.(html?|php|jsx?|tsx?)$/i.test(f.path)) return f;
+
+    let content = f.content;
+
+    content = content.replace(/href=["']tel:([^"']+)["']/gi, () => `href="tel:${desiredTel}"`);
+
+    const PLUS_PHONE_REGEX = /\+\d[\d\s().-]{7,}\d/g;
+    content = content.replace(PLUS_PHONE_REGEX, (match, offset) => {
+      const before = content.substring(Math.max(0, offset - 80), offset);
+      if (/src=["'][^"']*$/i.test(before)) return match;
+      if (/https?:\/\/[\w\W]*$/i.test(before) && /href=["'][^"']*$/i.test(before)) return match;
+      return desiredPhone;
+    });
+
+    content = content.replace(/(Phone|Tel|Telephone|Контакт|Телефон)\s*:\s*[^<\n\r]{6,}/gi, (m) => {
+      const label = m.split(":")[0];
+      return `${label}: ${desiredPhone}`;
+    });
+
+    return { ...f, content };
+  });
+}
+
+function enforceSiteNameInFiles(
+  files: Array<{ path: string; content: string }>,
+  desiredSiteNameRaw: string | undefined
+): Array<{ path: string; content: string }> {
+  if (!desiredSiteNameRaw) return files;
+  const desiredSiteName = desiredSiteNameRaw.trim();
+
+  return files.map((f) => {
+    if (!/\.(html?|php)$/i.test(f.path)) return f;
+
+    let content = f.content;
+
+    if (/<title>[^<]*<\/title>/i.test(content)) {
+      content = content.replace(/<title>[\s\S]*?<\/title>/i, `<title>${desiredSiteName}</title>`);
+    }
+
+    content = content.replace(
+      /<meta\s+property=["']og:site_name["']\s+content=["'][^"']*["']\s*\/?\s*>/i,
+      `<meta property="og:site_name" content="${desiredSiteName}" />`
+    );
+
+    return { ...f, content };
+  });
+}
 // ============ END PHONE NUMBER VALIDATION ============
 
 const SYSTEM_PROMPT = `You are a prompt refiner for professional, multi-page PHP websites.
@@ -2748,19 +2823,25 @@ async function runBackgroundGeneration(
     const result = await runGeneration({ prompt, language, aiModel, layoutStyle, imageSource });
 
     if (result.success && result.files) {
-      // Extract geo from prompt for phone number generation
       const geoMatch = prompt.match(/(?:geo|country|страна|країна|гео)[:\s]*([^\n,;]+)/i);
       const geo = geoMatch ? geoMatch[1].trim() : undefined;
+
+      const explicit = extractExplicitBrandingFromPrompt(prompt);
+      const desiredSiteName = explicit.siteName;
+      const desiredPhone = explicit.phone;
       
       // Fix invalid/placeholder phone numbers
       const { files: fixedFiles, totalFixed } = fixPhoneNumbersInFiles(result.files, geo);
       if (totalFixed > 0) {
         console.log(`[BG] Fixed ${totalFixed} invalid phone number(s) in PHP files`);
       }
+
+      let enforcedFiles = enforcePhoneInFiles(fixedFiles, desiredPhone);
+      enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
       
       const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");
       const zip = new JSZip();
-      fixedFiles.forEach((file) => zip.file(file.path, file.content));
+      enforcedFiles.forEach((file) => zip.file(file.path, file.content));
       const zipBase64 = await zip.generateAsync({ type: "base64" });
 
       const generationCost = result.totalCost || 0;
@@ -2768,7 +2849,7 @@ async function runBackgroundGeneration(
         .from("generation_history")
         .update({
           status: "completed",
-          files_data: fixedFiles,
+          files_data: enforcedFiles,
           zip_data: zipBase64,
           generation_cost: generationCost,
           specific_ai_model: result.specificModel || null,
