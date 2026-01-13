@@ -1868,67 +1868,52 @@ export function WebsiteGenerator() {
 
             {/* Site Name Field - for non-admin users */}
             {!isAdmin && (
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <Label htmlFor="siteName" className="text-xs">
-                    {t("generator.siteName")} <span className="text-destructive">*</span>
-                  </Label>
-                  <div className="flex gap-1">
-                    <Input
-                      id="siteName"
-                      placeholder="my-company"
-                      value={currentSiteNameInput}
-                      onChange={(e) => setCurrentSiteNameInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addSiteName();
-                        }
-                      }}
-                      disabled={isImproving}
-                      className="h-8 text-sm flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={addSiteName}
-                      disabled={isImproving || !currentSiteNameInput.trim()}
-                      className="h-8 px-2"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  {siteNames.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {siteNames.map((name) => (
-                        <Badge key={name} variant="secondary" className="text-xs gap-1 pr-1">
-                          {name}
-                          <button
-                            type="button"
-                            onClick={() => removeSiteName(name)}
-                            className="ml-0.5 hover:text-destructive"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Exact Phone */}
-                <div className="space-y-1">
-                  <Label htmlFor="exactPhone" className="text-xs">Телефон (точно)</Label>
+              <div className="space-y-1">
+                <Label htmlFor="siteName" className="text-xs">
+                  {t("generator.siteName")} <span className="text-destructive">*</span>
+                </Label>
+                <div className="flex gap-1">
                   <Input
-                    id="exactPhone"
-                    placeholder="+40 7xx xxx xxx"
-                    value={exactPhone}
-                    onChange={(e) => setExactPhone(e.target.value)}
+                    id="siteName"
+                    placeholder="my-company"
+                    value={currentSiteNameInput}
+                    onChange={(e) => setCurrentSiteNameInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addSiteName();
+                      }
+                    }}
                     disabled={isImproving}
-                    className="h-8 text-sm"
+                    className="h-8 text-sm flex-1"
                   />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addSiteName}
+                    disabled={isImproving || !currentSiteNameInput.trim()}
+                    className="h-8 px-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
                 </div>
+                {siteNames.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {siteNames.map((name) => (
+                      <Badge key={name} variant="secondary" className="text-xs gap-1 pr-1">
+                        {name}
+                        <button
+                          type="button"
+                          onClick={() => removeSiteName(name)}
+                          className="ml-0.5 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
