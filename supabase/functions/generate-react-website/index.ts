@@ -2037,9 +2037,11 @@ async function runBackgroundGeneration(
       
       console.log(`[BG] React - Extracted branding - siteName: "${desiredSiteName}", phone: "${desiredPhone}"`);
       
-      // CRITICAL: If we have an explicit phone from prompt, SKIP fixPhoneNumbersInFiles entirely
+      // CRITICAL behavior:
+      // - If phone is explicitly provided in prompt -> enforce EXACTLY that phone and DO NOT "fix" it.
+      // - If phone is NOT provided -> generate a realistic phone based on geo and enforce it.
       let enforcedFiles = result.files;
-      
+
       if (desiredPhone) {
         console.log(`[BG] React - Using explicit phone from prompt: "${desiredPhone}" - skipping phone number fixing`);
         enforcedFiles = enforcePhoneInFiles(enforcedFiles, desiredPhone);
@@ -2049,7 +2051,10 @@ async function runBackgroundGeneration(
         if (totalFixed > 0) {
           console.log(`[BG] Fixed ${totalFixed} invalid phone number(s) in React files`);
         }
-        enforcedFiles = fixedFiles;
+        const autoPhone = generateRealisticPhone(geoToUse);
+        console.log(`[BG] React - No phone in prompt. Auto-generated regional phone: "${autoPhone}" (geo: "${geoToUse || 'default'}")`);
+        enforcedFiles = enforcePhoneInFiles(fixedFiles, autoPhone);
+        console.log(`[BG] React - Enforced auto-generated phone "${autoPhone}" across all files`);
       }
 
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);

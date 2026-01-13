@@ -3398,9 +3398,11 @@ async function runBackgroundGeneration(
       
       console.log(`[BG] PHP - Extracted branding - siteName: "${desiredSiteName}", phone: "${desiredPhone}"`);
       
-      // CRITICAL: If we have an explicit phone from prompt, SKIP fixPhoneNumbersInFiles entirely
+      // CRITICAL behavior:
+      // - If phone is explicitly provided in prompt -> enforce EXACTLY that phone and DO NOT "fix" it.
+      // - If phone is NOT provided -> generate a realistic phone based on geo and enforce it.
       let enforcedFiles = result.files;
-      
+
       if (desiredPhone) {
         console.log(`[BG] PHP - Using explicit phone from prompt: "${desiredPhone}" - skipping phone number fixing`);
         enforcedFiles = enforcePhoneInFiles(enforcedFiles, desiredPhone);
@@ -3410,7 +3412,10 @@ async function runBackgroundGeneration(
         if (totalFixed > 0) {
           console.log(`[BG] Fixed ${totalFixed} invalid phone number(s) in PHP files`);
         }
-        enforcedFiles = fixedFiles;
+        const autoPhone = generateRealisticPhone(geo);
+        console.log(`[BG] PHP - No phone in prompt. Auto-generated regional phone: "${autoPhone}" (geo: "${geo || 'default'}")`);
+        enforcedFiles = enforcePhoneInFiles(fixedFiles, autoPhone);
+        console.log(`[BG] PHP - Enforced auto-generated phone "${autoPhone}" across all files`);
       }
 
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
@@ -3829,10 +3834,12 @@ ${promptForGeneration}`;
     const desiredPhone = explicit.phone;
     const geoToUse = geo;
 
-    // Fix phones first
+    // Phone behavior:
+    // - If phone in prompt -> enforce it exactly.
+    // - If no phone -> generate regional phone and enforce it.
     const { files: fixedFiles } = fixPhoneNumbersInFiles(result.files, geoToUse);
-    // Then enforce exact values
-    let enforcedFiles = enforcePhoneInFiles(fixedFiles, desiredPhone);
+    const phoneToUse = desiredPhone || generateRealisticPhone(geoToUse);
+    let enforcedFiles = enforcePhoneInFiles(fixedFiles, phoneToUse);
     enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
     enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
 
