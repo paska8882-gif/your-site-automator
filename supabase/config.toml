@@ -37,3 +37,12 @@ verify_jwt = false
 
 [functions.check-problematic-tasks]
 verify_jwt = false
+
+[functions.verify-super-admin]
+verify_jwt = false
+
+[functions.check-super-admin]
+verify_jwt = false
+
+[functions.create-notification]
+verify_jwt = false
