@@ -431,6 +431,7 @@ const defaultBannedWords = "crypto, free, miracle, health, profit, investment, q
 interface GeneratorDraft {
   siteNames: string[];
   prompt: string;
+  exactPhone: string;
   selectedLanguages: string[];
   selectedGeo: string;
   customGeo: string;
@@ -479,6 +480,7 @@ export function WebsiteGenerator() {
   const [siteNames, setSiteNames] = useState<string[]>(draft.siteNames || []);
   const [currentSiteNameInput, setCurrentSiteNameInput] = useState("");
   const [prompt, setPrompt] = useState(draft.prompt || "");
+  const [exactPhone, setExactPhone] = useState(draft.exactPhone || "");
   const [originalPrompt, setOriginalPrompt] = useState<string | null>(null); // Stores original prompt before improvement
   const [improvedPromptValue, setImprovedPromptValue] = useState<string | null>(null); // Stores improved prompt
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -551,6 +553,7 @@ export function WebsiteGenerator() {
     saveDraft({
       siteNames,
       prompt,
+      exactPhone,
       selectedLanguages,
       selectedGeo,
       customGeo,
@@ -568,7 +571,7 @@ export function WebsiteGenerator() {
       adminGenerationMode,
     });
   }, [
-    siteNames, prompt, selectedLanguages, selectedGeo, customGeo, isOtherGeoSelected,
+    siteNames, prompt, exactPhone, selectedLanguages, selectedGeo, customGeo, isOtherGeoSelected,
     customLanguage, isOtherSelected,
     selectedStyles, customStyle, isOtherStyleSelected, sitesPerLanguage,
     selectedAiModels, selectedWebsiteTypes, selectedImageSources,
@@ -1347,6 +1350,7 @@ export function WebsiteGenerator() {
     setSiteNames([]);
     setCurrentSiteNameInput("");
     setPrompt("");
+    setExactPhone("");
     setOriginalPrompt(null);
     setImprovedPromptValue(null);
     setVipPromptValue(null);
@@ -1399,7 +1403,8 @@ export function WebsiteGenerator() {
           teamIdToUse,
           improvedPromptSnapshot || undefined,
           geoToUse,
-          vipPromptSnapshot || undefined
+          vipPromptSnapshot || undefined,
+          exactPhone || undefined
         );
         setGenerationProgress((prev) => ({ ...prev, completed: prev.completed + 1 }));
         return result;
@@ -1759,6 +1764,21 @@ export function WebsiteGenerator() {
                   )}
                 </div>
 
+                {/* Exact Phone */}
+                <div className="w-[220px]">
+                  <Label htmlFor="exactPhone" className="text-xs mb-1 block">
+                    Телефон (точно)
+                  </Label>
+                  <Input
+                    id="exactPhone"
+                    placeholder="+40 7xx xxx xxx"
+                    value={exactPhone}
+                    onChange={(e) => setExactPhone(e.target.value)}
+                    disabled={isImproving}
+                    className="h-8 text-sm"
+                  />
+                </div>
+
                 {/* Spacer */}
                 <div className="flex-1" />
 
@@ -1848,52 +1868,67 @@ export function WebsiteGenerator() {
 
             {/* Site Name Field - for non-admin users */}
             {!isAdmin && (
-              <div className="space-y-1">
-                <Label htmlFor="siteName" className="text-xs">
-                  {t("generator.siteName")} <span className="text-destructive">*</span>
-                </Label>
-                <div className="flex gap-1">
-                  <Input
-                    id="siteName"
-                    placeholder="my-company"
-                    value={currentSiteNameInput}
-                    onChange={(e) => setCurrentSiteNameInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addSiteName();
-                      }
-                    }}
-                    disabled={isImproving}
-                    className="h-8 text-sm flex-1"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addSiteName}
-                    disabled={isImproving || !currentSiteNameInput.trim()}
-                    className="h-8 px-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                {siteNames.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {siteNames.map((name) => (
-                      <Badge key={name} variant="secondary" className="text-xs gap-1 pr-1">
-                        {name}
-                        <button
-                          type="button"
-                          onClick={() => removeSiteName(name)}
-                          className="ml-0.5 hover:text-destructive"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label htmlFor="siteName" className="text-xs">
+                    {t("generator.siteName")} <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="flex gap-1">
+                    <Input
+                      id="siteName"
+                      placeholder="my-company"
+                      value={currentSiteNameInput}
+                      onChange={(e) => setCurrentSiteNameInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addSiteName();
+                        }
+                      }}
+                      disabled={isImproving}
+                      className="h-8 text-sm flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addSiteName}
+                      disabled={isImproving || !currentSiteNameInput.trim()}
+                      className="h-8 px-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
                   </div>
-                )}
+                  {siteNames.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {siteNames.map((name) => (
+                        <Badge key={name} variant="secondary" className="text-xs gap-1 pr-1">
+                          {name}
+                          <button
+                            type="button"
+                            onClick={() => removeSiteName(name)}
+                            className="ml-0.5 hover:text-destructive"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Exact Phone */}
+                <div className="space-y-1">
+                  <Label htmlFor="exactPhone" className="text-xs">Телефон (точно)</Label>
+                  <Input
+                    id="exactPhone"
+                    placeholder="+40 7xx xxx xxx"
+                    value={exactPhone}
+                    onChange={(e) => setExactPhone(e.target.value)}
+                    disabled={isImproving}
+                    className="h-8 text-sm"
+                  />
+                </div>
               </div>
             )}
 

@@ -290,13 +290,17 @@ function enforcePhoneInFiles(
 
     let content = f.content;
 
+    const hadTelLink = /href=["']tel:/i.test(content);
+    const plusPhoneRegex = /\+\d[\d\s().-]{7,}\d/g;
+    const hadPlusPhone = plusPhoneRegex.test(content);
+    const hadPhoneLabel = /(Phone|Tel|Telephone|Контакт|Телефон)\s*:/i.test(content);
+
     // Always enforce tel: links to match desired phone
     content = content.replace(/href=["']tel:([^"']+)["']/gi, () => `href="tel:${desiredTel}"`);
 
     // Replace visible international phone patterns with desired phone
     // (Skip if inside src="..." or http(s):// links)
-    const PLUS_PHONE_REGEX = /\+\d[\d\s().-]{7,}\d/g;
-    content = content.replace(PLUS_PHONE_REGEX, (match, offset) => {
+    content = content.replace(plusPhoneRegex, (match, offset) => {
       const before = content.substring(Math.max(0, offset - 80), offset);
       if (/src=["'][^"']*$/i.test(before)) return match;
       if (/https?:\/\/[\w\W]*$/i.test(before) && /href=["'][^"']*$/i.test(before)) return match;
@@ -304,10 +308,29 @@ function enforcePhoneInFiles(
     });
 
     // Replace common contextual "Phone:" labels
-    content = content.replace(/(Phone|Tel|Telephone|Контакт|Телефон)\s*:\s*[^<\n\r]{6,}/gi, (m) => {
-      const label = m.split(":")[0];
-      return `${label}: ${desiredPhone}`;
-    });
+    content = content.replace(
+      /(Phone|Tel|Telephone|Контакт|Телефон)\s*:\s*[^<\n\r]{6,}/gi,
+      (m) => {
+        const label = m.split(":")[0];
+        return `${label}: ${desiredPhone}`;
+      }
+    );
+
+    // If the site contains no phone at all, inject one (HTML/PHP only)
+    if (!hadTelLink && !hadPlusPhone && !hadPhoneLabel && /\.(html?|php)$/i.test(f.path)) {
+      const phoneBlock = `\n<div class="contact-phone" style="margin-top:12px">\n  <a href="tel:${desiredTel}">${desiredPhone}</a>\n</div>\n`;
+
+      if (/<footer\b[\s\S]*?<\/footer>/i.test(content)) {
+        content = content.replace(/<\/footer>/i, `${phoneBlock}</footer>`);
+      } else if (/<\/body>/i.test(content)) {
+        content = content.replace(
+          /<\/body>/i,
+          `\n<footer style="padding:24px 16px">${phoneBlock}</footer>\n</body>`
+        );
+      } else {
+        content += phoneBlock;
+      }
+    }
 
     return { ...f, content };
   });
@@ -336,6 +359,27 @@ function enforceSiteNameInFiles(
       `<meta property="og:site_name" content="${desiredSiteName}" />`
     );
 
+    return { ...f, content };
+  });
+}
+
+function enforceResponsiveImagesInFiles(
+  files: Array<{ path: string; content: string }>
+): Array<{ path: string; content: string }> {
+  const STYLE_ID = "lovable-responsive-images";
+  const css = `\n<style id="${STYLE_ID}">\n  img, svg, video { max-width: 100%; height: auto; }\n  img { display: block; }\n  figure { margin: 0; }\n</style>\n`;
+
+  return files.map((f) => {
+    if (!/\.(html?|php)$/i.test(f.path)) return f;
+    if (!/(<img\b|<svg\b|<video\b)/i.test(f.content)) return f;
+    if (new RegExp(`id=["']${STYLE_ID}["']`, "i").test(f.content)) return f;
+
+    let content = f.content;
+    if (/<\/head>/i.test(content)) {
+      content = content.replace(/<\/head>/i, `${css}</head>`);
+    } else {
+      content = css + content;
+    }
     return { ...f, content };
   });
 }
@@ -4939,6 +4983,7 @@ async function runBackgroundGeneration(
       // Enforce exact site name + phone if they were explicitly provided by user (VIP/structured prompt)
       let enforcedFiles = enforcePhoneInFiles(fixedFiles, desiredPhone);
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
+      enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
 
       // Create zip base64 with fixed files
       const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");
