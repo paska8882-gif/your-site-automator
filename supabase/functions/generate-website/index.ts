@@ -4977,17 +4977,22 @@ async function runBackgroundGeneration(
 
       console.log(`[BG] Extracted branding - siteName: "${desiredSiteName}", phone: "${desiredPhone}"`);
 
-      // Fix invalid/placeholder phone numbers but PRESERVE the explicit phone from prompt
-      const { files: fixedFiles, totalFixed } = fixPhoneNumbersInFiles(result.files, geoToUse);
-      if (totalFixed > 0) {
-        console.log(`[BG] Fixed ${totalFixed} invalid phone number(s) in generated files`);
-      }
-
-      // Enforce exact site name + phone if they were explicitly provided by user (VIP/structured prompt)
-      // This MUST run AFTER fixPhoneNumbersInFiles to put back the correct phone
-      let enforcedFiles = enforcePhoneInFiles(fixedFiles, desiredPhone);
+      // CRITICAL: If we have an explicit phone from prompt, SKIP fixPhoneNumbersInFiles entirely
+      // because it replaces valid phones with generated ones. Instead, just enforce the desired phone.
+      let enforcedFiles = result.files;
+      
       if (desiredPhone) {
+        // User provided phone in prompt - enforce it directly without "fixing" first
+        console.log(`[BG] Using explicit phone from prompt: "${desiredPhone}" - skipping phone number fixing`);
+        enforcedFiles = enforcePhoneInFiles(enforcedFiles, desiredPhone);
         console.log(`[BG] Enforced phone "${desiredPhone}" across all files`);
+      } else {
+        // No explicit phone - fix any invalid/placeholder numbers
+        const { files: fixedFiles, totalFixed } = fixPhoneNumbersInFiles(result.files, geoToUse);
+        if (totalFixed > 0) {
+          console.log(`[BG] Fixed ${totalFixed} invalid phone number(s) in generated files`);
+        }
+        enforcedFiles = fixedFiles;
       }
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
@@ -5017,11 +5022,11 @@ async function runBackgroundGeneration(
         user_id: userId,
         type: "generation_complete",
         title: "Сайт згенеровано",
-        message: `HTML сайт успішно створено (${fixedFiles.length} файлів)`,
-        data: { historyId, filesCount: fixedFiles.length }
+        message: `HTML сайт успішно створено (${enforcedFiles.length} файлів)`,
+        data: { historyId, filesCount: enforcedFiles.length }
       });
 
-      console.log(`[BG] Generation completed for ${historyId}: ${fixedFiles.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}`);
+      console.log(`[BG] Generation completed for ${historyId}: ${enforcedFiles.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}`);
     } else {
       // REFUND balance on failure
       if (teamId && salePrice > 0) {

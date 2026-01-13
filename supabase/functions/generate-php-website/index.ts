@@ -2872,17 +2872,21 @@ async function runBackgroundGeneration(
       
       console.log(`[BG] PHP - Extracted branding - siteName: "${desiredSiteName}", phone: "${desiredPhone}"`);
       
-      // Fix invalid/placeholder phone numbers
-      const { files: fixedFiles, totalFixed } = fixPhoneNumbersInFiles(result.files, geo);
-      if (totalFixed > 0) {
-        console.log(`[BG] Fixed ${totalFixed} invalid phone number(s) in PHP files`);
+      // CRITICAL: If we have an explicit phone from prompt, SKIP fixPhoneNumbersInFiles entirely
+      let enforcedFiles = result.files;
+      
+      if (desiredPhone) {
+        console.log(`[BG] PHP - Using explicit phone from prompt: "${desiredPhone}" - skipping phone number fixing`);
+        enforcedFiles = enforcePhoneInFiles(enforcedFiles, desiredPhone);
+        console.log(`[BG] PHP - Enforced phone "${desiredPhone}" across all files`);
+      } else {
+        const { files: fixedFiles, totalFixed } = fixPhoneNumbersInFiles(result.files, geo);
+        if (totalFixed > 0) {
+          console.log(`[BG] Fixed ${totalFixed} invalid phone number(s) in PHP files`);
+        }
+        enforcedFiles = fixedFiles;
       }
 
-      // Enforce exact site name + phone if they were explicitly provided
-      let enforcedFiles = enforcePhoneInFiles(fixedFiles, desiredPhone);
-      if (desiredPhone) {
-        console.log(`[BG] PHP - Enforced phone "${desiredPhone}" across all files`);
-      }
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
       
@@ -2908,11 +2912,11 @@ async function runBackgroundGeneration(
         user_id: userId,
         type: "generation_complete",
         title: "PHP сайт згенеровано",
-        message: `PHP сайт успішно створено (${fixedFiles.length} файлів)`,
-        data: { historyId, filesCount: fixedFiles.length }
+        message: `PHP сайт успішно створено (${enforcedFiles.length} файлів)`,
+        data: { historyId, filesCount: enforcedFiles.length }
       });
 
-      console.log(`[BG] PHP Generation completed for ${historyId}: ${fixedFiles.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}`);
+      console.log(`[BG] PHP Generation completed for ${historyId}: ${enforcedFiles.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}`);
     } else {
       // REFUND balance on failure
       if (teamId && salePrice > 0) {
