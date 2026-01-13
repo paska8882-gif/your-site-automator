@@ -319,16 +319,28 @@ function enforcePhoneInFiles(
 
     // If the site originally contained no phone at all, inject one (HTML/PHP only)
     if (!hadTelLink && !hadPlusPhone && !hadPhoneLabel && /\.(html?|php)$/i.test(f.path)) {
-      const phoneBlock = `\n<div class="contact-phone" style="margin-top:12px">\n  <a href="tel:${desiredTel}">${desiredPhone}</a>\n</div>\n`;
+      const phoneLink = `<a href="tel:${desiredTel}" class="contact-phone-link">${desiredPhone}</a>`;
+      const phoneBlock = `\n<div class="contact-phone" style="margin-top:12px">${phoneLink}</div>\n`;
 
+      // 1) Prefer inserting into an existing contact section
+      if (/<section[^>]*id=["']contact["'][^>]*>/i.test(content)) {
+        content = content.replace(
+          /(<section[^>]*id=["']contact["'][^>]*>)/i,
+          `$1${phoneBlock}`
+        );
+      }
+
+      // 2) Insert into footer if present
       if (/<footer\b[\s\S]*?<\/footer>/i.test(content)) {
         content = content.replace(/<\/footer>/i, `${phoneBlock}</footer>`);
       } else if (/<\/body>/i.test(content)) {
+        // 3) Fallback: create a minimal footer
         content = content.replace(
           /<\/body>/i,
           `\n<footer style="padding:24px 16px">${phoneBlock}</footer>\n</body>`
         );
       } else {
+        // 4) Last resort: append
         content += phoneBlock;
       }
     }
