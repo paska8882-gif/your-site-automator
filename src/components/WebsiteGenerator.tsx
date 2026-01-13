@@ -1764,21 +1764,6 @@ export function WebsiteGenerator() {
                   )}
                 </div>
 
-                {/* Exact Phone */}
-                <div className="w-[220px]">
-                  <Label htmlFor="exactPhone" className="text-xs mb-1 block">
-                    Телефон (точно)
-                  </Label>
-                  <Input
-                    id="exactPhone"
-                    placeholder="+40 7xx xxx xxx"
-                    value={exactPhone}
-                    onChange={(e) => setExactPhone(e.target.value)}
-                    disabled={isImproving}
-                    className="h-8 text-sm"
-                  />
-                </div>
-
                 {/* Spacer */}
                 <div className="flex-1" />
 
