@@ -138,7 +138,8 @@ export async function startGeneration(
   teamId?: string, // Optional team ID for admin generation
   improvedPrompt?: string, // AI-improved prompt (commercial secret)
   geo?: string, // Target country/region for the website
-  vipPrompt?: string // VIP detailed prompt (+$2)
+  vipPrompt?: string, // VIP detailed prompt (+$2)
+  exactPhone?: string // Optional exact phone to enforce
 ): Promise<GenerationResult> {
   // IMPORTANT: seniorMode (codex/reaktiv) only applies to React websites
   // HTML and PHP websites always use their dedicated generation functions
@@ -162,7 +163,15 @@ export async function startGeneration(
 
   // Determine which prompt to use for generation
   // Priority: vipPrompt > improvedPrompt > original prompt
-  const promptForGeneration = vipPrompt || improvedPrompt || prompt;
+  let promptForGeneration = vipPrompt || improvedPrompt || prompt;
+
+  // If user provided exact phone / site name, embed them as structured lines so the backend can enforce them
+  if (siteName?.trim() && !/^(?:Name|SITE_NAME)\s*:/mi.test(promptForGeneration)) {
+    promptForGeneration += `\nName: ${siteName.trim()}`;
+  }
+  if (exactPhone?.trim() && !/^(?:Phone|PHONE)\s*:/mi.test(promptForGeneration)) {
+    promptForGeneration += `\nPhone: ${exactPhone.trim()}`;
+  }
 
   const makeRequest = async (accessToken: string) => {
     // Set a long timeout for generation (10 minutes) to prevent premature connection close
