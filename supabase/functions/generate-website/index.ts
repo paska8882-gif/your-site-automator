@@ -285,26 +285,35 @@ function enforcePhoneInFiles(
   const desiredPhone = desiredPhoneRaw.trim();
   const desiredTel = desiredPhone.replace(/[^\d+]/g, "");
 
+  // Helper: strip attributes for phone scan (defined here for self-contained function)
+  const stripAttrsForScan = (html: string): string => html
+    .replace(/\bsrc=["'][^"']*["']/gi, 'src=""')
+    .replace(/\bhref=["'](?!tel:)[^"']*["']/gi, 'href=""')
+    .replace(/\bcontent=["'][^"']*["']/gi, 'content=""')
+    .replace(/\bdata-[\w-]+=["'][^"']*["']/gi, 'data-x=""');
+
   return files.map((f) => {
     if (!/\.(html?|php|jsx?|tsx?)$/i.test(f.path)) return f;
 
     let content = f.content;
 
-    // Check for existing phone presence BEFORE modifications
+    // Check for existing phone presence BEFORE modifications - USE STRIPPED CONTENT!
     const hadTelLink = /href=["']tel:/i.test(content);
-    const hadPlusPhone = /\+\d[\d\s().-]{7,}\d/.test(content); // NO global flag for test!
-    const hadPhoneLabel = /(Phone|Tel|Telephone|Контакт|Телефон)\s*:/i.test(content);
+    const strippedContent = stripAttrsForScan(content);
+    const hadPlusPhone = /\+\d[\d\s().-]{7,}\d/.test(strippedContent);
+    const hadPhoneLabel = /(Phone|Tel|Telephone|Контакт|Телефон)\s*:/i.test(strippedContent);
 
     // Always enforce tel: links to match desired phone
     content = content.replace(/href=["']tel:([^"']+)["']/gi, () => `href="tel:${desiredTel}"`);
 
     // Replace visible international phone patterns with desired phone
-    // (Skip if inside src="..." or http(s):// links)
-    // Use fresh regex with global flag for replace
+    // (Skip if inside src="...", href="...", content="...", data-*="...")
     content = content.replace(/\+\d[\d\s().-]{7,}\d/g, (match, offset) => {
-      const before = content.substring(Math.max(0, offset - 80), offset);
+      const before = content.substring(Math.max(0, offset - 100), offset);
       if (/src=["'][^"']*$/i.test(before)) return match;
-      if (/https?:\/\/[\w\W]*$/i.test(before) && /href=["'][^"']*$/i.test(before)) return match;
+      if (/href=["'](?!tel:)[^"']*$/i.test(before)) return match;
+      if (/content=["'][^"']*$/i.test(before)) return match;
+      if (/data-[\w-]+=["'][^"']*$/i.test(before)) return match;
       return desiredPhone;
     });
 
@@ -319,6 +328,7 @@ function enforcePhoneInFiles(
 
     // If the site originally contained no phone at all, inject one (HTML/PHP only)
     if (!hadTelLink && !hadPlusPhone && !hadPhoneLabel && /\.(html?|php)$/i.test(f.path)) {
+      console.log(`📞 [enforcePhoneInFiles] Injecting phone into ${f.path} - no existing phone detected`);
       const phoneLink = `<a href="tel:${desiredTel}" class="contact-phone-link">${desiredPhone}</a>`;
       const phoneBlock = `\n<div class="contact-phone" style="margin-top:12px">${phoneLink}</div>\n`;
 
@@ -800,6 +810,29 @@ if(localStorage.getItem('cookiesAccepted')==='true'){document.getElementById('${
 }
 
 // ============ CRITICAL: PHONE ON ALL PAGES & CLICKABLE ============
+
+// UTILITY: Strip attribute values to check for user-visible phone only
+// This prevents false positives from phone numbers in src="", href="", content="", data-*=""
+function stripAttributeValuesForPhoneScan(html: string): string {
+  // Remove content inside src="...", href="..." (except tel:), content="...", data-*="..."
+  return html
+    .replace(/\bsrc=["'][^"']*["']/gi, 'src=""')
+    .replace(/\bhref=["'](?!tel:)[^"']*["']/gi, 'href=""')
+    .replace(/\bcontent=["'][^"']*["']/gi, 'content=""')
+    .replace(/\bdata-[\w-]+=["'][^"']*["']/gi, 'data-x=""');
+}
+
+// Check if content has a user-visible phone number (ignoring URLs/attributes)
+function hasUserVisiblePhone(content: string): boolean {
+  const strippedContent = stripAttributeValuesForPhoneScan(content);
+  return /\+\d[\d\s().-]{7,}\d/.test(strippedContent);
+}
+
+// Check if content has a clickable tel: link
+function hasClickableTelLink(content: string): boolean {
+  return /href=["']tel:\+?\d+["']/i.test(content);
+}
+
 // Make all phone numbers clickable with tel: links
 function makeAllPhonesClickable(
   files: Array<{ path: string; content: string }>
@@ -822,10 +855,10 @@ function makeAllPhonesClickable(
       const before = content.substring(Math.max(0, offset - 100), offset);
       if (/src=["'][^"']*$/i.test(before)) return match;
       if (/href=["'](?!tel:)[^"']*$/i.test(before)) return match;
+      if (/content=["'][^"']*$/i.test(before)) return match;
+      if (/data-[\w-]+=["'][^"']*$/i.test(before)) return match;
       
       // Skip if already inside an <a> tag
-      const afterStart = content.substring(offset);
-      const nextCloseTag = afterStart.match(/^[^<]*<\//);
       const beforeLastOpenTag = content.substring(0, offset).match(/<a\s[^>]*>[^<]*$/i);
       if (beforeLastOpenTag) return match;
       
@@ -842,6 +875,7 @@ function makeAllPhonesClickable(
 }
 
 // Ensure EVERY page has a clickable phone number in header or footer
+// CRITICAL: Always check for tel: link presence, not just visible phone text
 function ensurePhoneOnAllPages(
   files: Array<{ path: string; content: string }>,
   desiredPhone: string,
@@ -860,14 +894,19 @@ function ensurePhoneOnAllPages(
     
     let content = f.content;
     
-    // Check if page already has a clickable phone
-    const hasClickablePhone = /href=["']tel:\+?\d+["']/i.test(content);
-    // Also check for visible phone number (international format)
-    const hasVisiblePhone = /\+\d[\d\s().-]{7,}\d/.test(content);
+    // PRIMARY CHECK: Is there a clickable tel: link?
+    const hasTelLink = hasClickableTelLink(content);
     
-    // If no phone at all, inject into header AND footer
-    if (!hasClickablePhone && !hasVisiblePhone) {
-      warnings.push(`${f.path}: No phone found - injecting clickable phone`);
+    // SECONDARY CHECK: Is there a user-visible phone (not in URLs/attributes)?
+    const hasVisiblePhoneReal = hasUserVisiblePhone(content);
+    
+    // Check if already has our marker class (prevent duplicate injections)
+    const hasOurMarker = /class=["'][^"']*(?:site-phone-link|footer-phone|header-phone)[^"']*["']/i.test(content);
+    
+    // If no tel: link AND no user-visible phone AND no marker -> INJECT
+    if (!hasTelLink && !hasVisiblePhoneReal && !hasOurMarker) {
+      warnings.push(`[PHONE-INJECT] ${f.path}: No phone found - injecting clickable phone`);
+      console.log(`📞 [ensurePhoneOnAllPages] Injecting phone into ${f.path} - no tel: or visible phone found`);
       
       // Try to add to header first
       if (/<header\b[^>]*>/i.test(content)) {
@@ -883,14 +922,22 @@ function ensurePhoneOnAllPages(
       } else {
         content += `\n<footer style="padding:24px;text-align:center;">${phoneBlockFooter}</footer>`;
       }
-    } else if (!hasClickablePhone && hasVisiblePhone) {
-      // Phone exists but not clickable - will be handled by makeAllPhonesClickable
-      // But still ensure it's in a good location
-      const inFooter = /<footer[\s\S]*?\+\d[\d\s().-]{7,}\d[\s\S]*?<\/footer>/i.test(content);
-      const inHeader = /<header[\s\S]*?\+\d[\d\s().-]{7,}\d[\s\S]*?<\/header>/i.test(content);
+    } else if (!hasTelLink && hasVisiblePhoneReal && !hasOurMarker) {
+      // Phone exists but not clickable - check if it's in a good location
+      const strippedFooter = stripAttributeValuesForPhoneScan(
+        (content.match(/<footer[\s\S]*?<\/footer>/i) || [''])[0]
+      );
+      const strippedHeader = stripAttributeValuesForPhoneScan(
+        (content.match(/<header[\s\S]*?<\/header>/i) || [''])[0]
+      );
+      
+      const inFooter = /\+\d[\d\s().-]{7,}\d/.test(strippedFooter);
+      const inHeader = /\+\d[\d\s().-]{7,}\d/.test(strippedHeader);
       
       if (!inFooter && !inHeader) {
-        warnings.push(`${f.path}: Phone not in header/footer - adding to footer`);
+        warnings.push(`[PHONE-INJECT] ${f.path}: Phone not in header/footer - adding to footer`);
+        console.log(`📞 [ensurePhoneOnAllPages] Adding phone to footer in ${f.path} - phone exists but not in header/footer`);
+        
         if (/<footer\b[^>]*>/i.test(content)) {
           content = content.replace(/<\/footer>/i, `${phoneBlockFooter}\n</footer>`);
         } else if (/<\/body>/i.test(content)) {
@@ -898,6 +945,7 @@ function ensurePhoneOnAllPages(
         }
       }
     }
+    // If hasTelLink is true, we're good - phone is already clickable
     
     return { ...f, content };
   });
