@@ -10,14 +10,20 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { status, check } = useBackendHealth();
+  const { status, retry, isRetrying, lastErrorAt, consecutiveFailures } = useBackendHealth();
 
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <SidebarInset className="flex-1 flex flex-col">
-          <BackendStatusBanner isDown={status === "degraded"} onRetry={check} />
+          <BackendStatusBanner
+            isDown={status === "degraded"}
+            onRetry={retry}
+            isRetrying={isRetrying}
+            lastErrorAt={lastErrorAt}
+            consecutiveFailures={consecutiveFailures}
+          />
 
           {/* Top Header */}
           <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border/50 px-4">

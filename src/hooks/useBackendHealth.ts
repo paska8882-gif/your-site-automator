@@ -1,10 +1,20 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type BackendHealthStatus = "checking" | "healthy" | "degraded";
 
 interface Options {
-  timeoutMs?: number;
-  intervalMs?: number;
+  initialTimeoutMs?: number;
+  maxTimeoutMs?: number;
+  baseIntervalMs?: number;
+  maxRetries?: number;
+}
+
+interface HealthState {
+  status: BackendHealthStatus;
+  lastErrorAt: number | null;
+  consecutiveFailures: number;
+  lastError: string | null;
+  isRetrying: boolean;
 }
 
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs: number) {
@@ -18,18 +28,54 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, tim
   }
 }
 
-// Track failures outside of React state to avoid hook count changes
-let consecutiveFailures = 0;
+function logHealthEvent(event: string, details: Record<string, unknown>) {
+  const timestamp = new Date().toISOString();
+  const logEntry = { timestamp, event, ...details };
+  
+  // Console logging
+  if (details.error) {
+    console.error(`[BackendHealth] ${event}:`, logEntry);
+  } else {
+    console.info(`[BackendHealth] ${event}:`, logEntry);
+  }
+  
+  // Could be extended to send to analytics/tracking service
+  // e.g., analytics.track('backend_health', logEntry);
+}
 
 export function useBackendHealth(options: Options = {}) {
-  const { timeoutMs = 10000, intervalMs = 30000 } = options;
-  const [status, setStatus] = useState<BackendHealthStatus>("checking");
-  const [lastErrorAt, setLastErrorAt] = useState<number | null>(null);
+  const {
+    initialTimeoutMs = 10000,
+    maxTimeoutMs = 60000,
+    baseIntervalMs = 30000,
+    maxRetries = 5,
+  } = options;
 
-  const check = useCallback(async () => {
+  const [state, setState] = useState<HealthState>({
+    status: "checking",
+    lastErrorAt: null,
+    consecutiveFailures: 0,
+    lastError: null,
+    isRetrying: false,
+  });
+
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Calculate exponential backoff delay
+  const getBackoffDelay = useCallback((failures: number) => {
+    // Exponential backoff: 2^failures * 1000ms, capped at maxTimeoutMs
+    const delay = Math.min(Math.pow(2, failures) * 1000, maxTimeoutMs);
+    return delay;
+  }, [maxTimeoutMs]);
+
+  const check = useCallback(async (isManualRetry = false) => {
+    if (isManualRetry) {
+      setState(prev => ({ ...prev, isRetrying: true }));
+      logHealthEvent("manual_retry_initiated", {});
+    }
+
     try {
-      // Use a simple health check that doesn't require RLS access
-      // Just ping the Supabase REST endpoint to check connectivity
       const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/`;
       const res = await fetchWithTimeout(
         url,
@@ -40,34 +86,97 @@ export function useBackendHealth(options: Options = {}) {
             accept: "application/json",
           },
         },
-        timeoutMs
+        initialTimeoutMs
       );
 
-      // Any response (even 404) means the backend is reachable
-      consecutiveFailures = 0;
-      setStatus("healthy");
+      // Any response means backend is reachable
+      if (state.consecutiveFailures > 0) {
+        logHealthEvent("backend_recovered", {
+          previousFailures: state.consecutiveFailures,
+          downtime: state.lastErrorAt ? Date.now() - state.lastErrorAt : null,
+        });
+      }
+
+      setState({
+        status: "healthy",
+        lastErrorAt: null,
+        consecutiveFailures: 0,
+        lastError: null,
+        isRetrying: false,
+      });
+
     } catch (error) {
-      // Only count as failure if it's a network/timeout error
-      if (error instanceof Error && error.name === 'AbortError') {
-        consecutiveFailures++;
-      } else {
-        // For other fetch errors, increment failure count
-        consecutiveFailures++;
-      }
-      
-      // Only show degraded after 3+ consecutive failures to reduce false positives
-      if (consecutiveFailures >= 3) {
-        setStatus("degraded");
-        setLastErrorAt(Date.now());
-      }
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const isTimeout = error instanceof Error && error.name === "AbortError";
+
+      setState(prev => {
+        const newFailures = prev.consecutiveFailures + 1;
+        const isDegraded = newFailures >= 3;
+
+        logHealthEvent("health_check_failed", {
+          error: errorMessage,
+          isTimeout,
+          consecutiveFailures: newFailures,
+          isDegraded,
+        });
+
+        // Schedule automatic retry with exponential backoff
+        if (newFailures < maxRetries) {
+          const backoffDelay = getBackoffDelay(newFailures);
+          logHealthEvent("scheduling_retry", {
+            attempt: newFailures + 1,
+            maxRetries,
+            delayMs: backoffDelay,
+          });
+
+          if (retryTimeoutRef.current) {
+            clearTimeout(retryTimeoutRef.current);
+          }
+          retryTimeoutRef.current = setTimeout(() => check(false), backoffDelay);
+        } else {
+          logHealthEvent("max_retries_reached", { maxRetries });
+        }
+
+        return {
+          status: isDegraded ? "degraded" : prev.status,
+          lastErrorAt: isDegraded ? Date.now() : prev.lastErrorAt,
+          consecutiveFailures: newFailures,
+          lastError: errorMessage,
+          isRetrying: false,
+        };
+      });
     }
-  }, [timeoutMs]);
+  }, [initialTimeoutMs, maxRetries, getBackoffDelay, state.consecutiveFailures, state.lastErrorAt]);
+
+  // Manual retry function for user-triggered retries
+  const retry = useCallback(() => {
+    // Clear any pending automatic retry
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+    // Reset failures and check immediately
+    setState(prev => ({ ...prev, consecutiveFailures: 0 }));
+    check(true);
+  }, [check]);
 
   useEffect(() => {
     check();
-    const t = setInterval(check, intervalMs);
-    return () => clearInterval(t);
-  }, [check, intervalMs]);
+    intervalRef.current = setInterval(() => check(), baseIntervalMs);
 
-  return { status, lastErrorAt, check };
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+    };
+  }, [check, baseIntervalMs]);
+
+  return {
+    status: state.status,
+    lastErrorAt: state.lastErrorAt,
+    lastError: state.lastError,
+    consecutiveFailures: state.consecutiveFailures,
+    isRetrying: state.isRetrying,
+    check: () => check(false),
+    retry,
+  };
 }
