@@ -799,16 +799,135 @@ if(localStorage.getItem('cookiesAccepted')==='true'){document.getElementById('${
   return { files: updatedFiles, warnings };
 }
 
+// ============ CRITICAL: PHONE ON ALL PAGES & CLICKABLE ============
+// Make all phone numbers clickable with tel: links
+function makeAllPhonesClickable(
+  files: Array<{ path: string; content: string }>
+): { files: Array<{ path: string; content: string }>; fixed: number } {
+  let totalFixed = 0;
+  
+  // Regex to find phone numbers that are NOT already wrapped in tel: link
+  // Matches: +XX XXX XXX XXXX patterns (international format)
+  const PHONE_REGEX = /(?<!href=["']tel:[^"']*?)(?<!["'>])(\+\d[\d\s().-]{7,}\d)(?![^<]*<\/a>)/g;
+  
+  const updatedFiles = files.map(f => {
+    if (!/\.(html?|php)$/i.test(f.path)) return f;
+    
+    let content = f.content;
+    let fileFixed = 0;
+    
+    // Find all phones NOT in tel: links and wrap them
+    content = content.replace(PHONE_REGEX, (match, phone, offset) => {
+      // Skip if inside src="" or href="" that's not tel:
+      const before = content.substring(Math.max(0, offset - 100), offset);
+      if (/src=["'][^"']*$/i.test(before)) return match;
+      if (/href=["'](?!tel:)[^"']*$/i.test(before)) return match;
+      
+      // Skip if already inside an <a> tag
+      const afterStart = content.substring(offset);
+      const nextCloseTag = afterStart.match(/^[^<]*<\//);
+      const beforeLastOpenTag = content.substring(0, offset).match(/<a\s[^>]*>[^<]*$/i);
+      if (beforeLastOpenTag) return match;
+      
+      fileFixed++;
+      const telNumber = phone.replace(/[^\d+]/g, '');
+      return `<a href="tel:${telNumber}" style="color:inherit;text-decoration:none;">${phone}</a>`;
+    });
+    
+    totalFixed += fileFixed;
+    return { ...f, content };
+  });
+  
+  return { files: updatedFiles, fixed: totalFixed };
+}
+
+// Ensure EVERY page has a clickable phone number in header or footer
+function ensurePhoneOnAllPages(
+  files: Array<{ path: string; content: string }>,
+  desiredPhone: string,
+  geo?: string
+): { files: Array<{ path: string; content: string }>; warnings: string[] } {
+  const warnings: string[] = [];
+  const phone = desiredPhone || generateRealisticPhone(geo);
+  const telNumber = phone.replace(/[^\d+]/g, '');
+  
+  const phoneLink = `<a href="tel:${telNumber}" class="site-phone-link" style="color:inherit;text-decoration:none;font-weight:500;">${phone}</a>`;
+  const phoneBlockHeader = `<div class="header-phone" style="padding:8px 16px;font-size:0.9rem;">${phoneLink}</div>`;
+  const phoneBlockFooter = `<div class="footer-phone" style="margin:16px 0;font-size:0.95rem;">📞 ${phoneLink}</div>`;
+  
+  const updatedFiles = files.map(f => {
+    if (!/\.(html?|php)$/i.test(f.path)) return f;
+    
+    let content = f.content;
+    
+    // Check if page already has a clickable phone
+    const hasClickablePhone = /href=["']tel:\+?\d+["']/i.test(content);
+    // Also check for visible phone number (international format)
+    const hasVisiblePhone = /\+\d[\d\s().-]{7,}\d/.test(content);
+    
+    // If no phone at all, inject into header AND footer
+    if (!hasClickablePhone && !hasVisiblePhone) {
+      warnings.push(`${f.path}: No phone found - injecting clickable phone`);
+      
+      // Try to add to header first
+      if (/<header\b[^>]*>/i.test(content)) {
+        content = content.replace(/(<header\b[^>]*>)/i, `$1\n${phoneBlockHeader}`);
+      }
+      
+      // Always add to footer (most important!)
+      if (/<footer\b[^>]*>/i.test(content)) {
+        content = content.replace(/<\/footer>/i, `${phoneBlockFooter}\n</footer>`);
+      } else if (/<\/body>/i.test(content)) {
+        // Create footer if none exists
+        content = content.replace(/<\/body>/i, `<footer style="padding:24px;text-align:center;">${phoneBlockFooter}</footer>\n</body>`);
+      } else {
+        content += `\n<footer style="padding:24px;text-align:center;">${phoneBlockFooter}</footer>`;
+      }
+    } else if (!hasClickablePhone && hasVisiblePhone) {
+      // Phone exists but not clickable - will be handled by makeAllPhonesClickable
+      // But still ensure it's in a good location
+      const inFooter = /<footer[\s\S]*?\+\d[\d\s().-]{7,}\d[\s\S]*?<\/footer>/i.test(content);
+      const inHeader = /<header[\s\S]*?\+\d[\d\s().-]{7,}\d[\s\S]*?<\/header>/i.test(content);
+      
+      if (!inFooter && !inHeader) {
+        warnings.push(`${f.path}: Phone not in header/footer - adding to footer`);
+        if (/<footer\b[^>]*>/i.test(content)) {
+          content = content.replace(/<\/footer>/i, `${phoneBlockFooter}\n</footer>`);
+        } else if (/<\/body>/i.test(content)) {
+          content = content.replace(/<\/body>/i, `<footer style="padding:24px;text-align:center;">${phoneBlockFooter}</footer>\n</body>`);
+        }
+      }
+    }
+    
+    return { ...f, content };
+  });
+  
+  return { files: updatedFiles, warnings };
+}
+// ============ END PHONE ON ALL PAGES ============
+
 // Combined post-validation function
 function runContactValidation(
   files: Array<{ path: string; content: string }>,
   geo?: string,
-  language?: string
+  language?: string,
+  desiredPhone?: string
 ): { files: Array<{ path: string; content: string }>; warnings: string[] } {
   const allWarnings: string[] = [];
   
+  // Step 0: CRITICAL - Ensure phone on ALL pages (most important!)
+  const phoneToUse = desiredPhone || generateRealisticPhone(geo);
+  const { files: filesWithPhones, warnings: phoneWarnings } = ensurePhoneOnAllPages(files, phoneToUse, geo);
+  allWarnings.push(...phoneWarnings);
+  
+  // Step 0.5: Make ALL phone numbers clickable with tel: links
+  const { files: filesWithClickablePhones, fixed: clickableFixed } = makeAllPhonesClickable(filesWithPhones);
+  if (clickableFixed > 0) {
+    allWarnings.push(`Made ${clickableFixed} phone number(s) clickable with tel: links`);
+  }
+  
   // Step 1: Validate contact page has phone/email
-  const { files: filesAfterContactValidation, warnings: contactWarnings } = validateContactPage(files, geo);
+  const { files: filesAfterContactValidation, warnings: contactWarnings } = validateContactPage(filesWithClickablePhones, geo);
   allWarnings.push(...contactWarnings);
   
   // Step 2: Ensure all footers have contact link
@@ -5472,10 +5591,12 @@ async function runBackgroundGeneration(
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
       
       // Run contact page validation (phone/email in contact.html, contact links in footers)
-      const { files: contactValidatedFiles, warnings: contactWarnings } = runContactValidation(enforcedFiles, geoToUse, language);
+      // CRITICAL: Pass the phone to ensure it's on ALL pages and clickable
+      const phoneForValidation = desiredPhone || generateRealisticPhone(geoToUse);
+      const { files: contactValidatedFiles, warnings: contactWarnings } = runContactValidation(enforcedFiles, geoToUse, language, phoneForValidation);
       enforcedFiles = contactValidatedFiles;
       if (contactWarnings.length > 0) {
-        console.log(`[BG] Contact validation applied ${contactWarnings.length} fixes`);
+        console.log(`[BG] Contact validation applied ${contactWarnings.length} fixes (phone: ${phoneForValidation})`);
       }
 
       // Create zip base64 with fixed files
