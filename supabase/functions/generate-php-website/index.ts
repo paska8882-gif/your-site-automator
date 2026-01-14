@@ -3100,76 +3100,114 @@ async function runGeneration({
     try {
       let generateResponse: Response;
       const startTime = Date.now();
-      console.log(`🚀 Starting generation with ${generateModel} (timeout: ${timeoutMs / 1000}s)...`);
       
-      if (useLovableAI) {
-        generateResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${lovableApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: generateModel,
-            messages: [
-              { role: "system", content: systemContent },
-              { role: "user", content: userContent },
-            ],
-            max_tokens: 32000,
-          }),
-          signal: controller.signal,
-        });
-        console.log(`✅ Generation API responded in ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
-      } else {
-        generateResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${openaiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: generateModel,
-            messages: [
-              { role: "system", content: systemContent },
-              { role: "user", content: userContent },
-            ],
-            max_tokens: 16000,
-            temperature: opts.strictFormat ? 0.4 : 0.6,
-          }),
-          signal: controller.signal,
-        });
-      }
+      // Try with fallback models if primary fails
+      const modelsToTry = useLovableAI 
+        ? [generateModel, "google/gemini-2.5-flash", "openai/gpt-5"]
+        : [generateModel];
+      
+      let lastError = "";
+      let usedModel = generateModel;
+      
+      for (const modelToUse of modelsToTry) {
+        console.log(`🚀 Trying generation with ${modelToUse} (timeout: ${timeoutMs / 1000}s)...`);
+        usedModel = modelToUse;
+        
+        try {
+          if (useLovableAI) {
+            generateResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${lovableApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: modelToUse,
+                messages: [
+                  { role: "system", content: systemContent },
+                  { role: "user", content: userContent },
+                ],
+                max_tokens: 65536,
+              }),
+              signal: controller.signal,
+            });
+          } else {
+            generateResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${openaiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: modelToUse,
+                messages: [
+                  { role: "system", content: systemContent },
+                  { role: "user", content: userContent },
+                ],
+                max_tokens: 16000,
+                temperature: opts.strictFormat ? 0.4 : 0.6,
+              }),
+              signal: controller.signal,
+            });
+          }
 
+          if (!generateResponse.ok) {
+            const errText = await generateResponse.text();
+            console.error(`❌ ${modelToUse} error:`, errText.substring(0, 200));
+            lastError = errText;
+            continue;
+          }
+          
+          const raw = await generateResponse.text();
+          console.log(`📥 Raw response length from ${modelToUse}: ${raw.length}`);
+          
+          // Check if response is too short
+          if (raw.length < 5000) {
+            console.error(`❌ Response too short from ${modelToUse}: ${raw.length} chars`);
+            lastError = "Response too short";
+            continue;
+          }
+          
+          let generateData: any;
+          try {
+            generateData = raw ? JSON.parse(raw) : null;
+          } catch (e) {
+            console.error(`❌ ${modelToUse} JSON parse error`);
+            lastError = "Invalid JSON response";
+            continue;
+          }
+
+          const generatedText = generateData?.choices?.[0]?.message?.content || "";
+          
+          if (generatedText.length < 3000) {
+            console.error(`❌ Content too short from ${modelToUse}: ${generatedText.length} chars`);
+            lastError = "Generated content too short";
+            continue;
+          }
+          
+          const genUsage = generateData?.usage || {};
+          const generateCost = calculateCost(genUsage, modelToUse);
+
+          console.log(`✅ Generation successful with ${modelToUse} in ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
+          console.log(
+            `💰 Token usage for ${modelToUse}: ${genUsage.prompt_tokens || 0} in, ${genUsage.completion_tokens || 0} out = $${generateCost.toFixed(6)}`
+          );
+
+          // Parse
+          const files = parseFilesFromModelText(generatedText);
+          console.log(`Parsed ${files.length} files from generation`);
+
+          clearTimeout(timeoutId);
+          return { ok: true as const, files, generateCost, modelUsed: modelToUse };
+        } catch (fetchErr) {
+          console.error(`❌ ${modelToUse} fetch error:`, fetchErr);
+          lastError = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+          continue;
+        }
+      }
+      
       clearTimeout(timeoutId);
-
-      if (!generateResponse.ok) {
-        const errText = await generateResponse.text();
-        console.error("Generate API error:", errText);
-        return { ok: false as const, error: `Website generation failed: ${errText}` };
-      }
-
-      let generateData: any;
-      try {
-        const raw = await generateResponse.text();
-        generateData = raw ? JSON.parse(raw) : null;
-      } catch (e) {
-        console.error("Generate API JSON parse error:", e);
-        return { ok: false as const, error: "Website generation failed: invalid JSON response" };
-      }
-
-      const generatedText = generateData?.choices?.[0]?.message?.content || "";
-      const genUsage = generateData?.usage || {};
-      const generateCost = calculateCost(genUsage, generateModel);
-
-      console.log(
-        `💰 Token usage for ${generateModel}: ${genUsage.prompt_tokens || 0} in, ${genUsage.completion_tokens || 0} out = $${generateCost.toFixed(6)}`
-      );
-
-      // Parse
-      const files = parseFilesFromModelText(generatedText);
-      console.log(`Parsed ${files.length} files from generation`);
-
-      return { ok: true as const, files, generateCost };
+      return { ok: false as const, error: `All models failed. Last error: ${lastError}` };
     } catch (err) {
       clearTimeout(timeoutId);
       if (err instanceof Error && err.name === "AbortError") {
