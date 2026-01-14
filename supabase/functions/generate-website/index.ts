@@ -644,6 +644,161 @@ function ensureLegalLinksInFooters(
   return { files: updatedFiles, warnings };
 }
 
+// Ensure Cookie Policy link and cookie banner in all pages
+function ensureCookiePolicyAndBanner(
+  files: Array<{ path: string; content: string }>,
+  language?: string
+): { files: Array<{ path: string; content: string }>; warnings: string[] } {
+  const warnings: string[] = [];
+  
+  // Find cookie policy page
+  const cookiePolicyFile = files.find(f => 
+    /cookie[-_]?polic[yi]?\.html?$/i.test(f.path) ||
+    /cookies?\.html?$/i.test(f.path)
+  );
+  
+  // Determine text based on language
+  const langLower = (language || 'en').toLowerCase();
+  let cookiePolicyText = 'Cookie Policy';
+  let cookieBannerText = 'We use cookies to enhance your experience. By continuing to visit this site you agree to our use of cookies.';
+  let acceptButtonText = 'Accept';
+  let learnMoreText = 'Learn more';
+  
+  if (langLower.includes('de')) {
+    cookiePolicyText = 'Cookie-Richtlinie';
+    cookieBannerText = 'Wir verwenden Cookies, um Ihre Erfahrung zu verbessern. Durch die weitere Nutzung dieser Website stimmen Sie der Verwendung von Cookies zu.';
+    acceptButtonText = 'Akzeptieren';
+    learnMoreText = 'Mehr erfahren';
+  } else if (langLower.includes('pl')) {
+    cookiePolicyText = 'Polityka Cookies';
+    cookieBannerText = 'Używamy plików cookie, aby poprawić Twoje doświadczenia. Kontynuując wizytę na tej stronie, zgadzasz się na używanie plików cookie.';
+    acceptButtonText = 'Akceptuję';
+    learnMoreText = 'Dowiedz się więcej';
+  } else if (langLower.includes('uk')) {
+    cookiePolicyText = 'Політика Cookie';
+    cookieBannerText = 'Ми використовуємо файли cookie для покращення вашого досвіду. Продовжуючи відвідувати цей сайт, ви погоджуєтесь на використання cookie.';
+    acceptButtonText = 'Прийняти';
+    learnMoreText = 'Дізнатися більше';
+  } else if (langLower.includes('ru')) {
+    cookiePolicyText = 'Политика Cookie';
+    cookieBannerText = 'Мы используем файлы cookie для улучшения вашего опыта. Продолжая посещать этот сайт, вы соглашаетесь на использование cookie.';
+    acceptButtonText = 'Принять';
+    learnMoreText = 'Узнать больше';
+  } else if (langLower.includes('fr')) {
+    cookiePolicyText = 'Politique de Cookies';
+    cookieBannerText = 'Nous utilisons des cookies pour améliorer votre expérience. En continuant à visiter ce site, vous acceptez l\'utilisation de cookies.';
+    acceptButtonText = 'Accepter';
+    learnMoreText = 'En savoir plus';
+  } else if (langLower.includes('es')) {
+    cookiePolicyText = 'Política de Cookies';
+    cookieBannerText = 'Utilizamos cookies para mejorar su experiencia. Al continuar visitando este sitio, acepta el uso de cookies.';
+    acceptButtonText = 'Aceptar';
+    learnMoreText = 'Saber más';
+  } else if (langLower.includes('it')) {
+    cookiePolicyText = 'Politica dei Cookie';
+    cookieBannerText = 'Utilizziamo i cookie per migliorare la tua esperienza. Continuando a visitare questo sito, accetti l\'uso dei cookie.';
+    acceptButtonText = 'Accetta';
+    learnMoreText = 'Scopri di più';
+  } else if (langLower.includes('ro')) {
+    cookiePolicyText = 'Politica Cookie';
+    cookieBannerText = 'Folosim cookie-uri pentru a vă îmbunătăți experiența. Continuând să vizitați acest site, sunteți de acord cu utilizarea cookie-urilor.';
+    acceptButtonText = 'Accept';
+    learnMoreText = 'Află mai multe';
+  } else if (langLower.includes('nl')) {
+    cookiePolicyText = 'Cookiebeleid';
+    cookieBannerText = 'Wij gebruiken cookies om uw ervaring te verbeteren. Door deze site te blijven bezoeken, gaat u akkoord met het gebruik van cookies.';
+    acceptButtonText = 'Accepteren';
+    learnMoreText = 'Meer informatie';
+  } else if (langLower.includes('pt')) {
+    cookiePolicyText = 'Política de Cookies';
+    cookieBannerText = 'Usamos cookies para melhorar sua experiência. Ao continuar visitando este site, você concorda com o uso de cookies.';
+    acceptButtonText = 'Aceitar';
+    learnMoreText = 'Saiba mais';
+  }
+  
+  const cookiePolicyPath = cookiePolicyFile?.path.replace(/^\.?\//, '') || 'cookie-policy.html';
+  
+  // Cookie banner HTML with JS for accept/dismiss functionality
+  const COOKIE_BANNER_ID = 'lovable-cookie-banner';
+  const cookieBannerHtml = `
+<!-- Cookie Banner -->
+<div id="${COOKIE_BANNER_ID}" style="position: fixed; bottom: 0; left: 0; right: 0; background: #1a1a1a; color: #fff; padding: 16px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px; z-index: 9999; box-shadow: 0 -2px 10px rgba(0,0,0,0.2); font-size: 14px;">
+  <p style="margin: 0; flex: 1; min-width: 200px;">${cookieBannerText} <a href="${cookiePolicyPath}" style="color: #4da6ff; text-decoration: underline;">${learnMoreText}</a></p>
+  <button onclick="document.getElementById('${COOKIE_BANNER_ID}').style.display='none'; localStorage.setItem('cookiesAccepted', 'true');" style="background: #4da6ff; color: #fff; border: none; padding: 10px 24px; border-radius: 4px; cursor: pointer; font-weight: 600; white-space: nowrap;">${acceptButtonText}</button>
+</div>
+<script>
+if(localStorage.getItem('cookiesAccepted')==='true'){document.getElementById('${COOKIE_BANNER_ID}').style.display='none';}
+</script>
+<!-- End Cookie Banner -->
+`;
+  
+  const updatedFiles = files.map(f => {
+    if (!/\.html?$/i.test(f.path)) return f;
+    
+    let content = f.content;
+    let modified = false;
+    
+    // Check if cookie banner already exists
+    const hasCookieBanner = 
+      content.includes(COOKIE_BANNER_ID) ||
+      /cookie[-_]?(?:banner|consent|notice|popup)/i.test(content) ||
+      /gdpr[-_]?(?:banner|consent|notice)/i.test(content);
+    
+    // Inject cookie banner if missing
+    if (!hasCookieBanner) {
+      warnings.push(`${f.path}: Added missing cookie banner`);
+      
+      if (/<\/body>/i.test(content)) {
+        content = content.replace(/<\/body>/i, `${cookieBannerHtml}\n</body>`);
+      } else {
+        content += cookieBannerHtml;
+      }
+      modified = true;
+    }
+    
+    // Check footer for cookie policy link
+    const hasFooter = /<footer\b/i.test(content);
+    if (hasFooter) {
+      const footerMatch = content.match(/<footer[\s\S]*?<\/footer>/i);
+      if (footerMatch) {
+        const footerContent = footerMatch[0];
+        
+        const hasCookieLink = 
+          /href=["'][^"']*cookie/i.test(footerContent);
+        
+        if (!hasCookieLink) {
+          warnings.push(`${f.path}: Added missing Cookie Policy link to footer`);
+          
+          const cookieLinkHtml = `<a href="${cookiePolicyPath}" class="footer-legal-link">${cookiePolicyText}</a>`;
+          
+          if (/<footer[\s\S]*?<(nav|ul)\b[\s\S]*?<\/\1>/i.test(content)) {
+            content = content.replace(
+              /(<footer[\s\S]*?)(<\/(?:nav|ul)>)/i,
+              `$1 | ${cookieLinkHtml} $2`
+            );
+          } else if (/<footer[\s\S]*?class=["']footer-legal-links["']/i.test(content)) {
+            content = content.replace(
+              /(<div[^>]*class=["']footer-legal-links["'][^>]*>[\s\S]*?)(<\/div>)/i,
+              `$1 | ${cookieLinkHtml}$2`
+            );
+          } else {
+            const cookieBlock = `
+      <div class="footer-cookie-link" style="margin-top: 8px; font-size: 0.875rem;">
+        ${cookieLinkHtml}
+      </div>`;
+            content = content.replace(/<\/footer>/i, `${cookieBlock}\n</footer>`);
+          }
+          modified = true;
+        }
+      }
+    }
+    
+    return modified ? { ...f, content } : f;
+  });
+  
+  return { files: updatedFiles, warnings };
+}
+
 // Combined post-validation function
 function runContactValidation(
   files: Array<{ path: string; content: string }>,
@@ -661,8 +816,12 @@ function runContactValidation(
   allWarnings.push(...footerWarnings);
   
   // Step 3: Ensure all footers have Privacy Policy and Terms links
-  const { files: finalFiles, warnings: legalWarnings } = ensureLegalLinksInFooters(filesWithContactLinks, language);
+  const { files: filesWithLegalLinks, warnings: legalWarnings } = ensureLegalLinksInFooters(filesWithContactLinks, language);
   allWarnings.push(...legalWarnings);
+  
+  // Step 4: Ensure Cookie Policy link and cookie banner in all pages
+  const { files: finalFiles, warnings: cookieWarnings } = ensureCookiePolicyAndBanner(filesWithLegalLinks, language);
+  allWarnings.push(...cookieWarnings);
   
   if (allWarnings.length > 0) {
     console.log(`📋 Contact & Legal validation complete with ${allWarnings.length} fixes:`);
