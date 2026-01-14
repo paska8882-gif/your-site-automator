@@ -3284,83 +3284,103 @@ async function runGeneration({
   };
 
   // Set max_tokens for both models to ensure complete generation
-  // Junior: 16000 tokens, Senior: 32000 tokens for comprehensive multi-page websites
-  websiteRequestBody.max_tokens = isJunior ? 16000 : 32000;
+  // Junior: 16000 tokens, Senior: 65536 tokens for comprehensive multi-page websites
+  websiteRequestBody.max_tokens = isJunior ? 16000 : 65536;
 
-  // Step 2: Website generation with retry logic (main generation needs longer timeout)
-  let websiteResponse: Response;
-  try {
-    websiteResponse = await fetchWithRetry(apiUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(websiteRequestBody),
-    }, 2, 2000, 180000); // 2 retries, 2s delay, 3 min timeout for main generation
-  } catch (fetchError) {
-    const errorMsg = (fetchError as Error)?.message || String(fetchError);
-    console.error("Website generation fetch failed after retries:", errorMsg);
-    return { success: false, error: errorMsg, totalCost };
-  }
-
-  if (!websiteResponse.ok) {
-    const errorText = await websiteResponse.text();
-    console.error("Website generation error:", websiteResponse.status, errorText);
-
-    if (websiteResponse.status === 429) return { success: false, error: "Rate limit exceeded. Please try again later.", totalCost };
-    if (websiteResponse.status === 402) return { success: false, error: "AI credits exhausted. Please add funds.", totalCost };
-
-    return { success: false, error: "Website generation failed", totalCost };
-  }
-
-  // Parse JSON response with error handling for truncated responses
-  // CRITICAL: Clone response before consuming to avoid "Body already consumed" error
-  let websiteData: Record<string, unknown>;
-  let rawText: string;
-  
-  // First, get the raw text to have a fallback
-  const rawResponse = await websiteResponse.text();
-  console.log("Raw response length:", rawResponse.length);
-  
-  try {
-    // Parse the text as JSON
-    websiteData = JSON.parse(rawResponse);
-    rawText = (websiteData.choices as Array<{ message?: { content?: string } }>)?.[0]?.message?.content || "";
-  } catch (jsonError) {
-    // If JSON parsing fails, try to extract content from partial JSON
-    console.error("JSON parsing failed, attempting text extraction:", jsonError);
+  // Helper function to attempt generation with a specific model
+  const attemptGeneration = async (modelToUse: string, isRetry: boolean = false): Promise<{ rawText: string; websiteData: Record<string, unknown>; modelUsed: string } | null> => {
+    const requestBody = { ...websiteRequestBody, model: modelToUse };
+    console.log(`${isRetry ? '🔄 RETRY with' : '🚀 Attempting'} model: ${modelToUse}`);
     
-    // Try to extract content from partial JSON
-    const contentMatch = rawResponse.match(/"content"\s*:\s*"([\s\S]*?)(?:"\s*[,}]|\s*$)/);
-    if (contentMatch && contentMatch[1]) {
-      rawText = contentMatch[1]
-        .replace(/\\n/g, '\n')
-        .replace(/\\"/g, '"')
-        .replace(/\\\\/g, '\\');
-      console.log("Extracted content from partial JSON, length:", rawText.length);
-    } else {
-      // Last resort: try to find FILE markers directly in the raw response
-      if (rawResponse.includes("<!-- FILE:") || rawResponse.includes("// FILE:")) {
-        rawText = rawResponse;
-        console.log("Using raw response as text, contains FILE markers");
-      } else {
-        return { success: false, error: "Failed to parse AI response - incomplete JSON", totalCost };
+    let response: Response;
+    try {
+      response = await fetchWithRetry(apiUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      }, 2, 2000, 180000);
+    } catch (fetchError) {
+      const errorMsg = (fetchError as Error)?.message || String(fetchError);
+      console.error(`❌ Fetch failed for ${modelToUse}: ${errorMsg}`);
+      return null;
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ ${modelToUse} error: ${response.status} ${errorText.substring(0, 200)}`);
+      return null;
+    }
+
+    const rawResponse = await response.text();
+    console.log(`📥 Raw response length from ${modelToUse}: ${rawResponse.length}`);
+
+    // If response is too short, consider it failed
+    if (rawResponse.length < 5000) {
+      console.error(`❌ Response too short from ${modelToUse}: ${rawResponse.length} chars`);
+      return null;
+    }
+
+    let data: Record<string, unknown> = {};
+    let text = "";
+    
+    try {
+      data = JSON.parse(rawResponse);
+      text = (data.choices as Array<{ message?: { content?: string } }>)?.[0]?.message?.content || "";
+    } catch {
+      console.log("JSON parse failed, extracting content...");
+      const contentMatch = rawResponse.match(/"content"\s*:\s*"([\s\S]*?)(?:"\s*[,}]|\s*$)/);
+      if (contentMatch && contentMatch[1]) {
+        text = contentMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+      } else if (rawResponse.includes("<!-- FILE:")) {
+        text = rawResponse;
       }
     }
-    websiteData = {};
+
+    // Check if we got meaningful content
+    if (text.length < 3000 || !text.includes("<!-- FILE:")) {
+      console.error(`❌ Insufficient content from ${modelToUse}: ${text.length} chars, has FILE markers: ${text.includes("<!-- FILE:")}`);
+      return null;
+    }
+
+    console.log(`✅ Got valid response from ${modelToUse}: ${text.length} chars`);
+    return { rawText: text, websiteData: data, modelUsed: modelToUse };
+  };
+
+  // Try primary model first (gemini-2.5-pro for senior, gpt-4o for junior)
+  let generationResult = await attemptGeneration(generateModel);
+
+  // If primary model failed, try fallback models
+  if (!generationResult) {
+    const fallbackModels = isJunior 
+      ? ["gpt-4o-mini"] 
+      : ["google/gemini-2.5-flash", "openai/gpt-5"];
+    
+    for (const fallbackModel of fallbackModels) {
+      console.log(`🔄 Primary model failed, trying fallback: ${fallbackModel}`);
+      generationResult = await attemptGeneration(fallbackModel, true);
+      if (generationResult) break;
+    }
   }
+
+  if (!generationResult) {
+    return { success: false, error: "All AI models failed to generate website content", totalCost };
+  }
+
+  const { rawText, websiteData, modelUsed } = generationResult;
 
   // Track token usage for generation step (if available)
   const websiteUsage = (websiteData.usage as { prompt_tokens?: number; completion_tokens?: number }) || undefined;
   if (websiteUsage) {
-    totalCost += calculateCost(websiteUsage as TokenUsage, generateModel);
+    totalCost += calculateCost(websiteUsage as TokenUsage, modelUsed);
   }
   
   console.log(`💰 Total generation cost: $${totalCost.toFixed(6)}`);
+  console.log(`🎯 Final model used: ${modelUsed}`);
 
   console.log("HTML website generated, parsing files...");
-  console.log("Raw response length:", rawText.length);
 
   let files = parseFilesFromModelText(rawText);
   console.log(`📁 Total files parsed: ${files.length}`);
@@ -5522,7 +5542,7 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
     totalFiles: finalFiles.length,
     fileList: finalFiles.map((f) => f.path),
     totalCost,
-    specificModel: generateModel,
+    specificModel: modelUsed,
   };
 }
 
