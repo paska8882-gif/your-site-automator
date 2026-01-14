@@ -529,10 +529,126 @@ function ensureContactLinkInFooters(
   return { files: updatedFiles, warnings };
 }
 
+// Ensure footer in all pages has Privacy Policy and Terms links
+function ensureLegalLinksInFooters(
+  files: Array<{ path: string; content: string }>,
+  language?: string
+): { files: Array<{ path: string; content: string }>; warnings: string[] } {
+  const warnings: string[] = [];
+  
+  // Find privacy and terms pages
+  const privacyFile = files.find(f => 
+    /privac[yi][-_]?polic[yi]?\.html?$/i.test(f.path) ||
+    /privacy\.html?$/i.test(f.path) ||
+    /datenschutz\.html?$/i.test(f.path) ||
+    /polityka[-_]?prywatnosci\.html?$/i.test(f.path)
+  );
+  
+  const termsFile = files.find(f => 
+    /terms[-_]?(?:of[-_]?(?:service|use))?\.html?$/i.test(f.path) ||
+    /agb\.html?$/i.test(f.path) ||
+    /regulamin\.html?$/i.test(f.path) ||
+    /nutzungsbedingungen\.html?$/i.test(f.path)
+  );
+  
+  // Determine link text based on language
+  const langLower = (language || 'en').toLowerCase();
+  let privacyText = 'Privacy Policy';
+  let termsText = 'Terms of Service';
+  
+  if (langLower.includes('de')) {
+    privacyText = 'Datenschutz';
+    termsText = 'AGB';
+  } else if (langLower.includes('pl')) {
+    privacyText = 'Polityka Prywatności';
+    termsText = 'Regulamin';
+  } else if (langLower.includes('uk')) {
+    privacyText = 'Політика конфіденційності';
+    termsText = 'Умови використання';
+  } else if (langLower.includes('ru')) {
+    privacyText = 'Политика конфиденциальности';
+    termsText = 'Условия использования';
+  } else if (langLower.includes('fr')) {
+    privacyText = 'Politique de confidentialité';
+    termsText = 'Conditions d\'utilisation';
+  } else if (langLower.includes('es')) {
+    privacyText = 'Política de Privacidad';
+    termsText = 'Términos de Servicio';
+  } else if (langLower.includes('it')) {
+    privacyText = 'Informativa sulla Privacy';
+    termsText = 'Termini di Servizio';
+  }
+  
+  const privacyPath = privacyFile?.path.replace(/^\.?\//, '') || 'privacy-policy.html';
+  const termsPath = termsFile?.path.replace(/^\.?\//, '') || 'terms.html';
+  
+  const updatedFiles = files.map(f => {
+    if (!/\.html?$/i.test(f.path)) return f;
+    
+    let content = f.content;
+    
+    const hasFooter = /<footer\b/i.test(content);
+    if (!hasFooter) return f;
+    
+    const footerMatch = content.match(/<footer[\s\S]*?<\/footer>/i);
+    if (!footerMatch) return f;
+    
+    const footerContent = footerMatch[0];
+    
+    // Check for existing privacy link
+    const hasPrivacyLink = 
+      /href=["'][^"']*privac[yi]/i.test(footerContent) ||
+      /href=["'][^"']*datenschutz/i.test(footerContent) ||
+      /href=["'][^"']*prywatno/i.test(footerContent);
+    
+    // Check for existing terms link
+    const hasTermsLink = 
+      /href=["'][^"']*terms/i.test(footerContent) ||
+      /href=["'][^"']*agb/i.test(footerContent) ||
+      /href=["'][^"']*regulamin/i.test(footerContent) ||
+      /href=["'][^"']*nutzung/i.test(footerContent);
+    
+    let linksToAdd: string[] = [];
+    
+    if (!hasPrivacyLink) {
+      warnings.push(`${f.path}: Added missing Privacy Policy link to footer`);
+      linksToAdd.push(`<a href="${privacyPath}" class="footer-legal-link">${privacyText}</a>`);
+    }
+    
+    if (!hasTermsLink) {
+      warnings.push(`${f.path}: Added missing Terms link to footer`);
+      linksToAdd.push(`<a href="${termsPath}" class="footer-legal-link">${termsText}</a>`);
+    }
+    
+    if (linksToAdd.length === 0) return f;
+    
+    const linksHtml = linksToAdd.join(' | ');
+    
+    // Try to find a nav or ul in footer for legal links
+    if (/<footer[\s\S]*?<(nav|ul)\b[\s\S]*?<\/\1>/i.test(content)) {
+      content = content.replace(
+        /(<footer[\s\S]*?)(<\/(?:nav|ul)>)/i,
+        `$1${linksHtml} $2`
+      );
+    } else {
+      const legalBlock = `
+      <div class="footer-legal-links" style="margin-top: 12px; font-size: 0.875rem;">
+        ${linksHtml}
+      </div>`;
+      content = content.replace(/<\/footer>/i, `${legalBlock}\n</footer>`);
+    }
+    
+    return { ...f, content };
+  });
+  
+  return { files: updatedFiles, warnings };
+}
+
 // Combined post-validation function
 function runContactValidation(
   files: Array<{ path: string; content: string }>,
-  geo?: string
+  geo?: string,
+  language?: string
 ): { files: Array<{ path: string; content: string }>; warnings: string[] } {
   const allWarnings: string[] = [];
   
@@ -541,14 +657,18 @@ function runContactValidation(
   allWarnings.push(...contactWarnings);
   
   // Step 2: Ensure all footers have contact link
-  const { files: finalFiles, warnings: footerWarnings } = ensureContactLinkInFooters(filesAfterContactValidation);
+  const { files: filesWithContactLinks, warnings: footerWarnings } = ensureContactLinkInFooters(filesAfterContactValidation);
   allWarnings.push(...footerWarnings);
   
+  // Step 3: Ensure all footers have Privacy Policy and Terms links
+  const { files: finalFiles, warnings: legalWarnings } = ensureLegalLinksInFooters(filesWithContactLinks, language);
+  allWarnings.push(...legalWarnings);
+  
   if (allWarnings.length > 0) {
-    console.log(`📋 Contact validation complete with ${allWarnings.length} fixes:`);
+    console.log(`📋 Contact & Legal validation complete with ${allWarnings.length} fixes:`);
     allWarnings.forEach(w => console.log(`   - ${w}`));
   } else {
-    console.log(`✅ Contact validation passed - no fixes needed`);
+    console.log(`✅ Contact & Legal validation passed - no fixes needed`);
   }
   
   return { files: finalFiles, warnings: allWarnings };
@@ -5193,7 +5313,7 @@ async function runBackgroundGeneration(
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
       
       // Run contact page validation (phone/email in contact.html, contact links in footers)
-      const { files: contactValidatedFiles, warnings: contactWarnings } = runContactValidation(enforcedFiles, geoToUse);
+      const { files: contactValidatedFiles, warnings: contactWarnings } = runContactValidation(enforcedFiles, geoToUse, language);
       enforcedFiles = contactValidatedFiles;
       if (contactWarnings.length > 0) {
         console.log(`[BG] Contact validation applied ${contactWarnings.length} fixes`);

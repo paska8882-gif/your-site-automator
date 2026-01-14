@@ -405,23 +405,133 @@ function ensureContactLinkInFooters(
   return { files: updatedFiles, warnings };
 }
 
+// Ensure footer in all pages has Privacy Policy and Terms links
+function ensureLegalLinksInFooters(
+  files: Array<{ path: string; content: string }>,
+  language?: string
+): { files: Array<{ path: string; content: string }>; warnings: string[] } {
+  const warnings: string[] = [];
+  
+  const privacyFile = files.find(f => 
+    /privac[yi][-_]?polic[yi]?\.(?:html?|php)$/i.test(f.path) ||
+    /privacy\.(?:html?|php)$/i.test(f.path) ||
+    /datenschutz\.(?:html?|php)$/i.test(f.path)
+  );
+  
+  const termsFile = files.find(f => 
+    /terms[-_]?(?:of[-_]?(?:service|use))?\.(?:html?|php)$/i.test(f.path) ||
+    /agb\.(?:html?|php)$/i.test(f.path) ||
+    /regulamin\.(?:html?|php)$/i.test(f.path)
+  );
+  
+  const langLower = (language || 'en').toLowerCase();
+  let privacyText = 'Privacy Policy';
+  let termsText = 'Terms of Service';
+  
+  if (langLower.includes('de')) {
+    privacyText = 'Datenschutz';
+    termsText = 'AGB';
+  } else if (langLower.includes('pl')) {
+    privacyText = 'Polityka Prywatności';
+    termsText = 'Regulamin';
+  } else if (langLower.includes('uk')) {
+    privacyText = 'Політика конфіденційності';
+    termsText = 'Умови використання';
+  } else if (langLower.includes('ru')) {
+    privacyText = 'Политика конфиденциальности';
+    termsText = 'Условия использования';
+  } else if (langLower.includes('fr')) {
+    privacyText = 'Politique de confidentialité';
+    termsText = 'Conditions d\'utilisation';
+  } else if (langLower.includes('es')) {
+    privacyText = 'Política de Privacidad';
+    termsText = 'Términos de Servicio';
+  } else if (langLower.includes('it')) {
+    privacyText = 'Informativa sulla Privacy';
+    termsText = 'Termini di Servizio';
+  }
+  
+  const privacyPath = privacyFile?.path.replace(/^\.?\//, '') || 'privacy-policy.php';
+  const termsPath = termsFile?.path.replace(/^\.?\//, '') || 'terms.php';
+  
+  const updatedFiles = files.map(f => {
+    if (!/\.(?:html?|php)$/i.test(f.path)) return f;
+    
+    let content = f.content;
+    
+    const hasFooter = /<footer\b/i.test(content);
+    if (!hasFooter) return f;
+    
+    const footerMatch = content.match(/<footer[\s\S]*?<\/footer>/i);
+    if (!footerMatch) return f;
+    
+    const footerContent = footerMatch[0];
+    
+    const hasPrivacyLink = 
+      /href=["'][^"']*privac[yi]/i.test(footerContent) ||
+      /href=["'][^"']*datenschutz/i.test(footerContent);
+    
+    const hasTermsLink = 
+      /href=["'][^"']*terms/i.test(footerContent) ||
+      /href=["'][^"']*agb/i.test(footerContent) ||
+      /href=["'][^"']*regulamin/i.test(footerContent);
+    
+    let linksToAdd: string[] = [];
+    
+    if (!hasPrivacyLink) {
+      warnings.push(`${f.path}: Added missing Privacy Policy link to footer`);
+      linksToAdd.push(`<a href="${privacyPath}" class="footer-legal-link">${privacyText}</a>`);
+    }
+    
+    if (!hasTermsLink) {
+      warnings.push(`${f.path}: Added missing Terms link to footer`);
+      linksToAdd.push(`<a href="${termsPath}" class="footer-legal-link">${termsText}</a>`);
+    }
+    
+    if (linksToAdd.length === 0) return f;
+    
+    const linksHtml = linksToAdd.join(' | ');
+    
+    if (/<footer[\s\S]*?<(nav|ul)\b[\s\S]*?<\/\1>/i.test(content)) {
+      content = content.replace(
+        /(<footer[\s\S]*?)(<\/(?:nav|ul)>)/i,
+        `$1${linksHtml} $2`
+      );
+    } else {
+      const legalBlock = `
+      <div class="footer-legal-links" style="margin-top: 12px; font-size: 0.875rem;">
+        ${linksHtml}
+      </div>`;
+      content = content.replace(/<\/footer>/i, `${legalBlock}\n</footer>`);
+    }
+    
+    return { ...f, content };
+  });
+  
+  return { files: updatedFiles, warnings };
+}
+
 function runContactValidation(
   files: Array<{ path: string; content: string }>,
-  geo?: string
+  geo?: string,
+  language?: string
 ): { files: Array<{ path: string; content: string }>; warnings: string[] } {
   const allWarnings: string[] = [];
   
   const { files: filesAfterContactValidation, warnings: contactWarnings } = validateContactPage(files, geo);
   allWarnings.push(...contactWarnings);
   
-  const { files: finalFiles, warnings: footerWarnings } = ensureContactLinkInFooters(filesAfterContactValidation);
+  const { files: filesWithContactLinks, warnings: footerWarnings } = ensureContactLinkInFooters(filesAfterContactValidation);
   allWarnings.push(...footerWarnings);
   
+  const { files: finalFiles, warnings: legalWarnings } = ensureLegalLinksInFooters(filesWithContactLinks, language);
+  allWarnings.push(...legalWarnings);
+  
   if (allWarnings.length > 0) {
-    console.log(`📋 PHP Contact validation complete with ${allWarnings.length} fixes:`);
+    console.log(`📋 PHP Contact & Legal validation complete with ${allWarnings.length} fixes:`);
     allWarnings.forEach(w => console.log(`   - ${w}`));
   } else {
-    console.log(`✅ PHP Contact validation passed - no fixes needed`);
+    console.log(`✅ PHP Contact & Legal validation passed - no fixes needed`);
   }
   
   return { files: finalFiles, warnings: allWarnings };
@@ -3582,7 +3692,7 @@ async function runBackgroundGeneration(
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
       
       // Run contact page validation (phone/email in contact.php, contact links in footers)
-      const { files: contactValidatedFiles, warnings: contactWarnings } = runContactValidation(enforcedFiles, geo);
+      const { files: contactValidatedFiles, warnings: contactWarnings } = runContactValidation(enforcedFiles, geo, language);
       enforcedFiles = contactValidatedFiles;
       if (contactWarnings.length > 0) {
         console.log(`[BG] PHP Contact validation applied ${contactWarnings.length} fixes`);
@@ -4011,7 +4121,7 @@ ${promptForGeneration}`;
     enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
     
     // Run contact page validation (phone/email in contact.php, contact links in footers)
-    const { files: contactValidatedFiles } = runContactValidation(enforcedFiles, geoToUse);
+    const { files: contactValidatedFiles } = runContactValidation(enforcedFiles, geoToUse, language);
     enforcedFiles = contactValidatedFiles;
 
     // Save completed result into history for later downloads
