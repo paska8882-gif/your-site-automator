@@ -376,6 +376,185 @@ function enforceSiteNameInFiles(
   });
 }
 
+// ============ CONTACT INFO & FOOTER LINK VALIDATION ============
+// Validate and fix contact.html to ensure phone/email are present
+function validateContactPage(
+  files: Array<{ path: string; content: string }>,
+  geo?: string
+): { files: Array<{ path: string; content: string }>; warnings: string[] } {
+  const warnings: string[] = [];
+  
+  const contactFile = files.find(f => 
+    /contact\.html?$/i.test(f.path) || 
+    /kontakt\.html?$/i.test(f.path) ||
+    /contacts?\.html?$/i.test(f.path)
+  );
+  
+  if (!contactFile) {
+    warnings.push("No contact.html found - skipping contact page validation");
+    return { files, warnings };
+  }
+  
+  let content = contactFile.content;
+  let modified = false;
+  
+  // Check for phone number presence
+  const hasPhone = /href=["']tel:/i.test(content) || /\+\d[\d\s().-]{7,}\d/.test(content);
+  
+  // Check for email presence
+  const hasEmail = /href=["']mailto:/i.test(content) || /[\w.-]+@[\w.-]+\.\w{2,}/i.test(content);
+  
+  // If no phone, inject one
+  if (!hasPhone) {
+    warnings.push(`contact.html: No phone found - auto-injecting`);
+    const phone = generateRealisticPhone(geo);
+    const phoneHtml = `
+    <div class="contact-info-phone" style="margin: 16px 0;">
+      <strong>Phone:</strong> <a href="tel:${phone.replace(/[^\d+]/g, '')}" style="color: inherit;">${phone}</a>
+    </div>`;
+    
+    // Try to inject after h1/h2 or at start of main/article/section
+    if (/<(main|article|section)[^>]*>/i.test(content)) {
+      content = content.replace(/(<(?:main|article|section)[^>]*>)/i, `$1${phoneHtml}`);
+    } else if (/<body[^>]*>/i.test(content)) {
+      content = content.replace(/(<body[^>]*>)/i, `$1${phoneHtml}`);
+    } else {
+      content = phoneHtml + content;
+    }
+    modified = true;
+  }
+  
+  // If no email, inject one
+  if (!hasEmail) {
+    warnings.push(`contact.html: No email found - auto-injecting`);
+    const email = "info@example.com"; // Placeholder - will be replaced if siteName exists
+    const emailHtml = `
+    <div class="contact-info-email" style="margin: 16px 0;">
+      <strong>Email:</strong> <a href="mailto:${email}" style="color: inherit;">${email}</a>
+    </div>`;
+    
+    if (/<(main|article|section)[^>]*>/i.test(content)) {
+      content = content.replace(/(<(?:main|article|section)[^>]*>)/i, `$1${emailHtml}`);
+    } else if (/<body[^>]*>/i.test(content)) {
+      content = content.replace(/(<body[^>]*>)/i, `$1${emailHtml}`);
+    } else {
+      content = emailHtml + content;
+    }
+    modified = true;
+  }
+  
+  if (!modified) {
+    return { files, warnings };
+  }
+  
+  const updatedFiles = files.map(f => 
+    f.path === contactFile.path ? { ...f, content } : f
+  );
+  
+  return { files: updatedFiles, warnings };
+}
+
+// Ensure footer in all pages has link to contact page
+function ensureContactLinkInFooters(
+  files: Array<{ path: string; content: string }>
+): { files: Array<{ path: string; content: string }>; warnings: string[] } {
+  const warnings: string[] = [];
+  
+  // Find contact page path
+  const contactFile = files.find(f => 
+    /contact\.html?$/i.test(f.path) || 
+    /kontakt\.html?$/i.test(f.path) ||
+    /contacts?\.html?$/i.test(f.path)
+  );
+  
+  if (!contactFile) {
+    return { files, warnings }; // No contact page to link to
+  }
+  
+  const contactPath = contactFile.path.replace(/^\.?\//, '');
+  
+  const updatedFiles = files.map(f => {
+    // Only process HTML files
+    if (!/\.html?$/i.test(f.path)) return f;
+    
+    // Skip the contact page itself
+    if (f.path === contactFile.path) return f;
+    
+    let content = f.content;
+    
+    // Check if footer exists
+    const hasFooter = /<footer\b/i.test(content);
+    if (!hasFooter) return f;
+    
+    // Check if footer already has contact link
+    const footerMatch = content.match(/<footer[\s\S]*?<\/footer>/i);
+    if (!footerMatch) return f;
+    
+    const footerContent = footerMatch[0];
+    
+    // Check for existing contact link in footer
+    const hasContactLink = 
+      /href=["'][^"']*contact[^"']*["']/i.test(footerContent) ||
+      /href=["'][^"']*kontakt[^"']*["']/i.test(footerContent);
+    
+    if (hasContactLink) return f;
+    
+    // Footer exists but no contact link - inject one
+    warnings.push(`${f.path}: Added missing contact link to footer`);
+    
+    // Find the best place to add the contact link in footer
+    // Prefer adding to existing nav/ul, otherwise add before </footer>
+    
+    const contactLinkHtml = `<a href="${contactPath}" class="footer-contact-link">Contact</a>`;
+    
+    // Try to find a nav or ul in footer
+    if (/<footer[\s\S]*?<(nav|ul)\b[\s\S]*?<\/\1>/i.test(content)) {
+      // Add to the first nav/ul in footer
+      content = content.replace(
+        /(<footer[\s\S]*?)(<\/(?:nav|ul)>)/i,
+        `$1${contactLinkHtml} $2`
+      );
+    } else {
+      // Just add before </footer>
+      const contactBlock = `
+      <div class="footer-contact-link-wrapper" style="margin-top: 12px;">
+        ${contactLinkHtml}
+      </div>`;
+      content = content.replace(/<\/footer>/i, `${contactBlock}\n</footer>`);
+    }
+    
+    return { ...f, content };
+  });
+  
+  return { files: updatedFiles, warnings };
+}
+
+// Combined post-validation function
+function runContactValidation(
+  files: Array<{ path: string; content: string }>,
+  geo?: string
+): { files: Array<{ path: string; content: string }>; warnings: string[] } {
+  const allWarnings: string[] = [];
+  
+  // Step 1: Validate contact page has phone/email
+  const { files: filesAfterContactValidation, warnings: contactWarnings } = validateContactPage(files, geo);
+  allWarnings.push(...contactWarnings);
+  
+  // Step 2: Ensure all footers have contact link
+  const { files: finalFiles, warnings: footerWarnings } = ensureContactLinkInFooters(filesAfterContactValidation);
+  allWarnings.push(...footerWarnings);
+  
+  if (allWarnings.length > 0) {
+    console.log(`📋 Contact validation complete with ${allWarnings.length} fixes:`);
+    allWarnings.forEach(w => console.log(`   - ${w}`));
+  } else {
+    console.log(`✅ Contact validation passed - no fixes needed`);
+  }
+  
+  return { files: finalFiles, warnings: allWarnings };
+}
+// ============ END CONTACT INFO & FOOTER LINK VALIDATION ============
+
 function enforceResponsiveImagesInFiles(
   files: Array<{ path: string; content: string }>
 ): Array<{ path: string; content: string }> {
@@ -5012,6 +5191,13 @@ async function runBackgroundGeneration(
       }
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
+      
+      // Run contact page validation (phone/email in contact.html, contact links in footers)
+      const { files: contactValidatedFiles, warnings: contactWarnings } = runContactValidation(enforcedFiles, geoToUse);
+      enforcedFiles = contactValidatedFiles;
+      if (contactWarnings.length > 0) {
+        console.log(`[BG] Contact validation applied ${contactWarnings.length} fixes`);
+      }
 
       // Create zip base64 with fixed files
       const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");

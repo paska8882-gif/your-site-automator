@@ -274,6 +274,160 @@ function enforceSiteNameInFiles(
   });
 }
 
+// ============ CONTACT INFO & FOOTER LINK VALIDATION ============
+function validateContactPage(
+  files: Array<{ path: string; content: string }>,
+  geo?: string
+): { files: Array<{ path: string; content: string }>; warnings: string[] } {
+  const warnings: string[] = [];
+  
+  const contactFile = files.find(f => 
+    /contact\.(?:html?|php)$/i.test(f.path) || 
+    /kontakt\.(?:html?|php)$/i.test(f.path) ||
+    /contacts?\.(?:html?|php)$/i.test(f.path)
+  );
+  
+  if (!contactFile) {
+    warnings.push("No contact.php/html found - skipping contact page validation");
+    return { files, warnings };
+  }
+  
+  let content = contactFile.content;
+  let modified = false;
+  
+  const hasPhone = /href=["']tel:/i.test(content) || /\+\d[\d\s().-]{7,}\d/.test(content);
+  const hasEmail = /href=["']mailto:/i.test(content) || /[\w.-]+@[\w.-]+\.\w{2,}/i.test(content);
+  
+  if (!hasPhone) {
+    warnings.push(`${contactFile.path}: No phone found - auto-injecting`);
+    const phone = generateRealisticPhone(geo);
+    const phoneHtml = `
+    <div class="contact-info-phone" style="margin: 16px 0;">
+      <strong>Phone:</strong> <a href="tel:${phone.replace(/[^\d+]/g, '')}" style="color: inherit;">${phone}</a>
+    </div>`;
+    
+    if (/<(main|article|section)[^>]*>/i.test(content)) {
+      content = content.replace(/(<(?:main|article|section)[^>]*>)/i, `$1${phoneHtml}`);
+    } else if (/<body[^>]*>/i.test(content)) {
+      content = content.replace(/(<body[^>]*>)/i, `$1${phoneHtml}`);
+    } else {
+      content = phoneHtml + content;
+    }
+    modified = true;
+  }
+  
+  if (!hasEmail) {
+    warnings.push(`${contactFile.path}: No email found - auto-injecting`);
+    const email = "info@example.com";
+    const emailHtml = `
+    <div class="contact-info-email" style="margin: 16px 0;">
+      <strong>Email:</strong> <a href="mailto:${email}" style="color: inherit;">${email}</a>
+    </div>`;
+    
+    if (/<(main|article|section)[^>]*>/i.test(content)) {
+      content = content.replace(/(<(?:main|article|section)[^>]*>)/i, `$1${emailHtml}`);
+    } else if (/<body[^>]*>/i.test(content)) {
+      content = content.replace(/(<body[^>]*>)/i, `$1${emailHtml}`);
+    } else {
+      content = emailHtml + content;
+    }
+    modified = true;
+  }
+  
+  if (!modified) {
+    return { files, warnings };
+  }
+  
+  const updatedFiles = files.map(f => 
+    f.path === contactFile.path ? { ...f, content } : f
+  );
+  
+  return { files: updatedFiles, warnings };
+}
+
+function ensureContactLinkInFooters(
+  files: Array<{ path: string; content: string }>
+): { files: Array<{ path: string; content: string }>; warnings: string[] } {
+  const warnings: string[] = [];
+  
+  const contactFile = files.find(f => 
+    /contact\.(?:html?|php)$/i.test(f.path) || 
+    /kontakt\.(?:html?|php)$/i.test(f.path) ||
+    /contacts?\.(?:html?|php)$/i.test(f.path)
+  );
+  
+  if (!contactFile) {
+    return { files, warnings };
+  }
+  
+  const contactPath = contactFile.path.replace(/^\.?\//, '');
+  
+  const updatedFiles = files.map(f => {
+    if (!/\.(?:html?|php)$/i.test(f.path)) return f;
+    if (f.path === contactFile.path) return f;
+    
+    let content = f.content;
+    
+    const hasFooter = /<footer\b/i.test(content);
+    if (!hasFooter) return f;
+    
+    const footerMatch = content.match(/<footer[\s\S]*?<\/footer>/i);
+    if (!footerMatch) return f;
+    
+    const footerContent = footerMatch[0];
+    
+    const hasContactLink = 
+      /href=["'][^"']*contact[^"']*["']/i.test(footerContent) ||
+      /href=["'][^"']*kontakt[^"']*["']/i.test(footerContent);
+    
+    if (hasContactLink) return f;
+    
+    warnings.push(`${f.path}: Added missing contact link to footer`);
+    
+    const contactLinkHtml = `<a href="${contactPath}" class="footer-contact-link">Contact</a>`;
+    
+    if (/<footer[\s\S]*?<(nav|ul)\b[\s\S]*?<\/\1>/i.test(content)) {
+      content = content.replace(
+        /(<footer[\s\S]*?)(<\/(?:nav|ul)>)/i,
+        `$1${contactLinkHtml} $2`
+      );
+    } else {
+      const contactBlock = `
+      <div class="footer-contact-link-wrapper" style="margin-top: 12px;">
+        ${contactLinkHtml}
+      </div>`;
+      content = content.replace(/<\/footer>/i, `${contactBlock}\n</footer>`);
+    }
+    
+    return { ...f, content };
+  });
+  
+  return { files: updatedFiles, warnings };
+}
+
+function runContactValidation(
+  files: Array<{ path: string; content: string }>,
+  geo?: string
+): { files: Array<{ path: string; content: string }>; warnings: string[] } {
+  const allWarnings: string[] = [];
+  
+  const { files: filesAfterContactValidation, warnings: contactWarnings } = validateContactPage(files, geo);
+  allWarnings.push(...contactWarnings);
+  
+  const { files: finalFiles, warnings: footerWarnings } = ensureContactLinkInFooters(filesAfterContactValidation);
+  allWarnings.push(...footerWarnings);
+  
+  if (allWarnings.length > 0) {
+    console.log(`📋 PHP Contact validation complete with ${allWarnings.length} fixes:`);
+    allWarnings.forEach(w => console.log(`   - ${w}`));
+  } else {
+    console.log(`✅ PHP Contact validation passed - no fixes needed`);
+  }
+  
+  return { files: finalFiles, warnings: allWarnings };
+}
+// ============ END CONTACT INFO & FOOTER LINK VALIDATION ============
+
 function enforceResponsiveImagesInFiles(
   files: Array<{ path: string; content: string }>
 ): Array<{ path: string; content: string }> {
@@ -3427,6 +3581,13 @@ async function runBackgroundGeneration(
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
       
+      // Run contact page validation (phone/email in contact.php, contact links in footers)
+      const { files: contactValidatedFiles, warnings: contactWarnings } = runContactValidation(enforcedFiles, geo);
+      enforcedFiles = contactValidatedFiles;
+      if (contactWarnings.length > 0) {
+        console.log(`[BG] PHP Contact validation applied ${contactWarnings.length} fixes`);
+      }
+      
       const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");
       const zip = new JSZip();
       enforcedFiles.forEach((file) => zip.file(file.path, file.content));
@@ -3848,6 +4009,10 @@ ${promptForGeneration}`;
     let enforcedFiles = enforcePhoneInFiles(fixedFiles, phoneToUse);
     enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
     enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
+    
+    // Run contact page validation (phone/email in contact.php, contact links in footers)
+    const { files: contactValidatedFiles } = runContactValidation(enforcedFiles, geoToUse);
+    enforcedFiles = contactValidatedFiles;
 
     // Save completed result into history for later downloads
     try {
