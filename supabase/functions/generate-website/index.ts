@@ -828,9 +828,45 @@ function hasUserVisiblePhone(content: string): boolean {
   return /\+\d[\d\s().-]{7,}\d/.test(strippedContent);
 }
 
-// Check if content has a clickable tel: link
+// Check if content has a PROPERLY FORMATTED clickable tel: link
+// Must be: href="tel:+XXXXX" with closing quote
 function hasClickableTelLink(content: string): boolean {
-  return /href=["']tel:\+?\d+["']/i.test(content);
+  // Match properly formatted tel: links with closing quote
+  const properTelPattern = /href=["']tel:\+?\d[\d\s()-]*\d["']/i;
+  return properTelPattern.test(content);
+}
+
+// Fix broken tel: links (missing closing quote, etc.)
+function fixBrokenTelLinks(content: string, desiredPhone: string): string {
+  const telNumber = desiredPhone.replace(/[^\d+]/g, '');
+  
+  // Pattern 1: href="tel: followed by phone but no closing quote before </a> or >
+  // Example: <a href="tel: +49 30 123</a> -> <a href="tel:+49301234567">+49 30 123</a>
+  content = content.replace(
+    /<a\s+href=["']?tel:\s*([^"'<>]+?)(?:<\/a>|>)/gi,
+    (match, phoneContent) => {
+      // If properly formatted already, return as-is
+      if (/^["']tel:\+?\d+["']$/i.test(`"tel:${phoneContent.trim()}"`)) {
+        return match;
+      }
+      // Fix it
+      console.log(`🔧 [fixBrokenTelLinks] Fixing broken tel link: ${match.substring(0, 50)}...`);
+      return `<a href="tel:${telNumber}" class="site-phone-link" style="color:inherit;text-decoration:none;">${desiredPhone}</a>`;
+    }
+  );
+  
+  // Pattern 2: href="tel:XXX" but phone number has spaces inside href value
+  // Example: href="tel: +49 30 123 456" -> href="tel:+49301234567"
+  content = content.replace(
+    /href=["']tel:\s*(\+?\d[\d\s().-]*\d)["']/gi,
+    (match, phone) => {
+      const cleanNumber = phone.replace(/[^\d+]/g, '');
+      if (match.includes(cleanNumber)) return match; // Already clean
+      return `href="tel:${cleanNumber}"`;
+    }
+  );
+  
+  return content;
 }
 
 // Make all phone numbers clickable with tel: links
@@ -893,6 +929,9 @@ function ensurePhoneOnAllPages(
     if (!/\.(html?|php)$/i.test(f.path)) return f;
     
     let content = f.content;
+    
+    // FIRST: Fix any broken tel: links before checking
+    content = fixBrokenTelLinks(content, phone);
     
     // PRIMARY CHECK: Is there a clickable tel: link?
     const hasTelLink = hasClickableTelLink(content);
