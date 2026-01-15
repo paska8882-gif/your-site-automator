@@ -520,6 +520,23 @@ const LAYOUT_VARIATIONS = [
 
 const REACT_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE REACT WEBSITE WITH 10X BETTER UI
 
+🌐🌐🌐 LANGUAGE - FIRST PRIORITY - READ BEFORE ANYTHING ELSE! 🌐🌐🌐
+**THE WEBSITE LANGUAGE IS SPECIFIED IN THE "TARGET WEBSITE LANGUAGE" SECTION BELOW!**
+YOU MUST GENERATE ALL CONTENT IN THAT EXACT LANGUAGE - THIS IS THE #1 PRIORITY!
+
+⛔ LANGUAGE VIOLATIONS - THESE BREAK THE WEBSITE:
+- Generating in Ukrainian when English was requested = BROKEN!
+- Generating in English when German was requested = BROKEN!
+- Mixing languages = BROKEN!
+
+✅ CORRECT BEHAVIOR:
+- If language = "en" → ALL text in English
+- If language = "de" → ALL text in German (Startseite, Über uns, Dienstleistungen, Kontakt)
+- If language = "uk" → ALL text in Ukrainian (Головна, Про нас, Послуги, Контакти)
+- If language = "pl" → ALL text in Polish (Strona główna, O nas, Usługi, Kontakt)
+
+**IF WEBSITE IS IN WRONG LANGUAGE = WEBSITE IS COMPLETELY BROKEN!**
+
 ⛔⛔⛔ TEXT CONTRAST - ABSOLUTELY CRITICAL - NO EXCEPTIONS! ⛔⛔⛔
 **NEVER USE WHITE TEXT ON WHITE/LIGHT BACKGROUNDS!** This makes text INVISIBLE and BREAKS the website!
 

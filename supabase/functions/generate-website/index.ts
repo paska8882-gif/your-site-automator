@@ -1391,6 +1391,37 @@ const LAYOUT_VARIATIONS = [
 
 const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, CONTENT-RICH PROFESSIONAL WEBSITE
 
+🌐🌐🌐 LANGUAGE - FIRST PRIORITY - READ BEFORE ANYTHING ELSE! 🌐🌐🌐
+**THE WEBSITE LANGUAGE IS SPECIFIED IN THE "TARGET WEBSITE LANGUAGE" SECTION BELOW!**
+YOU MUST GENERATE ALL CONTENT IN THAT EXACT LANGUAGE - THIS IS THE #1 PRIORITY!
+
+⛔ LANGUAGE VIOLATIONS - THESE BREAK THE WEBSITE:
+- Generating in Ukrainian when English was requested = BROKEN!
+- Generating in English when German was requested = BROKEN!
+- Mixing languages (English navigation with Ukrainian content) = BROKEN!
+- Ignoring the language parameter = BROKEN!
+
+✅ CORRECT BEHAVIOR:
+- If language = "en" → ALL text in English (Home, About, Services, Contact, buttons, footer, everything!)
+- If language = "de" → ALL text in German (Startseite, Über uns, Dienstleistungen, Kontakt, etc.)
+- If language = "uk" → ALL text in Ukrainian (Головна, Про нас, Послуги, Контакти, etc.)
+- If language = "pl" → ALL text in Polish (Strona główna, O nas, Usługi, Kontakt, etc.)
+- And so on for ALL language codes!
+
+LANGUAGE MUST BE CONSISTENT ACROSS:
+- Navigation menu items
+- All headings and paragraphs
+- Button text
+- Form labels and placeholders
+- Footer content
+- Cookie banner
+- Privacy policy / Terms pages
+- Meta tags (title, description)
+- Image alt texts
+- Error messages
+
+**IF WEBSITE IS IN WRONG LANGUAGE = WEBSITE IS COMPLETELY BROKEN! CHECK LANGUAGE BEFORE GENERATING!**
+
 🚨🚨🚨 REFERENCE QUALITY STANDARD - FOLLOW THIS STRUCTURE 🚨🚨🚨
 
 ⛔⛔⛔ TEXT CONTRAST - ABSOLUTELY CRITICAL - NO EXCEPTIONS! ⛔⛔⛔
