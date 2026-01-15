@@ -6073,10 +6073,81 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
     });
   };
 
+  // NEW: Remove emojis and instruction symbols from generated content
+  // This fixes AI hallucination where it copies emojis from the prompt into HTML
+  const removeEmojisFromContent = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
+    // Comprehensive emoji pattern that covers:
+    // - Emoticons (1F600–1F64F)
+    // - Miscellaneous Symbols and Pictographs (1F300–1F5FF)
+    // - Transport and Map Symbols (1F680–1F6FF)
+    // - Flags (1F1E0–1F1FF)
+    // - Supplemental Symbols (1F900–1F9FF)
+    // - Chess, Playing Cards, etc (2600–26FF, 2700–27BF)
+    // - CJK symbols, arrows, misc (2300–23FF, 25A0–25FF)
+    // - Regional indicators, variation selectors
+    const emojiPattern = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F900}-\u{1F9FF}]|[\u{1FA00}-\u{1FA6F}]|[\u{1FA70}-\u{1FAFF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{2300}-\u{23FF}]|[\u{25A0}-\u{25FF}]|[\u{2B50}]|[\u{2934}-\u{2935}]|[\u{3030}]|[\u{303D}]|[\u{3297}]|[\u{3299}]|[\u{FE00}-\u{FE0F}]|[\u{200D}]/gu;
+    
+    return generatedFiles.map(file => {
+      // Only process HTML, CSS, JS files - skip binary/assets
+      if (!/\.(html?|css|js|jsx|tsx?)$/i.test(file.path)) return file;
+      
+      let content = file.content;
+      let removedCount = 0;
+      
+      // Count emojis before removal
+      const emojiMatches = content.match(emojiPattern);
+      if (emojiMatches) {
+        removedCount = emojiMatches.length;
+      }
+      
+      // Remove emojis from content
+      content = content.replace(emojiPattern, '');
+      
+      // Also remove common instruction markers that might leak through
+      // These are patterns from the prompt that should never appear in output
+      const instructionPatterns = [
+        /⛔+/g,
+        /🚨+/g,
+        /⚠️+/g,
+        /❌+/g,
+        /✅+/g,
+        /👤+/g,
+        /👥+/g,
+        /📞+/g,
+        /📧+/g,
+        /💡+/g,
+        /🔥+/g,
+        /🎯+/g,
+        /📁+/g,
+        /🌍+/g,
+        /🍪+/g,
+        /🙏+/g,
+        /🗺️+/g,
+        /📸+/g,
+        /🏢+/g,
+      ];
+      
+      for (const pattern of instructionPatterns) {
+        content = content.replace(pattern, '');
+      }
+      
+      // Clean up any resulting double spaces or empty lines
+      content = content.replace(/  +/g, ' ');
+      content = content.replace(/\n\s*\n\s*\n/g, '\n\n');
+      
+      if (removedCount > 0) {
+        console.log(`🧹 Removed ${removedCount} emoji(s)/symbol(s) from ${file.path}`);
+      }
+      
+      return { ...file, content };
+    });
+  };
+
   // Apply all mandatory file checks
   let finalFiles = ensureCookieBannerFile(files);
   finalFiles = ensureQualityCSS(finalFiles);
   finalFiles = fixPlaceholderImages(finalFiles); // Fix placeholder images
+  finalFiles = removeEmojisFromContent(finalFiles); // Remove emojis and instruction symbols
   finalFiles = validateHtmlContent(finalFiles); // Validate HTML content
   finalFiles = ensureMandatoryPages(finalFiles, language || "en");
   console.log(`📁 Final files count (with all mandatory files): ${finalFiles.length}`);
