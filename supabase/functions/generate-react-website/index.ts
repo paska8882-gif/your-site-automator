@@ -1181,7 +1181,32 @@ style={{backgroundImage: 'url(https://picsum.photos/1920/1080?random=1)'}}
 **Card images:**
 <img src="https://picsum.photos/600/400?random=3" alt="[Description]" loading="lazy" />
 
-**Portrait images:**
+**🎯 IMAGE THEME MATCHING - ALL IMAGES MUST FIT THE WEBSITE TOPIC:**
+- EVERY image MUST be relevant to the website's industry/theme/topic!
+- Examples by industry:
+  * Medical/Clinic: doctors, medical equipment, patients, hospital rooms
+  * Restaurant/Food: dishes, kitchen, dining area, chefs
+  * Auto/Car services: cars, mechanics, garage, car parts
+  * Legal/Law: office, courthouse, lawyers, documents
+  * Real Estate: houses, apartments, interiors, architecture
+- NEVER use random unrelated images!
+
+**👥 TEAM/STAFF/EMPLOYEE PORTRAITS - MANDATORY FACE PHOTOS:**
+🚨 When creating Team, Staff, About Us, or Employee sections, you MUST use portrait photos of people!
+- Use Pexels portrait URLs with VERIFIED working photo IDs:
+  * Man portrait 1: https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Woman portrait 1: https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Man portrait 2: https://images.pexels.com/photos/2182970/pexels-photo-2182970.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Woman portrait 2: https://images.pexels.com/photos/1065084/pexels-photo-1065084.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Man portrait 3: https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Woman portrait 3: https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Man portrait 4: https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Woman portrait 4: https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- NEVER use random picsum images for team members - they need actual human face photos!
+- Alternate between male and female portraits for realistic teams
+- Each team member card MUST have: photo, name, job title/role
+
+**Portrait images (non-team):**
 <img src="https://picsum.photos/400/400?random=4" alt="[Name or role]" loading="lazy" />
 
 **IMPORTANT:** Use DIFFERENT random= numbers for each image (random=1, random=2, random=3, etc.) so images are unique!

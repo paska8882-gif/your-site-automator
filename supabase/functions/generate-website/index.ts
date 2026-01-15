@@ -1745,6 +1745,28 @@ ALL content MUST be centered on the page:
 - NEVER use background-image combined with <img> tag in same element
 - Each image container (.hero-visual, .media-visual) must have ONLY ONE <img> child
 
+🎯 **IMAGE THEME MATCHING - ALL IMAGES MUST FIT THE WEBSITE TOPIC:**
+- EVERY image MUST be relevant to the website's industry/theme/topic!
+- Use descriptive seed names that match content: seed/medical-team, seed/car-repair, seed/restaurant-food
+- Examples by industry:
+  * Medical/Clinic: doctors, medical equipment, patients, hospital rooms
+  * Restaurant/Food: dishes, kitchen, dining area, chefs
+  * Auto/Car services: cars, mechanics, garage, car parts
+  * Legal/Law: office, courthouse, lawyers, documents
+  * Real Estate: houses, apartments, interiors, architecture
+  * Construction: buildings, workers, equipment, sites
+  * Beauty/Spa: treatments, salon, cosmetics, relaxation
+  * Fitness/Sport: gym, training, athletes, equipment
+- NEVER use random unrelated images!
+- Image seeds should describe the actual content: seed/kitchen-chef, seed/legal-office, seed/gym-training
+
+👥 **TEAM/STAFF SECTIONS - MANDATORY PORTRAIT PHOTOS:**
+- When creating Team, Staff, About Us, or Employee sections - MUST use REAL portrait photos of people!
+- NEVER use random picsum images for team members - they need actual human face photos!
+- Use verified Pexels portrait IDs (see IMAGE_STRATEGY section for exact URLs)
+- Alternate between male and female portraits for realistic teams
+- Each team member card MUST have: photo, name, job title/role
+
 🚫 **ABSOLUTE PROHIBITION - IMAGE OVERLAP:**
 - NEVER generate an <img> tag on top of another <img>
 - NEVER use CSS that positions one image over another
@@ -2935,8 +2957,47 @@ Use the split hero with a single <img> inside .hero-visual:
 **3. CARD IMAGES (optional):**
 <img src="https://picsum.photos/seed/card-1/600/400" alt="[Description]" loading="lazy">
 
-**4. TEAM/PORTRAIT IMAGES:**
-<img src="https://picsum.photos/seed/team-1/400/400" alt="[Person name]" loading="lazy">
+**4. TEAM/STAFF/EMPLOYEE PORTRAITS - MANDATORY FACE PHOTOS:**
+🚨 When creating Team, Staff, About Us, or Employee sections, you MUST use portrait photos of people!
+- Use Pexels portrait URLs: https://images.pexels.com/photos/[ID]/pexels-photo-[ID].jpeg?auto=compress&cs=tinysrgb&w=400&h=400&fit=crop
+- These are REAL portrait photo IDs for team sections (verified working):
+  * Man portrait 1: https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Woman portrait 1: https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Man portrait 2: https://images.pexels.com/photos/2182970/pexels-photo-2182970.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Woman portrait 2: https://images.pexels.com/photos/1065084/pexels-photo-1065084.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Man portrait 3: https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Woman portrait 3: https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Man portrait 4: https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Woman portrait 4: https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Man portrait 5: https://images.pexels.com/photos/2380794/pexels-photo-2380794.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Woman portrait 5: https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- NEVER use random numbers or picsum for team members - people need REAL face photos!
+- ALWAYS alternate between male and female portraits for realistic teams
+
+**TEAM SECTION STRUCTURE (use EXACTLY this format):**
+\`\`\`html
+<section class="section team-section">
+  <div class="section-inner centered">
+    <div class="section-header centered">
+      <span class="section-label">Our Team</span>
+      <h2>Meet Our Experts</h2>
+    </div>
+    <div class="team-grid">
+      <div class="team-member">
+        <img src="https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop" alt="John Smith" class="team-photo">
+        <h3>John Smith</h3>
+        <p class="team-role">CEO & Founder</p>
+      </div>
+      <div class="team-member">
+        <img src="https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop" alt="Maria Garcia" class="team-photo">
+        <h3>Maria Garcia</h3>
+        <p class="team-role">Marketing Director</p>
+      </div>
+      <!-- Add more team members using the portrait IDs above -->
+    </div>
+  </div>
+</section>
+\`\`\`
 
 **5. GALLERY/FEATURE IMAGES:**
 <img src="https://picsum.photos/seed/gallery-1/500/350" alt="[Description]" loading="lazy">
