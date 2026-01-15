@@ -63,7 +63,8 @@ function isValidPhone(phone: string): boolean {
 // Generate a realistic phone number based on geo/country hint
 function generateRealisticPhone(geo?: string): string {
   const geoLower = (geo || '').toLowerCase();
-  
+  const geoToken = geoLower.trim();
+
   // Country-specific formats with realistic random numbers
   const randomDigits = (count: number) => {
     let result = '';
@@ -76,76 +77,92 @@ function generateRealisticPhone(geo?: string): string {
     }
     return result;
   };
-  
+
+  // Helpers to safely match 2-letter geo codes without accidental substring matches
+  const hasGeoCode = (code: string) => geoToken === code || new RegExp(`\\b${code}\\b`, 'i').test(geoLower);
+
+  // Portugal
+  if (
+    geoLower.includes('portugal') ||
+    geoLower.includes('portugu') ||
+    geoLower.includes('португал') ||
+    hasGeoCode('pt')
+  ) {
+    // Portugal: +351 2X XXXXXX (Lisbon/Porto/regions are commonly 21/22/23/24/25)
+    const areaCodes = ['21', '22', '23', '24', '25'];
+    const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
+    return `+351 ${areaCode}${Math.floor(Math.random() * 10)} ${randomDigits(3)} ${randomDigits(3)}`;
+  }
+
   // Germany
-  if (geoLower.includes('germany') || geoLower.includes('deutschland') || geoLower.includes('de')) {
+  if (geoLower.includes('germany') || geoLower.includes('deutschland') || hasGeoCode('de')) {
     const areaCodes = ['30', '40', '69', '89', '221', '211', '351'];
     const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
     return `+49 ${areaCode} ${randomDigits(3)} ${randomDigits(4)}`;
   }
-  
+
   // Austria
-  if (geoLower.includes('austria') || geoLower.includes('österreich') || geoLower.includes('at')) {
+  if (geoLower.includes('austria') || geoLower.includes('österreich') || hasGeoCode('at')) {
     return `+43 1 ${randomDigits(3)} ${randomDigits(4)}`;
   }
-  
+
   // Switzerland
-  if (geoLower.includes('switzerland') || geoLower.includes('schweiz') || geoLower.includes('ch')) {
+  if (geoLower.includes('switzerland') || geoLower.includes('schweiz') || hasGeoCode('ch')) {
     return `+41 44 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
-  
+
   // UK
-  if (geoLower.includes('uk') || geoLower.includes('united kingdom') || geoLower.includes('britain') || geoLower.includes('england')) {
+  if (geoLower.includes('united kingdom') || geoLower.includes('britain') || geoLower.includes('england') || hasGeoCode('uk')) {
     return `+44 20 ${randomDigits(4)} ${randomDigits(4)}`;
   }
-  
+
   // France
-  if (geoLower.includes('france') || geoLower.includes('fr')) {
+  if (geoLower.includes('france') || hasGeoCode('fr')) {
     return `+33 1 ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
-  
+
   // Spain
-  if (geoLower.includes('spain') || geoLower.includes('españa') || geoLower.includes('es')) {
+  if (geoLower.includes('spain') || geoLower.includes('españa') || hasGeoCode('es')) {
     return `+34 91 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
-  
+
   // Italy
-  if (geoLower.includes('italy') || geoLower.includes('italia') || geoLower.includes('it')) {
+  if (geoLower.includes('italy') || geoLower.includes('italia') || hasGeoCode('it')) {
     return `+39 06 ${randomDigits(4)} ${randomDigits(4)}`;
   }
-  
+
   // Netherlands
-  if (geoLower.includes('netherlands') || geoLower.includes('nederland') || geoLower.includes('nl')) {
+  if (geoLower.includes('netherlands') || geoLower.includes('nederland') || hasGeoCode('nl')) {
     return `+31 20 ${randomDigits(3)} ${randomDigits(4)}`;
   }
-  
+
   // Poland
-  if (geoLower.includes('poland') || geoLower.includes('polska') || geoLower.includes('pl')) {
+  if (geoLower.includes('poland') || geoLower.includes('polska') || hasGeoCode('pl')) {
     return `+48 22 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
-  
+
   // USA/Canada
-  if (geoLower.includes('usa') || geoLower.includes('us') || geoLower.includes('united states') || geoLower.includes('america') || geoLower.includes('canada')) {
+  if (geoLower.includes('united states') || geoLower.includes('america') || geoLower.includes('canada') || hasGeoCode('us') || hasGeoCode('ca')) {
     const areaCodes = ['212', '310', '415', '312', '617', '305', '404', '416', '604', '514'];
     const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
     return `+1 (${areaCode}) ${randomDigits(3)}-${randomDigits(4)}`;
   }
-  
+
   // Ukraine
-  if (geoLower.includes('ukrain') || geoLower.includes('україн') || geoLower.includes('ua')) {
+  if (geoLower.includes('ukrain') || geoLower.includes('україн') || hasGeoCode('ua')) {
     return `+380 44 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
-  
+
   // Ireland
-  if (geoLower.includes('ireland') || geoLower.includes('ie') || geoLower.includes('irl') || geoLower.includes('éire')) {
+  if (geoLower.includes('ireland') || geoLower.includes('éire') || hasGeoCode('ie')) {
     return `+353 1 ${randomDigits(3)} ${randomDigits(4)}`;
   }
-  
+
   // Czech Republic
-  if (geoLower.includes('czech') || geoLower.includes('cz') || geoLower.includes('česk')) {
+  if (geoLower.includes('czech') || geoLower.includes('česk') || hasGeoCode('cz')) {
     return `+420 2 ${randomDigits(4)} ${randomDigits(4)}`;
   }
-  
+
   // Default: European format
   return `+49 30 ${randomDigits(3)} ${randomDigits(4)}`;
 }
