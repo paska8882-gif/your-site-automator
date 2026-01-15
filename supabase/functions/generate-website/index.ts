@@ -1416,6 +1416,41 @@ CORRECT EXAMPLES:
 
 **IF TEXT IS UNREADABLE = WEBSITE IS BROKEN!**
 
+👤👥🚨 TEAM/STAFF PORTRAITS - MANDATORY HUMAN PHOTOS! 🚨👥👤
+**When creating ANY section with people (Team, Staff, Employees, About Us with team, Testimonials with photos):**
+
+YOU MUST USE REAL HUMAN PORTRAIT PHOTOS FROM PEXELS! These are VERIFIED working URLs:
+
+MALE PORTRAITS (use these exact URLs):
+- https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/2182970/pexels-photo-2182970.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/2380794/pexels-photo-2380794.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+
+FEMALE PORTRAITS (use these exact URLs):
+- https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/1065084/pexels-photo-1065084.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+
+⛔ NEVER USE FOR PEOPLE:
+- picsum.photos - these are RANDOM images, not faces!
+- Placeholder URLs with random numbers
+- Abstract images, icons, or silhouettes
+- Any URL that doesn't show a real human face
+
+✅ MANDATORY FOR TEAM SECTIONS:
+- Alternate male/female portraits (CEO: male, CFO: female, CTO: male, etc.)
+- Each team member card: photo + name + job title + short bio
+- Photos must be circular or rounded with consistent sizing
+- Use different portrait URLs for each person (never repeat same photo!)
+
+**IF TEAM SECTION HAS NO REAL FACE PHOTOS = WEBSITE IS BROKEN!**
+
 📞📧🚨 CONTACT INFO - ABSOLUTELY MANDATORY - READ FIRST! 🚨📧📞
 EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
 
