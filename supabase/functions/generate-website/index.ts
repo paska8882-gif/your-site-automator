@@ -154,26 +154,40 @@ function generateRealisticPhone(geo?: string): string {
 function fixBrokenImageUrls(content: string): { content: string; fixed: number } {
   let fixed = 0;
   let result = content;
-  
-  // Pattern: image URLs containing phone-like patterns (+XX, spaces in URL, etc.)
-  // Matches: src="https://images.pexels.com/photos/+49 30 435 7446/pexels-photo-+49 30 217 9592.jpeg"
-  const BROKEN_IMG_URL_REGEX = /src=["'](https?:\/\/[^"']*\+\d+[^"']*|https?:\/\/images\.pexels\.com\/photos\/[^"']*\s+[^"']*)["']/gi;
-  
-  result = result.replace(BROKEN_IMG_URL_REGEX, () => {
+
+  const randomPexelsUrl = () => {
+    const randomId = Math.floor(Math.random() * 5_000_000) + 1_000_000;
+    return `https://images.pexels.com/photos/${randomId}/pexels-photo-${randomId}.jpeg?auto=compress&cs=tinysrgb&w=1200`;
+  };
+
+  // 1) Attributes: src/data-src/poster that contain phone-like patterns (+XX, spaces, etc.)
+  // Example: src="https://images.pexels.com/photos/+49 30 435.../pexels-photo-+49 30...jpeg"
+  const BROKEN_MEDIA_ATTR_REGEX = /(\b(?:src|data-src|poster)=["'])([^"']*(?:\+\d|\s{1,})[^"']*)(["'])/gi;
+  result = result.replace(BROKEN_MEDIA_ATTR_REGEX, (m, p1, url, p3) => {
+    if (!/^https?:\/\//i.test(String(url))) return m;
+    // Only fix if it looks like an image host we commonly use
+    if (!/images\.pexels\.com|picsum\.photos|images\.unsplash\.com/i.test(String(url))) return m;
     fixed++;
-    // Generate a valid Pexels image URL with random ID
-    const randomId = Math.floor(Math.random() * 5000000) + 1000000;
-    return `src="https://images.pexels.com/photos/${randomId}/pexels-photo-${randomId}.jpeg?auto=compress&cs=tinysrgb&w=800"`;
+    return `${p1}${randomPexelsUrl()}${p3}`;
   });
-  
-  // Also fix picsum URLs that might be broken
-  const BROKEN_PICSUM_REGEX = /src=["'](https?:\/\/picsum\.photos\/[^"']*\+[^"']*)["']/gi;
-  result = result.replace(BROKEN_PICSUM_REGEX, () => {
+
+  // 2) srcset="..." with broken pexels URLs (spaces / + inside URL)
+  const BROKEN_SRCSET_REGEX = /(\bsrcset=["'])([^"']*(?:images\.pexels\.com\/photos\/[^"']*(?:\+\d|\s)[^"']*)[^"']*)(["'])/gi;
+  result = result.replace(BROKEN_SRCSET_REGEX, (_m, p1, _v, p3) => {
     fixed++;
-    const seed = Math.random().toString(36).substring(7);
-    return `src="https://picsum.photos/seed/${seed}/800/600"`;
+    const u = randomPexelsUrl();
+    // Keep it simple: a single candidate is enough for correct rendering
+    return `${p1}${u} 1200w${p3}`;
   });
-  
+
+  // 3) CSS url(...) occurrences (inline styles or CSS files embedded in HTML)
+  // Example: background-image:url("https://images.pexels.com/photos/+49 30 ...")
+  const BROKEN_CSS_URL_REGEX = /(url\(\s*["']?)(https?:\/\/images\.pexels\.com\/photos\/[^)"']*(?:\+\d|\s)[^)"']*)(["']?\s*\))/gi;
+  result = result.replace(BROKEN_CSS_URL_REGEX, (_m, p1, _url, p3) => {
+    fixed++;
+    return `${p1}${randomPexelsUrl()}${p3}`;
+  });
+
   return { content: result, fixed };
 }
 
@@ -212,14 +226,20 @@ function fixPhoneNumbersInContent(content: string, geo?: string): { content: str
   });
 
   // 3) Fix any visible phone-like strings with a leading + (covers "+49 ... 4567890", etc.)
-  // BUT SKIP if inside src="..." to avoid double-fixing images
+  // BUT SKIP if it is part of an URL (img src/srcset/CSS url(...) etc.)
   const PLUS_PHONE_REGEX = /\+\d[\d\s().-]{7,}\d/g;
   result = result.replace(PLUS_PHONE_REGEX, (match, offset) => {
-    // Check if this match is inside an src="" attribute (skip if so)
-    const before = result.substring(Math.max(0, offset - 50), offset);
-    if (/src=["'][^"']*$/i.test(before)) {
-      return match; // Skip - inside image URL
-    }
+    const before = result.substring(Math.max(0, offset - 120), offset);
+
+    // Skip common URL/attribute contexts (images/CSS)
+    if (/src=["'][^"']*$/i.test(before)) return match;
+    if (/srcset=["'][^"']*$/i.test(before)) return match;
+    if (/data-src=["'][^"']*$/i.test(before)) return match;
+    if (/poster=["'][^"']*$/i.test(before)) return match;
+    if (/href=["'][^"']*$/i.test(before)) return match;
+    if (/url\(\s*["']?[^"')]*$/i.test(before)) return match;
+    if (/https?:\/\/[^\s"']*$/i.test(before)) return match;
+
     if (!isValidPhone(match)) {
       fixed++;
       return generateRealisticPhone(geo);
@@ -307,13 +327,18 @@ function enforcePhoneInFiles(
     content = content.replace(/href=["']tel:([^"']+)["']/gi, () => `href="tel:${desiredTel}"`);
 
     // Replace visible international phone patterns with desired phone
-    // (Skip if inside src="...", href="...", content="...", data-*="...")
+    // (Skip if inside src/srcset/href/content/data-*/CSS url(...) or other URL contexts)
     content = content.replace(/\+\d[\d\s().-]{7,}\d/g, (match, offset) => {
-      const before = content.substring(Math.max(0, offset - 100), offset);
+      const before = content.substring(Math.max(0, offset - 140), offset);
       if (/src=["'][^"']*$/i.test(before)) return match;
+      if (/srcset=["'][^"']*$/i.test(before)) return match;
+      if (/data-src=["'][^"']*$/i.test(before)) return match;
+      if (/poster=["'][^"']*$/i.test(before)) return match;
       if (/href=["'](?!tel:)[^"']*$/i.test(before)) return match;
       if (/content=["'][^"']*$/i.test(before)) return match;
       if (/data-[\w-]+=["'][^"']*$/i.test(before)) return match;
+      if (/url\(\s*["']?[^"')]*$/i.test(before)) return match;
+      if (/https?:\/\/[^\s"']*$/i.test(before)) return match;
       return desiredPhone;
     });
 
@@ -878,31 +903,37 @@ function makeAllPhonesClickable(
   // Regex to find phone numbers that are NOT already wrapped in tel: link
   // Matches: +XX XXX XXX XXXX patterns (international format)
   const PHONE_REGEX = /(?<!href=["']tel:[^"']*?)(?<!["'>])(\+\d[\d\s().-]{7,}\d)(?![^<]*<\/a>)/g;
-  
+
   const updatedFiles = files.map(f => {
     if (!/\.(html?|php)$/i.test(f.path)) return f;
-    
+
     let content = f.content;
     let fileFixed = 0;
-    
+
     // Find all phones NOT in tel: links and wrap them
     content = content.replace(PHONE_REGEX, (match, phone, offset) => {
-      // Skip if inside src="" or href="" that's not tel:
-      const before = content.substring(Math.max(0, offset - 100), offset);
+      const before = content.substring(Math.max(0, offset - 160), offset);
+
+      // Skip if it is part of an URL/attribute/CSS url(...) (images MUST stay clean)
       if (/src=["'][^"']*$/i.test(before)) return match;
+      if (/srcset=["'][^"']*$/i.test(before)) return match;
+      if (/data-src=["'][^"']*$/i.test(before)) return match;
+      if (/poster=["'][^"']*$/i.test(before)) return match;
       if (/href=["'](?!tel:)[^"']*$/i.test(before)) return match;
       if (/content=["'][^"']*$/i.test(before)) return match;
       if (/data-[\w-]+=["'][^"']*$/i.test(before)) return match;
-      
+      if (/url\(\s*["']?[^"')]*$/i.test(before)) return match;
+      if (/https?:\/\/[^\s"']*$/i.test(before)) return match;
+
       // Skip if already inside an <a> tag
       const beforeLastOpenTag = content.substring(0, offset).match(/<a\s[^>]*>[^<]*$/i);
       if (beforeLastOpenTag) return match;
-      
+
       fileFixed++;
-      const telNumber = phone.replace(/[^\d+]/g, '');
+      const telNumber = String(phone).replace(/[^\d+]/g, '');
       return `<a href="tel:${telNumber}" style="color:inherit;text-decoration:none;">${phone}</a>`;
     });
-    
+
     totalFixed += fileFixed;
     return { ...f, content };
   });
