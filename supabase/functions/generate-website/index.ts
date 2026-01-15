@@ -65,105 +65,214 @@ function generateRealisticPhone(geo?: string): string {
   const geoLower = (geo || '').toLowerCase();
   const geoToken = geoLower.trim();
 
-  // Country-specific formats with realistic random numbers
   const randomDigits = (count: number) => {
     let result = '';
     for (let i = 0; i < count; i++) {
       result += Math.floor(Math.random() * 10).toString();
     }
-    // Avoid patterns like 0000, 1111, etc.
-    if (/^(\d)\1+$/.test(result)) {
-      return randomDigits(count);
-    }
+    if (/^(\d)\1+$/.test(result)) return randomDigits(count);
     return result;
   };
 
-  // Helpers to safely match 2-letter geo codes without accidental substring matches
   const hasGeoCode = (code: string) => geoToken === code || new RegExp(`\\b${code}\\b`, 'i').test(geoLower);
 
-  // Portugal
-  if (
-    geoLower.includes('portugal') ||
-    geoLower.includes('portugu') ||
-    geoLower.includes('португал') ||
-    hasGeoCode('pt')
-  ) {
-    // Portugal: +351 2X XXXXXX (Lisbon/Porto/regions are commonly 21/22/23/24/25)
+  // Portugal +351
+  if (geoLower.includes('portugal') || geoLower.includes('portugu') || geoLower.includes('португал') || hasGeoCode('pt')) {
     const areaCodes = ['21', '22', '23', '24', '25'];
-    const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
-    return `+351 ${areaCode}${Math.floor(Math.random() * 10)} ${randomDigits(3)} ${randomDigits(3)}`;
+    return `+351 ${areaCodes[Math.floor(Math.random() * areaCodes.length)]}${Math.floor(Math.random() * 10)} ${randomDigits(3)} ${randomDigits(3)}`;
   }
 
-  // Germany
-  if (geoLower.includes('germany') || geoLower.includes('deutschland') || hasGeoCode('de')) {
+  // Germany +49
+  if (geoLower.includes('germany') || geoLower.includes('deutschland') || geoLower.includes('німеч') || hasGeoCode('de')) {
     const areaCodes = ['30', '40', '69', '89', '221', '211', '351'];
-    const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
-    return `+49 ${areaCode} ${randomDigits(3)} ${randomDigits(4)}`;
+    return `+49 ${areaCodes[Math.floor(Math.random() * areaCodes.length)]} ${randomDigits(3)} ${randomDigits(4)}`;
   }
 
-  // Austria
-  if (geoLower.includes('austria') || geoLower.includes('österreich') || hasGeoCode('at')) {
+  // Austria +43
+  if (geoLower.includes('austria') || geoLower.includes('österreich') || geoLower.includes('австрі') || hasGeoCode('at')) {
     return `+43 1 ${randomDigits(3)} ${randomDigits(4)}`;
   }
 
-  // Switzerland
-  if (geoLower.includes('switzerland') || geoLower.includes('schweiz') || hasGeoCode('ch')) {
+  // Switzerland +41
+  if (geoLower.includes('switzerland') || geoLower.includes('schweiz') || geoLower.includes('швейцар') || hasGeoCode('ch')) {
     return `+41 44 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
 
-  // UK
-  if (geoLower.includes('united kingdom') || geoLower.includes('britain') || geoLower.includes('england') || hasGeoCode('uk')) {
+  // UK +44
+  if (geoLower.includes('united kingdom') || geoLower.includes('britain') || geoLower.includes('england') || geoLower.includes('великобритан') || hasGeoCode('uk') || hasGeoCode('gb')) {
     return `+44 20 ${randomDigits(4)} ${randomDigits(4)}`;
   }
 
-  // France
-  if (geoLower.includes('france') || hasGeoCode('fr')) {
+  // France +33
+  if (geoLower.includes('france') || geoLower.includes('франц') || hasGeoCode('fr')) {
     return `+33 1 ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
 
-  // Spain
-  if (geoLower.includes('spain') || geoLower.includes('españa') || hasGeoCode('es')) {
+  // Spain +34
+  if (geoLower.includes('spain') || geoLower.includes('españa') || geoLower.includes('іспан') || hasGeoCode('es')) {
     return `+34 91 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
 
-  // Italy
-  if (geoLower.includes('italy') || geoLower.includes('italia') || hasGeoCode('it')) {
+  // Italy +39
+  if (geoLower.includes('italy') || geoLower.includes('italia') || geoLower.includes('італ') || hasGeoCode('it')) {
     return `+39 06 ${randomDigits(4)} ${randomDigits(4)}`;
   }
 
-  // Netherlands
-  if (geoLower.includes('netherlands') || geoLower.includes('nederland') || hasGeoCode('nl')) {
+  // Netherlands +31
+  if (geoLower.includes('netherlands') || geoLower.includes('nederland') || geoLower.includes('нідерланд') || hasGeoCode('nl')) {
     return `+31 20 ${randomDigits(3)} ${randomDigits(4)}`;
   }
 
-  // Poland
-  if (geoLower.includes('poland') || geoLower.includes('polska') || hasGeoCode('pl')) {
+  // Poland +48
+  if (geoLower.includes('poland') || geoLower.includes('polska') || geoLower.includes('польщ') || hasGeoCode('pl')) {
     return `+48 22 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
 
-  // USA/Canada
-  if (geoLower.includes('united states') || geoLower.includes('america') || geoLower.includes('canada') || hasGeoCode('us') || hasGeoCode('ca')) {
-    const areaCodes = ['212', '310', '415', '312', '617', '305', '404', '416', '604', '514'];
-    const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
-    return `+1 (${areaCode}) ${randomDigits(3)}-${randomDigits(4)}`;
+  // USA +1
+  if (geoLower.includes('united states') || geoLower.includes('america') || geoLower.includes('сша') || hasGeoCode('us')) {
+    const areaCodes = ['212', '310', '415', '312', '617', '305', '404'];
+    return `+1 (${areaCodes[Math.floor(Math.random() * areaCodes.length)]}) ${randomDigits(3)}-${randomDigits(4)}`;
   }
 
-  // Ukraine
+  // Canada +1
+  if (geoLower.includes('canada') || geoLower.includes('канад') || hasGeoCode('ca')) {
+    const areaCodes = ['416', '604', '514', '403', '613'];
+    return `+1 (${areaCodes[Math.floor(Math.random() * areaCodes.length)]}) ${randomDigits(3)}-${randomDigits(4)}`;
+  }
+
+  // Ukraine +380
   if (geoLower.includes('ukrain') || geoLower.includes('україн') || hasGeoCode('ua')) {
-    return `+380 44 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
+    const areaCodes = ['44', '50', '66', '67', '68', '73', '93', '95', '96', '97', '98', '99'];
+    return `+380 ${areaCodes[Math.floor(Math.random() * areaCodes.length)]} ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
 
-  // Ireland
-  if (geoLower.includes('ireland') || geoLower.includes('éire') || hasGeoCode('ie')) {
+  // Ireland +353
+  if (geoLower.includes('ireland') || geoLower.includes('éire') || geoLower.includes('ірланд') || hasGeoCode('ie')) {
     return `+353 1 ${randomDigits(3)} ${randomDigits(4)}`;
   }
 
-  // Czech Republic
-  if (geoLower.includes('czech') || geoLower.includes('česk') || hasGeoCode('cz')) {
+  // Czech Republic +420
+  if (geoLower.includes('czech') || geoLower.includes('česk') || geoLower.includes('чехі') || hasGeoCode('cz')) {
     return `+420 2 ${randomDigits(4)} ${randomDigits(4)}`;
   }
 
-  // Default: European format
+  // Bulgaria +359
+  if (geoLower.includes('bulgaria') || geoLower.includes('българ') || geoLower.includes('болгар') || hasGeoCode('bg')) {
+    return `+359 2 ${randomDigits(3)} ${randomDigits(4)}`;
+  }
+
+  // Belgium +32
+  if (geoLower.includes('belgium') || geoLower.includes('belgi') || geoLower.includes('бельгі') || hasGeoCode('be')) {
+    return `+32 2 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
+  }
+
+  // Vietnam +84
+  if (geoLower.includes('vietnam') || geoLower.includes('việt') || geoLower.includes("в'єтнам") || hasGeoCode('vn')) {
+    return `+84 24 ${randomDigits(4)} ${randomDigits(4)}`;
+  }
+
+  // Greece +30
+  if (geoLower.includes('greece') || geoLower.includes('ελλ') || geoLower.includes('греці') || hasGeoCode('gr')) {
+    return `+30 21 ${randomDigits(4)} ${randomDigits(4)}`;
+  }
+
+  // Denmark +45
+  if (geoLower.includes('denmark') || geoLower.includes('danmark') || geoLower.includes('данія') || geoLower.includes('дані') || hasGeoCode('dk')) {
+    return `+45 ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)}`;
+  }
+
+  // Estonia +372
+  if (geoLower.includes('estonia') || geoLower.includes('eesti') || geoLower.includes('естоні') || hasGeoCode('ee')) {
+    return `+372 ${randomDigits(4)} ${randomDigits(4)}`;
+  }
+
+  // Indonesia +62
+  if (geoLower.includes('indonesia') || geoLower.includes('індонез') || hasGeoCode('id')) {
+    return `+62 21 ${randomDigits(4)} ${randomDigits(4)}`;
+  }
+
+  // India +91
+  if (geoLower.includes('india') || geoLower.includes('індія') || geoLower.includes('інді') || hasGeoCode('in')) {
+    return `+91 ${randomDigits(5)} ${randomDigits(5)}`;
+  }
+
+  // Latvia +371
+  if (geoLower.includes('latvia') || geoLower.includes('latvij') || geoLower.includes('латві') || hasGeoCode('lv')) {
+    return `+371 ${randomDigits(4)} ${randomDigits(4)}`;
+  }
+
+  // Lithuania +370
+  if (geoLower.includes('lithuania') || geoLower.includes('lietuv') || geoLower.includes('литв') || hasGeoCode('lt')) {
+    return `+370 5 ${randomDigits(3)} ${randomDigits(4)}`;
+  }
+
+  // UAE +971
+  if (geoLower.includes('emirates') || geoLower.includes('uae') || geoLower.includes('оае') || geoLower.includes('емірат') || hasGeoCode('ae')) {
+    return `+971 4 ${randomDigits(3)} ${randomDigits(4)}`;
+  }
+
+  // Russia +7
+  if (geoLower.includes('russia') || geoLower.includes('росі') || geoLower.includes('росси') || hasGeoCode('ru')) {
+    const areaCodes = ['495', '499', '812', '383', '343'];
+    return `+7 ${areaCodes[Math.floor(Math.random() * areaCodes.length)]} ${randomDigits(3)}-${randomDigits(2)}-${randomDigits(2)}`;
+  }
+
+  // Romania +40
+  if (geoLower.includes('romania') || geoLower.includes('român') || geoLower.includes('румуні') || hasGeoCode('ro')) {
+    return `+40 21 ${randomDigits(3)} ${randomDigits(4)}`;
+  }
+
+  // Slovakia +421
+  if (geoLower.includes('slovakia') || geoLower.includes('slovensk') || geoLower.includes('словаччин') || hasGeoCode('sk')) {
+    return `+421 2 ${randomDigits(4)} ${randomDigits(4)}`;
+  }
+
+  // Slovenia +386
+  if (geoLower.includes('slovenia') || geoLower.includes('slovenij') || geoLower.includes('словені') || hasGeoCode('si')) {
+    return `+386 1 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
+  }
+
+  // Thailand +66
+  if (geoLower.includes('thailand') || geoLower.includes('таїланд') || geoLower.includes('тайланд') || hasGeoCode('th')) {
+    return `+66 2 ${randomDigits(3)} ${randomDigits(4)}`;
+  }
+
+  // Turkey +90
+  if (geoLower.includes('turkey') || geoLower.includes('türk') || geoLower.includes('туреч') || hasGeoCode('tr')) {
+    return `+90 212 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
+  }
+
+  // Hungary +36
+  if (geoLower.includes('hungary') || geoLower.includes('magyar') || geoLower.includes('угорщ') || hasGeoCode('hu')) {
+    return `+36 1 ${randomDigits(3)} ${randomDigits(4)}`;
+  }
+
+  // Finland +358
+  if (geoLower.includes('finland') || geoLower.includes('suomi') || geoLower.includes('фінлянд') || hasGeoCode('fi')) {
+    return `+358 9 ${randomDigits(4)} ${randomDigits(4)}`;
+  }
+
+  // Croatia +385
+  if (geoLower.includes('croatia') || geoLower.includes('hrvat') || geoLower.includes('хорват') || hasGeoCode('hr')) {
+    return `+385 1 ${randomDigits(4)} ${randomDigits(3)}`;
+  }
+
+  // Sweden +46
+  if (geoLower.includes('sweden') || geoLower.includes('sverige') || geoLower.includes('швеці') || hasGeoCode('se')) {
+    return `+46 8 ${randomDigits(3)} ${randomDigits(3)} ${randomDigits(2)}`;
+  }
+
+  // Norway +47
+  if (geoLower.includes('norway') || geoLower.includes('norge') || geoLower.includes('норвег') || hasGeoCode('no')) {
+    return `+47 ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)}`;
+  }
+
+  // Japan +81
+  if (geoLower.includes('japan') || geoLower.includes('日本') || geoLower.includes('японі') || hasGeoCode('jp')) {
+    return `+81 3 ${randomDigits(4)} ${randomDigits(4)}`;
+  }
+
+  // Default: German format
   return `+49 30 ${randomDigits(3)} ${randomDigits(4)}`;
 }
 
