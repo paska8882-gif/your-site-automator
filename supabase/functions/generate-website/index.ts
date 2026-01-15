@@ -3446,21 +3446,45 @@ const cleanFileContent = (content: string) => {
 const parseFilesFromModelText = (rawText: string) => {
   const normalizedText = rawText.replace(/\r\n/g, "\n");
   const filesMap = new Map<string, string>();
+  let hasIncompleteFile = false;
 
-  const upsertFile = (path: string, content: string, source: string) => {
+  const upsertFile = (path: string, content: string, source: string, isPartial = false) => {
     const cleanPath = path.trim();
-    const cleanContent = cleanFileContent(content);
+    let cleanContent = cleanFileContent(content);
+    
+    // Skip empty files
     if (!cleanPath || cleanContent.length <= 10) return;
+    
+    // Try to fix truncated HTML files
+    if (cleanPath.endsWith('.html') && isPartial) {
+      cleanContent = fixTruncatedHtml(cleanContent);
+      console.log(`⚠️ Fixed truncated HTML file: ${cleanPath}`);
+    }
+    
+    // Try to fix truncated CSS files
+    if (cleanPath.endsWith('.css') && isPartial) {
+      cleanContent = fixTruncatedCss(cleanContent);
+      console.log(`⚠️ Fixed truncated CSS file: ${cleanPath}`);
+    }
+    
     filesMap.set(cleanPath, cleanContent);
-    console.log(`✅ Found (${source}): ${cleanPath} (${cleanContent.length} chars)`);
+    console.log(`✅ Found (${source}${isPartial ? ', partial' : ''}): ${cleanPath} (${cleanContent.length} chars)`);
   };
 
+  // Format 1: <!-- FILE: filename --> markers
   const filePattern1 = /<!-- FILE: ([^>]+) -->([\s\S]*?)(?=<!-- FILE: |$)/g;
   let match;
   while ((match = filePattern1.exec(normalizedText)) !== null) {
-    upsertFile(match[1], match[2], "format1");
+    const fileName = match[1].trim();
+    const content = match[2];
+    // Check if this is the last file and might be truncated
+    const isLastFile = match.index + match[0].length >= normalizedText.length - 100;
+    const mightBeTruncated = isLastFile && !content.trim().endsWith('</html>') && !content.trim().endsWith('}') && !content.trim().endsWith('</xml>');
+    if (mightBeTruncated) hasIncompleteFile = true;
+    upsertFile(fileName, content, "format1", mightBeTruncated);
   }
 
+  // Format 2: Try markdown headings if format1 failed
   if (filesMap.size === 0) {
     console.log("Trying OpenAI markdown headings format...");
 
@@ -3482,12 +3506,97 @@ const parseFilesFromModelText = (rawText: string) => {
       const start = headers[i].contentStart;
       const end = headers[i + 1]?.start ?? normalizedText.length;
       const chunk = normalizedText.slice(start, end);
-      upsertFile(headers[i].path, chunk, "format2");
+      const isLastFile = i === headers.length - 1;
+      upsertFile(headers[i].path, chunk, "format2", isLastFile);
     }
+  }
+
+  // Format 3: Try to extract from code blocks if still no files
+  if (filesMap.size === 0) {
+    console.log("Trying code block extraction format...");
+    
+    // Try to find code blocks with file names
+    const codeBlockPattern = /```(?:html|css|javascript|js)\s*\n\/\*\s*([a-zA-Z0-9_\-\.\/]+)\s*\*\/|```(?:html|css|javascript|js)\s*\n<!--\s*([a-zA-Z0-9_\-\.\/]+)\s*-->/gi;
+    const simpleCodeBlocks = /```(html|css|javascript|js)\s*\n([\s\S]*?)```/gi;
+    
+    let blockMatch;
+    const foundBlocks: { type: string; content: string }[] = [];
+    
+    while ((blockMatch = simpleCodeBlocks.exec(normalizedText)) !== null) {
+      foundBlocks.push({ type: blockMatch[1], content: blockMatch[2] });
+    }
+    
+    // If we found code blocks, assign them to files based on type
+    if (foundBlocks.length > 0) {
+      const htmlBlocks = foundBlocks.filter(b => b.type === 'html');
+      const cssBlocks = foundBlocks.filter(b => b.type === 'css');
+      const jsBlocks = foundBlocks.filter(b => b.type === 'javascript' || b.type === 'js');
+      
+      // Create files from blocks
+      if (cssBlocks.length > 0) {
+        upsertFile('styles.css', cssBlocks.map(b => b.content).join('\n\n'), 'codeblock');
+      }
+      if (htmlBlocks.length > 0) {
+        htmlBlocks.forEach((block, i) => {
+          const fileName = i === 0 ? 'index.html' : `page-${i}.html`;
+          upsertFile(fileName, block.content, 'codeblock');
+        });
+      }
+      if (jsBlocks.length > 0) {
+        upsertFile('script.js', jsBlocks.map(b => b.content).join('\n\n'), 'codeblock');
+      }
+    }
+  }
+
+  if (hasIncompleteFile) {
+    console.log(`⚠️ Warning: Response appears to be truncated, some files may be incomplete`);
   }
 
   return Array.from(filesMap.entries()).map(([path, content]) => ({ path, content }));
 };
+
+// Fix truncated HTML by closing open tags
+function fixTruncatedHtml(content: string): string {
+  let fixed = content;
+  
+  // Common unclosed tags to check
+  const tagsToClose = ['html', 'body', 'head', 'div', 'section', 'main', 'footer', 'header', 'article', 'aside', 'nav'];
+  
+  for (const tag of tagsToClose) {
+    const openCount = (fixed.match(new RegExp(`<${tag}[^>]*>`, 'gi')) || []).length;
+    const closeCount = (fixed.match(new RegExp(`</${tag}>`, 'gi')) || []).length;
+    
+    for (let i = closeCount; i < openCount; i++) {
+      fixed += `</${tag}>`;
+    }
+  }
+  
+  // Ensure basic structure
+  if (!fixed.includes('</body>') && fixed.includes('<body')) {
+    fixed += '</body>';
+  }
+  if (!fixed.includes('</html>') && fixed.includes('<html')) {
+    fixed += '</html>';
+  }
+  
+  return fixed;
+}
+
+// Fix truncated CSS by closing open braces
+function fixTruncatedCss(content: string): string {
+  let fixed = content;
+  
+  // Count open and close braces
+  const openBraces = (fixed.match(/{/g) || []).length;
+  const closeBraces = (fixed.match(/}/g) || []).length;
+  
+  // Add missing close braces
+  for (let i = closeBraces; i < openBraces; i++) {
+    fixed += '\n}';
+  }
+  
+  return fixed;
+}
 
 async function runGeneration({
   prompt,
@@ -3613,7 +3722,7 @@ async function runGeneration({
   websiteRequestBody.max_tokens = isJunior ? 16000 : 65536;
 
   // Helper function to attempt generation with a specific model
-  const attemptGeneration = async (modelToUse: string, isRetry: boolean = false): Promise<{ rawText: string; websiteData: Record<string, unknown>; modelUsed: string } | null> => {
+  const attemptGeneration = async (modelToUse: string, isRetry: boolean = false): Promise<{ rawText: string; websiteData: Record<string, unknown>; modelUsed: string; isPartial?: boolean } | null> => {
     const requestBody = { ...websiteRequestBody, model: modelToUse };
     console.log(`${isRetry ? '🔄 RETRY with' : '🚀 Attempting'} model: ${modelToUse}`);
     
@@ -3650,28 +3759,82 @@ async function runGeneration({
 
     let data: Record<string, unknown> = {};
     let text = "";
+    let isPartial = false;
     
     try {
       data = JSON.parse(rawResponse);
       text = (data.choices as Array<{ message?: { content?: string } }>)?.[0]?.message?.content || "";
-    } catch {
-      console.log("JSON parse failed, extracting content...");
-      const contentMatch = rawResponse.match(/"content"\s*:\s*"([\s\S]*?)(?:"\s*[,}]|\s*$)/);
+      
+      // Check if response was truncated due to token limit
+      const finishReason = (data.choices as Array<{ finish_reason?: string }>)?.[0]?.finish_reason;
+      if (finishReason === 'length') {
+        console.log(`⚠️ Response truncated due to token limit (finish_reason: length)`);
+        isPartial = true;
+      }
+    } catch (parseError) {
+      console.log("JSON parse failed, attempting to extract content from incomplete response...");
+      
+      // Try multiple extraction strategies for incomplete JSON
+      
+      // Strategy 1: Find content field and extract everything after it
+      let contentMatch = rawResponse.match(/"content"\s*:\s*"([\s\S]*?)(?:"\s*,\s*"(?:role|refusal|annotations)|\"\s*}\s*\]|$)/);
       if (contentMatch && contentMatch[1]) {
         text = contentMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-      } else if (rawResponse.includes("<!-- FILE:")) {
-        text = rawResponse;
+        isPartial = true;
+        console.log(`📄 Extracted content via strategy 1: ${text.length} chars`);
+      }
+      
+      // Strategy 2: If content field found but cut off, get everything after "content":"
+      if (!text && rawResponse.includes('"content"')) {
+        const contentStartMatch = rawResponse.match(/"content"\s*:\s*"/);
+        if (contentStartMatch) {
+          const startIdx = (contentStartMatch.index || 0) + contentStartMatch[0].length;
+          let extracted = rawResponse.slice(startIdx);
+          // Unescape the content
+          extracted = extracted.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+          // Remove trailing incomplete JSON
+          extracted = extracted.replace(/"\s*,?\s*"?(?:role|refusal|annotations|logprobs|finish_reason)?\s*:?[^}]*$/, '');
+          if (extracted.length > 1000) {
+            text = extracted;
+            isPartial = true;
+            console.log(`📄 Extracted content via strategy 2: ${text.length} chars`);
+          }
+        }
+      }
+      
+      // Strategy 3: If raw response contains FILE markers, use it directly
+      if (!text && rawResponse.includes("<!-- FILE:")) {
+        // Find the start of actual content (after JSON headers)
+        const fileMarkerIdx = rawResponse.indexOf("<!-- FILE:");
+        if (fileMarkerIdx > 0) {
+          text = rawResponse.slice(fileMarkerIdx);
+          isPartial = true;
+          console.log(`📄 Extracted content via strategy 3 (direct FILE markers): ${text.length} chars`);
+        }
+      }
+      
+      if (!text) {
+        console.error(`❌ Failed to extract content from incomplete JSON response`);
+        return null;
       }
     }
 
-    // Check if we got meaningful content
-    if (text.length < 3000 || !text.includes("<!-- FILE:")) {
-      console.error(`❌ Insufficient content from ${modelToUse}: ${text.length} chars, has FILE markers: ${text.includes("<!-- FILE:")}`);
+    // Check if we got meaningful content - be more lenient if partial
+    const minLength = isPartial ? 2000 : 3000;
+    const hasFileMarkers = text.includes("<!-- FILE:") || text.includes("```html") || text.includes("```css");
+    
+    if (text.length < minLength) {
+      console.error(`❌ Insufficient content from ${modelToUse}: ${text.length} chars (min: ${minLength})`);
+      return null;
+    }
+    
+    if (!hasFileMarkers) {
+      console.error(`❌ No file markers found in response from ${modelToUse}`);
       return null;
     }
 
-    console.log(`✅ Got valid response from ${modelToUse}: ${text.length} chars`);
-    return { rawText: text, websiteData: data, modelUsed: modelToUse };
+    console.log(`✅ Got ${isPartial ? 'partial' : 'valid'} response from ${modelToUse}: ${text.length} chars`);
+    return { rawText: text, websiteData: data, modelUsed: modelToUse, isPartial };
   };
 
   // Try primary model first (gemini-2.5-pro for senior, gpt-4o for junior)
