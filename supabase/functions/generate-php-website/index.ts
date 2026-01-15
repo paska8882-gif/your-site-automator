@@ -1149,6 +1149,22 @@ const LAYOUT_VARIATIONS = [
 
 const PHP_GENERATION_PROMPT = `CRITICAL: CREATE A STUNNING, PREMIUM MULTI-PAGE PHP WEBSITE WITH EXCEPTIONAL DESIGN QUALITY
 
+⛔⛔⛔ TEXT CONTRAST - ABSOLUTELY CRITICAL - NO EXCEPTIONS! ⛔⛔⛔
+**NEVER USE WHITE TEXT ON WHITE/LIGHT BACKGROUNDS!** This makes text INVISIBLE and BREAKS the website!
+
+MANDATORY CONTRAST RULES:
+- Light backgrounds (#fff, #f5f5f5, #fafafa, white, cream, beige): Use DARK text (#333, #222, #1a1a1a)
+- Dark backgrounds (#1a1a1a, #222, #333, black, navy): Use WHITE or LIGHT text (#fff, #f5f5f5)
+- Hero sections with background images: ALWAYS add dark overlay (rgba(0,0,0,0.5)) before white text
+- Cards on light pages: Use dark text (#333 or darker) - NEVER white!
+
+CSS EXAMPLES:
+WRONG: .section { background: #fff; color: #fff; } /* INVISIBLE TEXT! */
+CORRECT: .section { background: #fff; color: #333; } /* Readable! */
+CORRECT: .dark-section { background: #1a1a1a; color: #fff; } /* Readable! */
+
+**IF TEXT IS UNREADABLE = WEBSITE IS BROKEN!**
+
 📞📧🚨 CONTACT INFO - READ THIS FIRST! ABSOLUTELY MANDATORY! 🚨📧📞
 EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
 
