@@ -1389,7 +1389,7 @@ export function WebsiteGenerator() {
     const imageSourcesSnapshot = selectedImageSources.length > 0 ? selectedImageSources : (["basic"] as ImageSource[]);
     const vipPromptSnapshot = vipPromptValue;
 
-    // Clear inputs immediately so user can start preparing the next website while generation runs
+    // Clear only inputs that should be reset, keep selections (languages, styles, AI models, etc.)
     setSiteNames([]);
     setCurrentSiteNameInput("");
     setPrompt("");
@@ -1397,7 +1397,7 @@ export function WebsiteGenerator() {
     setOriginalPrompt(null);
     setImprovedPromptValue(null);
     setVipPromptValue(null);
-    setIsVipMode(false);
+    // Keep VIP mode, languages, styles, AI models, website types, and image sources as user selected
     setVipDomain("");
     setVipAddress("");
     setVipPhone("");
