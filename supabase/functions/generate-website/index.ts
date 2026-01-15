@@ -1393,6 +1393,29 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, CONTENT-RICH PROFESS
 
 🚨🚨🚨 REFERENCE QUALITY STANDARD - FOLLOW THIS STRUCTURE 🚨🚨🚨
 
+⛔⛔⛔ TEXT CONTRAST - ABSOLUTELY CRITICAL - NO EXCEPTIONS! ⛔⛔⛔
+**NEVER USE WHITE TEXT ON WHITE/LIGHT BACKGROUNDS!** This makes text INVISIBLE and BREAKS the website!
+
+MANDATORY CONTRAST RULES:
+- Light backgrounds (#fff, #f5f5f5, #fafafa, white, cream, beige, light-gray): Use DARK text (#333, #222, #1a1a1a, black)
+- Dark backgrounds (#1a1a1a, #222, #333, black, navy, dark-blue): Use WHITE or LIGHT text (#fff, #f5f5f5)
+- Hero sections with background images: ALWAYS add dark overlay (rgba(0,0,0,0.5)) before white text
+- Cards on light pages: Use dark text (#333 or darker) - NEVER white!
+- Buttons: Ensure button text contrasts with button background color
+
+WRONG EXAMPLES (NEVER DO THIS):
+❌ White text on white background: color: #fff; background: #ffffff;
+❌ Light gray text on white: color: #ccc; background: #fff;
+❌ White text on light section without overlay
+❌ Hero with white text but no dark overlay on image
+
+CORRECT EXAMPLES:
+✅ Dark text on light: color: #333; background: #f5f5f5;
+✅ White text on dark: color: #fff; background: #1a1a1a;
+✅ Hero with overlay: background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url(image.jpg); color: #fff;
+
+**IF TEXT IS UNREADABLE = WEBSITE IS BROKEN!**
+
 📞📧🚨 CONTACT INFO - ABSOLUTELY MANDATORY - READ FIRST! 🚨📧📞
 EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
 

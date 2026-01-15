@@ -520,6 +520,28 @@ const LAYOUT_VARIATIONS = [
 
 const REACT_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE REACT WEBSITE WITH 10X BETTER UI
 
+⛔⛔⛔ TEXT CONTRAST - ABSOLUTELY CRITICAL - NO EXCEPTIONS! ⛔⛔⛔
+**NEVER USE WHITE TEXT ON WHITE/LIGHT BACKGROUNDS!** This makes text INVISIBLE and BREAKS the website!
+
+MANDATORY CONTRAST RULES:
+- Light backgrounds (#fff, #f5f5f5, #fafafa, white, cream, beige): Use DARK text (#333, #222, #1a1a1a)
+- Dark backgrounds (#1a1a1a, #222, #333, black, navy): Use WHITE or LIGHT text (#fff, #f5f5f5)
+- Hero sections with background images: ALWAYS add dark overlay before white text
+- Cards on light pages: Use dark text (#333 or darker) - NEVER white!
+- Inline styles: Always check color matches background
+
+WRONG:
+❌ style={{ color: '#fff', background: '#ffffff' }}
+❌ White text on light section
+❌ className with text-white on white bg
+
+CORRECT:
+✅ style={{ color: '#333', background: '#f5f5f5' }}
+✅ Dark text on light backgrounds
+✅ White text ONLY on dark backgrounds or overlayed images
+
+**IF TEXT IS UNREADABLE = WEBSITE IS BROKEN!**
+
 📞📧🚨 CONTACT INFO - READ THIS FIRST! ABSOLUTELY MANDATORY! 🚨📧📞
 EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
 
