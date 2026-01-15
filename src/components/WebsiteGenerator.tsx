@@ -1033,8 +1033,18 @@ export function WebsiteGenerator() {
       // Save the original prompt before improving
       const currentOriginal = originalPrompt || prompt;
       
+      // Get effective geo and phone for improved prompt
+      const effectiveGeo = isOtherGeoSelected && customGeo 
+        ? customGeo 
+        : (selectedGeo ? geoOptions.find(g => g.value === selectedGeo)?.label || selectedGeo : undefined);
+      const effectivePhone = vipPhone || undefined;
+      
       const { data, error } = await supabase.functions.invoke('improve-prompt', {
-        body: { prompt },
+        body: { 
+          prompt,
+          geo: effectiveGeo,
+          phone: effectivePhone,
+        },
         headers: {
           Authorization: `Bearer ${sessionData.session.access_token}`,
         },
