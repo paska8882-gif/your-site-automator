@@ -5678,6 +5678,18 @@ async function runBackgroundGeneration(
       // - If phone is NOT provided -> generate a realistic phone based on geo and enforce it (so every site has a phone).
       let enforcedFiles = result.files;
 
+      // ALWAYS fix broken image URLs first (AI hallucination issue where phone numbers appear in image URLs)
+      // This must happen BEFORE any phone enforcement to avoid double-processing
+      const fixedImageFiles = enforcedFiles.map(f => {
+        if (!/\.(html?|php|jsx?|tsx?)$/i.test(f.path)) return f;
+        const { content, fixed } = fixBrokenImageUrls(f.content);
+        if (fixed > 0) {
+          console.log(`[BG] Fixed ${fixed} broken image URL(s) in ${f.path}`);
+        }
+        return { ...f, content };
+      });
+      enforcedFiles = fixedImageFiles;
+
       if (desiredPhone) {
         // User provided phone in prompt - enforce it directly without "fixing" first
         console.log(`[BG] Using explicit phone from prompt: "${desiredPhone}" - skipping phone number fixing`);
@@ -5685,7 +5697,7 @@ async function runBackgroundGeneration(
         console.log(`[BG] Enforced phone "${desiredPhone}" across all files`);
       } else {
         // No explicit phone - fix invalid placeholders, then enforce an auto-generated regional phone
-        const { files: fixedFiles, totalFixed } = fixPhoneNumbersInFiles(result.files, geoToUse);
+        const { files: fixedFiles, totalFixed } = fixPhoneNumbersInFiles(enforcedFiles, geoToUse);
         if (totalFixed > 0) {
           console.log(`[BG] Fixed ${totalFixed} invalid phone number(s) in generated files`);
         }
