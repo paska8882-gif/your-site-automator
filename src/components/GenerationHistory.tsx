@@ -724,12 +724,43 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
     }
   };
 
+  // Refs for realtime status tracking
+  const realtimeActiveRef = useRef(false);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastFetchRef = useRef<number>(0);
+
+  // Fallback polling for when realtime is not working
+  const startFallbackPolling = () => {
+    if (pollingIntervalRef.current) return; // Already polling
+    
+    console.log("[GenerationHistory] Starting fallback polling (realtime inactive)");
+    pollingIntervalRef.current = setInterval(async () => {
+      // Only poll if we have generating items
+      const hasGenerating = history.some(item => item.status === "generating");
+      if (hasGenerating && Date.now() - lastFetchRef.current > 5000) {
+        console.log("[GenerationHistory] Polling for updates...");
+        await fetchHistory();
+        lastFetchRef.current = Date.now();
+      }
+    }, 10_000); // Poll every 10 seconds when there are generating items
+  };
+
+  const stopFallbackPolling = () => {
+    if (pollingIntervalRef.current) {
+      console.log("[GenerationHistory] Stopping fallback polling (realtime active)");
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  };
+
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let staleCheckInterval: NodeJS.Timeout | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
 
     const setupRealtimeAndFetch = async () => {
       await fetchHistory();
+      lastFetchRef.current = Date.now();
       
       // Check for stale generations on load and every minute
       await checkStaleGenerations();
@@ -740,47 +771,92 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
       
       if (!user) return;
 
-      // Subscribe to realtime updates for current user only
-      channel = supabase
-        .channel("generation_history_changes")
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "generation_history",
-            filter: `user_id=eq.${user.id}`,
-          },
-          (payload) => {
-            console.log("Realtime update:", payload);
-            
-            if (payload.eventType === "INSERT") {
-              const newItem = {
-                ...payload.new,
-                files_data: payload.new.files_data as GeneratedFile[] | null
-              } as HistoryItem;
-              setHistory((prev) => [newItem, ...prev]);
-            } else if (payload.eventType === "UPDATE") {
-              setHistory((prev) =>
-                prev.map((item) => {
-                  if (item.id === payload.new.id) {
-                    return {
-                      ...item,
-                      ...payload.new,
-                      files_data: (payload.new.files_data as GeneratedFile[] | null) ?? item.files_data
-                    };
-                  }
-                  return item;
-                })
-              );
-            } else if (payload.eventType === "DELETE") {
-              setHistory((prev) =>
-                prev.filter((item) => item.id !== payload.old.id)
-              );
+      const setupChannel = () => {
+        // Clean up existing channel if any
+        if (channel) {
+          supabase.removeChannel(channel);
+        }
+
+        // Subscribe to realtime updates for current user only
+        channel = supabase
+          .channel("generation_history_changes")
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "generation_history",
+              filter: `user_id=eq.${user.id}`,
+            },
+            (payload) => {
+              const newRecord = payload.new as Record<string, any> | undefined;
+              const oldRecord = payload.old as Record<string, any> | undefined;
+              console.log("[GenerationHistory] Realtime update:", payload.eventType, newRecord?.id);
+              
+              if (payload.eventType === "INSERT" && newRecord) {
+                const newItem = {
+                  ...newRecord,
+                  files_data: newRecord.files_data as GeneratedFile[] | null
+                } as HistoryItem;
+                setHistory((prev) => [newItem, ...prev]);
+              } else if (payload.eventType === "UPDATE" && newRecord) {
+                setHistory((prev) =>
+                  prev.map((item) => {
+                    if (item.id === newRecord.id) {
+                      return {
+                        ...item,
+                        ...newRecord,
+                        files_data: (newRecord.files_data as GeneratedFile[] | null) ?? item.files_data
+                      };
+                    }
+                    return item;
+                  })
+                );
+              } else if (payload.eventType === "DELETE" && oldRecord) {
+                setHistory((prev) =>
+                  prev.filter((item) => item.id !== oldRecord.id)
+                );
+              }
             }
-          }
-        )
-        .subscribe();
+          )
+          .subscribe((status, err) => {
+            console.log("[GenerationHistory] Realtime status:", status, err?.message);
+            
+            if (status === "SUBSCRIBED") {
+              realtimeActiveRef.current = true;
+              stopFallbackPolling();
+            } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
+              realtimeActiveRef.current = false;
+              startFallbackPolling();
+              
+              // Attempt to reconnect after a delay
+              if (reconnectTimeout) clearTimeout(reconnectTimeout);
+              reconnectTimeout = setTimeout(() => {
+                console.log("[GenerationHistory] Attempting to reconnect realtime...");
+                setupChannel();
+              }, 5000);
+            } else if (status === "TIMED_OUT") {
+              realtimeActiveRef.current = false;
+              startFallbackPolling();
+              
+              // Attempt to reconnect after longer delay for timeout
+              if (reconnectTimeout) clearTimeout(reconnectTimeout);
+              reconnectTimeout = setTimeout(() => {
+                console.log("[GenerationHistory] Reconnecting after timeout...");
+                setupChannel();
+              }, 10000);
+            }
+          });
+      };
+
+      setupChannel();
+      
+      // Initial fallback polling check - if realtime doesn't connect within 3 seconds
+      setTimeout(() => {
+        if (!realtimeActiveRef.current) {
+          startFallbackPolling();
+        }
+      }, 3000);
     };
 
     setupRealtimeAndFetch();
@@ -792,6 +868,10 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
       if (staleCheckInterval) {
         clearInterval(staleCheckInterval);
       }
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      stopFallbackPolling();
     };
   }, []);
 
