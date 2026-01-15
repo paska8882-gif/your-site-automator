@@ -150,39 +150,53 @@ function generateRealisticPhone(geo?: string): string {
   return `+49 30 ${randomDigits(3)} ${randomDigits(4)}`;
 }
 
-// Fix broken image URLs that contain phone numbers (AI hallucination issue)
+// Fix broken image URLs that contain phone numbers or other non-numeric "IDs" (AI hallucination issue)
 function fixBrokenImageUrls(content: string): { content: string; fixed: number } {
   let fixed = 0;
   let result = content;
 
   const randomPexelsUrl = () => {
+    // Pexels photo IDs are numeric; using a numeric placeholder prevents "phone-as-id" URLs.
     const randomId = Math.floor(Math.random() * 5_000_000) + 1_000_000;
-    return `https://images.pexels.com/photos/${randomId}/pexels-photo-${randomId}.jpeg?auto=compress&cs=tinysrgb&w=1200`;
+    return `https://images.pexels.com/photos/${randomId}/pexels-photo-${randomId}.jpeg?auto=compress&cs=tinysrgb&w=1400`;
   };
 
-  // 1) Attributes: src/data-src/poster that contain phone-like patterns (+XX, spaces, etc.)
-  // Example: src="https://images.pexels.com/photos/+49 30 435.../pexels-photo-+49 30...jpeg"
-  const BROKEN_MEDIA_ATTR_REGEX = /(\b(?:src|data-src|poster)=["'])([^"']*(?:\+\d|\s{1,})[^"']*)(["'])/gi;
+  // Replace any Pexels URL where the "photos/<id>/" segment is NOT purely numeric.
+  // This directly targets the broken pattern we see in output like:
+  // https://images.pexels.com/photos/+49 30 410 9097/pexels-photo-+49 30 030 5065.jpeg
+  const BROKEN_PEXELS_ID_REGEX = /(https?:\/\/images\.pexels\.com\/photos\/)([^\/"'\s?]+|[^\/"']*\s[^\/"']*)(\/pexels-photo-)([^"']+)(\.(?:jpe?g|png|webp))(\?[^"']*)?/gi;
+  result = result.replace(BROKEN_PEXELS_ID_REGEX, (_m, p1, _badId, p3, _badSlug, ext, q) => {
+    fixed++;
+    // Keep extension via randomPexelsUrl (jpeg) — consistent rendering is more important than preserving ext.
+    return randomPexelsUrl() + (q || "");
+  });
+
+  // Also fix common attribute contexts (src/data-src/poster) for other supported hosts if they contain spaces/+.
+  const BROKEN_MEDIA_ATTR_REGEX =
+    /(\b(?:src|data-src|poster)\s*=\s*["'])([^"']*(?:\+\d|\s{1,})[^"']*)(["'])/gi;
   result = result.replace(BROKEN_MEDIA_ATTR_REGEX, (m, p1, url, p3) => {
-    if (!/^https?:\/\//i.test(String(url))) return m;
-    // Only fix if it looks like an image host we commonly use
-    if (!/images\.pexels\.com|picsum\.photos|images\.unsplash\.com/i.test(String(url))) return m;
+    const u = String(url);
+    if (!/^https?:\/\//i.test(u)) return m;
+
+    // Only touch known image hosts
+    if (!/images\.pexels\.com|picsum\.photos|images\.unsplash\.com/i.test(u)) return m;
+
     fixed++;
     return `${p1}${randomPexelsUrl()}${p3}`;
   });
 
-  // 2) srcset="..." with broken pexels URLs (spaces / + inside URL)
-  const BROKEN_SRCSET_REGEX = /(\bsrcset=["'])([^"']*(?:images\.pexels\.com\/photos\/[^"']*(?:\+\d|\s)[^"']*)[^"']*)(["'])/gi;
+  // srcset="..." — if it contains a broken Pexels URL, simplify it to a single valid candidate.
+  const BROKEN_SRCSET_REGEX =
+    /(\bsrcset\s*=\s*["'])([^"']*images\.pexels\.com\/photos\/[^"']*(?:\+\d|\s)[^"']*)(["'])/gi;
   result = result.replace(BROKEN_SRCSET_REGEX, (_m, p1, _v, p3) => {
     fixed++;
     const u = randomPexelsUrl();
-    // Keep it simple: a single candidate is enough for correct rendering
-    return `${p1}${u} 1200w${p3}`;
+    return `${p1}${u} 1400w${p3}`;
   });
 
-  // 3) CSS url(...) occurrences (inline styles or CSS files embedded in HTML)
-  // Example: background-image:url("https://images.pexels.com/photos/+49 30 ...")
-  const BROKEN_CSS_URL_REGEX = /(url\(\s*["']?)(https?:\/\/images\.pexels\.com\/photos\/[^)"']*(?:\+\d|\s)[^)"']*)(["']?\s*\))/gi;
+  // CSS url(...) occurrences (inline styles or embedded CSS)
+  const BROKEN_CSS_URL_REGEX =
+    /(url\(\s*["']?)(https?:\/\/images\.pexels\.com\/photos\/[^)"']*(?:\+\d|\s)[^)"']*)(["']?\s*\))/gi;
   result = result.replace(BROKEN_CSS_URL_REGEX, (_m, p1, _url, p3) => {
     fixed++;
     return `${p1}${randomPexelsUrl()}${p3}`;
