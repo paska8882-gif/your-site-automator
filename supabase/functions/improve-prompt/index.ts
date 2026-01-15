@@ -40,7 +40,7 @@ serve(async (req) => {
   };
 
   try {
-    const { prompt } = await req.json();
+    const { prompt, geo, phone } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
@@ -55,6 +55,7 @@ serve(async (req) => {
     }
 
     console.log("Improving prompt:", prompt.substring(0, 100) + "...");
+    console.log("Geo:", geo || "not specified", "Phone:", phone || "not specified");
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -114,6 +115,7 @@ serve(async (req) => {
 
 5. КОНТАКТИ
 - Контактна інформація: адреса, телефон, email
+- ОБОВ'ЯЗКОВО вкажи реальний номер телефону у форматі країни
 - Карта з розташуванням офісу
 - Форма зворотного зв'язку: ім'я, телефон, email, повідомлення
 - Графік роботи
@@ -159,15 +161,31 @@ serve(async (req) => {
 - Пиши конкретно та професійно
 - Кожен пункт має бути змістовним
 - Без зайвих пробілів, переносів та спецсимволів
-- Одразу починай з технічного завдання без вступних фраз`,
+- Одразу починай з технічного завдання без вступних фраз
+- КРИТИЧНО ВАЖЛИВО: Якщо вказано гео (країну) - використовуй реальний формат телефонних номерів цієї країни
+- КРИТИЧНО ВАЖЛИВО: Якщо вказано конкретний телефон - обов'язково включи його в секцію контактів`,
           },
           {
             role: "user",
-            content: prompt.trim(),
+            content: buildUserPrompt(prompt.trim(), geo, phone),
           },
         ],
       }),
     });
+
+    function buildUserPrompt(basePrompt: string, geo?: string, phone?: string): string {
+      let fullPrompt = basePrompt;
+      
+      if (geo) {
+        fullPrompt += `\n\nГЕО/КРАЇНА: ${geo}`;
+      }
+      
+      if (phone) {
+        fullPrompt += `\n\nКОНТАКТНИЙ ТЕЛЕФОН (ОБОВ'ЯЗКОВО ВКЛЮЧИТИ): ${phone}`;
+      }
+      
+      return fullPrompt;
+    }
 
     // Get response text first to safely handle empty/truncated responses
     const responseText = await response.text();
