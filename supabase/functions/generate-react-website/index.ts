@@ -619,7 +619,21 @@ EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
 - MUST be clickable: <a href="mailto:info@sitename.com">info@sitename.com</a>
 - NEVER use generic emails like info@company.com or test@example.com
 
-⚠️ IF NO PHONE/EMAIL IN OUTPUT = SITE IS BROKEN! ALWAYS INCLUDE THEM!
+**BUSINESS HOURS - REQUIRED IN FOOTER:**
+- MUST appear in FOOTER on ALL pages
+- Include realistic business hours appropriate for the business type
+- Format clearly with days and times
+- Examples by business type:
+  * Office/Corporate: Mon-Fri: 9:00 AM - 6:00 PM, Sat-Sun: Closed
+  * Retail/Shop: Mon-Sat: 10:00 AM - 8:00 PM, Sun: 11:00 AM - 6:00 PM
+  * Restaurant/Cafe: Mon-Sun: 8:00 AM - 10:00 PM
+  * Medical/Clinic: Mon-Fri: 8:00 AM - 5:00 PM, Sat: 9:00 AM - 1:00 PM
+  * 24/7 Services: Open 24 hours, 7 days a week
+- Use appropriate language for the site (e.g., "Lun-Ven" for French, "Mo-Fr" for German)
+- Include icon or label like "Working Hours:" or "Business Hours:"
+- JSX example: <div className="footer-hours"><strong>Working Hours:</strong> Mon-Fri: 9:00 AM - 6:00 PM</div>
+
+⚠️ IF NO PHONE/EMAIL/HOURS IN OUTPUT = SITE IS BROKEN! ALWAYS INCLUDE THEM!
 
 **🌍 LANGUAGE COMPLIANCE - ABSOLUTELY MANDATORY:**
 The website MUST be generated in the EXACT language specified in the request. This is NON-NEGOTIABLE:
