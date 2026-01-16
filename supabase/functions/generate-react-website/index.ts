@@ -619,19 +619,23 @@ EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
 - MUST be clickable: <a href="mailto:info@sitename.com">info@sitename.com</a>
 - NEVER use generic emails like info@company.com or test@example.com
 
-**BUSINESS HOURS - REQUIRED IN FOOTER:**
+**BUSINESS HOURS - REQUIRED IN FOOTER (EXACT FORMAT):**
 - MUST appear in FOOTER on ALL pages
-- Include realistic business hours appropriate for the business type
-- Format clearly with days and times
-- Examples by business type:
-  * Office/Corporate: Mon-Fri: 9:00 AM - 6:00 PM, Sat-Sun: Closed
-  * Retail/Shop: Mon-Sat: 10:00 AM - 8:00 PM, Sun: 11:00 AM - 6:00 PM
-  * Restaurant/Cafe: Mon-Sun: 8:00 AM - 10:00 PM
-  * Medical/Clinic: Mon-Fri: 8:00 AM - 5:00 PM, Sat: 9:00 AM - 1:00 PM
-  * 24/7 Services: Open 24 hours, 7 days a week
-- Use appropriate language for the site (e.g., "Lun-Ven" for French, "Mo-Fr" for German)
-- Include icon or label like "Working Hours:" or "Business Hours:"
-- JSX example: <div className="footer-hours"><strong>Working Hours:</strong> Mon-Fri: 9:00 AM - 6:00 PM</div>
+- USE THIS EXACT FORMAT (two lines):
+  Line 1: Monday - Friday: 9:00 AM - 6:00 PM
+  Line 2: Saturday - Sunday: Closed
+- This is the ONLY acceptable format for business hours!
+- For non-English sites, translate the day names appropriately but keep the same structure:
+  * German: Montag - Freitag: 9:00 - 18:00 / Samstag - Sonntag: Geschlossen
+  * French: Lundi - Vendredi: 9h00 - 18h00 / Samedi - Dimanche: Fermé
+  * Spanish: Lunes - Viernes: 9:00 - 18:00 / Sábado - Domingo: Cerrado
+- Include label "Working Hours:" or "Business Hours:" (translated appropriately)
+- JSX example:
+  <div className="footer-hours">
+    <strong>Working Hours:</strong><br />
+    Monday - Friday: 9:00 AM - 6:00 PM<br />
+    Saturday - Sunday: Closed
+  </div>
 
 ⚠️ IF NO PHONE/EMAIL/HOURS IN OUTPUT = SITE IS BROKEN! ALWAYS INCLUDE THEM!
 
