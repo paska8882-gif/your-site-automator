@@ -530,6 +530,112 @@ function enforcePhoneInFiles(
   });
 }
 
+// ============ BUSINESS HOURS ENFORCEMENT ============
+// Ensure all pages have business hours in footer
+function enforceBusinessHoursInFiles(
+  files: Array<{ path: string; content: string }>,
+  language: string = "en"
+): Array<{ path: string; content: string }> {
+  // Business hours translations
+  const hoursTranslations: Record<string, { label: string; weekdays: string; weekend: string }> = {
+    "en": { label: "Working Hours:", weekdays: "Monday - Friday: 9:00 AM - 6:00 PM", weekend: "Saturday - Sunday: Closed" },
+    "de": { label: "Öffnungszeiten:", weekdays: "Montag - Freitag: 9:00 - 18:00", weekend: "Samstag - Sonntag: Geschlossen" },
+    "fr": { label: "Heures d'ouverture:", weekdays: "Lundi - Vendredi: 9h00 - 18h00", weekend: "Samedi - Dimanche: Fermé" },
+    "es": { label: "Horario:", weekdays: "Lunes - Viernes: 9:00 - 18:00", weekend: "Sábado - Domingo: Cerrado" },
+    "it": { label: "Orario di lavoro:", weekdays: "Lunedì - Venerdì: 9:00 - 18:00", weekend: "Sabato - Domenica: Chiuso" },
+    "pt": { label: "Horário de funcionamento:", weekdays: "Segunda - Sexta: 9:00 - 18:00", weekend: "Sábado - Domingo: Fechado" },
+    "nl": { label: "Openingstijden:", weekdays: "Maandag - Vrijdag: 9:00 - 18:00", weekend: "Zaterdag - Zondag: Gesloten" },
+    "pl": { label: "Godziny pracy:", weekdays: "Poniedziałek - Piątek: 9:00 - 18:00", weekend: "Sobota - Niedziela: Nieczynne" },
+    "uk": { label: "Години роботи:", weekdays: "Понеділок - П'ятниця: 9:00 - 18:00", weekend: "Субота - Неділя: Зачинено" },
+    "ru": { label: "Часы работы:", weekdays: "Понедельник - Пятница: 9:00 - 18:00", weekend: "Суббота - Воскресенье: Закрыто" },
+    "ro": { label: "Program de lucru:", weekdays: "Luni - Vineri: 9:00 - 18:00", weekend: "Sâmbătă - Duminică: Închis" },
+    "cs": { label: "Otevírací doba:", weekdays: "Pondělí - Pátek: 9:00 - 18:00", weekend: "Sobota - Neděle: Zavřeno" },
+    "sk": { label: "Otváracie hodiny:", weekdays: "Pondelok - Piatok: 9:00 - 18:00", weekend: "Sobota - Nedeľa: Zatvorené" },
+    "hu": { label: "Nyitvatartás:", weekdays: "Hétfő - Péntek: 9:00 - 18:00", weekend: "Szombat - Vasárnap: Zárva" },
+    "bg": { label: "Работно време:", weekdays: "Понеделник - Петък: 9:00 - 18:00", weekend: "Събота - Неделя: Затворено" },
+    "hr": { label: "Radno vrijeme:", weekdays: "Ponedjeljak - Petak: 9:00 - 18:00", weekend: "Subota - Nedjelja: Zatvoreno" },
+    "sl": { label: "Delovni čas:", weekdays: "Ponedeljek - Petek: 9:00 - 18:00", weekend: "Sobota - Nedelja: Zaprto" },
+    "da": { label: "Åbningstider:", weekdays: "Mandag - Fredag: 9:00 - 18:00", weekend: "Lørdag - Søndag: Lukket" },
+    "sv": { label: "Öppettider:", weekdays: "Måndag - Fredag: 9:00 - 18:00", weekend: "Lördag - Söndag: Stängt" },
+    "no": { label: "Åpningstider:", weekdays: "Mandag - Fredag: 9:00 - 18:00", weekend: "Lørdag - Søndag: Stengt" },
+    "fi": { label: "Aukioloajat:", weekdays: "Maanantai - Perjantai: 9:00 - 18:00", weekend: "Lauantai - Sunnuntai: Suljettu" },
+    "el": { label: "Ώρες λειτουργίας:", weekdays: "Δευτέρα - Παρασκευή: 9:00 - 18:00", weekend: "Σάββατο - Κυριακή: Κλειστά" },
+    "tr": { label: "Çalışma Saatleri:", weekdays: "Pazartesi - Cuma: 9:00 - 18:00", weekend: "Cumartesi - Pazar: Kapalı" },
+  };
+
+  const langCode = (language || "en").toLowerCase().substring(0, 2);
+  const hours = hoursTranslations[langCode] || hoursTranslations["en"];
+
+  // Pattern to detect if hours are already present
+  const hoursPatterns = [
+    /Monday\s*-\s*Friday.*?(?:AM|PM)/i,
+    /Mon\s*-\s*Fri/i,
+    /Montag\s*-\s*Freitag/i,
+    /Lundi\s*-\s*Vendredi/i,
+    /Lunes\s*-\s*Viernes/i,
+    /Понеділок\s*-\s*П'ятниця/i,
+    /Понедельник\s*-\s*Пятница/i,
+    /Working Hours/i,
+    /Business Hours/i,
+    /Opening Hours/i,
+    /Öffnungszeiten/i,
+    /Heures d'ouverture/i,
+    /Horario/i,
+    /Години роботи/i,
+    /Часы работы/i,
+    /9:00\s*(?:AM|-)?\s*(?:6:00|18:00)/i,
+  ];
+
+  return files.map((f) => {
+    if (!/\.(html?|php)$/i.test(f.path)) return f;
+
+    let content = f.content;
+
+    // Check if hours already exist
+    const hasHours = hoursPatterns.some(pattern => pattern.test(content));
+    if (hasHours) {
+      return f; // Already has hours, skip
+    }
+
+    console.log(`📅 [enforceBusinessHours] Injecting business hours into ${f.path}`);
+
+    // Create hours HTML block
+    const hoursHtml = `
+        <div class="footer-hours" style="margin-top: 16px;">
+          <strong>${hours.label}</strong><br>
+          ${hours.weekdays}<br>
+          ${hours.weekend}
+        </div>`;
+
+    // Try to inject into footer
+    if (/<footer\b[^>]*>/i.test(content)) {
+      // Find the last </div> before </footer> and inject there
+      // Or inject right before the closing </footer>
+      if (/class=["'][^"']*footer-bottom[^"']*["']/i.test(content)) {
+        // Inject before footer-bottom
+        content = content.replace(
+          /(<div[^>]*class=["'][^"']*footer-bottom[^"']*["'][^>]*>)/i,
+          `${hoursHtml}\n        $1`
+        );
+      } else if (/class=["'][^"']*footer-content[^"']*["']/i.test(content)) {
+        // Inject at end of footer-content
+        content = content.replace(
+          /(<\/div>\s*<\/footer>)/i,
+          `${hoursHtml}\n        $1`
+        );
+      } else {
+        // Inject right before </footer>
+        content = content.replace(
+          /<\/footer>/i,
+          `${hoursHtml}\n      </footer>`
+        );
+      }
+    }
+
+    return { ...f, content };
+  });
+}
+
 function enforceSiteNameInFiles(
   files: Array<{ path: string; content: string }>,
   desiredSiteNameRaw: string | undefined
@@ -1394,6 +1500,14 @@ const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, CONTENT-RICH PROFESS
 🌐🌐🌐 LANGUAGE - FIRST PRIORITY - READ BEFORE ANYTHING ELSE! 🌐🌐🌐
 **THE WEBSITE LANGUAGE IS SPECIFIED IN THE "TARGET WEBSITE LANGUAGE" SECTION BELOW!**
 YOU MUST GENERATE ALL CONTENT IN THAT EXACT LANGUAGE - THIS IS THE #1 PRIORITY!
+
+⏰⏰⏰ BUSINESS HOURS - MANDATORY IN EVERY FOOTER! ⏰⏰⏰
+**EVERY PAGE FOOTER MUST INCLUDE BUSINESS HOURS IN THIS EXACT FORMAT:**
+Monday - Friday: 9:00 AM - 6:00 PM
+Saturday - Sunday: Closed
+
+THIS IS NOT OPTIONAL! IF FOOTER HAS NO BUSINESS HOURS = BROKEN SITE!
+Include under "Working Hours:" or "Business Hours:" label with icon.
 
 ⛔ LANGUAGE VIOLATIONS - THESE BREAK THE WEBSITE:
 - Generating in Ukrainian when English was requested = BROKEN!
@@ -6287,6 +6401,10 @@ async function runBackgroundGeneration(
       }
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
+      
+      // CRITICAL: Enforce business hours in footer
+      enforcedFiles = enforceBusinessHoursInFiles(enforcedFiles, language);
+      console.log(`[BG] Enforced business hours in footers (language: ${language || 'en'})`);
       
       // Run contact page validation (phone/email in contact.html, contact links in footers)
       // CRITICAL: Pass the phone to ensure it's on ALL pages and clickable
