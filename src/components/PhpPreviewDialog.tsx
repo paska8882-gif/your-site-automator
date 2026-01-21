@@ -33,6 +33,7 @@ import {
   LinkCheckResult, 
   PhpPreviewResult 
 } from "@/lib/phpEmulator";
+import { processHtmlForPreview } from "@/lib/inlineAssets";
 
 interface PhpPreviewDialogProps {
   open: boolean;
@@ -160,7 +161,8 @@ export function PhpPreviewDialog({ open, onOpenChange, files, siteName }: PhpPre
   const getIframeContent = () => {
     if (!previewResult) return "";
 
-    let html = previewResult.html;
+    // Apply full CSS processing pipeline: inline CSS files, fix images, inject fonts
+    let html = processHtmlForPreview(previewResult.html, files);
 
     // Add base tag to handle relative URLs
     if (!html.includes("<base")) {
