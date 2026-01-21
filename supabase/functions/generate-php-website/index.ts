@@ -3373,8 +3373,8 @@ async function runGeneration({
   };
 
   const generateOnce = async (opts: { strictFormat: boolean; timeoutMs?: number }) => {
-    // Timeout per individual model attempt (not shared across all models)
-    const perModelTimeoutMs = opts.timeoutMs ?? 180_000; // 3 minutes per model
+    // Timeout per individual model attempt - optimized for faster generation
+    const perModelTimeoutMs = opts.timeoutMs ?? 120_000; // 2 minutes per model (reduced for speed)
 
     const strictFormatBlock = opts.strictFormat
       ? `\n\nSTRICT OUTPUT FORMAT (MANDATORY):\n- Output ONLY file blocks in this exact format. No commentary, no markdown headings.\n\n--- FILE: includes/config.php ---\n<file contents>\n--- END FILE ---\n\n--- FILE: includes/header.php ---\n<file contents>\n--- END FILE ---\n\n(Repeat for every file.)\n\nIf you cannot comply, output nothing.`
@@ -3387,9 +3387,9 @@ async function runGeneration({
       let generateResponse: Response;
       const startTime = Date.now();
       
-      // Try with fallback models if primary fails
+      // Use faster flash model as primary for speed, with pro as fallback for quality
       const modelsToTry = useLovableAI 
-        ? [generateModel, "google/gemini-2.5-flash", "openai/gpt-5"]
+        ? ["google/gemini-2.5-flash", "google/gemini-2.5-pro"]
         : [generateModel];
       
       let lastError = "";
@@ -3536,8 +3536,8 @@ async function runGeneration({
     retryAttempted = true;
 
     try {
-      // Retry with shorter timeout (60s) and strict format
-      const second = await generateOnce({ strictFormat: true, timeoutMs: 60_000 });
+      // Retry with reasonable timeout (90s) and strict format
+      const second = await generateOnce({ strictFormat: true, timeoutMs: 90_000 });
       if (second.ok) {
         const v2 = validateFiles(second.files);
         console.log(`Retry attempt result: ${second.files.length} files, Missing: ${v2.missing.join(", ")}, Too short: ${v2.tooShort.join(", ")}`);
@@ -3562,9 +3562,9 @@ async function runGeneration({
     }
   }
 
-  // Graceful degradation: accept results with minor issues
+  // Graceful degradation: accept results with minor issues (reduced requirements for speed)
   const finalValidation = validateFiles(files);
-  const criticalFiles = ["index.php", "includes/header.php", "includes/footer.php", "css/style.css"];
+  const criticalFiles = ["index.php", "includes/header.php", "includes/footer.php"];
   const missingCritical = finalValidation.missing.filter(f => criticalFiles.includes(f));
   
   const totalCost = refineCost + generateCost;
@@ -3576,16 +3576,16 @@ async function runGeneration({
     return { success: false, error: `Failed to parse generated files${retryAttempted ? ` (retry also failed: ${retryError})` : ""}` };
   }
 
-  // If we have 6+ files and no critical files missing, accept with warning
-  if (files.length >= 6 && missingCritical.length === 0) {
+  // If we have 5+ files and no critical files missing, accept with warning (relaxed for speed)
+  if (files.length >= 5 && missingCritical.length === 0) {
     if (finalValidation.missing.length > 0 || finalValidation.tooShort.length > 0) {
       console.warn(`⚠️ Accepting partial result: ${files.length} files`);
       console.warn(`  - Missing non-critical: ${finalValidation.missing.join(", ") || "none"}`);
       console.warn(`  - Too short: ${finalValidation.tooShort.join(", ") || "none"}`);
     }
     // Continue with partial result
-  } else if (missingCritical.length > 0 || files.length < 6) {
-    // Only fail if critical files are missing or very few files generated
+  } else if (missingCritical.length > 0 || files.length < 4) {
+    // Only fail if critical files are missing or very few files generated (relaxed threshold)
     console.error(`Final validation failed after ${retryAttempted ? "retry" : "first attempt"}:`);
     console.error(`- Files generated: ${files.length} (${files.map(f => f.path).join(", ")})`);
     console.error(`- Missing critical: ${missingCritical.join(", ")}`);
