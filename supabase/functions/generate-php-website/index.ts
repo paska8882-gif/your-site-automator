@@ -3407,7 +3407,8 @@ async function runGeneration({
 
   const generateOnce = async (opts: { strictFormat: boolean; timeoutMs?: number }) => {
     // Timeout per individual model attempt - PHP needs longer due to complex multi-file output
-    const perModelTimeoutMs = opts.timeoutMs ?? 150_000; // 2.5 minutes per model
+    // Increased to 210s (3.5 min) for improved prompts that are larger and more complex
+    const perModelTimeoutMs = opts.timeoutMs ?? 210_000; // 3.5 minutes per model
 
     const strictFormatBlock = opts.strictFormat
       ? `\n\nSTRICT OUTPUT FORMAT (MANDATORY):\n- Output ONLY file blocks in this exact format. No commentary, no markdown headings.\n\n--- FILE: includes/config.php ---\n<file contents>\n--- END FILE ---\n\n--- FILE: includes/header.php ---\n<file contents>\n--- END FILE ---\n\n(Repeat for every file.)\n\nIf you cannot comply, output nothing.`
@@ -3440,10 +3441,16 @@ Generate complete, working code. No placeholders.${strictFormatBlock}`;
       let generateResponse: Response;
       const startTime = Date.now();
       
-      // Use gemini-2.5-pro as primary (more reliable for large PHP sites), flash as fallback
+      // Check if prompt is very large (improved prompts can be 10k+ chars)
+      // For large prompts, use Flash first (faster) then Pro as fallback
+      const isLargePrompt = refinedPrompt.length > 5000;
       const modelsToTry = useLovableAI 
-        ? ["google/gemini-2.5-pro", "google/gemini-2.5-flash"]
+        ? (isLargePrompt 
+            ? ["google/gemini-2.5-flash", "google/gemini-2.5-pro"] // Flash first for large prompts
+            : ["google/gemini-2.5-pro", "google/gemini-2.5-flash"])
         : [generateModel];
+      
+      console.log(`📝 Prompt size: ${refinedPrompt.length} chars, using model order: ${modelsToTry.join(" -> ")}`);
       
       let lastError = "";
       let usedModel = generateModel;
