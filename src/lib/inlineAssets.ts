@@ -172,24 +172,53 @@ export function inlineAllCss(html: string, files: GeneratedFile[]): string {
   if (!html) return html;
 
   let result = html;
+  const cssFiles = files.filter(f => f.path.endsWith('.css'));
+  
+  // Build a map of CSS file names to their content
+  const cssMap = new Map<string, GeneratedFile>();
+  for (const cssFile of cssFiles) {
+    // Add by full path
+    cssMap.set(cssFile.path, cssFile);
+    // Add by filename only
+    const fileName = cssFile.path.split('/').pop() || '';
+    cssMap.set(fileName, cssFile);
+    // Add common variants
+    cssMap.set('./' + cssFile.path, cssFile);
+    cssMap.set('/' + cssFile.path, cssFile);
+  }
 
   // Find all CSS link tags and replace with inline styles
-  const linkRegex = /<link[^>]+rel\s*=\s*["']stylesheet["'][^>]*href\s*=\s*["']([^"']+)["'][^>]*\/?>/gi;
-  const linkRegex2 = /<link[^>]+href\s*=\s*["']([^"']+\.css)["'][^>]*\/?>/gi;
-
-  const replaceCssLink = (match: string, href: string) => {
-    // Keep external stylesheets (Bootstrap, Google Fonts, etc.)
-    if (href.startsWith('http://') || href.startsWith('https://')) {
+  // Match various link tag formats
+  const linkRegex = /<link[^>]*(?:href\s*=\s*["']([^"']+\.css)["'])[^>]*\/?>/gi;
+  
+  result = result.replace(linkRegex, (match, href) => {
+    if (!href) return match;
+    
+    // Keep external stylesheets (Bootstrap, Google Fonts, CDN, etc.)
+    if (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('//')) {
       return match;
     }
 
+    // Normalize the path
     const normalizedPath = href.replace(/^\.\//, '').replace(/^\//, '');
-    const cssFile = files.find(f => 
-      f.path === normalizedPath || 
-      f.path === 'css/' + normalizedPath || 
-      f.path === 'assets/css/' + normalizedPath ||
-      f.path.endsWith('/' + normalizedPath)
-    );
+    const fileName = normalizedPath.split('/').pop() || '';
+    
+    // Try to find the CSS file
+    let cssFile = cssMap.get(normalizedPath) || 
+                  cssMap.get(fileName) ||
+                  cssMap.get('css/' + normalizedPath) ||
+                  cssMap.get('css/' + fileName) ||
+                  cssMap.get('assets/css/' + fileName) ||
+                  cssMap.get('assets/' + fileName);
+    
+    // Fallback: search by suffix matching
+    if (!cssFile) {
+      cssFile = cssFiles.find(f => 
+        f.path.endsWith('/' + normalizedPath) || 
+        f.path.endsWith('/' + fileName) ||
+        f.path === normalizedPath
+      );
+    }
 
     if (cssFile) {
       // Process background images in CSS
@@ -197,11 +226,30 @@ export function inlineAllCss(html: string, files: GeneratedFile[]): string {
       return `<style data-source="${cssFile.path}">\n${processedCss}\n</style>`;
     }
 
-    return match;
-  };
+    // CSS file not found - remove the broken link
+    console.warn(`[inlineAllCss] CSS file not found: ${href}`);
+    return `<!-- CSS not found: ${href} -->`;
+  });
 
-  result = result.replace(linkRegex, replaceCssLink);
-  result = result.replace(linkRegex2, replaceCssLink);
+  // Also inline CSS files that aren't linked but exist
+  // This handles cases where PHP includes didn't pick up the link tags
+  const hasInlinedCss = result.includes('data-source=');
+  if (!hasInlinedCss && cssFiles.length > 0) {
+    // No CSS was inlined, inject all CSS files before </head>
+    let allCssStyles = '';
+    for (const cssFile of cssFiles) {
+      const processedCss = processCssBackgrounds(cssFile.content, files);
+      allCssStyles += `<style data-source="${cssFile.path}">\n${processedCss}\n</style>\n`;
+    }
+    
+    if (result.includes('</head>')) {
+      result = result.replace('</head>', allCssStyles + '</head>');
+    } else if (result.includes('<body')) {
+      result = result.replace(/<body/i, allCssStyles + '<body');
+    } else {
+      result = allCssStyles + result;
+    }
+  }
 
   return result;
 }
