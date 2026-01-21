@@ -156,48 +156,60 @@ function fixBrokenImageUrls(content: string): { content: string; fixed: number }
   let fixed = 0;
   let result = content;
   
-  // AGGRESSIVE: Pattern 1 - URLs with + sign (phone number injection)
+  const generateValidPexelsUrl = () => {
+    const randomId = Math.floor(Math.random() * 5000000) + 1000000;
+    return `https://images.pexels.com/photos/${randomId}/pexels-photo-${randomId}.jpeg?auto=compress&cs=tinysrgb&w=800`;
+  };
+  
+  const generateValidPicsumUrl = () => {
+    const seed = Math.random().toString(36).substring(7);
+    return `https://picsum.photos/seed/${seed}/800/600`;
+  };
+  
+  // AGGRESSIVE: Pattern 1 - Any image URL containing + sign (phone number injection)
   const BROKEN_PLUS_REGEX = /src=["'](https?:\/\/[^"']*\+[^"']*)["']/gi;
   result = result.replace(BROKEN_PLUS_REGEX, () => {
     fixed++;
-    const randomId = Math.floor(Math.random() * 5000000) + 1000000;
-    return `src="https://images.pexels.com/photos/${randomId}/pexels-photo-${randomId}.jpeg?auto=compress&cs=tinysrgb&w=800"`;
+    return `src="${generateValidPexelsUrl()}"`;
   });
   
-  // AGGRESSIVE: Pattern 2 - Pexels URLs with parentheses (phone format)
+  // AGGRESSIVE: Pattern 2 - Pexels URLs with parentheses (phone format like (416))
   const BROKEN_PARENS_REGEX = /src=["'](https?:\/\/images\.pexels\.com\/photos\/[^"']*\([^"']*\)[^"']*)["']/gi;
   result = result.replace(BROKEN_PARENS_REGEX, () => {
     fixed++;
-    const randomId = Math.floor(Math.random() * 5000000) + 1000000;
-    return `src="https://images.pexels.com/photos/${randomId}/pexels-photo-${randomId}.jpeg?auto=compress&cs=tinysrgb&w=800"`;
+    return `src="${generateValidPexelsUrl()}"`;
   });
   
-  // AGGRESSIVE: Pattern 3 - Pexels URLs with spaces in path
+  // AGGRESSIVE: Pattern 3 - Any Pexels URL with spaces in path (invalid)
   const BROKEN_SPACE_REGEX = /src=["'](https?:\/\/images\.pexels\.com\/photos\/[^"']*\s+[^"']*)["']/gi;
   result = result.replace(BROKEN_SPACE_REGEX, () => {
     fixed++;
-    const randomId = Math.floor(Math.random() * 5000000) + 1000000;
-    return `src="https://images.pexels.com/photos/${randomId}/pexels-photo-${randomId}.jpeg?auto=compress&cs=tinysrgb&w=800"`;
+    return `src="${generateValidPexelsUrl()}"`;
   });
   
   // AGGRESSIVE: Pattern 4 - Pexels URLs where photo ID is NOT a valid number
   // Valid: /photos/12345/pexels-photo-12345.jpeg
   // Invalid: /photos/+1 (416) 123/pexels-photo-xxx.jpeg
   const PEXELS_ID_CHECK = /src=["'](https?:\/\/images\.pexels\.com\/photos\/([^/"']+)\/[^"']*)["']/gi;
-  result = result.replace(PEXELS_ID_CHECK, (match, url, photoId) => {
+  result = result.replace(PEXELS_ID_CHECK, (match, _url, photoId) => {
     // Valid photo IDs are pure numbers
     if (/^\d+$/.test(photoId)) return match;
     fixed++;
-    const randomId = Math.floor(Math.random() * 5000000) + 1000000;
-    return `src="https://images.pexels.com/photos/${randomId}/pexels-photo-${randomId}.jpeg?auto=compress&cs=tinysrgb&w=800"`;
+    return `src="${generateValidPexelsUrl()}"`;
   });
   
-  // Pattern 5 - Picsum with broken URLs
-  const BROKEN_PICSUM_REGEX = /src=["'](https?:\/\/picsum\.photos\/[^"']*\+[^"']*)["']/gi;
+  // Pattern 5 - Picsum with broken URLs (containing +, spaces, or parentheses)
+  const BROKEN_PICSUM_REGEX = /src=["'](https?:\/\/picsum\.photos\/[^"']*[\s+()][^"']*)["']/gi;
   result = result.replace(BROKEN_PICSUM_REGEX, () => {
     fixed++;
-    const seed = Math.random().toString(36).substring(7);
-    return `src="https://picsum.photos/seed/${seed}/800/600"`;
+    return `src="${generateValidPicsumUrl()}"`;
+  });
+  
+  // Pattern 6 - Any image URL containing phone-like patterns (e.g., 416-555 or (416))
+  const PHONE_IN_URL_REGEX = /src=["'](https?:\/\/[^"']*(?:\(\d{3}\)|\d{3}-\d{3,4})[^"']*)["']/gi;
+  result = result.replace(PHONE_IN_URL_REGEX, () => {
+    fixed++;
+    return `src="${generateValidPexelsUrl()}"`;
   });
   
   return { content: result, fixed };
@@ -311,6 +323,13 @@ function enforcePhoneInFiles(
     if (!/\.(html?|php|jsx?|tsx?)$/i.test(f.path)) return f;
 
     let content = f.content;
+    
+    // CRITICAL: Skip config.php entirely - it contains PHP constants that should NOT have HTML injected
+    if (/config\.php$/i.test(f.path) || /includes?\//i.test(f.path)) {
+      // Only fix tel: links in config files, don't inject HTML
+      content = content.replace(/href=["']tel:([^"']+)["']/gi, () => `href="tel:${desiredTel}"`);
+      return { ...f, content };
+    }
 
     // Check for existing phone presence BEFORE modifications - USE STRIPPED CONTENT!
     const hadTelLink = /href=["']tel:/i.test(content);
@@ -322,13 +341,15 @@ function enforcePhoneInFiles(
     content = content.replace(/href=["']tel:([^"']+)["']/gi, () => `href="tel:${desiredTel}"`);
 
     // Replace visible international phone patterns with desired phone
-    // (Skip if inside src="...", href="...", content="...", data-*="...")
+    // (Skip if inside src="...", href="...", content="...", data-*="...", or PHP define())
     content = content.replace(/\+\d[\d\s().-]{7,}\d/g, (match, offset) => {
       const before = content.substring(Math.max(0, offset - 100), offset);
       if (/src=["'][^"']*$/i.test(before)) return match;
       if (/href=["'](?!tel:)[^"']*$/i.test(before)) return match;
       if (/content=["'][^"']*$/i.test(before)) return match;
       if (/data-[\w-]+=["'][^"']*$/i.test(before)) return match;
+      // Skip PHP define() statements - they should keep raw phone values
+      if (/define\s*\(\s*['"][^'"]+['"]\s*,\s*['"][^'"]*$/i.test(before)) return match;
       return desiredPhone;
     });
 
@@ -4344,17 +4365,26 @@ async function runBackgroundGeneration(
       
       console.log(`[BG] PHP - Extracted branding - siteName: "${desiredSiteName}", phone: "${desiredPhone}"`);
       
+      // CRITICAL: ALWAYS fix broken image URLs FIRST (before any phone processing)
+      // AI sometimes hallucinates phone numbers inside image URLs like:
+      // https://images.pexels.com/photos/+1 (416) 853-7220/pexels-photo-+1 (416) 798-5058.jpeg
+      let enforcedFiles = result.files.map(f => {
+        const imgFix = fixBrokenImageUrls(f.content);
+        if (imgFix.fixed > 0) {
+          console.log(`🖼️ [BG] Fixed ${imgFix.fixed} broken image URL(s) in ${f.path}`);
+        }
+        return { ...f, content: imgFix.content };
+      });
+
       // CRITICAL behavior:
       // - If phone is explicitly provided in prompt -> enforce EXACTLY that phone and DO NOT "fix" it.
       // - If phone is NOT provided -> generate a realistic phone based on geo and enforce it.
-      let enforcedFiles = result.files;
-
       if (desiredPhone) {
         console.log(`[BG] PHP - Using explicit phone from prompt: "${desiredPhone}" - skipping phone number fixing`);
         enforcedFiles = enforcePhoneInFiles(enforcedFiles, desiredPhone);
         console.log(`[BG] PHP - Enforced phone "${desiredPhone}" across all files`);
       } else {
-        const { files: fixedFiles, totalFixed } = fixPhoneNumbersInFiles(result.files, geo);
+        const { files: fixedFiles, totalFixed } = fixPhoneNumbersInFiles(enforcedFiles, geo);
         if (totalFixed > 0) {
           console.log(`[BG] Fixed ${totalFixed} invalid phone number(s) in PHP files`);
         }
@@ -4791,9 +4821,18 @@ ${promptForGeneration}`;
         const desiredPhone = explicit.phone;
         const geoToUse = geo;
 
-        const { files: fixedFiles } = fixPhoneNumbersInFiles(result.files, geoToUse);
+        // CRITICAL: Fix broken image URLs FIRST (before any phone processing)
+        let enforcedFiles = result.files.map(f => {
+          const imgFix = fixBrokenImageUrls(f.content);
+          if (imgFix.fixed > 0) {
+            console.log(`🖼️ [BG-PHP-ASYNC] Fixed ${imgFix.fixed} broken image URL(s) in ${f.path}`);
+          }
+          return { ...f, content: imgFix.content };
+        });
+
+        const { files: fixedFiles } = fixPhoneNumbersInFiles(enforcedFiles, geoToUse);
         const phoneToUse = desiredPhone || generateRealisticPhone(geoToUse);
-        let enforcedFiles = enforcePhoneInFiles(fixedFiles, phoneToUse);
+        enforcedFiles = enforcePhoneInFiles(fixedFiles, phoneToUse);
         enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
         enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
         
