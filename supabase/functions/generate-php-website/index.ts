@@ -735,9 +735,81 @@ function ensureMissingLinkedPagesExist(
   return { files, warnings, createdPages };
 }
 
+// ============ FORCE ALL IMAGES TO USE EXTERNAL URLS ==========
+// AI sometimes generates local image paths (assets/img.jpg). Replace ALL with external URLs.
+function forceExternalImages(
+  files: Array<{ path: string; content: string }>
+): { files: Array<{ path: string; content: string }>; replaced: number } {
+  let replaced = 0;
+
+  const generateExternalUrl = (context: string) => {
+    // Use deterministic seed from context for consistency
+    const seed = Math.abs(context.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % 1000000;
+    return `https://picsum.photos/seed/${seed}/1200/800`;
+  };
+
+  const isExternalUrl = (url: string) =>
+    /^(https?:)?\/\//i.test(url) ||
+    url.startsWith("data:") ||
+    url.startsWith("mailto:") ||
+    url.startsWith("tel:");
+
+  const replaceLocalSrc = (content: string, filePath: string) => {
+    let out = content;
+    let fileReplaced = 0;
+
+    // Replace <img src="local/path.jpg"> with external URL
+    out = out.replace(/\bsrc=["']([^"']+)["']/gi, (match, src) => {
+      const s = String(src).trim();
+      if (isExternalUrl(s)) return match;
+      // Local path detected - replace
+      fileReplaced++;
+      return `src="${generateExternalUrl(filePath + s)}"`;
+    });
+
+    // Replace srcset="local/a.jpg 1x, local/b.jpg 2x"
+    out = out.replace(/\bsrcset=["']([^"']+)["']/gi, (match, srcset) => {
+      const parts = String(srcset).split(",").map((p) => p.trim());
+      const newParts = parts.map((part) => {
+        const [url, descriptor] = part.split(/\s+/, 2);
+        if (!url || isExternalUrl(url)) return part;
+        fileReplaced++;
+        return `${generateExternalUrl(filePath + url)}${descriptor ? ` ${descriptor}` : ""}`;
+      });
+      return `srcset="${newParts.join(", ")}"`;
+    });
+
+    replaced += fileReplaced;
+    return out;
+  };
+
+  const replaceCssUrls = (content: string, filePath: string) => {
+    let out = content;
+    out = out.replace(/url\(\s*(['"]?)([^'"\)]+)\1\s*\)/gi, (match, _q, rawUrl) => {
+      const u = String(rawUrl).trim();
+      if (!u || isExternalUrl(u)) return match;
+      replaced++;
+      return `url('${generateExternalUrl(filePath + u)}')`;
+    });
+    return out;
+  };
+
+  const updated = files.map((f) => {
+    if (/\.(?:html?|php)$/i.test(f.path)) {
+      return { ...f, content: replaceLocalSrc(f.content, f.path) };
+    }
+    if (/\.css$/i.test(f.path)) {
+      return { ...f, content: replaceCssUrls(f.content, f.path) };
+    }
+    return f;
+  });
+
+  return { files: updated, replaced };
+}
+
 // ============ ENSURE NON-EMPTY PAGES ==========
-// Some model outputs create placeholder/empty pages (e.g., only includes, or almost no body content).
-// This guarantees that every public .php page has meaningful HTML content.
+// Guarantees every public .php page has meaningful HTML content.
+// Uses template-based rebuilding for speed (AI regeneration happens in background job).
 function ensureNonEmptyPhpPages(
   files: Array<{ path: string; content: string }>,
   language?: string,
@@ -762,13 +834,13 @@ function ensureNonEmptyPhpPages(
     !/form-handler\.php$/i.test(path);
 
   const visibleLength = (content: string) => {
-    // Remove PHP blocks, includes-only shells and whitespace; estimate meaningful HTML.
     const noPhp = content.replace(/<\?php[\s\S]*?\?>/gi, " ");
     const noTags = noPhp.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ");
     return noTags.replace(/\s+/g, " ").trim().length;
   };
 
-  const MIN_VISIBLE_CHARS = 900; // ~2-3 screenfuls minimum; keeps pages from being perceived as "empty"
+  // Increased threshold - pages need substantial content
+  const MIN_VISIBLE_CHARS = 1200;
 
   const updated = files.map((f) => {
     if (!isPublicPage(f.path)) return f;
@@ -908,15 +980,16 @@ function generateMissingPageContent(
 ): string {
   const baseName = pagePath.replace(/\.php$/i, '').toLowerCase().replace(/[-_]/g, '-');
   const today = new Date().toISOString().split('T')[0];
+  const brandName = siteName || 'Our Company';
   
   let mainContent = '';
   
   if (baseName.includes('cookie')) {
-    mainContent = generateCookiePolicyContent(texts, siteName || 'Our Company', today);
+    mainContent = generateCookiePolicyContent(texts, brandName, today);
   } else if (baseName.includes('privacy')) {
-    mainContent = generatePrivacyPolicyContent(texts, siteName || 'Our Company', today);
+    mainContent = generatePrivacyPolicyContent(texts, brandName, today);
   } else if (baseName.includes('terms')) {
-    mainContent = generateTermsContent(texts, siteName || 'Our Company', today);
+    mainContent = generateTermsContent(texts, brandName, today);
   } else if (baseName.includes('thank')) {
     mainContent = `
       <section class="section" style="min-height: 60vh; display: flex; align-items: center;">
@@ -935,14 +1008,34 @@ function generateMissingPageContent(
           <a href="index.php" class="btn btn-primary">${texts.home}</a>
         </div>
       </section>`;
+  } else if (baseName === 'index' || baseName === 'home') {
+    // Homepage template with hero, features, about preview, CTA
+    mainContent = generateHomepageContent(texts, brandName);
+  } else if (baseName.includes('about')) {
+    mainContent = generateAboutContent(texts, brandName);
+  } else if (baseName.includes('service')) {
+    mainContent = generateServicesContent(texts, brandName);
+  } else if (baseName.includes('contact')) {
+    mainContent = generateContactContent(texts, brandName);
   } else {
-    // Generic page
+    // Generic page with more content
     mainContent = `
-      <section class="section" style="min-height: 60vh;">
-        <div class="container">
-          <h1 style="font-size: 2.5rem; margin-bottom: 2rem; color: #16213e;">${pageTitle.split(' - ')[0]}</h1>
-          <p style="color: #666;">Content coming soon.</p>
-          <a href="index.php" class="btn btn-primary" style="margin-top: 2rem;">${texts.back}</a>
+      <section class="section page-hero" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 80px 0;">
+        <div class="container" style="text-align: center;">
+          <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">${pageTitle.split(' - ')[0]}</h1>
+        </div>
+      </section>
+      <section class="section" style="padding: 80px 0;">
+        <div class="container" style="max-width: 800px; margin: 0 auto;">
+          <p style="color: #666; font-size: 1.1rem; line-height: 1.8; margin-bottom: 2rem;">
+            Welcome to ${brandName}. We are dedicated to providing you with the best service possible. 
+            Our team of experts is here to help you achieve your goals.
+          </p>
+          <p style="color: #666; font-size: 1.1rem; line-height: 1.8; margin-bottom: 2rem;">
+            With years of experience in the industry, we understand what it takes to deliver exceptional results.
+            Contact us today to learn more about how we can help you.
+          </p>
+          <a href="contact.php" class="btn btn-primary" style="margin-top: 1rem;">Contact Us</a>
         </div>
       </section>`;
   }
@@ -1051,6 +1144,317 @@ function generatePrivacyPolicyContent(texts: Record<string, string>, siteName: s
           <p>For privacy-related questions, please contact our data protection officer.</p>
           
           <p style="margin-top: 2rem;"><a href="index.php" class="btn btn-primary">${texts.home}</a></p>
+        </div>
+      </div>
+    </section>`;
+}
+
+function generateHomepageContent(texts: Record<string, string>, siteName: string): string {
+  return `
+    <section class="hero" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 120px 0; text-align: center;">
+      <div class="container">
+        <h1 style="font-size: 3rem; margin-bottom: 1.5rem;">${siteName}</h1>
+        <p style="font-size: 1.25rem; max-width: 600px; margin: 0 auto 2rem; opacity: 0.9;">Welcome to ${siteName}. We provide exceptional services tailored to your needs.</p>
+        <a href="contact.php" class="btn btn-primary" style="background: #fff; color: #667eea; padding: 14px 32px; border-radius: 6px; font-weight: 600; text-decoration: none;">Get in Touch</a>
+      </div>
+    </section>
+    
+    <section class="features" style="padding: 80px 0; background: #f8f9fa;">
+      <div class="container">
+        <h2 style="text-align: center; font-size: 2rem; margin-bottom: 3rem; color: #333;">Why Choose Us</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px;">
+          <div class="feature-card" style="background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+            <h3 style="color: #333; margin-bottom: 1rem;">Professional Excellence</h3>
+            <p style="color: #666; line-height: 1.7;">We deliver outstanding results with attention to detail and commitment to quality.</p>
+          </div>
+          <div class="feature-card" style="background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+            <h3 style="color: #333; margin-bottom: 1rem;">Expert Team</h3>
+            <p style="color: #666; line-height: 1.7;">Our experienced professionals bring years of expertise to every project.</p>
+          </div>
+          <div class="feature-card" style="background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+            <h3 style="color: #333; margin-bottom: 1rem;">Customer Focus</h3>
+            <p style="color: #666; line-height: 1.7;">Your satisfaction is our priority. We work closely with you to exceed expectations.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <section class="about-preview" style="padding: 80px 0;">
+      <div class="container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px; align-items: center;">
+        <div>
+          <img src="https://picsum.photos/seed/about${siteName.length}/600/400" alt="About ${siteName}" style="width: 100%; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.12);">
+        </div>
+        <div>
+          <h2 style="font-size: 2rem; margin-bottom: 1.5rem; color: #333;">About ${siteName}</h2>
+          <p style="color: #666; line-height: 1.8; margin-bottom: 1.5rem;">With years of experience in our industry, we have built a reputation for excellence and reliability. Our team is dedicated to providing personalized solutions that meet your unique needs.</p>
+          <a href="about.php" style="color: #667eea; font-weight: 600; text-decoration: none;">Learn more about us →</a>
+        </div>
+      </div>
+    </section>
+    
+    <section class="services-preview" style="padding: 80px 0; background: #f8f9fa;">
+      <div class="container">
+        <h2 style="text-align: center; font-size: 2rem; margin-bottom: 3rem; color: #333;">Our Services</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px;">
+          <div style="background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+            <h3 style="color: #333; margin-bottom: 1rem;">Consulting</h3>
+            <p style="color: #666; line-height: 1.7;">Expert advice to help you make informed decisions and achieve your goals.</p>
+          </div>
+          <div style="background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+            <h3 style="color: #333; margin-bottom: 1rem;">Implementation</h3>
+            <p style="color: #666; line-height: 1.7;">Professional execution of projects with precision and efficiency.</p>
+          </div>
+          <div style="background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+            <h3 style="color: #333; margin-bottom: 1rem;">Support</h3>
+            <p style="color: #666; line-height: 1.7;">Ongoing assistance to ensure your continued success and satisfaction.</p>
+          </div>
+        </div>
+        <div style="text-align: center; margin-top: 2rem;">
+          <a href="services.php" class="btn" style="background: #667eea; color: #fff; padding: 14px 32px; border-radius: 6px; font-weight: 600; text-decoration: none; display: inline-block;">View All Services</a>
+        </div>
+      </div>
+    </section>
+    
+    <section class="cta" style="padding: 80px 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; text-align: center;">
+      <div class="container">
+        <h2 style="font-size: 2rem; margin-bottom: 1rem;">Ready to Get Started?</h2>
+        <p style="max-width: 500px; margin: 0 auto 2rem; opacity: 0.9;">Contact us today to discuss how we can help you achieve your goals.</p>
+        <a href="contact.php" class="btn" style="background: #fff; color: #667eea; padding: 14px 32px; border-radius: 6px; font-weight: 600; text-decoration: none; display: inline-block;">Contact Us</a>
+      </div>
+    </section>`;
+}
+
+function generateAboutContent(texts: Record<string, string>, siteName: string): string {
+  return `
+    <section class="page-hero" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 80px 0; text-align: center;">
+      <div class="container">
+        <h1 style="font-size: 2.5rem;">About ${siteName}</h1>
+      </div>
+    </section>
+    
+    <section class="about-intro" style="padding: 80px 0;">
+      <div class="container" style="max-width: 900px; margin: 0 auto;">
+        <h2 style="font-size: 2rem; margin-bottom: 1.5rem; color: #333;">Our Story</h2>
+        <p style="color: #666; line-height: 1.8; margin-bottom: 1.5rem;">Founded with a vision to provide exceptional services, ${siteName} has grown to become a trusted name in our industry. Our journey began with a simple goal: to deliver outstanding results while building lasting relationships with our clients.</p>
+        <p style="color: #666; line-height: 1.8;">Today, we continue to uphold the same values that have guided us from the start - integrity, excellence, and a genuine commitment to our clients' success.</p>
+      </div>
+    </section>
+    
+    <section class="mission-vision" style="padding: 80px 0; background: #f8f9fa;">
+      <div class="container">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px;">
+          <div style="background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+            <h3 style="color: #667eea; margin-bottom: 1rem;">Our Mission</h3>
+            <p style="color: #666; line-height: 1.7;">To provide innovative solutions that help our clients achieve their goals while maintaining the highest standards of quality and professionalism.</p>
+          </div>
+          <div style="background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+            <h3 style="color: #667eea; margin-bottom: 1rem;">Our Vision</h3>
+            <p style="color: #666; line-height: 1.7;">To be the leading provider in our industry, recognized for excellence, innovation, and unwavering commitment to customer satisfaction.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <section class="values" style="padding: 80px 0;">
+      <div class="container">
+        <h2 style="text-align: center; font-size: 2rem; margin-bottom: 3rem; color: #333;">Our Values</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 30px; text-align: center;">
+          <div><h4 style="color: #333;">Integrity</h4><p style="color: #666;">We do what's right, always.</p></div>
+          <div><h4 style="color: #333;">Excellence</h4><p style="color: #666;">We strive for the best in everything.</p></div>
+          <div><h4 style="color: #333;">Innovation</h4><p style="color: #666;">We embrace new ideas and solutions.</p></div>
+          <div><h4 style="color: #333;">Teamwork</h4><p style="color: #666;">We achieve more together.</p></div>
+        </div>
+      </div>
+    </section>
+    
+    <section class="team" style="padding: 80px 0; background: #f8f9fa;">
+      <div class="container">
+        <h2 style="text-align: center; font-size: 2rem; margin-bottom: 3rem; color: #333;">Our Team</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 30px;">
+          <div style="text-align: center;">
+            <img src="https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop" alt="Team member" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; margin-bottom: 1rem;">
+            <h4 style="color: #333; margin-bottom: 0.5rem;">John Smith</h4>
+            <p style="color: #666;">CEO & Founder</p>
+          </div>
+          <div style="text-align: center;">
+            <img src="https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop" alt="Team member" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; margin-bottom: 1rem;">
+            <h4 style="color: #333; margin-bottom: 0.5rem;">Sarah Johnson</h4>
+            <p style="color: #666;">Operations Director</p>
+          </div>
+          <div style="text-align: center;">
+            <img src="https://images.pexels.com/photos/2182970/pexels-photo-2182970.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop" alt="Team member" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; margin-bottom: 1rem;">
+            <h4 style="color: #333; margin-bottom: 0.5rem;">Michael Chen</h4>
+            <p style="color: #666;">Technical Lead</p>
+          </div>
+          <div style="text-align: center;">
+            <img src="https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop" alt="Team member" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; margin-bottom: 1rem;">
+            <h4 style="color: #333; margin-bottom: 0.5rem;">Emily Davis</h4>
+            <p style="color: #666;">Client Relations</p>
+          </div>
+        </div>
+      </div>
+    </section>`;
+}
+
+function generateServicesContent(texts: Record<string, string>, siteName: string): string {
+  return `
+    <section class="page-hero" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 80px 0; text-align: center;">
+      <div class="container">
+        <h1 style="font-size: 2.5rem;">Our Services</h1>
+        <p style="max-width: 600px; margin: 1rem auto 0; opacity: 0.9;">Discover how ${siteName} can help you achieve your goals with our comprehensive range of services.</p>
+      </div>
+    </section>
+    
+    <section class="services-list" style="padding: 80px 0;">
+      <div class="container">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 40px;">
+          <div class="service-card" style="background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-top: 4px solid #667eea;">
+            <h3 style="color: #333; margin-bottom: 1rem; font-size: 1.5rem;">Consulting Services</h3>
+            <p style="color: #666; line-height: 1.7; margin-bottom: 1.5rem;">Our expert consultants provide strategic guidance to help you navigate challenges and capitalize on opportunities. We analyze your situation and develop tailored solutions.</p>
+            <ul style="color: #666; line-height: 2;">
+              <li>Strategic planning</li>
+              <li>Market analysis</li>
+              <li>Process optimization</li>
+            </ul>
+          </div>
+          
+          <div class="service-card" style="background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-top: 4px solid #667eea;">
+            <h3 style="color: #333; margin-bottom: 1rem; font-size: 1.5rem;">Implementation</h3>
+            <p style="color: #666; line-height: 1.7; margin-bottom: 1.5rem;">From concept to completion, we execute projects with precision and efficiency. Our team ensures seamless implementation while minimizing disruption to your operations.</p>
+            <ul style="color: #666; line-height: 2;">
+              <li>Project management</li>
+              <li>Quality assurance</li>
+              <li>Timely delivery</li>
+            </ul>
+          </div>
+          
+          <div class="service-card" style="background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-top: 4px solid #667eea;">
+            <h3 style="color: #333; margin-bottom: 1rem; font-size: 1.5rem;">Training & Development</h3>
+            <p style="color: #666; line-height: 1.7; margin-bottom: 1.5rem;">Empower your team with the knowledge and skills they need to excel. Our training programs are designed to deliver practical, actionable insights.</p>
+            <ul style="color: #666; line-height: 2;">
+              <li>Customized workshops</li>
+              <li>Skill development</li>
+              <li>Ongoing support</li>
+            </ul>
+          </div>
+          
+          <div class="service-card" style="background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-top: 4px solid #667eea;">
+            <h3 style="color: #333; margin-bottom: 1rem; font-size: 1.5rem;">Support & Maintenance</h3>
+            <p style="color: #666; line-height: 1.7; margin-bottom: 1.5rem;">Our commitment doesn't end at delivery. We provide ongoing support to ensure your continued success and address any challenges that arise.</p>
+            <ul style="color: #666; line-height: 2;">
+              <li>24/7 availability</li>
+              <li>Regular updates</li>
+              <li>Performance monitoring</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <section class="process" style="padding: 80px 0; background: #f8f9fa;">
+      <div class="container">
+        <h2 style="text-align: center; font-size: 2rem; margin-bottom: 3rem; color: #333;">Our Process</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 30px; text-align: center;">
+          <div>
+            <div style="width: 60px; height: 60px; background: #667eea; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; font-size: 1.5rem; font-weight: bold;">1</div>
+            <h4 style="color: #333;">Consultation</h4>
+            <p style="color: #666;">We listen to understand your needs</p>
+          </div>
+          <div>
+            <div style="width: 60px; height: 60px; background: #667eea; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; font-size: 1.5rem; font-weight: bold;">2</div>
+            <h4 style="color: #333;">Planning</h4>
+            <p style="color: #666;">We develop a customized strategy</p>
+          </div>
+          <div>
+            <div style="width: 60px; height: 60px; background: #667eea; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; font-size: 1.5rem; font-weight: bold;">3</div>
+            <h4 style="color: #333;">Execution</h4>
+            <p style="color: #666;">We implement with precision</p>
+          </div>
+          <div>
+            <div style="width: 60px; height: 60px; background: #667eea; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; font-size: 1.5rem; font-weight: bold;">4</div>
+            <h4 style="color: #333;">Support</h4>
+            <p style="color: #666;">We ensure ongoing success</p>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <section class="cta" style="padding: 80px 0; text-align: center;">
+      <div class="container">
+        <h2 style="font-size: 2rem; margin-bottom: 1rem; color: #333;">Ready to Work Together?</h2>
+        <p style="color: #666; max-width: 500px; margin: 0 auto 2rem;">Contact us today to discuss your project and discover how we can help.</p>
+        <a href="contact.php" class="btn" style="background: #667eea; color: #fff; padding: 14px 32px; border-radius: 6px; font-weight: 600; text-decoration: none; display: inline-block;">Get a Quote</a>
+      </div>
+    </section>`;
+}
+
+function generateContactContent(texts: Record<string, string>, siteName: string): string {
+  return `
+    <section class="page-hero" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 80px 0; text-align: center;">
+      <div class="container">
+        <h1 style="font-size: 2.5rem;">Contact Us</h1>
+        <p style="max-width: 600px; margin: 1rem auto 0; opacity: 0.9;">We'd love to hear from you. Get in touch with our team.</p>
+      </div>
+    </section>
+    
+    <section class="contact-section" style="padding: 80px 0;">
+      <div class="container">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 60px;">
+          <div>
+            <h2 style="font-size: 1.75rem; margin-bottom: 1.5rem; color: #333;">Get in Touch</h2>
+            <p style="color: #666; line-height: 1.8; margin-bottom: 2rem;">Have a question or want to discuss a project? Fill out the form and our team will get back to you within 24 hours.</p>
+            
+            <div style="margin-bottom: 1.5rem;">
+              <h4 style="color: #333; margin-bottom: 0.5rem;">Address</h4>
+              <p style="color: #666;"><?php echo defined('SITE_ADDRESS') ? SITE_ADDRESS : '123 Business Street, City, Country'; ?></p>
+            </div>
+            
+            <div style="margin-bottom: 1.5rem;">
+              <h4 style="color: #333; margin-bottom: 0.5rem;">Phone</h4>
+              <p><a href="tel:<?php echo defined('SITE_PHONE') ? preg_replace('/[^+0-9]/', '', SITE_PHONE) : '+1234567890'; ?>" style="color: #667eea; text-decoration: none;"><?php echo defined('SITE_PHONE') ? SITE_PHONE : '+1 234 567 890'; ?></a></p>
+            </div>
+            
+            <div style="margin-bottom: 1.5rem;">
+              <h4 style="color: #333; margin-bottom: 0.5rem;">Email</h4>
+              <p><a href="mailto:<?php echo defined('SITE_EMAIL') ? SITE_EMAIL : 'info@example.com'; ?>" style="color: #667eea; text-decoration: none;"><?php echo defined('SITE_EMAIL') ? SITE_EMAIL : 'info@example.com'; ?></a></p>
+            </div>
+            
+            <div>
+              <h4 style="color: #333; margin-bottom: 0.5rem;">Working Hours</h4>
+              <p style="color: #666;">Monday - Friday: 9:00 AM - 6:00 PM<br>Saturday - Sunday: Closed</p>
+            </div>
+          </div>
+          
+          <div>
+            <form action="form-handler.php" method="POST" style="background: #f8f9fa; padding: 40px; border-radius: 12px;">
+              <div style="margin-bottom: 1.5rem;">
+                <label for="name" style="display: block; margin-bottom: 0.5rem; color: #333; font-weight: 500;">Your Name *</label>
+                <input type="text" id="name" name="name" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem;">
+              </div>
+              
+              <div style="margin-bottom: 1.5rem;">
+                <label for="email" style="display: block; margin-bottom: 0.5rem; color: #333; font-weight: 500;">Email Address *</label>
+                <input type="email" id="email" name="email" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem;">
+              </div>
+              
+              <div style="margin-bottom: 1.5rem;">
+                <label for="phone" style="display: block; margin-bottom: 0.5rem; color: #333; font-weight: 500;">Phone Number</label>
+                <input type="tel" id="phone" name="phone" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem;">
+              </div>
+              
+              <div style="margin-bottom: 1.5rem;">
+                <label for="subject" style="display: block; margin-bottom: 0.5rem; color: #333; font-weight: 500;">Subject *</label>
+                <input type="text" id="subject" name="subject" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem;">
+              </div>
+              
+              <div style="margin-bottom: 1.5rem;">
+                <label for="message" style="display: block; margin-bottom: 0.5rem; color: #333; font-weight: 500;">Message *</label>
+                <textarea id="message" name="message" rows="5" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; resize: vertical;"></textarea>
+              </div>
+              
+              <button type="submit" style="background: #667eea; color: #fff; padding: 14px 32px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; width: 100%; font-size: 1rem;">Send Message</button>
+            </form>
+          </div>
         </div>
       </div>
     </section>`;
@@ -3837,21 +4241,41 @@ async function runGeneration({
     imageStrategy = await buildPexelsImageStrategy(prompt);
   }
 
-  // Reduced required paths for faster, more reliable generation
+  // CRITICAL: Fixed required file set - guarantees these 14 files exist in every generation
   const requiredPaths = [
     "includes/config.php",
     "includes/header.php",
     "includes/footer.php",
     "index.php",
     "about.php",
+    "services.php",         // Added
     "contact.php",
     "form-handler.php",
     "thank-you.php",
     "privacy.php",
     "terms.php",
+    "cookie-policy.php",    // Added
     "css/style.css",
     "js/script.js",
   ];
+
+  // Minimum content thresholds per file type (bytes) to detect "empty" pages
+  const MIN_CONTENT_LENGTH: Record<string, number> = {
+    "includes/config.php": 100,
+    "includes/header.php": 300,
+    "includes/footer.php": 200,
+    "index.php": 800,
+    "about.php": 600,
+    "services.php": 600,
+    "contact.php": 500,
+    "form-handler.php": 100,
+    "thank-you.php": 200,
+    "privacy.php": 1000,
+    "terms.php": 1000,
+    "cookie-policy.php": 800,
+    "css/style.css": 500,
+    "js/script.js": 50,
+  };
 
   const validateFiles = (files: GeneratedFile[]) => {
     const paths = new Set(files.map((f) => f.path));
@@ -3859,7 +4283,10 @@ async function runGeneration({
     // Guard against "nothingburger" files: if the file exists but is extremely short, treat as invalid.
     const tooShort = files
       .filter((f) => requiredPaths.includes(f.path))
-      .filter((f) => f.content.trim().length < 50)
+      .filter((f) => {
+        const threshold = MIN_CONTENT_LENGTH[f.path] || 50;
+        return f.content.trim().length < threshold;
+      })
       .map((f) => f.path);
 
     return { missing, tooShort };
@@ -3880,19 +4307,21 @@ async function runGeneration({
 
 ${refinedPrompt}
 
-REQUIRED FILES (generate ALL):
+REQUIRED FILES (generate ALL 14):
 1. includes/config.php - Site constants (SITE_NAME, SITE_EMAIL, SITE_PHONE, SITE_ADDRESS)
 2. includes/header.php - HTML head + navigation
 3. includes/footer.php - Footer with links
 4. index.php - Homepage with hero, features, CTA
 5. about.php - About page
-6. contact.php - Contact form (action="form-handler.php")
-7. form-handler.php - Form processor → redirect to thank-you.php
-8. thank-you.php - Thank you page
-9. privacy.php - Privacy Policy
-10. terms.php - Terms of Service
-11. css/style.css - Complete responsive CSS
-12. js/script.js - Mobile menu JS
+6. services.php - Services/Products page
+7. contact.php - Contact form (action="form-handler.php")
+8. form-handler.php - Form processor → redirect to thank-you.php
+9. thank-you.php - Thank you page
+10. privacy.php - Privacy Policy (10+ sections)
+11. terms.php - Terms of Service (14 sections)
+12. cookie-policy.php - Cookie Policy with cookies table
+13. css/style.css - Complete responsive CSS (400+ lines)
+14. js/script.js - Mobile menu JS
 
 FORMAT: Use --- FILE: path --- and --- END FILE --- markers.
 Generate complete, working code. No placeholders.${strictFormatBlock}`;
@@ -4804,10 +5233,15 @@ async function runBackgroundGeneration(
       
       console.log(`[BG] PHP - Extracted branding - siteName: "${desiredSiteName}", phone: "${desiredPhone}"`);
       
-      // CRITICAL: ALWAYS fix broken image URLs FIRST (before any phone processing)
-      // AI sometimes hallucinates phone numbers inside image URLs like:
-      // https://images.pexels.com/photos/+1 (416) 853-7220/pexels-photo-+1 (416) 798-5058.jpeg
-      let enforcedFiles = result.files.map(f => {
+      // STEP 1: Force ALL images to use external URLs (picsum.photos) - no local assets
+      const externalImgResult = forceExternalImages(result.files);
+      let enforcedFiles = externalImgResult.files;
+      if (externalImgResult.replaced > 0) {
+        console.log(`🌐 [BG] Replaced ${externalImgResult.replaced} local image path(s) with external URLs`);
+      }
+      
+      // STEP 2: Fix broken image URLs (AI hallucinations with phone numbers in URLs)
+      enforcedFiles = enforcedFiles.map(f => {
         const imgFix = fixBrokenImageUrls(f.content);
         if (imgFix.fixed > 0) {
           console.log(`🖼️ [BG] Fixed ${imgFix.fixed} broken image URL(s) in ${f.path}`);
@@ -4815,9 +5249,7 @@ async function runBackgroundGeneration(
         return { ...f, content: imgFix.content };
       });
 
-      // CRITICAL behavior:
-      // - If phone is explicitly provided in prompt -> enforce EXACTLY that phone and DO NOT "fix" it.
-      // - If phone is NOT provided -> generate a realistic phone based on geo and enforce it.
+      // STEP 3: Phone number handling
       if (desiredPhone) {
         console.log(`[BG] PHP - Using explicit phone from prompt: "${desiredPhone}" - skipping phone number fixing`);
         enforcedFiles = enforcePhoneInFiles(enforcedFiles, desiredPhone);
@@ -4836,8 +5268,7 @@ async function runBackgroundGeneration(
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
       
-      // CRITICAL: Ensure all linked pages exist BEFORE other validation
-      // This creates missing pages like cookie-policy.php, thank-you.php, etc.
+      // STEP 4: Ensure all 14 required files exist
       const siteNameForPages = desiredSiteName || extractExplicitBrandingFromPrompt(prompt).siteName;
       const { files: filesWithAllPages, warnings: missingPageWarnings, createdPages } = ensureMissingLinkedPagesExist(enforcedFiles, language, geo, siteNameForPages);
       enforcedFiles = filesWithAllPages;
@@ -4845,24 +5276,24 @@ async function runBackgroundGeneration(
         console.log(`[BG] PHP - Created ${createdPages.length} missing linked pages: ${createdPages.join(', ')}`);
       }
 
-       // CRITICAL: Rebuild pages that exist but are effectively empty (common failure mode after large prompts)
-       const { files: nonEmptyFiles, warnings: nonEmptyWarnings, rebuiltPages } = ensureNonEmptyPhpPages(
-         enforcedFiles,
-         language,
-         geo,
-         siteNameForPages
-       );
-       enforcedFiles = nonEmptyFiles;
-       if (rebuiltPages.length > 0) {
-         console.log(`[BG] PHP - Rebuilt ${rebuiltPages.length} empty page(s): ${rebuiltPages.join(', ')}`);
-       }
+      // STEP 5: Rebuild empty pages with quality template content
+      const { files: nonEmptyFiles, warnings: nonEmptyWarnings, rebuiltPages } = ensureNonEmptyPhpPages(
+        enforcedFiles,
+        language,
+        geo,
+        siteNameForPages
+      );
+      enforcedFiles = nonEmptyFiles;
+      if (rebuiltPages.length > 0) {
+        console.log(`[BG] PHP - Rebuilt ${rebuiltPages.length} empty page(s): ${rebuiltPages.join(', ')}`);
+      }
 
-       // CRITICAL: Fix references to local images that were never generated (replace with stable placeholders)
-       const assetsFix = fixMissingLocalAssets(enforcedFiles);
-       enforcedFiles = assetsFix.files;
-       if (assetsFix.fixed > 0) {
-         console.log(`[BG] PHP - Replaced ${assetsFix.fixed} missing local asset reference(s) with placeholders`);
-       }
+      // STEP 6: Final pass - ensure no local assets slipped through
+      const assetsFix = fixMissingLocalAssets(enforcedFiles);
+      enforcedFiles = assetsFix.files;
+      if (assetsFix.fixed > 0) {
+        console.log(`[BG] PHP - Replaced ${assetsFix.fixed} remaining local asset reference(s) with placeholders`);
+      }
       
       // Run contact page validation (phone/email in contact.php, contact links in footers)
       // CRITICAL: Pass the phone to ensure it's on ALL pages and clickable
