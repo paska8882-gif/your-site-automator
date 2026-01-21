@@ -691,6 +691,12 @@ if(localStorage.getItem('cookiesAccepted')==='true'){document.getElementById('${
   const updatedFiles = files.map(f => {
     if (!/\.(?:html?|php)$/i.test(f.path)) return f;
     
+    // CRITICAL: Skip include files - they should NOT contain HTML/cookie banners
+    // Only add banners to actual pages, not includes/config.php, includes/header.php, etc.
+    if (/includes?\//i.test(f.path) || /config\.php$/i.test(f.path)) {
+      return f;
+    }
+    
     let content = f.content;
     let modified = false;
     
