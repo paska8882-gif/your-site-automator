@@ -3373,13 +3373,8 @@ async function runGeneration({
   };
 
   const generateOnce = async (opts: { strictFormat: boolean; timeoutMs?: number }) => {
-    // Reduced timeout: 120s default to leave room for retry within edge function limits
-    const timeoutMs = opts.timeoutMs ?? 120_000; // 2 minutes default
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      console.error(`⏰ Generation timeout after ${timeoutMs / 1000}s`);
-      controller.abort();
-    }, timeoutMs);
+    // Timeout per individual model attempt (not shared across all models)
+    const perModelTimeoutMs = opts.timeoutMs ?? 180_000; // 3 minutes per model
 
     const strictFormatBlock = opts.strictFormat
       ? `\n\nSTRICT OUTPUT FORMAT (MANDATORY):\n- Output ONLY file blocks in this exact format. No commentary, no markdown headings.\n\n--- FILE: includes/config.php ---\n<file contents>\n--- END FILE ---\n\n--- FILE: includes/header.php ---\n<file contents>\n--- END FILE ---\n\n(Repeat for every file.)\n\nIf you cannot comply, output nothing.`
@@ -3401,8 +3396,15 @@ async function runGeneration({
       let usedModel = generateModel;
       
       for (const modelToUse of modelsToTry) {
-        console.log(`🚀 Trying generation with ${modelToUse} (timeout: ${timeoutMs / 1000}s)...`);
+        console.log(`🚀 Trying generation with ${modelToUse} (timeout: ${perModelTimeoutMs / 1000}s)...`);
         usedModel = modelToUse;
+        
+        // Create a fresh AbortController for each model attempt
+        const modelController = new AbortController();
+        const modelTimeoutId = setTimeout(() => {
+          console.error(`⏰ ${modelToUse} timeout after ${perModelTimeoutMs / 1000}s`);
+          modelController.abort();
+        }, perModelTimeoutMs);
         
         try {
           if (useLovableAI) {
@@ -3420,7 +3422,7 @@ async function runGeneration({
                 ],
                 max_tokens: 65536,
               }),
-              signal: controller.signal,
+              signal: modelController.signal,
             });
           } else {
             generateResponse = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -3438,7 +3440,7 @@ async function runGeneration({
                 max_tokens: 16000,
                 temperature: opts.strictFormat ? 0.4 : 0.6,
               }),
-              signal: controller.signal,
+              signal: modelController.signal,
             });
           }
 
@@ -3488,22 +3490,20 @@ async function runGeneration({
           const files = parseFilesFromModelText(generatedText);
           console.log(`Parsed ${files.length} files from generation`);
 
-          clearTimeout(timeoutId);
+          clearTimeout(modelTimeoutId);
           return { ok: true as const, files, generateCost, modelUsed: modelToUse };
         } catch (fetchErr) {
+          clearTimeout(modelTimeoutId);
           console.error(`❌ ${modelToUse} fetch error:`, fetchErr);
           lastError = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
           continue;
         }
       }
-      
-      clearTimeout(timeoutId);
       return { ok: false as const, error: `All models failed. Last error: ${lastError}` };
     } catch (err) {
-      clearTimeout(timeoutId);
       if (err instanceof Error && err.name === "AbortError") {
-        console.error(`Generation aborted due to timeout (${timeoutMs / 1000}s)`);
-        return { ok: false as const, error: `Generation timed out after ${timeoutMs / 1000} seconds` };
+        console.error(`Generation aborted due to timeout`);
+        return { ok: false as const, error: `Generation timed out` };
       }
       console.error("Generate unexpected error:", err);
       return { ok: false as const, error: `Generation failed: ${err instanceof Error ? err.message : String(err)}` };
