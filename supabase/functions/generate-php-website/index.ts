@@ -3373,8 +3373,8 @@ async function runGeneration({
   };
 
   const generateOnce = async (opts: { strictFormat: boolean; timeoutMs?: number }) => {
-    // Timeout per individual model attempt - optimized for faster generation
-    const perModelTimeoutMs = opts.timeoutMs ?? 120_000; // 2 minutes per model (reduced for speed)
+    // Timeout per individual model attempt - PHP needs longer due to complex multi-file output
+    const perModelTimeoutMs = opts.timeoutMs ?? 150_000; // 2.5 minutes per model
 
     const strictFormatBlock = opts.strictFormat
       ? `\n\nSTRICT OUTPUT FORMAT (MANDATORY):\n- Output ONLY file blocks in this exact format. No commentary, no markdown headings.\n\n--- FILE: includes/config.php ---\n<file contents>\n--- END FILE ---\n\n--- FILE: includes/header.php ---\n<file contents>\n--- END FILE ---\n\n(Repeat for every file.)\n\nIf you cannot comply, output nothing.`
@@ -3387,9 +3387,9 @@ async function runGeneration({
       let generateResponse: Response;
       const startTime = Date.now();
       
-      // Use faster flash model as primary for speed, with pro as fallback for quality
+      // Use gemini-2.5-pro as primary (more reliable for large PHP sites), flash as fallback
       const modelsToTry = useLovableAI 
-        ? ["google/gemini-2.5-flash", "google/gemini-2.5-pro"]
+        ? ["google/gemini-2.5-pro", "google/gemini-2.5-flash"]
         : [generateModel];
       
       let lastError = "";
