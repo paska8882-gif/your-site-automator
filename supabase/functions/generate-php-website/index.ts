@@ -650,6 +650,323 @@ function ensureLegalLinksInFooters(
 }
 
 // Ensure Cookie Policy link and cookie banner in all pages
+// ============ ENSURE MISSING LINKED PAGES EXIST ============
+// Scans all links and creates missing pages to prevent broken links
+function ensureMissingLinkedPagesExist(
+  files: Array<{ path: string; content: string }>,
+  language?: string,
+  geo?: string,
+  siteName?: string
+): { files: Array<{ path: string; content: string }>; warnings: string[]; createdPages: string[] } {
+  const warnings: string[] = [];
+  const createdPages: string[] = [];
+  
+  // Extract all internal links from all files
+  const allInternalLinks = new Set<string>();
+  const linkRegex = /href=["']([^"'#]+\.php)(?:\?[^"']*)?["']/gi;
+  
+  for (const file of files) {
+    if (!/\.(?:html?|php)$/i.test(file.path)) continue;
+    
+    let match;
+    while ((match = linkRegex.exec(file.content)) !== null) {
+      const href = match[1];
+      // Skip external links and anchors
+      if (href.startsWith('http') || href.startsWith('//') || href.startsWith('mailto:') || href.startsWith('tel:')) continue;
+      // Normalize path
+      const normalizedPath = href.replace(/^\.?\/?/, '').split('?')[0];
+      if (normalizedPath) {
+        allInternalLinks.add(normalizedPath);
+      }
+    }
+  }
+  
+  // Check which linked pages exist
+  const existingPaths = new Set(files.map(f => f.path.replace(/^\.?\/?/, '')));
+  const missingPages: string[] = [];
+  
+  for (const link of allInternalLinks) {
+    if (!existingPaths.has(link)) {
+      missingPages.push(link);
+    }
+  }
+  
+  if (missingPages.length === 0) {
+    return { files, warnings, createdPages };
+  }
+  
+  console.log(`🔗 Found ${missingPages.length} missing linked pages: ${missingPages.join(', ')}`);
+  
+  // Language-specific text
+  const langLower = (language || 'en').toLowerCase();
+  const texts = getLanguageTexts(langLower);
+  
+  // Find template elements from existing pages
+  const indexFile = files.find(f => /index\.(?:html?|php)$/i.test(f.path));
+  let headerHtml = '';
+  let footerHtml = '';
+  let navHtml = '';
+  
+  if (indexFile) {
+    // Extract header
+    const headerMatch = indexFile.content.match(/<header[\s\S]*?<\/header>/i);
+    if (headerMatch) headerHtml = headerMatch[0];
+    
+    // Extract footer
+    const footerMatch = indexFile.content.match(/<footer[\s\S]*?<\/footer>/i);
+    if (footerMatch) footerHtml = footerMatch[0];
+    
+    // Extract nav
+    const navMatch = indexFile.content.match(/<nav[\s\S]*?<\/nav>/i);
+    if (navMatch) navHtml = navMatch[0];
+  }
+  
+  // Generate missing pages
+  for (const pagePath of missingPages) {
+    const pageTitle = getPageTitleFromPath(pagePath, langLower, siteName);
+    const pageContent = generateMissingPageContent(pagePath, pageTitle, texts, headerHtml, footerHtml, siteName, langLower);
+    
+    files.push({ path: pagePath, content: pageContent });
+    createdPages.push(pagePath);
+    warnings.push(`Created missing page: ${pagePath}`);
+    console.log(`📄 Created missing page: ${pagePath}`);
+  }
+  
+  return { files, warnings, createdPages };
+}
+
+function getPageTitleFromPath(path: string, lang: string, siteName?: string): string {
+  const baseName = path.replace(/\.php$/i, '').replace(/[-_]/g, ' ');
+  const titleCase = baseName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  
+  const titles: Record<string, Record<string, string>> = {
+    'cookie-policy': { en: 'Cookie Policy', de: 'Cookie-Richtlinie', uk: 'Політика Cookie', pl: 'Polityka Cookies', ru: 'Политика Cookie', es: 'Política de Cookies', fr: 'Politique de Cookies', it: 'Politica dei Cookie', ro: 'Politica Cookie', nl: 'Cookiebeleid', pt: 'Política de Cookies' },
+    'privacy-policy': { en: 'Privacy Policy', de: 'Datenschutz', uk: 'Політика конфіденційності', pl: 'Polityka Prywatności', ru: 'Политика конфиденциальности', es: 'Política de Privacidad', fr: 'Politique de confidentialité', it: 'Informativa sulla Privacy', ro: 'Politica de Confidențialitate', nl: 'Privacybeleid', pt: 'Política de Privacidade' },
+    'privacy': { en: 'Privacy Policy', de: 'Datenschutz', uk: 'Політика конфіденційності', pl: 'Polityka Prywatności', ru: 'Политика конфиденциальности' },
+    'terms': { en: 'Terms of Service', de: 'AGB', uk: 'Умови використання', pl: 'Regulamin', ru: 'Условия использования', es: 'Términos de Servicio', fr: 'Conditions d\'utilisation', it: 'Termini di Servizio', ro: 'Termeni și Condiții', nl: 'Algemene Voorwaarden', pt: 'Termos de Serviço' },
+    'thank-you': { en: 'Thank You', de: 'Vielen Dank', uk: 'Дякуємо', pl: 'Dziękujemy', ru: 'Спасибо', es: 'Gracias', fr: 'Merci', it: 'Grazie', ro: 'Mulțumim', nl: 'Bedankt', pt: 'Obrigado' },
+    '404': { en: 'Page Not Found', de: 'Seite nicht gefunden', uk: 'Сторінку не знайдено', pl: 'Strona nie znaleziona', ru: 'Страница не найдена' },
+  };
+  
+  const key = baseName.toLowerCase().replace(/\s+/g, '-');
+  const langKey = lang.substring(0, 2);
+  
+  if (titles[key] && titles[key][langKey]) {
+    return siteName ? `${titles[key][langKey]} - ${siteName}` : titles[key][langKey];
+  }
+  
+  return siteName ? `${titleCase} - ${siteName}` : titleCase;
+}
+
+function getLanguageTexts(lang: string): Record<string, string> {
+  const langKey = lang.substring(0, 2);
+  const textSets: Record<string, Record<string, string>> = {
+    en: { home: 'Home', back: 'Back', cookieIntro: 'This Cookie Policy explains how we use cookies and similar technologies.', privacyIntro: 'Your privacy is important to us.', termsIntro: 'Please read these terms carefully.', thankYou: 'Thank you for contacting us! We will get back to you soon.', notFound: 'The page you are looking for does not exist.', lastUpdated: 'Last updated', effectiveDate: 'Effective Date' },
+    de: { home: 'Startseite', back: 'Zurück', cookieIntro: 'Diese Cookie-Richtlinie erklärt, wie wir Cookies verwenden.', privacyIntro: 'Ihre Privatsphäre ist uns wichtig.', termsIntro: 'Bitte lesen Sie diese Bedingungen sorgfältig.', thankYou: 'Vielen Dank für Ihre Nachricht! Wir werden uns in Kürze bei Ihnen melden.', notFound: 'Die gesuchte Seite existiert nicht.', lastUpdated: 'Zuletzt aktualisiert', effectiveDate: 'Gültig ab' },
+    uk: { home: 'Головна', back: 'Назад', cookieIntro: 'Ця політика Cookie пояснює, як ми використовуємо файли cookie.', privacyIntro: 'Ваша конфіденційність важлива для нас.', termsIntro: 'Будь ласка, уважно прочитайте ці умови.', thankYou: 'Дякуємо за ваше звернення! Ми зв\'яжемося з вами найближчим часом.', notFound: 'Сторінку не знайдено.', lastUpdated: 'Останнє оновлення', effectiveDate: 'Дата набуття чинності' },
+    pl: { home: 'Strona główna', back: 'Wstecz', cookieIntro: 'Ta polityka cookies wyjaśnia, jak używamy plików cookie.', privacyIntro: 'Twoja prywatność jest dla nas ważna.', termsIntro: 'Prosimy o uważne przeczytanie regulaminu.', thankYou: 'Dziękujemy za kontakt! Odpowiemy najszybciej jak to możliwe.', notFound: 'Strona nie istnieje.', lastUpdated: 'Ostatnia aktualizacja', effectiveDate: 'Data wejścia w życie' },
+    ru: { home: 'Главная', back: 'Назад', cookieIntro: 'Данная политика cookie объясняет, как мы используем файлы cookie.', privacyIntro: 'Ваша конфиденциальность важна для нас.', termsIntro: 'Пожалуйста, внимательно прочитайте условия.', thankYou: 'Спасибо за обращение! Мы свяжемся с вами в ближайшее время.', notFound: 'Страница не найдена.', lastUpdated: 'Последнее обновление', effectiveDate: 'Дата вступления в силу' },
+    es: { home: 'Inicio', back: 'Volver', cookieIntro: 'Esta política de cookies explica cómo utilizamos las cookies.', privacyIntro: 'Su privacidad es importante para nosotros.', termsIntro: 'Por favor lea estos términos cuidadosamente.', thankYou: '¡Gracias por contactarnos! Nos pondremos en contacto pronto.', notFound: 'La página no existe.', lastUpdated: 'Última actualización', effectiveDate: 'Fecha de entrada en vigor' },
+    fr: { home: 'Accueil', back: 'Retour', cookieIntro: 'Cette politique de cookies explique comment nous utilisons les cookies.', privacyIntro: 'Votre vie privée est importante pour nous.', termsIntro: 'Veuillez lire attentivement ces conditions.', thankYou: 'Merci de nous avoir contactés! Nous vous répondrons bientôt.', notFound: 'La page n\'existe pas.', lastUpdated: 'Dernière mise à jour', effectiveDate: 'Date d\'entrée en vigueur' },
+    it: { home: 'Home', back: 'Indietro', cookieIntro: 'Questa politica sui cookie spiega come utilizziamo i cookie.', privacyIntro: 'La tua privacy è importante per noi.', termsIntro: 'Si prega di leggere attentamente questi termini.', thankYou: 'Grazie per averci contattato! Ti risponderemo presto.', notFound: 'La pagina non esiste.', lastUpdated: 'Ultimo aggiornamento', effectiveDate: 'Data di entrata in vigore' },
+    ro: { home: 'Acasă', back: 'Înapoi', cookieIntro: 'Această politică cookie explică modul în care utilizăm cookie-urile.', privacyIntro: 'Confidențialitatea dvs. este importantă pentru noi.', termsIntro: 'Vă rugăm să citiți cu atenție acești termeni.', thankYou: 'Mulțumim că ne-ați contactat! Vă vom răspunde în curând.', notFound: 'Pagina nu există.', lastUpdated: 'Ultima actualizare', effectiveDate: 'Data intrării în vigoare' },
+  };
+  
+  return textSets[langKey] || textSets.en;
+}
+
+function generateMissingPageContent(
+  pagePath: string,
+  pageTitle: string,
+  texts: Record<string, string>,
+  headerHtml: string,
+  footerHtml: string,
+  siteName?: string,
+  lang?: string
+): string {
+  const baseName = pagePath.replace(/\.php$/i, '').toLowerCase().replace(/[-_]/g, '-');
+  const today = new Date().toISOString().split('T')[0];
+  
+  let mainContent = '';
+  
+  if (baseName.includes('cookie')) {
+    mainContent = generateCookiePolicyContent(texts, siteName || 'Our Company', today);
+  } else if (baseName.includes('privacy')) {
+    mainContent = generatePrivacyPolicyContent(texts, siteName || 'Our Company', today);
+  } else if (baseName.includes('terms')) {
+    mainContent = generateTermsContent(texts, siteName || 'Our Company', today);
+  } else if (baseName.includes('thank')) {
+    mainContent = `
+      <section class="section" style="min-height: 60vh; display: flex; align-items: center;">
+        <div class="container" style="text-align: center;">
+          <h1 style="font-size: 2.5rem; margin-bottom: 1rem; color: #16213e;">✓ ${pageTitle.split(' - ')[0]}</h1>
+          <p style="font-size: 1.2rem; color: #666; max-width: 600px; margin: 0 auto 2rem;">${texts.thankYou}</p>
+          <a href="index.php" class="btn btn-primary">${texts.home}</a>
+        </div>
+      </section>`;
+  } else if (baseName.includes('404')) {
+    mainContent = `
+      <section class="section" style="min-height: 60vh; display: flex; align-items: center;">
+        <div class="container" style="text-align: center;">
+          <h1 style="font-size: 6rem; margin-bottom: 1rem; color: #e74c3c;">404</h1>
+          <p style="font-size: 1.2rem; color: #666; max-width: 600px; margin: 0 auto 2rem;">${texts.notFound}</p>
+          <a href="index.php" class="btn btn-primary">${texts.home}</a>
+        </div>
+      </section>`;
+  } else {
+    // Generic page
+    mainContent = `
+      <section class="section" style="min-height: 60vh;">
+        <div class="container">
+          <h1 style="font-size: 2.5rem; margin-bottom: 2rem; color: #16213e;">${pageTitle.split(' - ')[0]}</h1>
+          <p style="color: #666;">Content coming soon.</p>
+          <a href="index.php" class="btn btn-primary" style="margin-top: 2rem;">${texts.back}</a>
+        </div>
+      </section>`;
+  }
+  
+  return `<?php include 'includes/config.php'; ?>
+<!DOCTYPE html>
+<html lang="${lang || 'en'}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${pageTitle}</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  ${headerHtml || '<header class="header"><div class="container"><a href="index.php" class="logo">' + (siteName || 'Site') + '</a></div></header>'}
+  
+  <main>
+    ${mainContent}
+  </main>
+  
+  ${footerHtml || '<footer class="footer"><div class="container"><p>&copy; ' + new Date().getFullYear() + ' ' + (siteName || 'Company') + '</p></div></footer>'}
+  
+  <script src="js/main.js"></script>
+</body>
+</html>`;
+}
+
+function generateCookiePolicyContent(texts: Record<string, string>, siteName: string, date: string): string {
+  return `
+    <section class="section legal-page">
+      <div class="container">
+        <div class="legal-content">
+          <h1>Cookie Policy</h1>
+          <p><strong>${texts.effectiveDate}:</strong> ${date}</p>
+          
+          <h2>What Are Cookies</h2>
+          <p>${texts.cookieIntro} Cookies are small text files that are stored on your device when you visit our website.</p>
+          
+          <h2>How We Use Cookies</h2>
+          <p>We use cookies to:</p>
+          <ul>
+            <li>Remember your preferences and settings</li>
+            <li>Understand how you use our website</li>
+            <li>Improve your browsing experience</li>
+            <li>Analyze website traffic and performance</li>
+          </ul>
+          
+          <h2>Types of Cookies We Use</h2>
+          <table>
+            <thead>
+              <tr><th>Cookie Type</th><th>Purpose</th><th>Duration</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Essential</td><td>Required for basic website functionality</td><td>Session</td></tr>
+              <tr><td>Performance</td><td>Help us understand how visitors use our site</td><td>1 year</td></tr>
+              <tr><td>Functional</td><td>Remember your preferences</td><td>1 year</td></tr>
+            </tbody>
+          </table>
+          
+          <h2>Managing Cookies</h2>
+          <p>You can control and manage cookies through your browser settings. Note that disabling cookies may affect your browsing experience.</p>
+          
+          <h2>Contact Us</h2>
+          <p>If you have questions about our Cookie Policy, please contact us.</p>
+          
+          <p style="margin-top: 2rem;"><a href="index.php" class="btn btn-primary">${texts.home}</a></p>
+        </div>
+      </div>
+    </section>`;
+}
+
+function generatePrivacyPolicyContent(texts: Record<string, string>, siteName: string, date: string): string {
+  return `
+    <section class="section legal-page">
+      <div class="container">
+        <div class="legal-content">
+          <h1>Privacy Policy</h1>
+          <p><strong>${texts.lastUpdated}:</strong> ${date}</p>
+          
+          <h2>Introduction</h2>
+          <p>${texts.privacyIntro} This Privacy Policy explains how ${siteName} collects, uses, and protects your personal information.</p>
+          
+          <h2>Information We Collect</h2>
+          <ul>
+            <li>Contact information (name, email, phone number)</li>
+            <li>Usage data and browsing patterns</li>
+            <li>Information you provide through forms</li>
+          </ul>
+          
+          <h2>How We Use Your Information</h2>
+          <p>We use your information to:</p>
+          <ul>
+            <li>Provide and improve our services</li>
+            <li>Respond to your inquiries</li>
+            <li>Send important updates</li>
+            <li>Analyze website usage</li>
+          </ul>
+          
+          <h2>Data Protection</h2>
+          <p>We implement appropriate security measures to protect your personal information from unauthorized access, alteration, or disclosure.</p>
+          
+          <h2>Your Rights</h2>
+          <p>You have the right to access, correct, or delete your personal data. Contact us to exercise these rights.</p>
+          
+          <h2>Contact Us</h2>
+          <p>For privacy-related questions, please contact our data protection officer.</p>
+          
+          <p style="margin-top: 2rem;"><a href="index.php" class="btn btn-primary">${texts.home}</a></p>
+        </div>
+      </div>
+    </section>`;
+}
+
+function generateTermsContent(texts: Record<string, string>, siteName: string, date: string): string {
+  return `
+    <section class="section legal-page">
+      <div class="container">
+        <div class="legal-content">
+          <h1>Terms of Service</h1>
+          <p><strong>${texts.effectiveDate}:</strong> ${date}</p>
+          
+          <h2>Agreement to Terms</h2>
+          <p>${texts.termsIntro} By accessing our website, you agree to be bound by these Terms of Service.</p>
+          
+          <h2>Use of Our Services</h2>
+          <p>You agree to use our services only for lawful purposes and in accordance with these Terms.</p>
+          
+          <h2>Intellectual Property</h2>
+          <p>All content on this website is the property of ${siteName} and is protected by copyright laws.</p>
+          
+          <h2>Limitation of Liability</h2>
+          <p>${siteName} shall not be liable for any indirect, incidental, or consequential damages arising from your use of our services.</p>
+          
+          <h2>Changes to Terms</h2>
+          <p>We reserve the right to modify these terms at any time. Continued use of our services constitutes acceptance of updated terms.</p>
+          
+          <h2>Contact</h2>
+          <p>For questions about these terms, please contact us.</p>
+          
+          <p style="margin-top: 2rem;"><a href="index.php" class="btn btn-primary">${texts.home}</a></p>
+        </div>
+      </div>
+    </section>`;
+}
+// ============ END ENSURE MISSING LINKED PAGES ============
+
 function ensureCookiePolicyAndBanner(
   files: Array<{ path: string; content: string }>,
   language?: string
@@ -4396,6 +4713,15 @@ async function runBackgroundGeneration(
 
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
+      
+      // CRITICAL: Ensure all linked pages exist BEFORE other validation
+      // This creates missing pages like cookie-policy.php, thank-you.php, etc.
+      const siteNameForPages = desiredSiteName || extractExplicitBrandingFromPrompt(prompt).siteName;
+      const { files: filesWithAllPages, warnings: missingPageWarnings, createdPages } = ensureMissingLinkedPagesExist(enforcedFiles, language, geo, siteNameForPages);
+      enforcedFiles = filesWithAllPages;
+      if (createdPages.length > 0) {
+        console.log(`[BG] PHP - Created ${createdPages.length} missing linked pages: ${createdPages.join(', ')}`);
+      }
       
       // Run contact page validation (phone/email in contact.php, contact links in footers)
       // CRITICAL: Pass the phone to ensure it's on ALL pages and clickable
