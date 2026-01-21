@@ -432,7 +432,7 @@ export function emulatePhpPage(
   // Process the page
   let html = pageFile.content;
   
-  // Process all includes
+  // Process all includes first
   html = processIncludes(html, ctx);
   
   // Process foreach loops
@@ -441,16 +441,61 @@ export function emulatePhpPage(
   // Process conditions
   html = processConditions(html);
   
-  // Process remaining PHP blocks
-  html = html.replace(/<\?php[\s\S]*?\?>/g, (match) => {
-    const inner = match.replace(/<\?php/g, "").replace(/\?>/g, "").trim();
-    // Skip empty blocks or variable declarations
-    if (!inner || /^\s*\$\w+\s*=/.test(inner)) return "";
-    return processEchoAndVariables(inner, ctx);
+  // Process PHP blocks more carefully - preserve HTML content!
+  // Only process actual PHP code, don't remove content
+  html = html.replace(/<\?php([\s\S]*?)\?>/g, (match, inner: string) => {
+    const trimmed = inner.trim();
+    
+    // Empty block - remove
+    if (!trimmed) return "";
+    
+    // Pure variable declaration - remove (already extracted)
+    if (/^\$\w+\s*=\s*['"][^'"]*['"]\s*;?\s*$/.test(trimmed)) {
+      return "";
+    }
+    
+    // Array declarations - remove
+    if (/^\$\w+\s*=\s*(?:array\s*\(|\[)/.test(trimmed)) {
+      return "";
+    }
+    
+    // Check for echo statements and process them
+    if (trimmed.includes("echo")) {
+      return processEchoAndVariables(trimmed, ctx);
+    }
+    
+    // Include statements should be already processed
+    if (/^(include|require|include_once|require_once)/.test(trimmed)) {
+      return "";
+    }
+    
+    // For other PHP code, try to extract any output
+    const processed = processEchoAndVariables(trimmed, ctx);
+    // If processing produced meaningful output, return it
+    if (processed.trim() && processed !== trimmed) {
+      return processed;
+    }
+    
+    // Otherwise remove the PHP block (server-side only logic)
+    return "";
   });
   
-  // Clean up any remaining PHP artifacts
+  // Process any inline PHP echo shorthand: <?= $var ?> 
+  html = html.replace(/<\?=\s*([^?]+)\s*\?>/g, (_, expr: string) => {
+    const varMatch = expr.match(/\$(\w+)/);
+    if (varMatch) {
+      const value = ctx.variables[varMatch[1]];
+      return typeof value === "string" ? value : "";
+    }
+    const constValue = ctx.constants[expr.trim()];
+    if (constValue) return constValue;
+    return processDateFunction(expr);
+  });
+  
+  // Final cleanup of any unclosed PHP tags (shouldn't happen but safety)
   html = html.replace(/<\?php/g, "").replace(/\?>/g, "");
+  
+  // Process remaining echo/variable references in the HTML
   html = processEchoAndVariables(html, ctx);
   
   // Apply full HTML processing (CSS inlining, image fixes, external resources)
