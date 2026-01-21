@@ -3343,19 +3343,18 @@ async function runGeneration({
     imageStrategy = await buildPexelsImageStrategy(prompt);
   }
 
+  // Reduced required paths for faster, more reliable generation
   const requiredPaths = [
     "includes/config.php",
     "includes/header.php",
     "includes/footer.php",
     "index.php",
     "about.php",
-    "services.php",
     "contact.php",
     "form-handler.php",
     "thank-you.php",
     "privacy.php",
     "terms.php",
-    "cookie-policy.php",
     "css/style.css",
     "js/script.js",
   ];
@@ -3381,7 +3380,27 @@ async function runGeneration({
       : "";
 
     const systemContent = PHP_GENERATION_PROMPT + layoutDescription + "\n\n" + imageStrategy + "\n\n" + IMAGE_CSS;
-    const userContent = `Create a COMPLETE, FULLY FUNCTIONAL multi-page PHP website based on this brief:\n\n${refinedPrompt}\n\nCRITICAL GENERATION CHECKLIST - YOU MUST INCLUDE ALL:\n✅ includes/config.php - Site constants (SITE_NAME, SITE_EMAIL, SITE_PHONE, SITE_ADDRESS)\n✅ includes/header.php - Full HTML head, navigation with links to ALL pages\n✅ includes/footer.php - Footer with disclaimer, copyright, links\n✅ index.php - Homepage with hero, features, services preview, testimonials, CTA (FULL CONTENT)\n✅ about.php - About page with mission, team, values (FULL CONTENT)\n✅ services.php - Services/Products page with detailed descriptions (FULL CONTENT)\n✅ contact.php - Contact form with method=\"POST\" action=\"form-handler.php\"\n✅ form-handler.php - Form processor that redirects to thank-you.php\n✅ thank-you.php - Thank you page after form submission\n✅ privacy.php - Privacy Policy with 10+ sections (Introduction, Data Controller, Data Types, Purpose, Legal Basis, Retention, Sharing, International Transfers, User Rights, Cookie Reference)\n✅ terms.php - Terms of Service with 14 sections (Acceptance, Definitions, Eligibility, Account, Permitted Use, Prohibited, IP Rights, User Content, Third-Party, Disclaimers, Indemnification, Termination, Governing Law, Contact)\n✅ cookie-policy.php - Cookie Policy with cookies table (Cookie Name, Provider, Purpose, Expiry, Type) - minimum 6-10 cookies\n✅ css/style.css - Complete CSS with responsive design, mobile menu, cookies table styling\n✅ js/script.js - JavaScript for mobile menu, interactions\n\nEach page MUST have SUBSTANTIAL, UNIQUE content (not placeholders).\nGenerate COMPLETE files with full HTML, CSS, and PHP code.\nUse proper PHP includes on every page.${strictFormatBlock}`;
+    // Simplified user prompt for faster, more reliable generation
+    const userContent = `Create a PHP website based on this brief:
+
+${refinedPrompt}
+
+REQUIRED FILES (generate ALL):
+1. includes/config.php - Site constants (SITE_NAME, SITE_EMAIL, SITE_PHONE, SITE_ADDRESS)
+2. includes/header.php - HTML head + navigation
+3. includes/footer.php - Footer with links
+4. index.php - Homepage with hero, features, CTA
+5. about.php - About page
+6. contact.php - Contact form (action="form-handler.php")
+7. form-handler.php - Form processor → redirect to thank-you.php
+8. thank-you.php - Thank you page
+9. privacy.php - Privacy Policy
+10. terms.php - Terms of Service
+11. css/style.css - Complete responsive CSS
+12. js/script.js - Mobile menu JS
+
+FORMAT: Use --- FILE: path --- and --- END FILE --- markers.
+Generate complete, working code. No placeholders.${strictFormatBlock}`;
 
     try {
       let generateResponse: Response;
@@ -4672,112 +4691,159 @@ ${promptForGeneration}`;
 
     console.log("Created PHP history entry:", historyEntry.id);
 
-    // Run generation synchronously so the client immediately receives files
-    // (UI expects files in the response; background-only runs result in “empty” output)
-    let result: GenerationResult;
-    try {
-      result = await runGeneration({
-        prompt: promptForGeneration,
-        language,
-        aiModel,
-        layoutStyle,
-        imageSource,
-        siteName,
-      });
-    } catch (e) {
-      console.error("PHP generation threw:", e);
-      result = {
-        success: false,
-        error: e instanceof Error ? e.message : "PHP generation failed (unexpected error)",
-      };
-    }
+    // ASYNC PATTERN: Return immediately, run generation in background
+    // UI polls status via realtime subscription on generation_history table
+    const backgroundPromise = (async () => {
+      try {
+        console.log("[BG-PHP] Starting async generation for:", historyEntry.id);
+        
+        const result = await runGeneration({
+          prompt: promptForGeneration,
+          language,
+          aiModel,
+          layoutStyle,
+          imageSource,
+          siteName,
+        });
 
-    if (!result.success || !result.files) {
-      // Mark failed + refund (if deducted)
-      await supabase
-        .from("generation_history")
-        .update({
-          status: "failed",
-          error_message: result.error || "PHP generation failed",
-          sale_price: 0,
-        })
-        .eq("id", historyEntry.id);
+        if (!result.success || !result.files) {
+          console.error("[BG-PHP] Generation failed:", result.error);
+          
+          // Refund balance
+          if (teamId && salePrice > 0) {
+            const { data: team } = await supabase
+              .from("teams")
+              .select("balance")
+              .eq("id", teamId)
+              .single();
+            if (team) {
+              await supabase
+                .from("teams")
+                .update({ balance: (team.balance || 0) + salePrice })
+                .eq("id", teamId);
+              console.log(`[BG-PHP] REFUNDED $${salePrice} to team ${teamId}`);
+            }
+          }
 
-      if (teamId && salePrice > 0) {
-        const { data: team } = await supabase
-          .from("teams")
-          .select("balance")
-          .eq("id", teamId)
-          .single();
-        if (team) {
           await supabase
-            .from("teams")
-            .update({ balance: (team.balance || 0) + salePrice })
-            .eq("id", teamId);
+            .from("generation_history")
+            .update({
+              status: "failed",
+              error_message: result.error || "PHP generation failed",
+              sale_price: 0,
+            })
+            .eq("id", historyEntry.id);
+
+          await supabase.from("notifications").insert({
+            user_id: userId,
+            type: "generation_failed",
+            title: "Помилка генерації PHP",
+            message: result.error || "Не вдалося згенерувати PHP сайт",
+            data: { historyId: historyEntry.id, error: result.error }
+          });
+          return;
         }
-      }
 
-      return new Response(JSON.stringify({ success: false, error: result.error || "PHP generation failed" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+        // Post-process files
+        const explicit = extractExplicitBrandingFromPrompt(promptForGeneration);
+        const desiredSiteName = explicit.siteName || siteName;
+        const desiredPhone = explicit.phone;
+        const geoToUse = geo;
+
+        const { files: fixedFiles } = fixPhoneNumbersInFiles(result.files, geoToUse);
+        const phoneToUse = desiredPhone || generateRealisticPhone(geoToUse);
+        let enforcedFiles = enforcePhoneInFiles(fixedFiles, phoneToUse);
+        enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
+        enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
+        
+        const { files: contactValidatedFiles } = runContactValidation(enforcedFiles, geoToUse, language);
+        enforcedFiles = contactValidatedFiles;
+
+        // Create zip
+        const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");
+        const zip = new JSZip();
+        for (const file of enforcedFiles) {
+          zip.file(file.path, file.content);
+        }
+        const zipBase64 = await zip.generateAsync({ type: "base64" });
+
+        // Update history with completed result
+        await supabase
+          .from("generation_history")
+          .update({
+            status: "completed",
+            files_data: enforcedFiles,
+            zip_data: zipBase64,
+            generation_cost: result.totalCost || 0,
+            specific_ai_model: result.specificModel || null,
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", historyEntry.id);
+
+        // Send notification
+        await supabase.from("notifications").insert({
+          user_id: userId,
+          type: "generation_complete",
+          title: "PHP сайт згенеровано",
+          message: `PHP сайт успішно створено (${enforcedFiles.length} файлів)`,
+          data: { historyId: historyEntry.id, filesCount: enforcedFiles.length }
+        });
+
+        console.log(`[BG-PHP] Completed: ${historyEntry.id}, ${enforcedFiles.length} files`);
+      } catch (error) {
+        console.error("[BG-PHP] Error:", error);
+        
+        // Refund on error
+        if (teamId && salePrice > 0) {
+          try {
+            const { data: team } = await supabase
+              .from("teams")
+              .select("balance")
+              .eq("id", teamId)
+              .single();
+            if (team) {
+              await supabase
+                .from("teams")
+                .update({ balance: (team.balance || 0) + salePrice })
+                .eq("id", teamId);
+              console.log(`[BG-PHP] REFUNDED $${salePrice} on error`);
+            }
+          } catch (refundErr) {
+            console.error("[BG-PHP] Refund failed:", refundErr);
+          }
+        }
+
+        await supabase
+          .from("generation_history")
+          .update({
+            status: "failed",
+            error_message: error instanceof Error ? error.message : "Unknown error",
+            sale_price: 0,
+          })
+          .eq("id", historyEntry.id);
+      }
+    })();
+
+    // Use EdgeRuntime.waitUntil to keep the function alive for background work
+    // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
+    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(backgroundPromise);
+    } else {
+      // Fallback: just fire and don't await (less reliable but works)
+      backgroundPromise.catch(e => console.error("[BG-PHP] Unhandled:", e));
     }
 
-    // Enforce siteName / phone from prompt/params
-    const explicit = extractExplicitBrandingFromPrompt(promptForGeneration);
-    const desiredSiteName = explicit.siteName || siteName;
-    const desiredPhone = explicit.phone;
-    const geoToUse = geo;
-
-    // Phone behavior:
-    // - If phone in prompt -> enforce it exactly.
-    // - If no phone -> generate regional phone and enforce it.
-    const { files: fixedFiles } = fixPhoneNumbersInFiles(result.files, geoToUse);
-    const phoneToUse = desiredPhone || generateRealisticPhone(geoToUse);
-    let enforcedFiles = enforcePhoneInFiles(fixedFiles, phoneToUse);
-    enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
-    enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
-    
-    // Run contact page validation (phone/email in contact.php, contact links in footers)
-    const { files: contactValidatedFiles } = runContactValidation(enforcedFiles, geoToUse, language);
-    enforcedFiles = contactValidatedFiles;
-
-    // Save completed result into history for later downloads
-    try {
-      const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");
-      const zip = new JSZip();
-      for (const file of enforcedFiles) {
-        zip.file(file.path, file.content);
-      }
-      const zipBase64 = await zip.generateAsync({ type: "base64" });
-
-      await supabase
-        .from("generation_history")
-        .update({
-          status: "completed",
-          files_data: enforcedFiles,
-          zip_data: zipBase64,
-          error_message: null,
-          completed_at: new Date().toISOString(),
-        })
-        .eq("id", historyEntry.id);
-    } catch (e) {
-      console.warn("Failed to persist zip/files_data for PHP generation:", e);
-      // Still return files to client even if persistence fails
-    }
-
-    // Return enforced files to client
-    result.files = enforcedFiles;
-
+    // Return immediately with pending status
     return new Response(
       JSON.stringify({
         success: true,
         historyId: historyEntry.id,
-        files: result.files,
-        refinedPrompt: result.refinedPrompt,
+        status: "pending",
+        message: "PHP generation started. Check history for results.",
       }),
       {
-        status: 200,
+        status: 202, // Accepted
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
