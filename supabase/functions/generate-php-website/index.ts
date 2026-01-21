@@ -156,15 +156,43 @@ function fixBrokenImageUrls(content: string): { content: string; fixed: number }
   let fixed = 0;
   let result = content;
   
-  // Pattern: image URLs containing phone-like patterns (+XX, spaces in URL, etc.)
-  const BROKEN_IMG_URL_REGEX = /src=["'](https?:\/\/[^"']*\+\d+[^"']*|https?:\/\/images\.pexels\.com\/photos\/[^"']*\s+[^"']*)["']/gi;
-  
-  result = result.replace(BROKEN_IMG_URL_REGEX, () => {
+  // AGGRESSIVE: Pattern 1 - URLs with + sign (phone number injection)
+  const BROKEN_PLUS_REGEX = /src=["'](https?:\/\/[^"']*\+[^"']*)["']/gi;
+  result = result.replace(BROKEN_PLUS_REGEX, () => {
     fixed++;
     const randomId = Math.floor(Math.random() * 5000000) + 1000000;
     return `src="https://images.pexels.com/photos/${randomId}/pexels-photo-${randomId}.jpeg?auto=compress&cs=tinysrgb&w=800"`;
   });
   
+  // AGGRESSIVE: Pattern 2 - Pexels URLs with parentheses (phone format)
+  const BROKEN_PARENS_REGEX = /src=["'](https?:\/\/images\.pexels\.com\/photos\/[^"']*\([^"']*\)[^"']*)["']/gi;
+  result = result.replace(BROKEN_PARENS_REGEX, () => {
+    fixed++;
+    const randomId = Math.floor(Math.random() * 5000000) + 1000000;
+    return `src="https://images.pexels.com/photos/${randomId}/pexels-photo-${randomId}.jpeg?auto=compress&cs=tinysrgb&w=800"`;
+  });
+  
+  // AGGRESSIVE: Pattern 3 - Pexels URLs with spaces in path
+  const BROKEN_SPACE_REGEX = /src=["'](https?:\/\/images\.pexels\.com\/photos\/[^"']*\s+[^"']*)["']/gi;
+  result = result.replace(BROKEN_SPACE_REGEX, () => {
+    fixed++;
+    const randomId = Math.floor(Math.random() * 5000000) + 1000000;
+    return `src="https://images.pexels.com/photos/${randomId}/pexels-photo-${randomId}.jpeg?auto=compress&cs=tinysrgb&w=800"`;
+  });
+  
+  // AGGRESSIVE: Pattern 4 - Pexels URLs where photo ID is NOT a valid number
+  // Valid: /photos/12345/pexels-photo-12345.jpeg
+  // Invalid: /photos/+1 (416) 123/pexels-photo-xxx.jpeg
+  const PEXELS_ID_CHECK = /src=["'](https?:\/\/images\.pexels\.com\/photos\/([^/"']+)\/[^"']*)["']/gi;
+  result = result.replace(PEXELS_ID_CHECK, (match, url, photoId) => {
+    // Valid photo IDs are pure numbers
+    if (/^\d+$/.test(photoId)) return match;
+    fixed++;
+    const randomId = Math.floor(Math.random() * 5000000) + 1000000;
+    return `src="https://images.pexels.com/photos/${randomId}/pexels-photo-${randomId}.jpeg?auto=compress&cs=tinysrgb&w=800"`;
+  });
+  
+  // Pattern 5 - Picsum with broken URLs
   const BROKEN_PICSUM_REGEX = /src=["'](https?:\/\/picsum\.photos\/[^"']*\+[^"']*)["']/gi;
   result = result.replace(BROKEN_PICSUM_REGEX, () => {
     fixed++;

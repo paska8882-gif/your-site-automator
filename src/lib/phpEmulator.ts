@@ -71,11 +71,11 @@ function findFile(files: GeneratedFile[], relativePath: string, currentDir: stri
 function processIncludes(content: string, ctx: PhpEmulatorContext, depth = 0): string {
   if (depth > 10) return content; // Prevent infinite recursion
   
-  // Match include/require/include_once/require_once anywhere in the file (even inside larger PHP blocks)
-  // Example: $page_title = 'Home'; include 'includes/header.php';
-  const includeRegex = /(include|require|include_once|require_once)\s*['"]([^'\"]+)['"]\s*;?/g;
+  // FIRST: Remove standalone <?php include ... ?> blocks (most common pattern)
+  // Example: <?php include 'includes/header.php'; ?>
+  const phpIncludeBlockRegex = /<\?php\s*(include|require|include_once|require_once)\s+['"]([^'"]+)['"]\s*;?\s*\?>/gi;
   
-  return content.replace(includeRegex, (_, type, path) => {
+  let result = content.replace(phpIncludeBlockRegex, (_, type, path) => {
     const currentDir = ctx.currentPath.includes("/") 
       ? ctx.currentPath.substring(0, ctx.currentPath.lastIndexOf("/")) 
       : "";
@@ -85,27 +85,53 @@ function processIncludes(content: string, ctx: PhpEmulatorContext, depth = 0): s
       return `<!-- Missing file: ${path} -->`;
     }
     
-    // Recursively process the included file
-    let includedContent = file.content;
-    
-    // First extract config if it's config.php
+    // Config files just extract constants, no output
     if (path.includes("config.php")) {
-      const configConstants = parseConfig(includedContent);
+      const configConstants = parseConfig(file.content);
       Object.assign(ctx.constants, configConstants);
-      return ""; // config.php typically has no HTML output
+      return ""; 
     }
     
-    // Process includes in the included file
+    // Recursively process the included file
+    let includedContent = file.content;
     includedContent = processIncludes(includedContent, { ...ctx, currentPath: file.path }, depth + 1);
     
-    // Remove <?php ?> tags
+    // Clean PHP tags and process
     includedContent = includedContent.replace(/<\?php/g, "").replace(/\?>/g, "");
-    
-    // Process variables and constants in included content
     includedContent = processPhpCode(includedContent, ctx);
     
     return includedContent;
   });
+  
+  // SECOND: Handle inline includes within larger PHP blocks
+  // Example: <?php $title = 'Home'; include 'header.php'; ?>
+  const inlineIncludeRegex = /(include|require|include_once|require_once)\s+['"]([^'"]+)['"]\s*;/gi;
+  
+  result = result.replace(inlineIncludeRegex, (_, type, path) => {
+    const currentDir = ctx.currentPath.includes("/") 
+      ? ctx.currentPath.substring(0, ctx.currentPath.lastIndexOf("/")) 
+      : "";
+    
+    const file = findFile(ctx.files, path, currentDir);
+    if (!file) {
+      return `<!-- Missing: ${path} -->`;
+    }
+    
+    if (path.includes("config.php")) {
+      const configConstants = parseConfig(file.content);
+      Object.assign(ctx.constants, configConstants);
+      return "";
+    }
+    
+    let includedContent = file.content;
+    includedContent = processIncludes(includedContent, { ...ctx, currentPath: file.path }, depth + 1);
+    includedContent = includedContent.replace(/<\?php/g, "").replace(/\?>/g, "");
+    includedContent = processPhpCode(includedContent, ctx);
+    
+    return includedContent;
+  });
+  
+  return result;
 }
 
 /** Process PHP date() function */
