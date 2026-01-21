@@ -1,21 +1,17 @@
 /**
  * PHP Emulator - client-side parsing of PHP files for preview
- * Supports: includes, config constants, echo, date(), simple if conditions
- */
-
-/**
- * PHP Emulator - client-side parsing of PHP files for preview
- * Supports: includes, config constants, echo, date(), simple if conditions
+ * Supports: includes, config constants, echo, date(), loops, arrays, conditions
  */
 
 import { GeneratedFile } from "./websiteGenerator";
-import { inlineLocalImages } from "@/lib/inlineAssets";
+import { processHtmlForPreview } from "@/lib/inlineAssets";
 
 export interface PhpEmulatorContext {
   files: GeneratedFile[];
   currentPath: string;
-  variables: Record<string, string>;
+  variables: Record<string, string | string[]>;
   constants: Record<string, string>;
+  processedIncludes: Set<string>; // Prevent infinite recursion
 }
 
 export interface LinkCheckResult {
@@ -32,9 +28,10 @@ export interface PhpPreviewResult {
   warnings: string[];
 }
 
-/** Parse config.php and extract constants */
-function parseConfig(content: string): Record<string, string> {
+/** Parse config.php and extract constants and variables */
+function parseConfig(content: string): { constants: Record<string, string>; variables: Record<string, string> } {
   const constants: Record<string, string> = {};
+  const variables: Record<string, string> = {};
   
   // Match define('CONST_NAME', 'value'); or define("CONST_NAME", "value");
   const defineRegex = /define\s*\(\s*['"](\w+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)/g;
@@ -46,10 +43,10 @@ function parseConfig(content: string): Record<string, string> {
   // Match $variable = 'value'; or $variable = "value";
   const varRegex = /\$(\w+)\s*=\s*['"]([^'"]*)['"]\s*;/g;
   while ((match = varRegex.exec(content)) !== null) {
-    constants["$" + match[1]] = match[2];
+    variables[match[1]] = match[2];
   }
   
-  return constants;
+  return { constants, variables };
 }
 
 /** Find a file by path (handles relative paths) */
@@ -57,88 +54,32 @@ function findFile(files: GeneratedFile[], relativePath: string, currentDir: stri
   // Normalize path
   let targetPath = relativePath.replace(/^\.\//, "").replace(/^\//, "");
   
-  // If relative path starts from current directory
-  if (!targetPath.startsWith("includes/") && currentDir) {
+  // Try direct match first
+  let found = files.find(f => f.path === targetPath);
+  if (found) return found;
+  
+  // Try with current directory prefix
+  if (currentDir) {
     const fullPath = currentDir + "/" + targetPath;
-    const found = files.find(f => f.path === fullPath || f.path === targetPath);
+    found = files.find(f => f.path === fullPath);
     if (found) return found;
   }
   
-  return files.find(f => f.path === targetPath) || null;
+  // Try common prefixes
+  const prefixes = ["includes/", "inc/", "partials/", ""];
+  for (const prefix of prefixes) {
+    found = files.find(f => f.path === prefix + targetPath);
+    if (found) return found;
+  }
+  
+  return null;
 }
 
-/** Process PHP include/require statements */
-function processIncludes(content: string, ctx: PhpEmulatorContext, depth = 0): string {
-  if (depth > 10) return content; // Prevent infinite recursion
-  
-  // FIRST: Remove standalone <?php include ... ?> blocks (most common pattern)
-  // Example: <?php include 'includes/header.php'; ?>
-  const phpIncludeBlockRegex = /<\?php\s*(include|require|include_once|require_once)\s+['"]([^'"]+)['"]\s*;?\s*\?>/gi;
-  
-  let result = content.replace(phpIncludeBlockRegex, (_, type, path) => {
-    const currentDir = ctx.currentPath.includes("/") 
-      ? ctx.currentPath.substring(0, ctx.currentPath.lastIndexOf("/")) 
-      : "";
-    
-    const file = findFile(ctx.files, path, currentDir);
-    if (!file) {
-      return `<!-- Missing file: ${path} -->`;
-    }
-    
-    // Config files just extract constants, no output
-    if (path.includes("config.php")) {
-      const configConstants = parseConfig(file.content);
-      Object.assign(ctx.constants, configConstants);
-      return ""; 
-    }
-    
-    // Recursively process the included file
-    let includedContent = file.content;
-    includedContent = processIncludes(includedContent, { ...ctx, currentPath: file.path }, depth + 1);
-    
-    // Clean PHP tags and process
-    includedContent = includedContent.replace(/<\?php/g, "").replace(/\?>/g, "");
-    includedContent = processPhpCode(includedContent, ctx);
-    
-    return includedContent;
-  });
-  
-  // SECOND: Handle inline includes within larger PHP blocks
-  // Example: <?php $title = 'Home'; include 'header.php'; ?>
-  const inlineIncludeRegex = /(include|require|include_once|require_once)\s+['"]([^'"]+)['"]\s*;/gi;
-  
-  result = result.replace(inlineIncludeRegex, (_, type, path) => {
-    const currentDir = ctx.currentPath.includes("/") 
-      ? ctx.currentPath.substring(0, ctx.currentPath.lastIndexOf("/")) 
-      : "";
-    
-    const file = findFile(ctx.files, path, currentDir);
-    if (!file) {
-      return `<!-- Missing: ${path} -->`;
-    }
-    
-    if (path.includes("config.php")) {
-      const configConstants = parseConfig(file.content);
-      Object.assign(ctx.constants, configConstants);
-      return "";
-    }
-    
-    let includedContent = file.content;
-    includedContent = processIncludes(includedContent, { ...ctx, currentPath: file.path }, depth + 1);
-    includedContent = includedContent.replace(/<\?php/g, "").replace(/\?>/g, "");
-    includedContent = processPhpCode(includedContent, ctx);
-    
-    return includedContent;
-  });
-  
-  return result;
-}
-
-/** Process PHP date() function */
+/** Process PHP date() function with full format support */
 function processDateFunction(content: string): string {
-  // Match date('Y') or date("Y") etc.
-  return content.replace(/date\s*\(\s*['"]([^'"]+)['"]\s*\)/g, (_, format) => {
-    const now = new Date();
+  const now = new Date();
+  
+  return content.replace(/date\s*\(\s*['"]([^'"]+)['"]\s*\)/g, (_, format: string) => {
     return format
       .replace(/Y/g, now.getFullYear().toString())
       .replace(/y/g, (now.getFullYear() % 100).toString().padStart(2, "0"))
@@ -146,46 +87,152 @@ function processDateFunction(content: string): string {
       .replace(/n/g, (now.getMonth() + 1).toString())
       .replace(/d/g, now.getDate().toString().padStart(2, "0"))
       .replace(/j/g, now.getDate().toString())
+      .replace(/D/g, ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][now.getDay()])
+      .replace(/l/g, ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()])
+      .replace(/F/g, ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][now.getMonth()])
+      .replace(/M/g, ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][now.getMonth()])
       .replace(/H/g, now.getHours().toString().padStart(2, "0"))
+      .replace(/G/g, now.getHours().toString())
       .replace(/i/g, now.getMinutes().toString().padStart(2, "0"))
-      .replace(/s/g, now.getSeconds().toString().padStart(2, "0"));
+      .replace(/s/g, now.getSeconds().toString().padStart(2, "0"))
+      .replace(/A/g, now.getHours() >= 12 ? "PM" : "AM")
+      .replace(/a/g, now.getHours() >= 12 ? "pm" : "am");
   });
 }
 
-/** Process echo statements and PHP constants/variables */
-function processPhpCode(content: string, ctx: PhpEmulatorContext): string {
+/** Parse PHP array syntax and return as JS object/array */
+function parsePhpArray(content: string): Record<string, string> | string[] | null {
+  // Match array('key' => 'value', ...) or ['key' => 'value', ...]
+  const arrayMatch = content.match(/(?:array\s*\(|\[)\s*([\s\S]*?)\s*(?:\)|\])/);
+  if (!arrayMatch) return null;
+  
+  const inner = arrayMatch[1];
+  const result: Record<string, string> = {};
+  const items: string[] = [];
+  
+  // Try key => value pairs first
+  const pairRegex = /['"]([^'"]+)['"]\s*=>\s*['"]([^'"]+)['"]/g;
+  let match;
+  let hasKeys = false;
+  
+  while ((match = pairRegex.exec(inner)) !== null) {
+    result[match[1]] = match[2];
+    hasKeys = true;
+  }
+  
+  if (hasKeys) return result;
+  
+  // Try simple array values
+  const valueRegex = /['"]([^'"]+)['"]/g;
+  while ((match = valueRegex.exec(inner)) !== null) {
+    items.push(match[1]);
+  }
+  
+  return items.length > 0 ? items : null;
+}
+
+/** Process foreach loops and generate HTML */
+function processForeachLoops(content: string, ctx: PhpEmulatorContext): string {
+  // Match foreach($array as $key => $value) or foreach($array as $item)
+  const foreachRegex = /<\?php\s*foreach\s*\(\s*\$(\w+)\s+as\s+(?:\$(\w+)\s*=>\s*)?\$(\w+)\s*\)\s*:\s*\?>([\s\S]*?)<\?php\s*endforeach\s*;?\s*\?>/gi;
+  
+  return content.replace(foreachRegex, (_, arrayName, keyVar, valueVar, body) => {
+    const array = ctx.variables[arrayName];
+    if (!array) return ""; // Array not found
+    
+    let output = "";
+    
+    if (Array.isArray(array)) {
+      array.forEach((value, index) => {
+        let itemHtml = body;
+        if (keyVar) {
+          itemHtml = itemHtml.replace(new RegExp(`\\$${keyVar}`, "g"), index.toString());
+        }
+        itemHtml = itemHtml.replace(new RegExp(`\\$${valueVar}`, "g"), value);
+        output += itemHtml;
+      });
+    } else if (typeof array === "object") {
+      Object.entries(array).forEach(([key, value]) => {
+        let itemHtml = body;
+        if (keyVar) {
+          itemHtml = itemHtml.replace(new RegExp(`\\$${keyVar}`, "g"), key);
+        }
+        itemHtml = itemHtml.replace(new RegExp(`\\$${valueVar}`, "g"), value as string);
+        output += itemHtml;
+      });
+    }
+    
+    return output;
+  });
+}
+
+/** Process if/else conditions (simplified - always shows truthy branch for preview) */
+function processConditions(content: string): string {
   let result = content;
   
-  // Process date() function first
+  // Remove if/endif blocks - show content (for preview, assume conditions are true)
+  result = result.replace(/<\?php\s+if\s*\([^)]+\)\s*:\s*\?>/gi, "");
+  result = result.replace(/<\?php\s+endif\s*;?\s*\?>/gi, "");
+  result = result.replace(/<\?php\s+else\s*:\s*\?>/gi, "<!-- else branch hidden -->");
+  result = result.replace(/<\?php\s+elseif\s*\([^)]+\)\s*:\s*\?>/gi, "");
+  
+  return result;
+}
+
+/** Process echo statements and variable substitutions */
+function processEchoAndVariables(content: string, ctx: PhpEmulatorContext): string {
+  let result = content;
+  
+  // Process date() first
   result = processDateFunction(result);
   
-  // Replace echo CONSTANT_NAME with the constant value
+  // Replace constants in echo statements
   Object.entries(ctx.constants).forEach(([name, value]) => {
-    if (name.startsWith("$")) {
-      // Variable: echo $variable or <?php echo $variable; ?>
-      const varName = name.substring(1);
-      result = result.replace(new RegExp(`echo\\s+\\$${varName}\\s*;?`, "g"), value);
-      result = result.replace(new RegExp(`\\$\\{?${varName}\\}?`, "g"), value);
-    } else {
-      // Constant: echo CONSTANT or <?php echo CONSTANT; ?>
-      result = result.replace(new RegExp(`echo\\s+${name}\\s*;?`, "g"), value);
-      result = result.replace(new RegExp(`\\b${name}\\b`, "g"), value);
+    // echo CONSTANT
+    result = result.replace(new RegExp(`echo\\s+${name}\\s*;?`, "g"), value);
+    // Direct constant reference
+    result = result.replace(new RegExp(`(?<!\\w)${name}(?!\\w)`, "g"), value);
+  });
+  
+  // Replace variables
+  Object.entries(ctx.variables).forEach(([name, value]) => {
+    if (typeof value === "string") {
+      // echo $variable
+      result = result.replace(new RegExp(`echo\\s+\\$${name}\\s*;?`, "g"), value);
+      // $variable in strings
+      result = result.replace(new RegExp(`\\$\\{?${name}\\}?`, "g"), value);
     }
   });
   
-  // Process simple echo with string concatenation
-  // e.g., echo 'text' . CONST . 'more text';
+  // Process simple echo with string literals
   result = result.replace(/echo\s+['"]([^'"]*)['"]\s*;?/g, "$1");
   
-  // Process isset($variable) ? value1 : value2 - simplified
-  result = result.replace(/isset\s*\([^)]+\)\s*\?\s*([^:]+)\s*:\s*([^;]+);?/g, (_, truthy) => {
-    return truthy.replace(/['"]([^'"]*)['"]/g, "$1").trim();
+  // Process echo with concatenation: echo 'text' . $var . 'more';
+  result = result.replace(/echo\s+([^;]+);/g, (_, expr: string) => {
+    // Simple concatenation handling
+    return expr
+      .split(/\s*\.\s*/)
+      .map(part => {
+        part = part.trim();
+        if (part.startsWith("'") || part.startsWith('"')) {
+          return part.slice(1, -1);
+        }
+        if (part.startsWith("$")) {
+          const varName = part.slice(1);
+          const val = ctx.variables[varName];
+          return typeof val === "string" ? val : "";
+        }
+        // Could be a constant
+        return ctx.constants[part] || "";
+      })
+      .join("");
   });
   
-  // Process simple if conditions (just remove PHP tags, show content)
-  result = result.replace(/<\?php\s+if\s*\([^)]+\)\s*:\s*\?>/g, "");
-  result = result.replace(/<\?php\s+endif\s*;\s*\?>/g, "");
-  result = result.replace(/<\?php\s+else\s*:\s*\?>/g, "");
+  // Process isset() ternary - for preview, assume isset returns true
+  result = result.replace(/isset\s*\([^)]+\)\s*\?\s*['"]?([^:'"]+)['"]?\s*:\s*['"]?([^;'"]+)['"]?/g, "$1");
+  
+  // Process empty() checks - for preview, assume not empty
+  result = result.replace(/!?\s*empty\s*\([^)]+\)/g, "true");
   
   // Clean remaining echo statements
   result = result.replace(/echo\s+[^;]+;?/g, "");
@@ -193,29 +240,128 @@ function processPhpCode(content: string, ctx: PhpEmulatorContext): string {
   return result;
 }
 
+/** Process PHP include/require statements */
+function processIncludes(content: string, ctx: PhpEmulatorContext, depth = 0): string {
+  if (depth > 10) return content; // Prevent infinite recursion
+  
+  const currentDir = ctx.currentPath.includes("/") 
+    ? ctx.currentPath.substring(0, ctx.currentPath.lastIndexOf("/")) 
+    : "";
+  
+  // Match standalone <?php include ... ?> blocks
+  const phpIncludeBlockRegex = /<\?php\s*(include|require|include_once|require_once)\s+['"]([^'"]+)['"]\s*;?\s*\?>/gi;
+  
+  let result = content.replace(phpIncludeBlockRegex, (_, type, path) => {
+    // Prevent circular includes
+    if (ctx.processedIncludes.has(path)) {
+      return `<!-- Already included: ${path} -->`;
+    }
+    
+    const file = findFile(ctx.files, path, currentDir);
+    if (!file) {
+      return `<!-- Missing file: ${path} -->`;
+    }
+    
+    // Config files - extract constants, no output
+    if (path.includes("config.php")) {
+      const { constants, variables } = parseConfig(file.content);
+      Object.assign(ctx.constants, constants);
+      Object.assign(ctx.variables, variables);
+      return "";
+    }
+    
+    ctx.processedIncludes.add(path);
+    
+    // Recursively process the included file
+    let includedContent = file.content;
+    const subCtx = { ...ctx, currentPath: file.path };
+    
+    includedContent = processIncludes(includedContent, subCtx, depth + 1);
+    includedContent = processForeachLoops(includedContent, subCtx);
+    includedContent = processConditions(includedContent);
+    
+    // Clean PHP tags and process
+    includedContent = includedContent.replace(/<\?php/g, "").replace(/\?>/g, "");
+    includedContent = processEchoAndVariables(includedContent, subCtx);
+    
+    return includedContent;
+  });
+  
+  // Handle inline includes within larger PHP blocks
+  const inlineIncludeRegex = /(include|require|include_once|require_once)\s+['"]([^'"]+)['"]\s*;/gi;
+  
+  result = result.replace(inlineIncludeRegex, (_, type, path) => {
+    if (ctx.processedIncludes.has(path)) {
+      return "";
+    }
+    
+    const file = findFile(ctx.files, path, currentDir);
+    if (!file) {
+      return `<!-- Missing: ${path} -->`;
+    }
+    
+    if (path.includes("config.php")) {
+      const { constants, variables } = parseConfig(file.content);
+      Object.assign(ctx.constants, constants);
+      Object.assign(ctx.variables, variables);
+      return "";
+    }
+    
+    ctx.processedIncludes.add(path);
+    
+    let includedContent = file.content;
+    const subCtx = { ...ctx, currentPath: file.path };
+    
+    includedContent = processIncludes(includedContent, subCtx, depth + 1);
+    includedContent = processForeachLoops(includedContent, subCtx);
+    includedContent = processConditions(includedContent);
+    includedContent = includedContent.replace(/<\?php/g, "").replace(/\?>/g, "");
+    includedContent = processEchoAndVariables(includedContent, subCtx);
+    
+    return includedContent;
+  });
+  
+  return result;
+}
+
 /** Extract page title from PHP page variable */
 function extractPageTitle(content: string, ctx: PhpEmulatorContext): string {
   // Look for $page_title = 'Something';
-  const match = content.match(/\$page_title\s*=\s*['"]([^'"]+)['"]/);
+  const match = content.match(/\$(?:page_title|title|pageTitle)\s*=\s*['"]([^'"]+)['"]/i);
   if (match) return match[1];
   
+  // Look for <title> tag
+  const titleMatch = content.match(/<title[^>]*>([^<]+)<\/title>/i);
+  if (titleMatch) return titleMatch[1].replace(/\$\w+/g, "").trim() || "Preview";
+  
   // Fallback to SITE_NAME constant
-  return ctx.constants["SITE_NAME"] || "PHP Preview";
+  return ctx.constants["SITE_NAME"] || ctx.constants["SITE_TITLE"] || "PHP Preview";
 }
 
 /** Check all links in HTML and verify if target files exist */
 function checkLinks(html: string, files: GeneratedFile[], currentFile: string): LinkCheckResult[] {
   const results: LinkCheckResult[] = [];
   const hrefRegex = /<a[^>]+href=["']([^"'#]+)["']/gi;
+  const seen = new Set<string>();
   
   let match;
   while ((match = hrefRegex.exec(html)) !== null) {
     const href = match[1].trim();
     
+    // Skip duplicates
+    const key = `${href}:${currentFile}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    
     // Skip external links, javascript:, mailto:, tel:
-    if (href.startsWith("http://") || href.startsWith("https://") || 
-        href.startsWith("javascript:") || href.startsWith("mailto:") || 
-        href.startsWith("tel:") || href === "#") {
+    if (
+      href.startsWith("http://") || 
+      href.startsWith("https://") ||
+      href.startsWith("javascript:") || 
+      href.startsWith("mailto:") ||
+      href.startsWith("tel:") || 
+      href === "#"
+    ) {
       results.push({ href, exists: true, isExternal: true, sourceFile: currentFile });
       continue;
     }
@@ -223,48 +369,10 @@ function checkLinks(html: string, files: GeneratedFile[], currentFile: string): 
     // Check if file exists
     const normalizedHref = href.replace(/^\.\//, "").replace(/^\//, "");
     const exists = files.some(f => f.path === normalizedHref);
-    
-    // Avoid duplicates
-    if (!results.some(r => r.href === href && r.sourceFile === currentFile)) {
-      results.push({ href, exists, isExternal: false, sourceFile: currentFile });
-    }
+    results.push({ href, exists, isExternal: false, sourceFile: currentFile });
   }
   
   return results;
-}
-
-/** Inline CSS files into HTML */
-function inlineCssFiles(html: string, files: GeneratedFile[]): string {
-  let result = html;
-  
-  // Find all CSS link tags
-  const linkRegex = /<link[^>]+rel=["']stylesheet["'][^>]+href=["']([^"']+)["'][^>]*>/gi;
-  const linkRegex2 = /<link[^>]+href=["']([^"']+\.css)["'][^>]*>/gi;
-  
-  const replaceCssLink = (match: string, href: string) => {
-    if (href.startsWith('http://') || href.startsWith('https://')) {
-      return match; // Keep external stylesheets
-    }
-    
-    const normalizedPath = href.replace(/^\.\//, '').replace(/^\//, '');
-    const cssFile = files.find(f => f.path === normalizedPath || f.path === 'css/' + normalizedPath || f.path === 'assets/css/' + normalizedPath);
-    
-    if (cssFile) {
-      return `<style>/* ${cssFile.path} */\n${cssFile.content}</style>`;
-    }
-    
-    return match;
-  };
-  
-  result = result.replace(linkRegex, replaceCssLink);
-  result = result.replace(linkRegex2, replaceCssLink);
-  
-  return result;
-}
-
-/** Inline images (SVGs) so preview doesn't show "broken image" icons */
-function processImages(html: string, files: GeneratedFile[]): string {
-  return inlineLocalImages(html, files);
 }
 
 /** Main function: emulate a PHP page and return HTML */
@@ -278,7 +386,12 @@ export function emulatePhpPage(
   const pageFile = files.find(f => f.path === pagePath);
   if (!pageFile) {
     return {
-      html: `<html><body><h1>404 - File Not Found</h1><p>Cannot find: ${pagePath}</p></body></html>`,
+      html: `<!DOCTYPE html>
+<html><head><title>404</title></head>
+<body style="font-family: system-ui; padding: 40px; text-align: center;">
+<h1>404 - File Not Found</h1>
+<p>Cannot find: ${pagePath}</p>
+</body></html>`,
       pageTitle: "404 Not Found",
       brokenLinks: [],
       warnings: [`File not found: ${pagePath}`]
@@ -290,13 +403,27 @@ export function emulatePhpPage(
     files,
     currentPath: pagePath,
     variables: {},
-    constants: {}
+    constants: {},
+    processedIncludes: new Set()
   };
   
   // First, look for and parse config.php
   const configFile = files.find(f => f.path.includes("config.php"));
   if (configFile) {
-    ctx.constants = parseConfig(configFile.content);
+    const { constants, variables } = parseConfig(configFile.content);
+    ctx.constants = constants;
+    ctx.variables = variables;
+  }
+  
+  // Extract page-specific variables before processing
+  const pageVarMatch = pageFile.content.match(/\$(\w+)\s*=\s*['"]([^'"]+)['"]\s*;/g);
+  if (pageVarMatch) {
+    pageVarMatch.forEach(m => {
+      const [, name, value] = m.match(/\$(\w+)\s*=\s*['"]([^'"]+)['"]/) || [];
+      if (name && value) {
+        ctx.variables[name] = value;
+      }
+    });
   }
   
   // Extract page title before processing
@@ -308,28 +435,32 @@ export function emulatePhpPage(
   // Process all includes
   html = processIncludes(html, ctx);
   
-  // Remove remaining PHP tags and process code
+  // Process foreach loops
+  html = processForeachLoops(html, ctx);
+  
+  // Process conditions
+  html = processConditions(html);
+  
+  // Process remaining PHP blocks
   html = html.replace(/<\?php[\s\S]*?\?>/g, (match) => {
-    // Try to extract meaningful content
-    const processed = processPhpCode(match.replace(/<\?php/g, "").replace(/\?>/g, ""), ctx);
-    return processed.trim();
+    const inner = match.replace(/<\?php/g, "").replace(/\?>/g, "").trim();
+    // Skip empty blocks or variable declarations
+    if (!inner || /^\s*\$\w+\s*=/.test(inner)) return "";
+    return processEchoAndVariables(inner, ctx);
   });
   
   // Clean up any remaining PHP artifacts
   html = html.replace(/<\?php/g, "").replace(/\?>/g, "");
-  html = processPhpCode(html, ctx);
+  html = processEchoAndVariables(html, ctx);
   
-  // Inline CSS files for proper preview
-  html = inlineCssFiles(html, files);
-  
-  // Process images
-  html = processImages(html, files);
+  // Apply full HTML processing (CSS inlining, image fixes, external resources)
+  html = processHtmlForPreview(html, files);
   
   // Check for broken links
   const brokenLinks = checkLinks(html, files, pagePath);
   const broken = brokenLinks.filter(l => !l.exists && !l.isExternal);
   if (broken.length > 0) {
-    warnings.push(`${broken.length} broken link(s) found`);
+    warnings.push(`${broken.length} broken internal link(s) found`);
   }
   
   return {
@@ -346,6 +477,7 @@ export function getPhpPages(files: GeneratedFile[]): GeneratedFile[] {
     f.path.endsWith(".php") && 
     !f.path.startsWith("includes/") && 
     !f.path.includes("/includes/") &&
+    !f.path.includes("config.php") &&
     f.path !== "form-handler.php"
   );
 }
