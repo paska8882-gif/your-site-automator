@@ -735,6 +735,128 @@ function ensureMissingLinkedPagesExist(
   return { files, warnings, createdPages };
 }
 
+// ============ ENSURE NON-EMPTY PAGES ==========
+// Some model outputs create placeholder/empty pages (e.g., only includes, or almost no body content).
+// This guarantees that every public .php page has meaningful HTML content.
+function ensureNonEmptyPhpPages(
+  files: Array<{ path: string; content: string }>,
+  language?: string,
+  geo?: string,
+  siteName?: string
+): { files: Array<{ path: string; content: string }>; warnings: string[]; rebuiltPages: string[] } {
+  const warnings: string[] = [];
+  const rebuiltPages: string[] = [];
+
+  const langLower = (language || "en").toLowerCase();
+  const texts = getLanguageTexts(langLower);
+
+  const indexFile = files.find((f) => /index\.php$/i.test(f.path)) || files.find((f) => /index\.(?:html?)$/i.test(f.path));
+  const headerFromIndex = indexFile?.content.match(/<header[\s\S]*?<\/header>/i)?.[0] || "";
+  const footerFromIndex = indexFile?.content.match(/<footer[\s\S]*?<\/footer>/i)?.[0] || "";
+
+  const isPublicPage = (path: string) =>
+    /\.php$/i.test(path) &&
+    !/\/includes\//i.test(path) &&
+    !/^includes\//i.test(path) &&
+    !/config\.php$/i.test(path) &&
+    !/form-handler\.php$/i.test(path);
+
+  const visibleLength = (content: string) => {
+    // Remove PHP blocks, includes-only shells and whitespace; estimate meaningful HTML.
+    const noPhp = content.replace(/<\?php[\s\S]*?\?>/gi, " ");
+    const noTags = noPhp.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ");
+    return noTags.replace(/\s+/g, " ").trim().length;
+  };
+
+  const MIN_VISIBLE_CHARS = 900; // ~2-3 screenfuls minimum; keeps pages from being perceived as "empty"
+
+  const updated = files.map((f) => {
+    if (!isPublicPage(f.path)) return f;
+    if (visibleLength(f.content) >= MIN_VISIBLE_CHARS) return f;
+
+    const pageTitle = getPageTitleFromPath(f.path, langLower, siteName);
+    const rebuilt = generateMissingPageContent(
+      f.path,
+      pageTitle,
+      texts,
+      headerFromIndex,
+      footerFromIndex,
+      siteName,
+      langLower
+    );
+
+    rebuiltPages.push(f.path);
+    warnings.push(`Rebuilt empty page: ${f.path}`);
+    return { ...f, content: rebuilt };
+  });
+
+  return { files: updated, warnings, rebuiltPages };
+}
+
+// ============ FIX BROKEN LOCAL ASSET REFERENCES ==========
+// If HTML/CSS references a local image that doesn't exist in the ZIP, replace it with a stable placeholder.
+function fixMissingLocalAssets(
+  files: Array<{ path: string; content: string }>
+): { files: Array<{ path: string; content: string }>; fixed: number } {
+  const existing = new Set(files.map((f) => f.path.replace(/^\.?\/?/, "")));
+  let fixed = 0;
+
+  const isExternal = (url: string) => /^(https?:)?\/\//i.test(url) || url.startsWith("data:") || url.startsWith("mailto:") || url.startsWith("tel:");
+  const normalize = (url: string) => url.replace(/^\.?\/?/, "").split("?")[0].split("#")[0];
+  const placeholder = () => `https://picsum.photos/seed/${Math.random().toString(36).slice(2)}/1200/800`;
+
+  const fixHtml = (content: string) => {
+    let out = content;
+    // <img src>
+    out = out.replace(/\bsrc=["']([^"']+)["']/gi, (m, src) => {
+      const s = String(src).trim();
+      if (isExternal(s)) return m;
+      const p = normalize(s);
+      if (!p || existing.has(p)) return m;
+      fixed++;
+      return `src="${placeholder()}"`;
+    });
+    // srcset="a.jpg 1x, b.jpg 2x"
+    out = out.replace(/\bsrcset=["']([^"']+)["']/gi, (m, srcset) => {
+      const value = String(srcset);
+      const parts = value.split(",").map((part) => part.trim());
+      const replaced = parts.map((part) => {
+        const [url, descriptor] = part.split(/\s+/, 2);
+        if (!url || isExternal(url)) return part;
+        const p = normalize(url);
+        if (existing.has(p)) return part;
+        fixed++;
+        return `${placeholder()}${descriptor ? ` ${descriptor}` : ""}`;
+      });
+      return `srcset="${replaced.join(", ")}"`;
+    });
+    return out;
+  };
+
+  const fixCss = (content: string) => {
+    return content.replace(/url\(\s*(['"]?)([^'"\)]+)\1\s*\)/gi, (m, _q, rawUrl) => {
+      const u = String(rawUrl).trim();
+      if (!u || isExternal(u)) return m;
+      const p = normalize(u);
+      if (!p || existing.has(p)) return m;
+      fixed++;
+      return `url('${placeholder()}')`;
+    });
+  };
+
+  const updated = files.map((f) => {
+    if (/\.(?:html?|php)$/i.test(f.path)) {
+      return { ...f, content: fixHtml(f.content) };
+    }
+    if (/\.css$/i.test(f.path)) {
+      return { ...f, content: fixCss(f.content) };
+    }
+    return f;
+  });
+
+  return { files: updated, fixed };
+}
+
 function getPageTitleFromPath(path: string, lang: string, siteName?: string): string {
   const baseName = path.replace(/\.php$/i, '').replace(/[-_]/g, ' ');
   const titleCase = baseName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
@@ -4722,6 +4844,25 @@ async function runBackgroundGeneration(
       if (createdPages.length > 0) {
         console.log(`[BG] PHP - Created ${createdPages.length} missing linked pages: ${createdPages.join(', ')}`);
       }
+
+       // CRITICAL: Rebuild pages that exist but are effectively empty (common failure mode after large prompts)
+       const { files: nonEmptyFiles, warnings: nonEmptyWarnings, rebuiltPages } = ensureNonEmptyPhpPages(
+         enforcedFiles,
+         language,
+         geo,
+         siteNameForPages
+       );
+       enforcedFiles = nonEmptyFiles;
+       if (rebuiltPages.length > 0) {
+         console.log(`[BG] PHP - Rebuilt ${rebuiltPages.length} empty page(s): ${rebuiltPages.join(', ')}`);
+       }
+
+       // CRITICAL: Fix references to local images that were never generated (replace with stable placeholders)
+       const assetsFix = fixMissingLocalAssets(enforcedFiles);
+       enforcedFiles = assetsFix.files;
+       if (assetsFix.fixed > 0) {
+         console.log(`[BG] PHP - Replaced ${assetsFix.fixed} missing local asset reference(s) with placeholders`);
+       }
       
       // Run contact page validation (phone/email in contact.php, contact links in footers)
       // CRITICAL: Pass the phone to ensure it's on ALL pages and clickable
