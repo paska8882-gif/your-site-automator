@@ -3,7 +3,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { GeneratedFile } from "@/lib/websiteGenerator";
 import { inlineLocalImages } from "@/lib/inlineAssets";
-import { useState, useEffect, useRef, forwardRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ImageIcon, Check } from "lucide-react";
 
 interface FilePreviewProps {
@@ -277,7 +277,7 @@ const IMAGE_TRACKING_SCRIPT = `
 </script>
 `;
 
-export const FilePreview = forwardRef<HTMLDivElement, FilePreviewProps>(function FilePreview({ file, cssFile, allFiles, websiteType, viewMode }, ref) {
+export function FilePreview({ file, cssFile, allFiles, websiteType, viewMode }: FilePreviewProps) {
   const [imageProgress, setImageProgress] = useState({ loaded: 0, total: 0, done: true });
   const iframeRef = useRef<HTMLIFrameElement>(null);
   
@@ -406,6 +406,4 @@ export const FilePreview = forwardRef<HTMLDivElement, FilePreviewProps>(function
       </CardContent>
     </Card>
   );
-});
-
-FilePreview.displayName = "FilePreview";
+}
