@@ -9,6 +9,160 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ============ ZIP ASSET BUNDLING (EXTERNAL IMAGES -> LOCAL FILES) ============
+// When generating HTML websites, we bundle external images (Picsum/Pexels) into the ZIP as real files
+// so the downloaded site works without hotlinking.
+//
+// NOTE: We only inject images into the ZIP. We don't persist image binaries into `files_data`.
+
+function hashString(input: string): string {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16);
+}
+
+function uint8ToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+function getExtFromContentType(contentType: string | null): string {
+  const ct = (contentType || "").toLowerCase();
+  if (ct.includes("image/jpeg")) return "jpg";
+  if (ct.includes("image/png")) return "png";
+  if (ct.includes("image/webp")) return "webp";
+  if (ct.includes("image/svg")) return "svg";
+  if (ct.includes("image/gif")) return "gif";
+  return "jpg";
+}
+
+function getExtFromUrl(url: string): string | null {
+  const clean = url.split("?")[0].split("#")[0];
+  const m = clean.match(/\.([a-z0-9]+)$/i);
+  if (!m) return null;
+  const ext = m[1].toLowerCase();
+  if (["jpg", "jpeg", "png", "webp", "svg", "gif"].includes(ext)) {
+    return ext === "jpeg" ? "jpg" : ext;
+  }
+  return null;
+}
+
+function isBundlableExternalImageUrl(url: string): boolean {
+  return (
+    /^https?:\/\/picsum\.photos\//i.test(url) ||
+    /^https?:\/\/images\.pexels\.com\//i.test(url)
+  );
+}
+
+function extractExternalImageUrlsFromText(text: string): string[] {
+  const urls = new Set<string>();
+  const genericUrlRegex = /https?:\/\/[^\s"'()<>]+/g;
+  const matches = text.match(genericUrlRegex) || [];
+  for (const u of matches) {
+    if (!isBundlableExternalImageUrl(u)) continue;
+    urls.add(u);
+  }
+  return [...urls];
+}
+
+async function downloadImageAsBase64(url: string): Promise<{ base64: string; ext: string } | null> {
+  try {
+    const res = await fetch(url, {
+      redirect: "follow",
+      headers: { "user-agent": "LovableSiteGenerator/1.0" },
+    });
+    if (!res.ok) {
+      console.log(`[ZIP] Failed to fetch image ${url} -> ${res.status}`);
+      return null;
+    }
+
+    const contentType = res.headers.get("content-type");
+    const ext = getExtFromUrl(url) || getExtFromContentType(contentType);
+    const buf = new Uint8Array(await res.arrayBuffer());
+    if (buf.length === 0) return null;
+
+    const base64 = uint8ToBase64(buf);
+    return { base64, ext };
+  } catch (e) {
+    const err = e as { message?: string };
+    console.log(`[ZIP] Error downloading image ${url}: ${err?.message || String(e)}`);
+    return null;
+  }
+}
+
+async function bundleExternalImagesForZip(
+  files: Array<{ path: string; content: string }>
+): Promise<{
+  textFiles: Array<{ path: string; content: string }>;
+  binaryFiles: Array<{ path: string; base64: string }>;
+  replacedCount: number;
+  downloadedCount: number;
+}> {
+  const candidateUrls = new Set<string>();
+  for (const f of files) {
+    if (!/\.(html?|css)$/i.test(f.path)) continue;
+    for (const u of extractExternalImageUrlsFromText(f.content)) candidateUrls.add(u);
+  }
+
+  if (candidateUrls.size === 0) {
+    return { textFiles: files, binaryFiles: [], replacedCount: 0, downloadedCount: 0 };
+  }
+
+  const urls = [...candidateUrls];
+  const binaryFiles: Array<{ path: string; base64: string }> = [];
+  const urlToLocalPath = new Map<string, string>();
+
+  const concurrency = 6;
+  let idx = 0;
+  let downloadedCount = 0;
+
+  async function worker() {
+    while (idx < urls.length) {
+      const my = idx++;
+      const url = urls[my];
+
+      const dl = await downloadImageAsBase64(url);
+      if (!dl) continue;
+
+      const name = `img-${hashString(url)}`;
+      const localPath = `assets/${name}.${dl.ext}`;
+      urlToLocalPath.set(url, localPath);
+      binaryFiles.push({ path: localPath, base64: dl.base64 });
+      downloadedCount++;
+    }
+  }
+
+  await Promise.all(new Array(concurrency).fill(0).map(() => worker()));
+
+  if (binaryFiles.length === 0) {
+    return { textFiles: files, binaryFiles: [], replacedCount: 0, downloadedCount: 0 };
+  }
+
+  let replacedCount = 0;
+  const textFiles = files.map((f) => {
+    if (!/\.(html?|css)$/i.test(f.path)) return f;
+
+    let content = f.content;
+    for (const [url, localPath] of urlToLocalPath.entries()) {
+      if (content.includes(url)) {
+        content = content.split(url).join(localPath);
+        replacedCount++;
+      }
+    }
+    return content === f.content ? f : { ...f, content };
+  });
+
+  return { textFiles, binaryFiles, replacedCount, downloadedCount };
+}
+
 // ============ PHONE NUMBER VALIDATION & FIXING ============
 // Patterns that indicate fake/placeholder phone numbers
 const INVALID_PHONE_PATTERNS = [
@@ -7465,13 +7619,27 @@ async function runBackgroundGeneration(
       // Create zip base64 with fixed files
       const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");
       const zip = new JSZip();
-      enforcedFiles.forEach((file) => {
+
+      // Bundle external images (Picsum/Pexels) into ZIP as real files under assets/
+      // and rewrite HTML/CSS references to those local files.
+      const bundled = await bundleExternalImagesForZip(enforcedFiles);
+      if (bundled.downloadedCount > 0) {
+        console.log(`[ZIP] Bundled ${bundled.downloadedCount} image(s) into ZIP`);
+      }
+      const zipTextFiles = bundled.textFiles;
+      const zipBinaryFiles = bundled.binaryFiles;
+
+      zipTextFiles.forEach((file) => {
         if (/\.ico$/i.test(file.path)) {
           zip.file(file.path, file.content, { base64: true });
         } else {
           zip.file(file.path, file.content);
         }
       });
+
+      for (const bf of zipBinaryFiles) {
+        zip.file(bf.path, bf.base64, { base64: true });
+      }
       const zipBase64 = await zip.generateAsync({ type: "base64" });
 
       // Update with success including generation cost and completion time
