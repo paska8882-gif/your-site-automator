@@ -5218,12 +5218,31 @@ async function runGeneration({
 
   // Set max_tokens for both models to ensure complete generation
   // Junior: 16000 tokens, Senior: 65536 tokens for comprehensive multi-page websites
-  websiteRequestBody.max_tokens = isJunior ? 16000 : 65536;
+  // CRITICAL: OpenAI GPT-5 series uses max_completion_tokens, not max_tokens
+  const isOpenAIGPT5Model = generateModel.includes('gpt-5');
+  if (isOpenAIGPT5Model) {
+    websiteRequestBody.max_completion_tokens = isJunior ? 16000 : 65536;
+  } else {
+    websiteRequestBody.max_tokens = isJunior ? 16000 : 65536;
+  }
+  
+  console.log(`📊 Prompt length: ${prompt.length} chars, System prompt length: ${HTML_GENERATION_PROMPT.length} chars`);
 
   // Helper function to attempt generation with a specific model
   const attemptGeneration = async (modelToUse: string, isRetry: boolean = false): Promise<{ rawText: string; websiteData: Record<string, unknown>; modelUsed: string; isPartial?: boolean } | null> => {
-    const requestBody = { ...websiteRequestBody, model: modelToUse };
-    console.log(`${isRetry ? '🔄 RETRY with' : '🚀 Attempting'} model: ${modelToUse}`);
+    const requestBody: Record<string, unknown> = { ...websiteRequestBody, model: modelToUse };
+    
+    // CRITICAL: Fix max_tokens vs max_completion_tokens for OpenAI GPT-5 series
+    const isGPT5Series = modelToUse.includes('gpt-5');
+    if (isGPT5Series) {
+      delete requestBody.max_tokens;
+      requestBody.max_completion_tokens = isJunior ? 16000 : 65536;
+    } else if (!requestBody.max_tokens) {
+      // Ensure non-GPT5 models have max_tokens set
+      requestBody.max_tokens = isJunior ? 16000 : 65536;
+    }
+    
+    console.log(`${isRetry ? '🔄 RETRY with' : '🚀 Attempting'} model: ${modelToUse} (${isGPT5Series ? 'max_completion_tokens' : 'max_tokens'})`);
     
     let response: Response;
     try {
@@ -5251,8 +5270,10 @@ async function runGeneration({
     console.log(`📥 Raw response length from ${modelToUse}: ${rawResponse.length}`);
 
     // If response is too short, consider it failed
-    if (rawResponse.length < 5000) {
-      console.error(`❌ Response too short from ${modelToUse}: ${rawResponse.length} chars`);
+    // Senior models should return more content than junior
+    const minResponseLength = isJunior ? 5000 : 12000;
+    if (rawResponse.length < minResponseLength) {
+      console.error(`❌ Response too short from ${modelToUse}: ${rawResponse.length} chars (min: ${minResponseLength})`);
       return null;
     }
 
@@ -5381,8 +5402,10 @@ async function runGeneration({
     console.error(`❌ CRITICAL: No index.html found! Files: ${files.map(f => f.path).join(', ')}`);
     console.log(`🔄 Attempting recovery with fallback models...`);
     
-    const recoveryModels = ["google/gemini-2.5-flash", "openai/gpt-5-mini"];
+    // Use stable recovery models - avoid openai/gpt-5-mini due to max_tokens incompatibility
+    const recoveryModels = ["google/gemini-2.5-flash", "google/gemini-3-flash-preview"];
     let recovered = false;
+    let finalModelUsed = modelUsed;
     
     for (const recoveryModel of recoveryModels) {
       if (recoveryModel === modelUsed) continue; // Skip if already tried this model
@@ -5401,6 +5424,7 @@ async function runGeneration({
           hasIndexHtml = true;
           htmlFileCount = recoveryHtmlCount;
           recovered = true;
+          finalModelUsed = recoveryModel;
           break;
         } else {
           console.log(`❌ Recovery model ${recoveryModel} also failed to produce index.html`);
@@ -5415,6 +5439,7 @@ async function runGeneration({
         error: "Generation incomplete: no index.html found after multiple attempts. Please retry.",
         rawResponse: rawText.substring(0, 500),
         totalCost,
+        specificModel: finalModelUsed, // Record which model was attempted
       };
     }
   }
@@ -8090,13 +8115,14 @@ async function runBackgroundGeneration(
         }
       }
 
-      // Update with error
+      // Update with error - CRITICAL: Also record specific_ai_model for debugging
       await supabase
         .from("generation_history")
         .update({
           status: "failed",
           error_message: result.error || "Generation failed",
           sale_price: 0, // Reset sale_price since refunded
+          specific_ai_model: result.specificModel || "unknown",
         })
         .eq("id", historyId);
 
@@ -8141,6 +8167,7 @@ async function runBackgroundGeneration(
         status: "failed",
         error_message: error instanceof Error ? error.message : "Unknown error",
         sale_price: 0, // Reset sale_price since refunded
+        specific_ai_model: "error_before_model_selection",
       })
       .eq("id", historyId);
   }
