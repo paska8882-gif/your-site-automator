@@ -2695,7 +2695,7 @@ serve(async (req) => {
     const userId = claimsData.claims.sub as string;
     console.log("Authenticated request from user:", userId);
 
-    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo } = await req.json();
+    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, retryHistoryId } = await req.json();
 
     // Build prompt with language and geo context if provided
     let promptForGeneration = prompt;
@@ -2878,63 +2878,124 @@ ${promptForGeneration}`;
       }
     }
 
-    // Create history entry immediately with pending status AND sale_price AND team_id
-    // Save original prompt (what user sees) and improved prompt separately (for admins only)
-    const { data: historyEntry, error: insertError } = await supabase
-      .from("generation_history")
-      .insert({
-        prompt: promptToSave,
-        improved_prompt: improvedPromptToSave,
-        language: language || "auto",
-        user_id: userId,
-        team_id: teamId || null,
-        status: "pending",
-        ai_model: aiModel,
-        website_type: "react",
-        site_name: siteName || null,
-        image_source: imageSource || "basic",
-        sale_price: salePrice,
-        geo: geo || null,
-      })
-      .select()
-      .single();
-
-    if (insertError || !historyEntry) {
-      console.error("Failed to create history entry:", insertError);
-      // REFUND if we already deducted
-      if (teamId && salePrice > 0) {
-        const { data: team } = await supabase
-          .from("teams")
-          .select("balance")
-          .eq("id", teamId)
-          .single();
-        if (team) {
-          await supabase
-            .from("teams")
-            .update({ balance: (team.balance || 0) + salePrice })
-            .eq("id", teamId);
-          console.log(`REFUNDED $${salePrice} to team ${teamId} due to history creation failure`);
+    // Handle retry: update existing record OR create new one
+    let historyId: string;
+    
+    if (retryHistoryId) {
+      // RETRY MODE: Update existing failed record instead of creating new one
+      console.log(`🔄 RETRY MODE: Updating existing record ${retryHistoryId}`);
+      
+      const { data: existingRecord, error: fetchError } = await supabase
+        .from("generation_history")
+        .select("id, status, user_id")
+        .eq("id", retryHistoryId)
+        .single();
+      
+      if (fetchError || !existingRecord) {
+        console.error("Failed to find retry record:", fetchError);
+        if (teamId && salePrice > 0) {
+          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+          if (team) {
+            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+          }
         }
+        return new Response(JSON.stringify({ success: false, error: "Retry record not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
-      return new Response(JSON.stringify({ success: false, error: "Failed to start generation" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+      
+      if (existingRecord.user_id !== userId) {
+        if (teamId && salePrice > 0) {
+          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+          if (team) {
+            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+          }
+        }
+        return new Response(JSON.stringify({ success: false, error: "Unauthorized retry" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      const { error: updateError } = await supabase
+        .from("generation_history")
+        .update({
+          status: "pending",
+          error_message: null,
+          files_data: null,
+          zip_data: null,
+          completed_at: null,
+          sale_price: salePrice,
+        })
+        .eq("id", retryHistoryId);
+      
+      if (updateError) {
+        console.error("Failed to update retry record:", updateError);
+        if (teamId && salePrice > 0) {
+          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+          if (team) {
+            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+          }
+        }
+        return new Response(JSON.stringify({ success: false, error: "Failed to start retry" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      historyId = retryHistoryId;
+      console.log(`🔄 Updated existing record for retry: ${retryHistoryId}`);
+    } else {
+      const { data: historyEntry, error: insertError } = await supabase
+        .from("generation_history")
+        .insert({
+          prompt: promptToSave,
+          improved_prompt: improvedPromptToSave,
+          language: language || "auto",
+          user_id: userId,
+          team_id: teamId || null,
+          status: "pending",
+          ai_model: aiModel,
+          website_type: "react",
+          site_name: siteName || null,
+          image_source: imageSource || "basic",
+          sale_price: salePrice,
+          geo: geo || null,
+        })
+        .select()
+        .single();
 
-    console.log("Created history entry:", historyEntry.id);
+      if (insertError || !historyEntry) {
+        console.error("Failed to create history entry:", insertError);
+        if (teamId && salePrice > 0) {
+          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+          if (team) {
+            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+          }
+        }
+        return new Response(JSON.stringify({ success: false, error: "Failed to start generation" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      historyId = historyEntry.id;
+    }
+    
+    console.log("Using history entry:", historyId);
 
     // Start background generation using EdgeRuntime.waitUntil
     // Pass salePrice and teamId for potential refund on error
     EdgeRuntime.waitUntil(
-      runBackgroundGeneration(historyEntry.id, userId, prompt, language, aiModel, layoutStyle, imageSource, teamId, salePrice, siteName, geo)
+      runBackgroundGeneration(historyId, userId, prompt, language, aiModel, layoutStyle, imageSource, teamId, salePrice, siteName, geo)
     );
 
     // Return immediately with the history entry ID
     return new Response(
       JSON.stringify({
         success: true,
-        historyId: historyEntry.id,
+        historyId: historyId,
         message: "Generation started in background",
       }),
       {
