@@ -6570,13 +6570,69 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     console.log("Authenticated request from user:", userId);
 
-    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo } = await req.json();
+    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, bilingualLanguages } = await req.json();
 
     // Build prompt with language and geo context if provided
     let promptForGeneration = prompt;
     
-    // Add language instruction FIRST (critical for content generation)
-    if (language && language !== "auto") {
+    // Check if this is a bilingual site request
+    const isBilingual = bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2;
+    
+    if (isBilingual) {
+      // Bilingual site generation - create a site with language switcher
+      const languageNames: Record<string, string> = {
+        en: "English", uk: "Ukrainian", ru: "Russian", de: "German", fr: "French",
+        es: "Spanish", it: "Italian", pt: "Portuguese", pl: "Polish", nl: "Dutch",
+        cs: "Czech", bg: "Bulgarian", ro: "Romanian", hu: "Hungarian", tr: "Turkish",
+        ja: "Japanese", vi: "Vietnamese", th: "Thai", id: "Indonesian", hi: "Hindi",
+        ar: "Arabic", el: "Greek", fi: "Finnish", sv: "Swedish", da: "Danish",
+        hr: "Croatian", sk: "Slovak", sl: "Slovenian", et: "Estonian", lv: "Latvian", lt: "Lithuanian"
+      };
+      const lang1 = languageNames[bilingualLanguages[0]] || bilingualLanguages[0];
+      const lang2 = languageNames[bilingualLanguages[1]] || bilingualLanguages[1];
+      
+      promptForGeneration = `[BILINGUAL WEBSITE: ${lang1} + ${lang2}]
+CRITICAL BILINGUAL SITE REQUIREMENTS:
+
+This website MUST support TWO languages: ${lang1} and ${lang2}.
+
+1. **FILE STRUCTURE FOR EACH LANGUAGE**:
+   - Create SEPARATE files for each language with language suffix:
+     * For ${lang1}: index.html, about.html, services.html, contact.html, etc.
+     * For ${lang2}: index-${bilingualLanguages[1]}.html, about-${bilingualLanguages[1]}.html, services-${bilingualLanguages[1]}.html, contact-${bilingualLanguages[1]}.html, etc.
+   - Example: if languages are English + German, create:
+     * index.html (English), about.html (English), contact.html (English)
+     * index-de.html (German), about-de.html (German), contact-de.html (German)
+
+2. **LANGUAGE SWITCHER**:
+   - Add a language switcher button/dropdown in the header navigation
+   - Switcher should show both language options (e.g., "EN | DE" or flags)
+   - Each page's language switcher must link to the CORRESPONDING page in the other language
+   - Example: English "About" page links to German "About" page and vice versa
+
+3. **NAVIGATION LINKS**:
+   - ${lang1} pages: navigation links go to other ${lang1} pages (index.html, about.html, etc.)
+   - ${lang2} pages: navigation links go to other ${lang2} pages (index-${bilingualLanguages[1]}.html, about-${bilingualLanguages[1]}.html, etc.)
+
+4. **CONTENT TRANSLATION**:
+   - ALL content on ${lang1} pages must be in ${lang1}
+   - ALL content on ${lang2} pages must be in ${lang2}
+   - This includes: headings, paragraphs, buttons, form labels, footer, meta tags, alt texts
+
+5. **DESIGN CONSISTENCY**:
+   - Both language versions MUST have identical design, layout, and styling
+   - Only the text content changes between languages
+
+6. **META TAGS**:
+   - Add hreflang tags to link language versions together
+   - Example: <link rel="alternate" hreflang="${bilingualLanguages[0]}" href="index.html" />
+   - Example: <link rel="alternate" hreflang="${bilingualLanguages[1]}" href="index-${bilingualLanguages[1]}.html" />
+
+${promptForGeneration}`;
+      
+      console.log(`🌐 Bilingual site generation: ${lang1} + ${lang2}`);
+    } else if (language && language !== "auto") {
+      // Single language site (existing logic)
       const languageNames: Record<string, string> = {
         en: "English", uk: "Ukrainian", ru: "Russian", de: "German", fr: "French",
         es: "Spanish", it: "Italian", pt: "Portuguese", pl: "Polish", nl: "Dutch",
@@ -6717,6 +6773,12 @@ ${promptForGeneration}`;
       if (imageSource === "ai") {
         salePrice += 2;
         console.log(`Added $2 for AI photo search. Total salePrice: $${salePrice}`);
+      }
+      
+      // Add $3 for bilingual site
+      if (bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2) {
+        salePrice += 3;
+        console.log(`Added $3 for bilingual site (${bilingualLanguages.join(", ")}). Total salePrice: $${salePrice}`);
       }
 
       if (salePrice > 0) {

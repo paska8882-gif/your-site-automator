@@ -139,7 +139,8 @@ export async function startGeneration(
   improvedPrompt?: string, // AI-improved prompt (commercial secret)
   geo?: string, // Target country/region for the website
   vipPrompt?: string, // VIP detailed prompt (+$2)
-  exactPhone?: string // Optional exact phone to enforce
+  exactPhone?: string, // Optional exact phone to enforce
+  bilingualLanguages?: string[] // Optional array of 2 languages for bilingual site (+$3)
 ): Promise<GenerationResult> {
   // IMPORTANT: seniorMode (codex/reaktiv) only applies to React websites
   // HTML and PHP websites always use their dedicated generation functions
@@ -191,7 +192,8 @@ export async function startGeneration(
           originalPrompt: prompt,
           improvedPrompt: improvedPrompt || null,
           vipPrompt: vipPrompt || null,
-          language, aiModel, layoutStyle, siteName, seniorMode, imageSource, teamId, geo 
+          language, aiModel, layoutStyle, siteName, seniorMode, imageSource, teamId, geo,
+          bilingualLanguages: bilingualLanguages || null // Pass bilingual languages for bilingual sites
         }),
         signal: controller.signal,
       });
