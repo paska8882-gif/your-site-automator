@@ -4849,9 +4849,11 @@ async function runGeneration({
     let footerHtml = "";
     let siteName = "Company";
     let cssLink = '<link rel="stylesheet" href="styles.css">';
+    let indexHtml = "";
     
     if (indexFile) {
       const content = indexFile.content;
+      indexHtml = content;
       // Extract header
       const headerMatch = content.match(/<header[\s\S]*?<\/header>/i);
       if (headerMatch) headerHtml = headerMatch[0];
@@ -4871,6 +4873,9 @@ async function runGeneration({
       { file: "terms.html", title: lang === "uk" ? "Умови використання" : lang === "ru" ? "Условия использования" : lang === "de" ? "Nutzungsbedingungen" : "Terms of Service", minLength: 2000 },
       { file: "cookie-policy.html", title: lang === "uk" ? "Політика cookies" : lang === "ru" ? "Политика cookies" : lang === "de" ? "Cookie-Richtlinie" : "Cookie Policy", minLength: 2000 },
       { file: "thank-you.html", title: lang === "uk" ? "Дякуємо" : lang === "ru" ? "Спасибо" : lang === "de" ? "Danke" : "Thank You", minLength: 500 },
+      // Netlify static hosting helpers
+      { file: "404.html", title: lang === "uk" ? "Сторінку не знайдено" : lang === "ru" ? "Страница не найдена" : lang === "de" ? "Seite nicht gefunden" : "Page Not Found", minLength: 300 },
+      { file: "200.html", title: siteName, minLength: 300 },
     ];
     
     // Filter out incomplete mandatory pages and add proper versions
@@ -4892,7 +4897,7 @@ async function runGeneration({
     for (const page of mandatoryPages) {
       if (!filteredFileMap.has(page.file)) {
         console.log(`📁 Adding/regenerating mandatory page: ${page.file}`);
-        const pageContent = generateMandatoryPageContent(page.file, page.title, siteName, headerHtml, footerHtml, lang);
+        const pageContent = generateMandatoryPageContent(page.file, page.title, siteName, headerHtml, footerHtml, lang, indexHtml);
         filteredFiles.push({ path: page.file, content: pageContent });
       }
     }
@@ -4900,8 +4905,67 @@ async function runGeneration({
     return filteredFiles;
   };
 
-  const generateMandatoryPageContent = (fileName: string, title: string, siteName: string, header: string, footer: string, lang: string): string => {
+  const generateMandatoryPageContent = (fileName: string, title: string, siteName: string, header: string, footer: string, lang: string, indexHtml?: string): string => {
     const backText = lang === "uk" ? "Повернутися на головну" : lang === "ru" ? "Вернуться на главную" : lang === "de" ? "Zurück zur Startseite" : "Back to Home";
+    const notFoundTitle = lang === "uk" ? "Сторінку не знайдено" : lang === "ru" ? "Страница не найдена" : lang === "de" ? "Seite nicht gefunden" : "Page Not Found";
+    const notFoundText = lang === "uk" ? "Схоже, цієї сторінки не існує або її було переміщено." : lang === "ru" ? "Похоже, этой страницы не существует или она была перемещена." : lang === "de" ? "Diese Seite existiert nicht oder wurde verschoben." : "This page doesn't exist or may have been moved.";
+    const redirectText = lang === "uk" ? "Перенаправляємо на головну…" : lang === "ru" ? "Перенаправляем на главную…" : lang === "de" ? "Weiterleitung zur Startseite…" : "Redirecting to the homepage…";
+
+    // 200.html: for static hosts that use it as a fallback (e.g., SPA deep links).
+    // For multi-page static sites, the safest behavior is to serve the homepage.
+    if (fileName === "200.html") {
+      if (indexHtml && indexHtml.length > 300) {
+        return indexHtml;
+      }
+
+      return `<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${siteName}</title>
+  <meta http-equiv="refresh" content="0; url=index.html">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  ${header}
+  <main class="section" style="min-height:60vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:80px 20px;">
+    <div class="container">
+      <h1 style="font-size:2rem;margin-bottom:12px;">${redirectText}</h1>
+      <p style="color:#666;">${backText}: <a href="index.html">index.html</a></p>
+    </div>
+  </main>
+  ${footer}
+  <script src="cookie-banner.js"></script>
+  <script>window.location.replace('index.html');</script>
+</body>
+</html>`;
+    }
+
+    if (fileName === "404.html") {
+      return `<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${notFoundTitle} - ${siteName}</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  ${header}
+  <main class="section" style="min-height:60vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:80px 20px;">
+    <div class="container">
+      <div style="font-size:64px;line-height:1;margin-bottom:18px;font-weight:800;">404</div>
+      <h1 style="font-size:2rem;margin-bottom:12px;">${notFoundTitle}</h1>
+      <p style="color:#666;max-width:700px;margin:0 auto 28px;">${notFoundText}</p>
+      <a href="index.html" class="btn" style="display:inline-block;padding:14px 28px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;">${backText}</a>
+    </div>
+  </main>
+  ${footer}
+  <script src="cookie-banner.js"></script>
+</body>
+</html>`;
+    }
     
     if (fileName === "thank-you.html") {
       const thankYouTitle = lang === "uk" ? "Дякуємо за звернення!" : lang === "ru" ? "Спасибо за обращение!" : lang === "de" ? "Danke für Ihre Nachricht!" : "Thank You for Contacting Us!";
