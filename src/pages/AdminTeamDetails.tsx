@@ -42,6 +42,7 @@ import {
   Edit,
   Upload
 } from "lucide-react";
+import { BuyerGenerationsAnalytics } from "@/components/BuyerGenerationsAnalytics";
 
 interface Team {
   id: string;
@@ -905,6 +906,9 @@ const AdminTeamDetails = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Buyer Analytics */}
+          <BuyerGenerationsAnalytics members={members} generations={generations} />
 
           {/* Pie Charts */}
           <Card>
