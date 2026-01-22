@@ -6604,20 +6604,36 @@ This website MUST support TWO languages: ${lang1} and ${lang2}.
      * index.html (English), about.html (English), contact.html (English)
      * index-de.html (German), about-de.html (German), contact-de.html (German)
 
-2. **LANGUAGE SWITCHER**:
-   - Add a language switcher button/dropdown in the header navigation
-   - Switcher should show both language options (e.g., "EN | DE" or flags)
-   - Each page's language switcher must link to the CORRESPONDING page in the other language
-   - Example: English "About" page links to German "About" page and vice versa
+2. **LANGUAGE SWITCHER - EXTREMELY IMPORTANT**:
+   - Add a PROMINENT language switcher in the header navigation on EVERY page
+   - The switcher must be clearly visible and styled nicely (button style, not hidden)
+   - Use language codes as labels: "${bilingualLanguages[0].toUpperCase()} | ${bilingualLanguages[1].toUpperCase()}" format
+   - The CURRENT language should be highlighted/active (bold, different color, or underlined)
+   - Clicking the OTHER language switches to that language version of the SAME page
+   - Example HTML for ${lang1} page:
+     <div class="language-switcher">
+       <a href="index.html" class="lang-active">${bilingualLanguages[0].toUpperCase()}</a>
+       <span>|</span>
+       <a href="index-${bilingualLanguages[1]}.html">${bilingualLanguages[1].toUpperCase()}</a>
+     </div>
+   - Example HTML for ${lang2} page:
+     <div class="language-switcher">
+       <a href="index.html">${bilingualLanguages[0].toUpperCase()}</a>
+       <span>|</span>
+       <a href="index-${bilingualLanguages[1]}.html" class="lang-active">${bilingualLanguages[1].toUpperCase()}</a>
+     </div>
+   - Style the switcher: .lang-active { font-weight: bold; color: primary-color; }
 
 3. **NAVIGATION LINKS**:
    - ${lang1} pages: navigation links go to other ${lang1} pages (index.html, about.html, etc.)
    - ${lang2} pages: navigation links go to other ${lang2} pages (index-${bilingualLanguages[1]}.html, about-${bilingualLanguages[1]}.html, etc.)
+   - Language switcher on each page links to the CORRESPONDING page in the other language
 
 4. **CONTENT TRANSLATION**:
    - ALL content on ${lang1} pages must be in ${lang1}
    - ALL content on ${lang2} pages must be in ${lang2}
    - This includes: headings, paragraphs, buttons, form labels, footer, meta tags, alt texts
+   - Navigation menu labels must be translated (e.g., "Home" / "Inicio", "About" / "Über uns")
 
 5. **DESIGN CONSISTENCY**:
    - Both language versions MUST have identical design, layout, and styling
@@ -6625,6 +6641,7 @@ This website MUST support TWO languages: ${lang1} and ${lang2}.
 
 6. **META TAGS**:
    - Add hreflang tags to link language versions together
+   - Add lang attribute to html tag: <html lang="${bilingualLanguages[0]}"> for ${lang1} pages
    - Example: <link rel="alternate" hreflang="${bilingualLanguages[0]}" href="index.html" />
    - Example: <link rel="alternate" hreflang="${bilingualLanguages[1]}" href="index-${bilingualLanguages[1]}.html" />
 
