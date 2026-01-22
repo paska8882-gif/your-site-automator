@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, type MouseEvent } from "react";
+import { useEffect, useState, useRef, useCallback, type MouseEvent } from "react";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File, AlertTriangle, Upload, X, Layers, Filter, CalendarDays, MonitorPlay, Ban, Send, User, Bot, Crown, Zap, Maximize2, Minimize2, Folder, FolderOpen, Copy } from "lucide-react";
+import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File, AlertTriangle, Upload, X, Layers, Filter, CalendarDays, MonitorPlay, Ban, Send, User, Bot, Crown, Zap, Maximize2, Minimize2, Folder, FolderOpen, Copy, Play, StopCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { FilePreview } from "./FilePreview";
 import { PhpPreviewDialog } from "./PhpPreviewDialog";
 import { GeneratedFile } from "@/lib/websiteGenerator";
+import { useAutoRetry } from "@/hooks/useAutoRetry";
 
 function getFileIcon(path: string) {
   const fileName = path.split("/").pop() || path;
@@ -191,10 +192,13 @@ interface SingleHistoryItemProps {
   onAppeal: (item: HistoryItem) => void;
   onPhpPreview?: (item: HistoryItem) => void;
   onCancel: (item: HistoryItem) => void;
+  onRetry: (item: HistoryItem) => void;
+  onCancelRetry: (itemId: string) => void;
   onSelectFile: (file: GeneratedFile) => void;
   onViewModeChange: (mode: "preview" | "code") => void;
   getAppeal: (itemId: string) => Appeal | undefined;
   getCssFile: (files: GeneratedFile[] | null) => GeneratedFile | undefined;
+  getRetryState: (itemId: string) => { countdown: number; isActive: boolean; isCancelled: boolean; isRetrying: boolean };
   toast: ReturnType<typeof useToast>["toast"];
   compact?: boolean;
   isAdmin?: boolean;
@@ -214,15 +218,19 @@ function SingleHistoryItem({
   onAppeal,
   onPhpPreview,
   onCancel,
+  onRetry,
+  onCancelRetry,
   onSelectFile,
   onViewModeChange,
   getAppeal,
   getCssFile,
+  getRetryState,
   toast,
   compact = false,
   isAdmin = false,
 }: SingleHistoryItemProps) {
   const { t } = useLanguage();
+  const retryState = getRetryState(item.id);
 
   const copyIdToClipboard = async (e: MouseEvent) => {
     e.stopPropagation();
@@ -358,6 +366,62 @@ function SingleHistoryItem({
                 >
                   <Ban className="h-4 w-4" />
                 </Button>
+              )}
+              {/* Failed item - show retry button with countdown */}
+              {item.status === "failed" && (
+                <>
+                  {retryState.isRetrying ? (
+                    <Badge variant="secondary" className="text-xs h-6 gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Retry...
+                    </Badge>
+                  ) : retryState.isActive && !retryState.isCancelled ? (
+                    <>
+                      <Badge variant="outline" className="text-xs h-6 tabular-nums">
+                        {retryState.countdown}с
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onCancelRetry(item.id);
+                        }}
+                        title="Скасувати auto-retry"
+                      >
+                        <StopCircle className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-primary hover:text-primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRetry(item);
+                        }}
+                        title="Retry зараз"
+                      >
+                        <Play className="h-4 w-4 mr-1" />
+                        Retry
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-primary hover:text-primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRetry(item);
+                      }}
+                      title="Повторити генерацію"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Retry
+                    </Button>
+                  )}
+                </>
               )}
               {item.status === "completed" && (
                   <>
@@ -642,6 +706,105 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
   const [editViewMode, setEditViewMode] = useState<"preview" | "code">("preview");
   const [editFullscreen, setEditFullscreen] = useState(false);
   const editScrollRef = useRef<HTMLDivElement>(null);
+
+  // Retry failed generation handler
+  const handleRetryGeneration = useCallback(async (itemId: string) => {
+    const item = history.find(i => i.id === itemId);
+    if (!item) return;
+
+    toast({
+      title: "Повторна генерація",
+      description: `Перегенеруємо "${item.site_name || 'сайт'}"...`,
+    });
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error("Необхідна авторизація");
+      }
+
+      // Get user's team for pricing
+      const { data: teamMember } = await supabase
+        .from("team_members")
+        .select("team_id")
+        .eq("user_id", session.user.id)
+        .eq("status", "approved")
+        .maybeSingle();
+
+      const functionName = item.website_type === "react" 
+        ? "generate-react-website" 
+        : item.website_type === "php" 
+          ? "generate-php-website" 
+          : "generate-website";
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          prompt: item.prompt,
+          language: item.language,
+          aiModel: item.ai_model || "senior",
+          siteName: item.site_name,
+          imageSource: item.image_source || "basic",
+          teamId: teamMember?.team_id,
+          geo: item.geo,
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(errText || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        toast({
+          title: "Генерацію запущено",
+          description: "Нова генерація почалась. Слідкуйте за прогресом в історії.",
+        });
+        // Refresh history to show new generation
+        await fetchHistory();
+      } else {
+        throw new Error(data.error || "Помилка генерації");
+      }
+    } catch (error) {
+      console.error("Retry error:", error);
+      toast({
+        title: "Помилка retry",
+        description: error instanceof Error ? error.message : "Невідома помилка",
+        variant: "destructive",
+      });
+    }
+  }, [history, toast]);
+
+  // Auto-retry hook for failed generations
+  const { startAutoRetry, cancelAutoRetry, manualRetry, getRetryState } = useAutoRetry({
+    autoRetryDelay: 30,
+    onRetry: handleRetryGeneration,
+  });
+
+  // Start auto-retry for newly failed items
+  useEffect(() => {
+    const failedItems = history.filter(item => item.status === "failed");
+    failedItems.forEach(item => {
+      // Only start auto-retry for recent failures (last 5 minutes)
+      const failedAt = new Date(item.created_at).getTime();
+      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+      if (failedAt > fiveMinutesAgo) {
+        startAutoRetry(item.id);
+      }
+    });
+  }, [history, startAutoRetry]);
+
+  // Manual retry handler
+  const handleRetry = useCallback((item: HistoryItem) => {
+    manualRetry(item.id);
+  }, [manualRetry]);
 
   const fetchHistory = async () => {
     setIsLoading(true);
@@ -1874,10 +2037,13 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
                             setPhpPreviewOpen(true);
                           }}
                           onCancel={handleCancel}
+                          onRetry={handleRetry}
+                          onCancelRetry={cancelAutoRetry}
                           onSelectFile={setSelectedFile}
                           onViewModeChange={setViewMode}
                           getAppeal={getAppealForItem}
                           getCssFile={getCssFile}
+                          getRetryState={getRetryState}
                           toast={toast}
                           compact
                           isAdmin={isAdmin}
@@ -1912,10 +2078,13 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
                     setPhpPreviewOpen(true);
                   }}
                   onCancel={handleCancel}
+                  onRetry={handleRetry}
+                  onCancelRetry={cancelAutoRetry}
                   onSelectFile={setSelectedFile}
                   onViewModeChange={setViewMode}
                   getAppeal={getAppealForItem}
                   getCssFile={getCssFile}
+                  getRetryState={getRetryState}
                   toast={toast}
                   isAdmin={isAdmin}
                 />
