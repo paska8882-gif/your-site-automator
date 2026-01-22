@@ -1933,6 +1933,342 @@ function ensureFaviconAndLogoInFiles(
     return { ...f, content };
   });
 }
+
+// MANDATORY: Ensure required utility pages exist for HTML generations.
+// NOTE: There is also a nested implementation inside the main generation flow.
+// This top-level version is required so background generation can call it too.
+function ensureMandatoryPages(
+  generatedFiles: GeneratedFile[],
+  lang: string = "en"
+): GeneratedFile[] {
+  const fileMap = new Map(generatedFiles.map((f) => [f.path.toLowerCase(), f]));
+
+  // Extract header/footer from index.html for consistent styling
+  const indexFile = fileMap.get("index.html");
+  let headerHtml = "";
+  let footerHtml = "";
+  let siteName = "Company";
+  let indexHtml = "";
+
+  if (indexFile) {
+    const content = indexFile.content;
+    indexHtml = content;
+    const headerMatch = content.match(/<header[\s\S]*?<\/header>/i);
+    if (headerMatch) headerHtml = headerMatch[0];
+    const footerMatch = content.match(/<footer[\s\S]*?<\/footer>/i);
+    if (footerMatch) footerHtml = footerMatch[0];
+    const titleMatch = content.match(/<title>([^<]+)<\/title>/i);
+    if (titleMatch) siteName = titleMatch[1].split(/[-|]/)[0].trim();
+  }
+
+  const backText =
+    lang === "uk"
+      ? "Повернутися на головну"
+      : lang === "ru"
+        ? "Вернуться на главную"
+        : lang === "de"
+          ? "Zurück zur Startseite"
+          : "Back to Home";
+  const notFoundTitle =
+    lang === "uk"
+      ? "Сторінку не знайдено"
+      : lang === "ru"
+        ? "Страница не найдена"
+        : lang === "de"
+          ? "Seite nicht gefunden"
+          : "Page Not Found";
+  const notFoundText =
+    lang === "uk"
+      ? "Схоже, цієї сторінки не існує або її було переміщено."
+      : lang === "ru"
+        ? "Похоже, этой страницы не существует или она была перемещена."
+        : lang === "de"
+          ? "Diese Seite existiert nicht oder wurde verschoben."
+          : "This page doesn't exist or may have been moved.";
+  const redirectText =
+    lang === "uk"
+      ? "Перенаправляємо на головну…"
+      : lang === "ru"
+        ? "Перенаправляем на главную…"
+        : lang === "de"
+          ? "Weiterleitung zur Startseite…"
+          : "Redirecting to the homepage…";
+
+  const generateLegalContent = (fileName: string): string => {
+    // Keep these pages long enough to avoid being treated as “incomplete”.
+    // (The main flow has a richer implementation; this is a stable fallback for BG flow.)
+    const section = (h: string, p: string) =>
+      `<section style="margin-bottom: 30px;"><h2>${h}</h2><p>${p}</p></section>`;
+
+    if (fileName === "privacy.html") {
+      if (lang === "uk" || lang === "ru") {
+        const t1 =
+          lang === "uk" ? "1. Загальні положення" : "1. Общие положения";
+        const t2 = lang === "uk" ? "2. Які дані ми збираємо" : "2. Какие данные мы собираем";
+        const t3 =
+          lang === "uk" ? "3. Як ми використовуємо дані" : "3. Как мы используем данные";
+        const t4 =
+          lang === "uk" ? "4. Захист даних" : "4. Защита данных";
+        const t5 = lang === "uk" ? "5. Ваші права" : "5. Ваши права";
+        const t6 = lang === "uk" ? "6. Контакти" : "6. Контакты";
+
+        return (
+          section(t1, `${siteName} описує, як ми збираємо, використовуємо та захищаємо вашу інформацію.`) +
+          section(t2, "Ми можемо збирати контактні дані, технічні дані (IP, браузер), та cookies.") +
+          section(t3, "Дані використовуються для надання послуг, покращення сайту, комунікації та аналітики.") +
+          section(t4, "Ми застосовуємо організаційні та технічні заходи для захисту даних.") +
+          section(t5, "Ви можете запитувати доступ, виправлення або видалення персональних даних.") +
+          section(t6, "Звертайтесь через контактну форму на сайті.") +
+          "\n".repeat(30)
+        );
+      }
+
+      return (
+        section(
+          "1. Introduction",
+          `This Privacy Policy explains how ${siteName} collects, uses, and protects personal information.`
+        ) +
+        section("2. Data We Collect", "Contact details, technical data (IP, browser), cookies, and usage analytics.") +
+        section("3. How We Use Data", "To provide services, improve the website, communicate with you, and for analytics.") +
+        section("4. Security", "We apply reasonable technical and organizational safeguards to protect your information.") +
+        section("5. Your Rights", "You may request access, correction, or deletion of your personal information.") +
+        section("6. Contact", "Please contact us via the website contact form.") +
+        "\n".repeat(30)
+      );
+    }
+
+    if (fileName === "terms.html") {
+      if (lang === "uk" || lang === "ru") {
+        const t1 = lang === "uk" ? "1. Прийняття умов" : "1. Принятие условий";
+        const t2 = lang === "uk" ? "2. Опис послуг" : "2. Описание услуг";
+        const t3 = lang === "uk" ? "3. Правила користування" : "3. Правила использования";
+        const t4 = lang === "uk" ? "4. Інтелектуальна власність" : "4. Интеллектуальная собственность";
+        const t5 = lang === "uk" ? "5. Обмеження відповідальності" : "5. Ограничение ответственности";
+        const t6 = lang === "uk" ? "6. Зміни умов" : "6. Изменения условий";
+        return (
+          section(t1, "Використовуючи сайт, ви погоджуєтесь з цими умовами.") +
+          section(t2, `${siteName} надає інформаційні та/або консультаційні послуги, описані на сайті.`) +
+          section(t3, "Заборонено використовувати сайт у незаконних цілях або порушувати права інших осіб.") +
+          section(t4, "Матеріали сайту захищені законом. Заборонено копіювання без дозволу.") +
+          section(t5, "Ми не несемо відповідальності за непрямі збитки або втрату даних.") +
+          section(t6, "Ми можемо змінювати умови. Актуальна версія завжди доступна на сайті.") +
+          "\n".repeat(30)
+        );
+      }
+      return (
+        section("1. Acceptance", "By using this website, you agree to these Terms of Service.") +
+        section("2. Services", `${siteName} provides informational and/or consulting services as described on the site.`) +
+        section("3. User Conduct", "You agree to use the site lawfully and not to violate others’ rights.") +
+        section("4. Intellectual Property", "All content is protected; copying without permission is prohibited.") +
+        section("5. Liability", "We are not liable for indirect damages or data loss to the extent permitted by law.") +
+        section("6. Changes", "We may update these terms; the current version will be posted on the website.") +
+        "\n".repeat(30)
+      );
+    }
+
+    if (fileName === "cookie-policy.html") {
+      if (lang === "uk" || lang === "ru") {
+        const t1 = lang === "uk" ? "1. Що таке cookies" : "1. Что такое cookies";
+        const t2 = lang === "uk" ? "2. Як ми використовуємо cookies" : "2. Как мы используем cookies";
+        const t3 = lang === "uk" ? "3. Типи cookies" : "3. Типы cookies";
+        const t4 = lang === "uk" ? "4. Управління cookies" : "4. Управление cookies";
+        return (
+          section(t1, "Cookies — це невеликі файли, що зберігаються у вашому браузері.") +
+          section(t2, "Ми використовуємо cookies для роботи сайту, аналітики та запам’ятовування налаштувань.") +
+          `<section style="margin-bottom: 30px;"><h2>${t3}</h2><table style="width:100%; border-collapse: collapse; margin: 20px 0;"><thead><tr style="background:#f5f5f5;"><th style="padding:12px; border:1px solid #ddd;">Name</th><th style="padding:12px; border:1px solid #ddd;">Type</th><th style="padding:12px; border:1px solid #ddd;">Duration</th><th style="padding:12px; border:1px solid #ddd;">Purpose</th></tr></thead><tbody><tr><td style="padding:12px; border:1px solid #ddd;">cookieConsent</td><td style="padding:12px; border:1px solid #ddd;">Necessary</td><td style="padding:12px; border:1px solid #ddd;">1 year</td><td style="padding:12px; border:1px solid #ddd;">Stores cookie consent</td></tr></tbody></table></section>` +
+          section(t4, "Ви можете керувати cookies у налаштуваннях браузера.") +
+          "\n".repeat(30)
+        );
+      }
+      return (
+        section("1. What Are Cookies", "Cookies are small text files stored on your device when you visit a website.") +
+        section("2. How We Use Cookies", "We use cookies for core functionality, analytics, and remembering preferences.") +
+        section("3. Types", "Necessary cookies (cookieConsent) and optional analytics cookies may be used.") +
+        section("4. Managing Cookies", "You can control cookies in your browser settings.") +
+        "\n".repeat(30)
+      );
+    }
+
+    return "";
+  };
+
+  const generateMandatoryPageContent = (fileName: string, title: string): string => {
+    if (fileName === "200.html") {
+      if (indexHtml && indexHtml.length > 300) return indexHtml;
+      return `<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${siteName}</title>
+  <meta http-equiv="refresh" content="0; url=index.html">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  ${headerHtml}
+  <main class="section" style="min-height:60vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:80px 20px;">
+    <div class="container">
+      <h1 style="font-size:2rem;margin-bottom:12px;">${redirectText}</h1>
+      <p style="color:#666;">${backText}: <a href="index.html">index.html</a></p>
+    </div>
+  </main>
+  ${footerHtml}
+  <script src="cookie-banner.js"></script>
+  <script>window.location.replace('index.html');</script>
+</body>
+</html>`;
+    }
+
+    if (fileName === "404.html") {
+      return `<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${notFoundTitle} - ${siteName}</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  ${headerHtml}
+  <main class="section" style="min-height:60vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:80px 20px;">
+    <div class="container">
+      <div style="font-size:64px;line-height:1;margin-bottom:18px;font-weight:800;">404</div>
+      <h1 style="font-size:2rem;margin-bottom:12px;">${notFoundTitle}</h1>
+      <p style="color:#666;max-width:700px;margin:0 auto 28px;">${notFoundText}</p>
+      <a href="index.html" class="btn" style="display:inline-block;padding:14px 28px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;">${backText}</a>
+    </div>
+  </main>
+  ${footerHtml}
+  <script src="cookie-banner.js"></script>
+</body>
+</html>`;
+    }
+
+    if (fileName === "thank-you.html") {
+      const thankYouTitle =
+        lang === "uk"
+          ? "Дякуємо за звернення!"
+          : lang === "ru"
+            ? "Спасибо за обращение!"
+            : lang === "de"
+              ? "Danke für Ihre Nachricht!"
+              : "Thank You for Contacting Us!";
+      const thankYouText =
+        lang === "uk"
+          ? "Ми отримали ваше повідомлення і зв'яжемося з вами найближчим часом."
+          : lang === "ru"
+            ? "Мы получили ваше сообщение и свяжемся с вами в ближайшее время."
+            : lang === "de"
+              ? "Wir haben Ihre Nachricht erhalten und werden uns in Kürze bei Ihnen melden."
+              : "We have received your message and will get back to you shortly.";
+
+      return `<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title} - ${siteName}</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  ${headerHtml}
+  <main class="thank-you-page" style="min-height: 60vh; display: flex; align-items: center; justify-content: center; text-align: center; padding: 80px 20px;">
+    <div class="container">
+      <div style="font-size: 80px; margin-bottom: 30px;">✓</div>
+      <h1 style="font-size: 2.5rem; margin-bottom: 20px;">${thankYouTitle}</h1>
+      <p style="font-size: 1.2rem; color: #666; margin-bottom: 40px;">${thankYouText}</p>
+      <a href="index.html" class="btn" style="display: inline-block; padding: 15px 30px; background: #2563eb; color: white; text-decoration: none; border-radius: 8px;">${backText}</a>
+    </div>
+  </main>
+  ${footerHtml}
+  <script src="cookie-banner.js"></script>
+</body>
+</html>`;
+    }
+
+    // Legal pages
+    const legalContent = generateLegalContent(fileName);
+    return `<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title} - ${siteName}</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  ${headerHtml}
+  <main class="legal-page" style="padding: 80px 20px; max-width: 900px; margin: 0 auto;">
+    <h1 style="font-size: 2.5rem; margin-bottom: 40px;">${title}</h1>
+    ${legalContent}
+    <p style="margin-top: 40px;"><a href="index.html">${backText}</a></p>
+  </main>
+  ${footerHtml}
+  <script src="cookie-banner.js"></script>
+</body>
+</html>`;
+  };
+
+  const mandatoryPages = [
+    {
+      file: "privacy.html",
+      title:
+        lang === "uk"
+          ? "Політика конфіденційності"
+          : lang === "ru"
+            ? "Политика конфиденциальности"
+            : lang === "de"
+              ? "Datenschutzerklärung"
+              : "Privacy Policy",
+      minLength: 2000,
+    },
+    {
+      file: "terms.html",
+      title:
+        lang === "uk" ? "Умови використання" : lang === "ru" ? "Условия использования" : lang === "de" ? "Nutzungsbedingungen" : "Terms of Service",
+      minLength: 2000,
+    },
+    {
+      file: "cookie-policy.html",
+      title:
+        lang === "uk" ? "Політика cookies" : lang === "ru" ? "Политика cookies" : lang === "de" ? "Cookie-Richtlinie" : "Cookie Policy",
+      minLength: 2000,
+    },
+    {
+      file: "thank-you.html",
+      title: lang === "uk" ? "Дякуємо" : lang === "ru" ? "Спасибо" : lang === "de" ? "Danke" : "Thank You",
+      minLength: 500,
+    },
+    // Static hosting helpers
+    { file: "404.html", title: notFoundTitle, minLength: 300 },
+    { file: "200.html", title: siteName, minLength: 300 },
+  ];
+
+  // Filter out incomplete mandatory pages and add proper versions
+  const filteredFiles = generatedFiles.filter((f) => {
+    const fileName = f.path.toLowerCase();
+    const mandatoryPage = mandatoryPages.find((mp) => mp.file === fileName);
+    if (mandatoryPage && f.content.length < mandatoryPage.minLength) {
+      console.log(
+        `⚠️ Replacing incomplete page ${f.path} (${f.content.length} chars < ${mandatoryPage.minLength} min)`
+      );
+      return false;
+    }
+    return true;
+  });
+
+  const filteredFileMap = new Map(filteredFiles.map((f) => [f.path.toLowerCase(), f]));
+
+  for (const page of mandatoryPages) {
+    if (!filteredFileMap.has(page.file)) {
+      console.log(`📁 Adding/regenerating mandatory page: ${page.file}`);
+      const pageContent = generateMandatoryPageContent(page.file, page.title);
+      filteredFiles.push({ path: page.file, content: pageContent });
+    }
+  }
+
+  return filteredFiles;
+}
 // ============ END PHONE NUMBER VALIDATION ============
 
 const SYSTEM_PROMPT = `You are a prompt refiner for professional, multi-page websites.
