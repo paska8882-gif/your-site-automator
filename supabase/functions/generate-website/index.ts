@@ -4094,6 +4094,53 @@ async function runGeneration({
   let files = parseFilesFromModelText(rawText);
   console.log(`📁 Total files parsed: ${files.length}`);
 
+  // CRITICAL: Check if index.html exists - if not, try fallback model
+  let hasIndexHtml = files.some(f => f.path.toLowerCase() === 'index.html');
+  let htmlFileCount = files.filter(f => f.path.toLowerCase().endsWith('.html')).length;
+  
+  // If no index.html or no HTML files at all, try fallback models
+  if (!hasIndexHtml || htmlFileCount === 0) {
+    console.error(`❌ CRITICAL: No index.html found! Files: ${files.map(f => f.path).join(', ')}`);
+    console.log(`🔄 Attempting recovery with fallback models...`);
+    
+    const recoveryModels = ["google/gemini-2.5-flash", "openai/gpt-5-mini"];
+    let recovered = false;
+    
+    for (const recoveryModel of recoveryModels) {
+      if (recoveryModel === modelUsed) continue; // Skip if already tried this model
+      
+      console.log(`🔄 Recovery attempt with: ${recoveryModel}`);
+      const recoveryResult = await attemptGeneration(recoveryModel, true);
+      
+      if (recoveryResult) {
+        const recoveryFiles = parseFilesFromModelText(recoveryResult.rawText);
+        const recoveryHasIndex = recoveryFiles.some(f => f.path.toLowerCase() === 'index.html');
+        const recoveryHtmlCount = recoveryFiles.filter(f => f.path.toLowerCase().endsWith('.html')).length;
+        
+        if (recoveryHasIndex && recoveryHtmlCount > 0) {
+          console.log(`✅ Recovery successful with ${recoveryModel}: ${recoveryHtmlCount} HTML files`);
+          files = recoveryFiles;
+          hasIndexHtml = true;
+          htmlFileCount = recoveryHtmlCount;
+          recovered = true;
+          break;
+        } else {
+          console.log(`❌ Recovery model ${recoveryModel} also failed to produce index.html`);
+        }
+      }
+    }
+    
+    if (!recovered) {
+      console.error(`❌ All recovery attempts failed. No index.html in final output.`);
+      return {
+        success: false,
+        error: "Generation incomplete: no index.html found after multiple attempts. Please retry.",
+        rawResponse: rawText.substring(0, 500),
+        totalCost,
+      };
+    }
+  }
+
   if (files.length === 0) {
     console.error("No files parsed from response");
     return {
@@ -4103,6 +4150,8 @@ async function runGeneration({
       totalCost,
     };
   }
+  
+  console.log(`✅ index.html found, ${htmlFileCount} HTML files total`);
 
   // MANDATORY: Create separate cookie-banner.js file and include in all HTML files
   const ensureCookieBannerFile = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
