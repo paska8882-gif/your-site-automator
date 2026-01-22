@@ -7769,13 +7769,25 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
 </html>`;
     };
 
-    const isProbablyEmpty = (html: string) => {
+    const countMatches = (s: string, re: RegExp) => (s.match(re) || []).length;
+
+    const isProbablyEmptyOrThin = (html: string, filePath: string) => {
       const trimmed = (html || "").trim();
       if (!trimmed) return true;
+      // Very small HTML is almost always a broken/truncated page.
       if (trimmed.length < 220) return true;
 
+      // Catch "thin" pages (not empty, but clearly incomplete):
+      // - secondary pages: under ~900 chars are usually just header/footer
+      // - index: allow slightly smaller, but still needs substance
+      const lower = (filePath || "").toLowerCase();
+      const isIndex = lower === "index.html";
+      const minHtmlChars = isIndex ? 1200 : 900;
+      if (trimmed.length < minHtmlChars) return true;
+
       const bodyMatch = trimmed.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-      const body = (bodyMatch?.[1] || trimmed)
+      const rawBody = bodyMatch?.[1] || trimmed;
+      const bodyText = rawBody
         .replace(/<script[\s\S]*?<\/script>/gi, "")
         .replace(/<style[\s\S]*?<\/style>/gi, "")
         .replace(/<!--([\s\S]*?)-->/g, "")
@@ -7784,9 +7796,24 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
         .trim();
 
       // If almost no readable text, treat as empty.
-      if (body.length < 80) return true;
+      if (bodyText.length < 80) return true;
+
+      // For "thin" pages, require more than a couple of sentences.
+      // This prevents "header + hero title" pages slipping through.
+      const minBodyText = isIndex ? 260 : 180;
+      if (bodyText.length < minBodyText) return true;
+
+      // Heuristic: page should have some structure (sections/headings/lists).
+      // If structure is missing and text is still low, it's likely incomplete.
+      const sectionCount = countMatches(rawBody, /<section\b[^>]*>/gi);
+      const headingCount = countMatches(rawBody, /<h[12]\b[^>]*>/gi);
+      const pCount = countMatches(rawBody, /<p\b[^>]*>/gi);
+      const liCount = countMatches(rawBody, /<li\b[^>]*>/gi);
+      const structuralScore = sectionCount + headingCount + Math.min(pCount, 6) + Math.min(liCount, 6);
+      if (structuralScore < 4 && bodyText.length < 420) return true;
+
       // Catch common "empty" placeholders
-      if (/\b(?:null|undefined|lorem ipsum)\b/i.test(body) && body.length < 200) return true;
+      if (/\b(?:null|undefined|lorem ipsum)\b/i.test(bodyText) && bodyText.length < 250) return true;
       return false;
     };
 
@@ -7797,9 +7824,9 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
       const lower = file.path.toLowerCase();
       if (lower === "404.html" || lower === "200.html") return file;
 
-      if (!isProbablyEmpty(file.content)) return file;
+      if (!isProbablyEmptyOrThin(file.content, file.path)) return file;
 
-      console.log(`🧱 Repaired empty page: ${file.path} (${file.content?.length || 0} chars)`);
+      console.log(`🧱 Repaired empty/thin page: ${file.path} (${file.content?.length || 0} chars)`);
       return { ...file, content: makeFallbackHtml(file.path) };
     });
   };
