@@ -2423,6 +2423,202 @@ function ensureMandatoryPages(
 
   return filteredFiles;
 }
+
+// ============ BILINGUAL I18N (ONE HTML SET + JS) ============
+function normalizeLang(code: string): string {
+  return (code || "").toLowerCase().trim().replace(/_/g, "-").split("-")[0];
+}
+
+function ensureBilingualI18nInFiles(
+  files: Array<{ path: string; content: string }>,
+  bilingualLanguages: string[] | null | undefined,
+  siteName?: string
+): Array<{ path: string; content: string }> {
+  if (!bilingualLanguages || !Array.isArray(bilingualLanguages) || bilingualLanguages.length !== 2) return files;
+  const lang1 = normalizeLang(bilingualLanguages[0]);
+  const lang2 = normalizeLang(bilingualLanguages[1]);
+  if (!lang1 || !lang2 || lang1 === lang2) return files;
+
+  const fileMap = new Map(files.map((f) => [f.path.toLowerCase(), f]));
+  const hasI18nJs = fileMap.has("i18n/i18n.js");
+  const hasTranslationsJs = fileMap.has("i18n/translations.js");
+
+  const defaultTranslations = `// Auto-generated fallback. You can edit freely.
+// eslint-disable-next-line no-var
+var __SITE_TRANSLATIONS__ = {
+  "${lang1}": {
+    "meta": { "siteName": "${(siteName || "Website").replace(/"/g, "\\\"")}" },
+    "lang": { "label": "${lang1.toUpperCase()}" },
+    "nav": { "home": "Home", "about": "About", "services": "Services", "contact": "Contact" },
+    "common": { "learnMore": "Learn more", "send": "Send" }
+  },
+  "${lang2}": {
+    "meta": { "siteName": "${(siteName || "Website").replace(/"/g, "\\\"")}" },
+    "lang": { "label": "${lang2.toUpperCase()}" },
+    "nav": { "home": "Home", "about": "About", "services": "Services", "contact": "Contact" },
+    "common": { "learnMore": "Learn more", "send": "Send" }
+  }
+};
+// Expose on window for i18n.js
+// eslint-disable-next-line no-var
+if (typeof window !== "undefined") window.__SITE_TRANSLATIONS__ = __SITE_TRANSLATIONS__;
+`;
+
+  const defaultI18n = `// Minimal runtime i18n for static sites (works on file:// too)
+(function () {
+  var allowed = ["${lang1}", "${lang2}"];
+  function norm(code) {
+    return (code || "").toLowerCase().trim().replace(/_/g, "-").split("-")[0];
+  }
+  function getFromQuery() {
+    try {
+      var u = new URL(window.location.href);
+      return norm(u.searchParams.get("lang") || "");
+    } catch (_) {
+      return "";
+    }
+  }
+  function detectBrowserLang() {
+    var langs = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""]).map(norm);
+    for (var i = 0; i < langs.length; i++) {
+      if (allowed.indexOf(langs[i]) !== -1) return langs[i];
+    }
+    return allowed[0];
+  }
+  function getSaved() {
+    try {
+      return norm(localStorage.getItem("siteLang") || "");
+    } catch (_) {
+      return "";
+    }
+  }
+  function setSaved(lang) {
+    try {
+      localStorage.setItem("siteLang", lang);
+    } catch (_) {}
+  }
+  function deepGet(obj, key) {
+    if (!obj) return undefined;
+    var parts = (key || "").split(".");
+    var cur = obj;
+    for (var i = 0; i < parts.length; i++) {
+      if (cur && typeof cur === "object" && parts[i] in cur) cur = cur[parts[i]];
+      else return undefined;
+    }
+    return cur;
+  }
+  function applyLang(lang) {
+    var dictAll = window.__SITE_TRANSLATIONS__ || {};
+    var dict = dictAll[lang] || {};
+    document.documentElement.setAttribute("lang", lang);
+
+    var nodes = document.querySelectorAll("[data-i18n]");
+    for (var i = 0; i < nodes.length; i++) {
+      var k = nodes[i].getAttribute("data-i18n");
+      var v = deepGet(dict, k) || deepGet(dictAll[allowed[0]] || {}, k);
+      if (typeof v === "string") nodes[i].textContent = v;
+    }
+    var attrs = [
+      { attr: "placeholder", key: "data-i18n-placeholder" },
+      { attr: "title", key: "data-i18n-title" },
+      { attr: "aria-label", key: "data-i18n-aria" }
+    ];
+    for (var a = 0; a < attrs.length; a++) {
+      var list = document.querySelectorAll("[" + attrs[a].key + "]");
+      for (var j = 0; j < list.length; j++) {
+        var kk = list[j].getAttribute(attrs[a].key);
+        var vv = deepGet(dict, kk) || deepGet(dictAll[allowed[0]] || {}, kk);
+        if (typeof vv === "string") list[j].setAttribute(attrs[a].attr, vv);
+      }
+    }
+
+    // Update switcher active state
+    var s = document.querySelectorAll("[data-lang-switch] ");
+    for (var x = 0; x < s.length; x++) {
+      var code = s[x].getAttribute("data-lang-switch");
+      if (norm(code) === lang) s[x].classList.add("lang-active");
+      else s[x].classList.remove("lang-active");
+    }
+  }
+  function ensureSwitcher(currentLang) {
+    var header = document.querySelector("header") || document.querySelector(".header") || null;
+    var mount = header || document.body;
+    if (!mount) return;
+
+    if (mount.querySelector(".language-switcher")) return;
+
+    var wrap = document.createElement("div");
+    wrap.className = "language-switcher";
+    wrap.innerHTML =
+      '<a href="#" data-lang-switch="${lang1}">${lang1.toUpperCase()}</a><span>|</span><a href="#" data-lang-switch="${lang2}">${lang2.toUpperCase()}</a>';
+
+    // Try place into nav if exists
+    var nav = mount.querySelector("nav") || null;
+    (nav || mount).appendChild(wrap);
+
+    var links = wrap.querySelectorAll("[data-lang-switch]");
+    for (var i = 0; i < links.length; i++) {
+      links[i].addEventListener("click", function (e) {
+        e.preventDefault();
+        var next = norm(this.getAttribute("data-lang-switch"));
+        if (allowed.indexOf(next) === -1) return;
+        setSaved(next);
+        try {
+          var url = new URL(window.location.href);
+          url.searchParams.set("lang", next);
+          window.history.replaceState({}, "", url.toString());
+        } catch (_) {}
+        applyLang(next);
+      });
+    }
+    applyLang(currentLang);
+  }
+
+  var q = getFromQuery();
+  var saved = getSaved();
+  var lang = allowed.indexOf(q) !== -1 ? q : allowed.indexOf(saved) !== -1 ? saved : detectBrowserLang();
+  setSaved(lang);
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function () {
+      ensureSwitcher(lang);
+      applyLang(lang);
+    });
+  } else {
+    ensureSwitcher(lang);
+    applyLang(lang);
+  }
+})();
+`;
+
+  const out = [...files];
+  if (!hasTranslationsJs) out.push({ path: "i18n/translations.js", content: defaultTranslations });
+  if (!hasI18nJs) out.push({ path: "i18n/i18n.js", content: defaultI18n });
+
+  // Ensure styles for switcher exist
+  const cssPath = fileMap.has("styles.css") ? "styles.css" : fileMap.has("css/styles.css") ? "css/styles.css" : null;
+  const cssSnippet = `\n\n/* Bilingual language switcher */\n.language-switcher{display:inline-flex;gap:10px;align-items:center;justify-content:flex-end;margin-left:16px;font-size:14px}\n.language-switcher a{text-decoration:none;opacity:.8}\n.language-switcher a:hover{opacity:1;text-decoration:underline}\n.language-switcher .lang-active{font-weight:700;opacity:1;text-decoration:underline}\n`;
+  if (cssPath) {
+    const css = fileMap.get(cssPath) as { path: string; content: string };
+    if (!/\.language-switcher\b/.test(css.content)) {
+      const idx = out.findIndex((f) => f.path.toLowerCase() === cssPath);
+      if (idx >= 0) out[idx] = { ...out[idx], content: out[idx].content + cssSnippet };
+    }
+  }
+
+  // Ensure scripts are referenced in all HTML pages
+  return out.map((f) => {
+    if (!/\.html?$/i.test(f.path)) return f;
+    let c = f.content;
+    if (!/i18n\/translations\.js/i.test(c)) {
+      c = c.replace(/<\/body>/i, `  <script src="i18n/translations.js"></script>\n</body>`);
+    }
+    if (!/i18n\/i18n\.js/i.test(c)) {
+      c = c.replace(/<\/body>/i, `  <script src="i18n/i18n.js" defer></script>\n</body>`);
+    }
+    return c === f.content ? f : { ...f, content: c };
+  });
+}
 // ============ END PHONE NUMBER VALIDATION ============
 
 const SYSTEM_PROMPT = `You are a prompt refiner for professional, multi-page websites.
@@ -4906,6 +5102,7 @@ async function runGeneration({
   layoutStyle,
   imageSource = "basic",
   siteName,
+  bilingualLanguages,
 }: {
   prompt: string;
   language?: string;
@@ -4913,6 +5110,7 @@ async function runGeneration({
   layoutStyle?: string;
   imageSource?: "basic" | "ai";
   siteName?: string;
+  bilingualLanguages?: string[] | null;
 }): Promise<GenerationResult> {
   const isJunior = aiModel === "junior";
   console.log(`Using ${isJunior ? "Junior AI (OpenAI GPT-4o)" : "Senior AI (Lovable AI)"} for HTML generation`);
@@ -4954,7 +5152,7 @@ async function runGeneration({
           { role: "system", content: SYSTEM_PROMPT + (siteName ? `\n\nCRITICAL SITE NAME REQUIREMENT: The website/business/brand name MUST be "${siteName}". Use this EXACT name in the logo, header, footer, page titles, meta tags, copyright, and all references to the business. Do NOT invent a different name.` : "") },
           {
             role: "user",
-            content: `Create a detailed prompt for static HTML/CSS website generation based on this request:\n\n"${prompt}"${siteName ? `\n\nIMPORTANT: The website name/brand MUST be "${siteName}".` : ""}\n\nTARGET CONTENT LANGUAGE: ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language || "auto-detect from user's request, default to English"}`,
+            content: `Create a detailed prompt for static HTML/CSS website generation based on this request:\n\n"${prompt}"${siteName ? `\n\nIMPORTANT: The website name/brand MUST be "${siteName}".` : ""}\n\n${bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2 ? `BILINGUAL MODE: The website must support TWO languages (${bilingualLanguages[0]} and ${bilingualLanguages[1]}) using ONE set of HTML pages and a JS i18n layer. Do NOT generate duplicate pages per language. Generate i18n/translations.js + i18n/i18n.js and mark texts with data-i18n keys.` : `TARGET CONTENT LANGUAGE: ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language || "auto-detect from user's request, default to English"}`}`,
           },
         ],
       }),
@@ -5013,7 +5211,7 @@ async function runGeneration({
       },
       {
         role: "user",
-        content: `${HTML_GENERATION_PROMPT}\n\n${imageStrategy}\n\n${IMAGE_CSS}\n\n=== MANDATORY LAYOUT STRUCTURE (FOLLOW EXACTLY) ===\n${selectedLayout.description}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== TARGET WEBSITE LANGUAGE (CRITICAL - MUST FOLLOW EXACTLY) ===\nALL website content MUST be in: ${language === "uk" ? "UKRAINIAN language" : language === "en" ? "ENGLISH language" : language === "de" ? "GERMAN language" : language === "pl" ? "POLISH language" : language === "ru" ? "RUSSIAN language" : language === "fr" ? "FRENCH language" : language === "es" ? "SPANISH language" : language ? language.toUpperCase() + " language" : "ENGLISH language (default)"}\n\nThis includes: navigation, buttons, headings, paragraphs, footer, cookie banner, ALL text content. DO NOT MIX LANGUAGES.\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
+        content: `${HTML_GENERATION_PROMPT}\n\n${imageStrategy}\n\n${IMAGE_CSS}\n\n=== MANDATORY LAYOUT STRUCTURE (FOLLOW EXACTLY) ===\n${selectedLayout.description}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n${bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2 ? `=== BILINGUAL REQUIREMENTS (ONE HTML SET + JS) ===\n- Supported languages: ${bilingualLanguages[0]} and ${bilingualLanguages[1]}\n- Generate ONE set of pages: index.html, about.html, services.html, contact.html, etc. (NO suffixes, NO duplicated pages).\n- Add a visible language switcher in the header on every page (labels: ${bilingualLanguages[0].toUpperCase()} | ${bilingualLanguages[1].toUpperCase()}).\n- Implement i18n via JS (NOT separate pages):\n  * Create i18n/translations.js (window.__SITE_TRANSLATIONS__ = {<lang>: {...}})\n  * Create i18n/i18n.js that picks language by priority: ?lang=xx -> localStorage.siteLang -> browser language -> default lang1\n  * Mark all text with data-i18n keys (and data-i18n-placeholder/title/aria where needed) and have i18n.js replace them at runtime.\n- The site MUST be fully translated (no mixed languages).\n` : `=== TARGET WEBSITE LANGUAGE (CRITICAL - MUST FOLLOW EXACTLY) ===\nALL website content MUST be in: ${language === "uk" ? "UKRAINIAN language" : language === "en" ? "ENGLISH language" : language === "de" ? "GERMAN language" : language === "pl" ? "POLISH language" : language === "ru" ? "RUSSIAN language" : language === "fr" ? "FRENCH language" : language === "es" ? "SPANISH language" : language ? language.toUpperCase() + " language" : "ENGLISH language (default)"}\n\nThis includes: navigation, buttons, headings, paragraphs, footer, cookie banner, ALL text content. DO NOT MIX LANGUAGES.\n`}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
       },
     ],
   };
@@ -7506,6 +7704,7 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
   finalFiles = removeEmojisFromContent(finalFiles); // Remove emojis and instruction symbols
   finalFiles = validateHtmlContent(finalFiles); // Validate HTML content
   finalFiles = ensureMandatoryPages(finalFiles, language || "en");
+  finalFiles = ensureBilingualI18nInFiles(finalFiles, bilingualLanguages, siteName);
   console.log(`📁 Final files count (with all mandatory files): ${finalFiles.length}`);
 
   return {
@@ -7530,7 +7729,8 @@ async function runBackgroundGeneration(
   teamId: string | null = null,
   salePrice: number = 0,
   siteName?: string,
-  geo?: string
+  geo?: string,
+  bilingualLanguages?: string[] | null
 ) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -7545,7 +7745,7 @@ async function runBackgroundGeneration(
       .update({ status: "generating" })
       .eq("id", historyId);
 
-    const result = await runGeneration({ prompt, language, aiModel, layoutStyle, imageSource, siteName });
+    const result = await runGeneration({ prompt, language, aiModel, layoutStyle, imageSource, siteName, bilingualLanguages });
 
     if (result.success && result.files) {
       // Prefer explicit geo passed from client, fallback to extracting from prompt
@@ -7599,6 +7799,7 @@ async function runBackgroundGeneration(
        // CRITICAL: HTML generations MUST always include 200.html + 404.html.
        // Do this in background flow too (otherwise DB gets saved without these files).
        enforcedFiles = ensureMandatoryPages(enforcedFiles, language || "en");
+       enforcedFiles = ensureBilingualI18nInFiles(enforcedFiles, bilingualLanguages, desiredSiteName);
 
        // Ensure branding assets exist AND are linked in ALL html pages (including 200/404 added above)
        enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName);
@@ -7812,61 +8013,41 @@ serve(async (req) => {
       const lang1 = languageNames[bilingualLanguages[0]] || bilingualLanguages[0];
       const lang2 = languageNames[bilingualLanguages[1]] || bilingualLanguages[1];
       
-      promptForGeneration = `[BILINGUAL WEBSITE: ${lang1} + ${lang2}]
-CRITICAL BILINGUAL SITE REQUIREMENTS:
+       promptForGeneration = `[BILINGUAL WEBSITE: ${lang1} + ${lang2}]
+ CRITICAL BILINGUAL SITE REQUIREMENTS (ONE HTML SET + JS):
 
-This website MUST support TWO languages: ${lang1} and ${lang2}.
+ This website MUST support TWO languages: ${lang1} and ${lang2}.
 
-1. **FILE STRUCTURE FOR EACH LANGUAGE**:
-   - Create SEPARATE files for each language with language suffix:
-     * For ${lang1}: index.html, about.html, services.html, contact.html, etc.
-     * For ${lang2}: index-${bilingualLanguages[1]}.html, about-${bilingualLanguages[1]}.html, services-${bilingualLanguages[1]}.html, contact-${bilingualLanguages[1]}.html, etc.
-   - Example: if languages are English + German, create:
-     * index.html (English), about.html (English), contact.html (English)
-     * index-de.html (German), about-de.html (German), contact-de.html (German)
+ 1) FILE STRUCTURE (IMPORTANT):
+    - Generate ONE set of pages ONLY (NO duplicated pages per language):
+      index.html, about.html, services.html, contact.html, etc.
 
-2. **LANGUAGE SWITCHER - EXTREMELY IMPORTANT**:
-   - Add a PROMINENT language switcher in the header navigation on EVERY page
-   - The switcher must be clearly visible and styled nicely (button style, not hidden)
-   - Use language codes as labels: "${bilingualLanguages[0].toUpperCase()} | ${bilingualLanguages[1].toUpperCase()}" format
-   - The CURRENT language should be highlighted/active (bold, different color, or underlined)
-   - Clicking the OTHER language switches to that language version of the SAME page
-   - Example HTML for ${lang1} page:
-     <div class="language-switcher">
-       <a href="index.html" class="lang-active">${bilingualLanguages[0].toUpperCase()}</a>
-       <span>|</span>
-       <a href="index-${bilingualLanguages[1]}.html">${bilingualLanguages[1].toUpperCase()}</a>
-     </div>
-   - Example HTML for ${lang2} page:
-     <div class="language-switcher">
-       <a href="index.html">${bilingualLanguages[0].toUpperCase()}</a>
-       <span>|</span>
-       <a href="index-${bilingualLanguages[1]}.html" class="lang-active">${bilingualLanguages[1].toUpperCase()}</a>
-     </div>
-   - Style the switcher: .lang-active { font-weight: bold; color: primary-color; }
+ 2) I18N IMPLEMENTATION (REQUIRED):
+    - Create: i18n/translations.js
+      - Must set: window.__SITE_TRANSLATIONS__ = { "${bilingualLanguages[0]}": {...}, "${bilingualLanguages[1]}": {...} }
+    - Create: i18n/i18n.js
+      - Chooses language priority:
+        (a) URL param ?lang=xx
+        (b) localStorage.siteLang
+        (c) browser language (navigator.languages)
+        (d) fallback to first language (${bilingualLanguages[0]})
+      - Replaces texts at runtime by reading HTML attributes:
+        * data-i18n="some.key" (textContent)
+        * data-i18n-placeholder="some.key" (placeholder)
+        * data-i18n-title="some.key" (title)
+        * data-i18n-aria="some.key" (aria-label)
 
-3. **NAVIGATION LINKS**:
-   - ${lang1} pages: navigation links go to other ${lang1} pages (index.html, about.html, etc.)
-   - ${lang2} pages: navigation links go to other ${lang2} pages (index-${bilingualLanguages[1]}.html, about-${bilingualLanguages[1]}.html, etc.)
-   - Language switcher on each page links to the CORRESPONDING page in the other language
+ 3) LANGUAGE SWITCHER (EXTREMELY IMPORTANT):
+    - MUST be visible in the header on EVERY page.
+    - Labels must be: "${bilingualLanguages[0].toUpperCase()} | ${bilingualLanguages[1].toUpperCase()}".
+    - Clicking language switches without needing separate HTML files.
+    - Active language highlighted with .lang-active.
 
-4. **CONTENT TRANSLATION**:
-   - ALL content on ${lang1} pages must be in ${lang1}
-   - ALL content on ${lang2} pages must be in ${lang2}
-   - This includes: headings, paragraphs, buttons, form labels, footer, meta tags, alt texts
-   - Navigation menu labels must be translated (e.g., "Home" / "Inicio", "About" / "Über uns")
+ 4) STRICT TRANSLATION:
+    - The whole site must be fully translated in both languages via the i18n system.
+    - DO NOT mix languages in the same string.
 
-5. **DESIGN CONSISTENCY**:
-   - Both language versions MUST have identical design, layout, and styling
-   - Only the text content changes between languages
-
-6. **META TAGS**:
-   - Add hreflang tags to link language versions together
-   - Add lang attribute to html tag: <html lang="${bilingualLanguages[0]}"> for ${lang1} pages
-   - Example: <link rel="alternate" hreflang="${bilingualLanguages[0]}" href="index.html" />
-   - Example: <link rel="alternate" hreflang="${bilingualLanguages[1]}" href="index-${bilingualLanguages[1]}.html" />
-
-${promptForGeneration}`;
+ ${promptForGeneration}`;
       
       console.log(`🌐 Bilingual site generation: ${lang1} + ${lang2}`);
     } else if (language && language !== "auto") {
@@ -8103,7 +8284,20 @@ ${promptForGeneration}`;
     // Pass salePrice and teamId for potential refund on error
     // IMPORTANT: Use promptForGeneration which includes language and geo instructions
     EdgeRuntime.waitUntil(
-      runBackgroundGeneration(historyEntry.id, userId, promptForGeneration, language, aiModel, layoutStyle, imageSource, teamId, salePrice, siteName, geo)
+      runBackgroundGeneration(
+        historyEntry.id,
+        userId,
+        promptForGeneration,
+        language,
+        aiModel,
+        layoutStyle,
+        imageSource,
+        teamId,
+        salePrice,
+        siteName,
+        geo,
+        bilingualLanguages || null
+      )
     );
 
     // Return immediately with the history entry ID
