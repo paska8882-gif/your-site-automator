@@ -1635,6 +1635,31 @@ function enforceResponsiveImagesInFiles(
   });
 }
 
+function enforceUiUxBaselineInFiles(
+  files: Array<{ path: string; content: string }>
+): Array<{ path: string; content: string }> {
+  const STYLE_ID = "lovable-uix-baseline";
+
+  // Baseline UI/UX guardrails for generated HTML sites:
+  // - prevent accidental 100vh heroes on mobile
+  // - keep sections readable and not overly tall
+  // - eliminate horizontal overflow
+  const css = `\n<style id="${STYLE_ID}">\n  html { -webkit-text-size-adjust: 100%; }\n  body { overflow-x: hidden; }\n  img, video { max-width: 100%; }\n\n  /* HERO / BANNERS: clamp instead of full viewport */\n  .hero,\n  .page-hero,\n  .banner,\n  .masthead,\n  .cover,\n  .fullwidth {\n    min-height: clamp(420px, 70vh, 720px) !important;\n    max-height: none !important;\n  }\n\n  /* If generator produced 100vh directly, tame it */\n  [style*="height:100vh"],\n  [style*="height: 100vh"],\n  [style*="min-height:100vh"],\n  [style*="min-height: 100vh"] {\n    height: auto !important;\n    min-height: clamp(420px, 70vh, 720px) !important;\n  }\n\n  /* Sections: keep spacing balanced across devices */\n  section {\n    padding-block: clamp(56px, 7vw, 96px);\n  }\n\n  /* Containers: prevent accidental ultra-wide layouts */\n  .container {\n    width: min(1120px, 100% - 32px);\n    margin-inline: auto;\n  }\n\n  @media (max-width: 640px) {\n    .hero,\n    .page-hero,\n    .banner,\n    .masthead,\n    .cover,\n    .fullwidth {\n      min-height: clamp(360px, 62vh, 560px) !important;\n    }\n    section {\n      padding-block: clamp(44px, 9vw, 72px);\n    }\n  }\n</style>\n`;
+
+  return files.map((f) => {
+    if (!/\.(html?)$/i.test(f.path)) return f;
+    if (new RegExp(`id=["']${STYLE_ID}["']`, "i").test(f.content)) return f;
+
+    let content = f.content;
+    if (/<\/head>/i.test(content)) {
+      content = content.replace(/<\/head>/i, `${css}</head>`);
+    } else {
+      content = css + content;
+    }
+    return { ...f, content };
+  });
+}
+
 function ensureFaviconAndLogoInFiles(
   files: Array<{ path: string; content: string }>,
   siteNameRaw?: string
@@ -7015,6 +7040,7 @@ async function runBackgroundGeneration(
       }
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
+      enforcedFiles = enforceUiUxBaselineInFiles(enforcedFiles);
       enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName);
       
       // CRITICAL: Enforce business hours in footer
