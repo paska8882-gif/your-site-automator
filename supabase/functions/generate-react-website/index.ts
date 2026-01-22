@@ -350,7 +350,9 @@ function enforceResponsiveImagesInFiles(
   files: Array<{ path: string; content: string }>
 ): Array<{ path: string; content: string }> {
   const STYLE_ID = "lovable-responsive-images";
-  const css = `\n<style id="${STYLE_ID}">\n  img, svg, video { max-width: 100%; height: auto; }\n  img { display: block; }\n  figure { margin: 0; }\n</style>\n`;
+  // Prevent AI-generated pages from rendering "full height" banner images.
+  // We keep generic responsiveness AND add guardrails for hero/banner containers.
+  const css = `\n<style id="${STYLE_ID}">\n  img, svg, video { max-width: 100%; height: auto; }\n  img { display: block; }\n  figure { margin: 0; }\n\n  /* HERO/BANNER IMAGE GUARDRails */\n  .hero img,\n  .hero-media img,\n  .hero-image img,\n  .page-hero img,\n  .banner img,\n  .masthead img,\n  .cover img,\n  .header-image img,\n  .fullwidth img,\n  .media-visual img {\n    width: 100%;\n    height: clamp(240px, 45vh, 520px);\n    object-fit: cover;\n    object-position: center;\n  }\n</style>\n`;
 
   return files.map((f) => {
     if (!/\.(html?|php)$/i.test(f.path)) return f;
