@@ -515,6 +515,11 @@ export function WebsiteGenerator() {
   const [vipBannedWords, setVipBannedWords] = useState("");
   const [vipTopic, setVipTopic] = useState("");
   
+  // Bilingual site mode state (+$3 extra)
+  const [isBilingualMode, setIsBilingualMode] = useState(false);
+  const [bilingualLang1, setBilingualLang1] = useState("");
+  const [bilingualLang2, setBilingualLang2] = useState("");
+  
   const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 });
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [teamPricing, setTeamPricing] = useState<TeamPricing | null>(null);
@@ -1189,7 +1194,9 @@ export function WebsiteGenerator() {
   const aiModelCount = selectedAiModels.length || 1;
   const websiteTypeCount = selectedWebsiteTypes.length || 1;
   const imageSourceCount = selectedImageSources.length || 1;
-  const totalGenerations = siteNamesCount * allLanguages.length * sitesPerLanguage * styleCount * aiModelCount * websiteTypeCount * imageSourceCount;
+  // For bilingual mode, we generate 1 site (with 2 languages inside), not per-language
+  const effectiveLangCount = isBilingualMode ? 1 : allLanguages.length;
+  const totalGenerations = siteNamesCount * effectiveLangCount * sitesPerLanguage * styleCount * aiModelCount * websiteTypeCount * imageSourceCount;
 
   // Calculate total cost for current generation (consider all combinations)
   const calculateTotalCost = () => {
@@ -1197,15 +1204,19 @@ export function WebsiteGenerator() {
     const htmlPrice = teamPricing?.htmlPrice || 7;
     const reactPrice = teamPricing?.reactPrice || 9;
     const vipExtra = isVipMode ? (teamPricing?.vipExtraPrice || 2) : 0;
+    const bilingualExtra = isBilingualMode ? 3 : 0; // +$3 for bilingual sites
     
     const websiteTypesToUse = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes : ["html"];
     const imageSourcesToUse = selectedImageSources.length > 0 ? selectedImageSources : ["basic"];
     
+    // For bilingual mode, we generate 1 site per combination (not per language)
+    const langCount = isBilingualMode ? 1 : allLanguages.length;
+    
     for (const wt of websiteTypesToUse) {
       for (const is of imageSourcesToUse) {
         const basePrice = wt === "react" ? reactPrice : htmlPrice;
-        const pricePerSite = basePrice + (is === "ai" ? 2 : 0) + vipExtra;
-        const count = siteNamesCount * allLanguages.length * sitesPerLanguage * styleCount * aiModelCount;
+        const pricePerSite = basePrice + (is === "ai" ? 2 : 0) + vipExtra + bilingualExtra;
+        const count = siteNamesCount * langCount * sitesPerLanguage * styleCount * aiModelCount;
         total += count * pricePerSite;
       }
     }
@@ -1358,7 +1369,17 @@ export function WebsiteGenerator() {
       return;
     }
 
-    if (allLanguages.length === 0) {
+    // For bilingual mode, check both languages are selected; otherwise check regular languages
+    if (isBilingualMode) {
+      if (!bilingualLang1 || !bilingualLang2) {
+        toast({
+          title: t("common.error"),
+          description: t("genForm.selectTwoLanguages"),
+          variant: "destructive",
+        });
+        return;
+      }
+    } else if (allLanguages.length === 0) {
       toast({
         title: t("common.error"),
         description: t("genForm.selectAtLeastOneLanguage"),
@@ -1421,13 +1442,18 @@ export function WebsiteGenerator() {
     const promptSnapshot = prompt;
     const originalPromptSnapshot = originalPrompt;
     const improvedPromptSnapshot = improvedPromptValue;
-    const langsSnapshot = getAllSelectedLanguages();
+    // For bilingual mode, use the two selected languages
+    const langsSnapshot = isBilingualMode 
+      ? [`${bilingualLang1}+${bilingualLang2}`] // Pass as combined string for bilingual
+      : getAllSelectedLanguages();
+    const bilingualLanguagesSnapshot = isBilingualMode ? [bilingualLang1, bilingualLang2] : null;
     const siteNamesSnapshot = getAllSiteNames();
     const stylesSnapshot = allStyles.length > 0 ? allStyles : [undefined];
     const aiModelsSnapshot = selectedAiModels.length > 0 ? selectedAiModels : (["senior"] as AiModel[]);
     const websiteTypesSnapshot = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes : (["html"] as WebsiteType[]);
     const imageSourcesSnapshot = selectedImageSources.length > 0 ? selectedImageSources : (["basic"] as ImageSource[]);
     const vipPromptSnapshot = vipPromptValue;
+    const isBilingualSnapshot = isBilingualMode;
 
     // Clear only inputs that should be reset, keep selections (languages, styles, AI models, etc.)
     setSiteNames([]);
@@ -1447,10 +1473,11 @@ export function WebsiteGenerator() {
 
     try {
       // Create all generation requests in parallel
-      // Combinations: siteNames × languages × sitesPerLanguage × styles × aiModels × websiteTypes × imageSources
+      // For bilingual mode, we generate 1 site (with 2 languages), not separate sites per language
+      const effectiveLangCount = isBilingualSnapshot ? 1 : langsSnapshot.length;
       const totalCount =
         siteNamesSnapshot.length *
-        langsSnapshot.length *
+        effectiveLangCount *
         sitesPerLanguage *
         stylesSnapshot.length *
         aiModelsSnapshot.length *
@@ -1487,7 +1514,8 @@ export function WebsiteGenerator() {
           improvedPromptSnapshot || undefined,
           geoToUse,
           vipPromptSnapshot || undefined,
-          exactPhone || undefined
+          exactPhone || undefined,
+          bilingualLanguagesSnapshot || undefined // Pass bilingual languages if in bilingual mode
         );
         setGenerationProgress((prev) => ({ ...prev, completed: prev.completed + 1 }));
         return result;
@@ -2059,6 +2087,31 @@ export function WebsiteGenerator() {
                     VIP (+${teamPricing?.vipExtraPrice || 2})
                     {isVipMode && <span className="ml-1">✓</span>}
                   </Button>
+                  
+                  {/* Bilingual mode toggle */}
+                  <Button
+                    variant={isBilingualMode ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      setIsBilingualMode(!isBilingualMode);
+                      if (!isBilingualMode) {
+                        // When activating bilingual mode, clear regular language selection
+                        setSelectedLanguages([]);
+                        setIsOtherSelected(false);
+                        setCustomLanguage("");
+                      } else {
+                        // When deactivating, clear bilingual languages
+                        setBilingualLang1("");
+                        setBilingualLang2("");
+                      }
+                    }}
+                    disabled={isImproving || isGeneratingVip}
+                    className={`h-7 text-xs px-2 ${isBilingualMode ? "bg-blue-500 hover:bg-blue-600" : ""}`}
+                  >
+                    <Languages className={`mr-1 h-3 w-3`} />
+                    {t("genForm.bilingualMode")} (+$3)
+                    {isBilingualMode && <span className="ml-1">✓</span>}
+                  </Button>
                 </div>
                 
                 {/* Clear button */}
@@ -2085,6 +2138,60 @@ export function WebsiteGenerator() {
                   {t("genForm.clearPrompt")}
                 </Button>
               </div>
+
+              {/* Bilingual Mode - Two Language Selection */}
+              {isBilingualMode && (
+                <div className="p-3 border border-blue-500/50 bg-blue-500/5 rounded-lg space-y-3">
+                  <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                    <Languages className="h-4 w-4" />
+                    <span className="text-sm font-medium">{t("genForm.selectTwoLanguages")}</span>
+                    <Badge variant="outline" className="text-blue-600 border-blue-500/50">{t("genForm.bilingualExtra")}</Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* First Language */}
+                    <div className="space-y-1.5">
+                      <Label className={`text-xs flex items-center gap-1 ${!bilingualLang1 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                        {t("genForm.bilingualLanguage1")} <span className="text-destructive">*</span>
+                      </Label>
+                      <Select value={bilingualLang1} onValueChange={setBilingualLang1}>
+                        <SelectTrigger className={`h-9 ${!bilingualLang1 ? 'border-destructive/50' : ''}`}>
+                          <SelectValue placeholder={t("genForm.selectLanguages")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {languages.filter(l => l.value !== bilingualLang2).map(lang => (
+                            <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Second Language */}
+                    <div className="space-y-1.5">
+                      <Label className={`text-xs flex items-center gap-1 ${!bilingualLang2 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                        {t("genForm.bilingualLanguage2")} <span className="text-destructive">*</span>
+                      </Label>
+                      <Select value={bilingualLang2} onValueChange={setBilingualLang2}>
+                        <SelectTrigger className={`h-9 ${!bilingualLang2 ? 'border-destructive/50' : ''}`}>
+                          <SelectValue placeholder={t("genForm.selectLanguages")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {languages.filter(l => l.value !== bilingualLang1).map(lang => (
+                            <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  {bilingualLang1 && bilingualLang2 && (
+                    <div className="text-xs text-green-600 flex items-center gap-1">
+                      <Languages className="h-3 w-3" />
+                      {t("genForm.bilingualReady")}: {languages.find(l => l.value === bilingualLang1)?.label} + {languages.find(l => l.value === bilingualLang2)?.label}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* VIP Mode - Language & Geo REQUIRED (shown above VIP fields for better UX) */}
               {isVipMode && (
