@@ -686,7 +686,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
     setIsLoading(false);
   };
 
-  // Check for stale generations (older than 30 minutes) and mark them as failed with refund
+  // Check for stale generations (older than 20 minutes) and mark them as failed with refund
   // NOTE: best-effort; must not spam backend when unhealthy.
   const staleCheckStateRef = useRef({
     failureCount: 0,
