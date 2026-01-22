@@ -1505,77 +1505,174 @@ function ensureCookiePolicyAndBanner(
     /cookies?\.(?:html?|php)$/i.test(f.path)
   );
   
-  // Determine text based on language
+  // Determine text based on language (Cookie Settings modal)
   const langLower = (language || 'en').toLowerCase();
-  let cookiePolicyText = 'Cookie Policy';
-  let cookieBannerText = 'We use cookies to enhance your experience. By continuing to visit this site you agree to our use of cookies.';
-  let acceptButtonText = 'Accept';
-  let learnMoreText = 'Learn more';
+
+  const cookieTexts: Record<string, {
+    cookiePolicyText: string;
+    cookieBannerText: string;
+    acceptAllText: string;
+    settingsText: string;
+    saveSettingsText: string;
+    declineAllText: string;
+    learnMoreText: string;
+    cookieSettingsTitle: string;
+    cookieSettingsDesc: string;
+    necessaryTitle: string;
+    necessaryDesc: string;
+    analyticsTitle: string;
+    analyticsDesc: string;
+    marketingTitle: string;
+    marketingDesc: string;
+    alwaysActive: string;
+  }> = {
+    en: {
+      cookiePolicyText: 'Cookie Policy',
+      cookieBannerText: 'We use cookies to enhance your experience. You can customize your preferences below.',
+      acceptAllText: 'Accept All',
+      settingsText: 'Cookie Settings',
+      saveSettingsText: 'Save Settings',
+      declineAllText: 'Decline All',
+      learnMoreText: 'Learn more',
+      cookieSettingsTitle: 'Cookie Settings',
+      cookieSettingsDesc: 'Configure the types of cookies you allow on our site. Necessary cookies are required for the site to function.',
+      necessaryTitle: 'Necessary Cookies',
+      necessaryDesc: 'Provide basic site functionality. The site cannot function properly without these cookies.',
+      analyticsTitle: 'Analytics Cookies',
+      analyticsDesc: 'Help us understand how visitors interact with the site by collecting anonymous information.',
+      marketingTitle: 'Marketing Cookies',
+      marketingDesc: 'Used to track visitors across websites to display relevant advertisements.',
+      alwaysActive: 'Always active'
+    },
+    uk: {
+      cookiePolicyText: 'Політика Cookie',
+      cookieBannerText: 'Ми використовуємо файли cookie для покращення вашого досвіду. Ви можете налаштувати свої вподобання.',
+      acceptAllText: 'Прийняти всі',
+      settingsText: 'Налаштування cookie',
+      saveSettingsText: 'Зберегти налаштування',
+      declineAllText: 'Відхилити всі',
+      learnMoreText: 'Дізнатися більше',
+      cookieSettingsTitle: 'Налаштування cookie',
+      cookieSettingsDesc: 'Налаштуйте типи cookie-файлів, які ви дозволяєте використовувати на нашому сайті. Обов\'язкові cookie необхідні для функціонування сайту.',
+      necessaryTitle: 'Необхідні cookie',
+      necessaryDesc: 'Забезпечують базову функціональність сайту. Сайт не може нормально працювати без цих файлів.',
+      analyticsTitle: 'Аналітичні cookie',
+      analyticsDesc: 'Допомагають нам зрозуміти, як відвідувачі взаємодіють із сайтом, збираючи анонімну інформацію.',
+      marketingTitle: 'Маркетингові cookie',
+      marketingDesc: 'Використовуються для відстеження відвідувачів на веб-сайтах з метою відображення релевантної реклами.',
+      alwaysActive: 'Завжди активні'
+    },
+    ru: {
+      cookiePolicyText: 'Политика Cookie',
+      cookieBannerText: 'Мы используем файлы cookie для улучшения вашего опыта. Вы можете настроить свои предпочтения.',
+      acceptAllText: 'Принять все',
+      settingsText: 'Настройки cookie',
+      saveSettingsText: 'Сохранить настройки',
+      declineAllText: 'Отклонить все',
+      learnMoreText: 'Узнать больше',
+      cookieSettingsTitle: 'Настройки cookie',
+      cookieSettingsDesc: 'Настройте типы cookie-файлов, которые вы разрешаете использовать на нашем сайте. Обязательные cookie необходимы для функционирования сайта.',
+      necessaryTitle: 'Необходимые cookie',
+      necessaryDesc: 'Обеспечивают базовую функциональность сайта. Сайт не может нормально работать без этих файлов.',
+      analyticsTitle: 'Аналитические cookie',
+      analyticsDesc: 'Помогают нам понять, как посетители взаимодействуют с сайтом, собирая анонимную информацию.',
+      marketingTitle: 'Маркетинговые cookie',
+      marketingDesc: 'Используются для отслеживания посетителей на веб-сайтах с целью отображения релевантной рекламы.',
+      alwaysActive: 'Всегда активны'
+    }
+  };
+
+  let detectedLang = 'en';
+  if (langLower.includes('uk')) detectedLang = 'uk';
+  else if (langLower.includes('ru')) detectedLang = 'ru';
+
+  const t = cookieTexts[detectedLang] || cookieTexts.en;
   
-  if (langLower.includes('de')) {
-    cookiePolicyText = 'Cookie-Richtlinie';
-    cookieBannerText = 'Wir verwenden Cookies, um Ihre Erfahrung zu verbessern. Durch die weitere Nutzung dieser Website stimmen Sie der Verwendung von Cookies zu.';
-    acceptButtonText = 'Akzeptieren';
-    learnMoreText = 'Mehr erfahren';
-  } else if (langLower.includes('pl')) {
-    cookiePolicyText = 'Polityka Cookies';
-    cookieBannerText = 'Używamy plików cookie, aby poprawić Twoje doświadczenia. Kontynuując wizytę na tej stronie, zgadzasz się na używanie plików cookie.';
-    acceptButtonText = 'Akceptuję';
-    learnMoreText = 'Dowiedz się więcej';
-  } else if (langLower.includes('uk')) {
-    cookiePolicyText = 'Політика Cookie';
-    cookieBannerText = 'Ми використовуємо файли cookie для покращення вашого досвіду. Продовжуючи відвідувати цей сайт, ви погоджуєтесь на використання cookie.';
-    acceptButtonText = 'Прийняти';
-    learnMoreText = 'Дізнатися більше';
-  } else if (langLower.includes('ru')) {
-    cookiePolicyText = 'Политика Cookie';
-    cookieBannerText = 'Мы используем файлы cookie для улучшения вашего опыта. Продолжая посещать этот сайт, вы соглашаетесь на использование cookie.';
-    acceptButtonText = 'Принять';
-    learnMoreText = 'Узнать больше';
-  } else if (langLower.includes('fr')) {
-    cookiePolicyText = 'Politique de Cookies';
-    cookieBannerText = 'Nous utilisons des cookies pour améliorer votre expérience. En continuant à visiter ce site, vous acceptez l\'utilisation de cookies.';
-    acceptButtonText = 'Accepter';
-    learnMoreText = 'En savoir plus';
-  } else if (langLower.includes('es')) {
-    cookiePolicyText = 'Política de Cookies';
-    cookieBannerText = 'Utilizamos cookies para mejorar su experiencia. Al continuar visitando este sitio, acepta el uso de cookies.';
-    acceptButtonText = 'Aceptar';
-    learnMoreText = 'Saber más';
-  } else if (langLower.includes('it')) {
-    cookiePolicyText = 'Politica dei Cookie';
-    cookieBannerText = 'Utilizziamo i cookie per migliorare la tua esperienza. Continuando a visitare questo sito, accetti l\'uso dei cookie.';
-    acceptButtonText = 'Accetta';
-    learnMoreText = 'Scopri di più';
-  } else if (langLower.includes('ro')) {
-    cookiePolicyText = 'Politica Cookie';
-    cookieBannerText = 'Folosim cookie-uri pentru a vă îmbunătăți experiența. Continuând să vizitați acest site, sunteți de acord cu utilizarea cookie-urilor.';
-    acceptButtonText = 'Accept';
-    learnMoreText = 'Află mai multe';
-  } else if (langLower.includes('nl')) {
-    cookiePolicyText = 'Cookiebeleid';
-    cookieBannerText = 'Wij gebruiken cookies om uw ervaring te verbeteren. Door deze site te blijven bezoeken, gaat u akkoord met het gebruik van cookies.';
-    acceptButtonText = 'Accepteren';
-    learnMoreText = 'Meer informatie';
-  } else if (langLower.includes('pt')) {
-    cookiePolicyText = 'Política de Cookies';
-    cookieBannerText = 'Usamos cookies para melhorar sua experiência. Ao continuar visitando este site, você concorda com o uso de cookies.';
-    acceptButtonText = 'Aceitar';
-    learnMoreText = 'Saiba mais';
-  }
+  // NOTE: for PHP generator we only guarantee EN/UK/RU cookie settings strings here.
   
   const cookiePolicyPath = cookiePolicyFile?.path.replace(/^\.?\//, '') || 'cookie-policy.php';
   
-  // Cookie banner HTML with JS for accept/dismiss functionality
+  // Cookie banner HTML with settings modal
   const COOKIE_BANNER_ID = 'lovable-cookie-banner';
+  const COOKIE_MODAL_ID = 'lovable-cookie-modal';
   const cookieBannerHtml = `
-<!-- Cookie Banner -->
-<div id="${COOKIE_BANNER_ID}" style="position: fixed; bottom: 0; left: 0; right: 0; background: #1a1a1a; color: #fff; padding: 16px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px; z-index: 9999; box-shadow: 0 -2px 10px rgba(0,0,0,0.2); font-size: 14px;">
-  <p style="margin: 0; flex: 1; min-width: 200px;">${cookieBannerText} <a href="${cookiePolicyPath}" style="color: #4da6ff; text-decoration: underline;">${learnMoreText}</a></p>
-  <button onclick="document.getElementById('${COOKIE_BANNER_ID}').style.display='none'; localStorage.setItem('cookiesAccepted', 'true');" style="background: #4da6ff; color: #fff; border: none; padding: 10px 24px; border-radius: 4px; cursor: pointer; font-weight: 600; white-space: nowrap;">${acceptButtonText}</button>
+<!-- Cookie Banner with Settings -->
+<style>
+#cookie-banner,.cookie-banner,#gdpr-cookie-banner,.gdpr-cookie-banner,.cookie-consent,.cookie-consent-banner{display:none!important}
+#${COOKIE_BANNER_ID}{position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;color:#fff;padding:16px 24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;z-index:9999;box-shadow:0 -2px 10px rgba(0,0,0,0.3);font-size:14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+#${COOKIE_BANNER_ID} p{margin:0;flex:1;min-width:200px}
+#${COOKIE_BANNER_ID} a{color:#4da6ff;text-decoration:underline}
+#${COOKIE_BANNER_ID} .cookie-btn{border:none;padding:10px 20px;border-radius:4px;cursor:pointer;font-weight:600;font-size:14px;transition:opacity 0.2s}
+#${COOKIE_BANNER_ID} .cookie-btn-primary{background:#4da6ff;color:#fff}
+#${COOKIE_BANNER_ID} .cookie-btn-secondary{background:transparent;color:#4da6ff;border:1px solid #4da6ff}
+#${COOKIE_BANNER_ID} .cookie-btn:hover{opacity:0.9}
+#${COOKIE_MODAL_ID}{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+#${COOKIE_MODAL_ID}.show{display:flex}
+#${COOKIE_MODAL_ID} .modal-content{background:#fff;border-radius:12px;max-width:500px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+#${COOKIE_MODAL_ID} .modal-header{padding:20px 24px;border-bottom:1px solid #e5e5e5}
+#${COOKIE_MODAL_ID} .modal-header h3{margin:0 0 8px 0;font-size:20px;color:#1a1a1a}
+#${COOKIE_MODAL_ID} .modal-header p{margin:0;color:#666;font-size:14px;line-height:1.5}
+#${COOKIE_MODAL_ID} .modal-body{padding:0}
+#${COOKIE_MODAL_ID} .cookie-option{padding:20px 24px;border-bottom:1px solid #f0f0f0}
+#${COOKIE_MODAL_ID} .cookie-option:last-child{border-bottom:none}
+#${COOKIE_MODAL_ID} .cookie-option-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+#${COOKIE_MODAL_ID} .cookie-option-title{font-weight:600;color:#1a1a1a;font-size:15px}
+#${COOKIE_MODAL_ID} .cookie-option-desc{color:#666;font-size:13px;line-height:1.5}
+#${COOKIE_MODAL_ID} .cookie-toggle{position:relative;width:44px;height:24px}
+#${COOKIE_MODAL_ID} .cookie-toggle input{opacity:0;width:0;height:0}
+#${COOKIE_MODAL_ID} .cookie-toggle .slider{position:absolute;inset:0;background:#ccc;border-radius:24px;cursor:pointer;transition:0.3s}
+#${COOKIE_MODAL_ID} .cookie-toggle .slider:before{content:'';position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:0.3s}
+#${COOKIE_MODAL_ID} .cookie-toggle input:checked+.slider{background:#4da6ff}
+#${COOKIE_MODAL_ID} .cookie-toggle input:checked+.slider:before{transform:translateX(20px)}
+#${COOKIE_MODAL_ID} .always-active{color:#4da6ff;font-size:13px;font-weight:500}
+#${COOKIE_MODAL_ID} .modal-footer{padding:16px 24px;border-top:1px solid #e5e5e5;display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap}
+#${COOKIE_MODAL_ID} .modal-footer .cookie-btn{padding:12px 24px}
+@media(max-width:480px){#${COOKIE_BANNER_ID}{flex-direction:column;text-align:center}#${COOKIE_MODAL_ID} .modal-footer{justify-content:center}}
+</style>
+<div id="${COOKIE_BANNER_ID}">
+  <p>${t.cookieBannerText} <a href="${cookiePolicyPath}">${t.learnMoreText}</a></p>
+  <button class="cookie-btn cookie-btn-secondary" onclick="document.getElementById('${COOKIE_MODAL_ID}').classList.add('show')">${t.settingsText}</button>
+  <button class="cookie-btn cookie-btn-primary" onclick="acceptAllCookies()">${t.acceptAllText}</button>
+</div>
+<div id="${COOKIE_MODAL_ID}">
+  <div class="modal-content">
+    <div class="modal-header"><h3>${t.cookieSettingsTitle}</h3><p>${t.cookieSettingsDesc}</p></div>
+    <div class="modal-body">
+      <div class="cookie-option"><div class="cookie-option-header"><span class="cookie-option-title">${t.necessaryTitle}</span><span class="always-active">${t.alwaysActive}</span></div><p class="cookie-option-desc">${t.necessaryDesc}</p></div>
+      <div class="cookie-option"><div class="cookie-option-header"><span class="cookie-option-title">${t.analyticsTitle}</span><label class="cookie-toggle"><input type="checkbox" id="cookie-analytics"><span class="slider"></span></label></div><p class="cookie-option-desc">${t.analyticsDesc}</p></div>
+      <div class="cookie-option"><div class="cookie-option-header"><span class="cookie-option-title">${t.marketingTitle}</span><label class="cookie-toggle"><input type="checkbox" id="cookie-marketing"><span class="slider"></span></label></div><p class="cookie-option-desc">${t.marketingDesc}</p></div>
+    </div>
+    <div class="modal-footer">
+      <button class="cookie-btn cookie-btn-secondary" onclick="declineAllCookies()">${t.declineAllText}</button>
+      <button class="cookie-btn cookie-btn-primary" onclick="saveCookieSettings()">${t.saveSettingsText}</button>
+    </div>
+  </div>
 </div>
 <script>
-if(localStorage.getItem('cookiesAccepted')==='true'){document.getElementById('${COOKIE_BANNER_ID}').style.display='none';}
+(function(){
+  var prefs=JSON.parse(localStorage.getItem('cookiePreferences')||'null');
+  if(prefs){document.getElementById('${COOKIE_BANNER_ID}').style.display='none';}
+  if(prefs){
+    var a=document.getElementById('cookie-analytics');
+    var m=document.getElementById('cookie-marketing');
+    if(a)a.checked=!!prefs.analytics;
+    if(m)m.checked=!!prefs.marketing;
+  }
+})();
+function saveCookiePrefs(a,m){
+  var prefs={necessary:true,analytics:!!a,marketing:!!m,savedAt:new Date().toISOString()};
+  localStorage.setItem('cookiePreferences',JSON.stringify(prefs));
+  document.getElementById('${COOKIE_BANNER_ID}').style.display='none';
+  document.getElementById('${COOKIE_MODAL_ID}').classList.remove('show');
+}
+function acceptAllCookies(){saveCookiePrefs(true,true);}
+function declineAllCookies(){saveCookiePrefs(false,false);}
+function saveCookieSettings(){
+  var a=document.getElementById('cookie-analytics');
+  var m=document.getElementById('cookie-marketing');
+  saveCookiePrefs(a&&a.checked,m&&m.checked);
+}
+document.getElementById('${COOKIE_MODAL_ID}').addEventListener('click',function(e){if(e.target===this)this.classList.remove('show');});
 </script>
 <!-- End Cookie Banner -->
 `;
@@ -1592,15 +1689,14 @@ if(localStorage.getItem('cookiesAccepted')==='true'){document.getElementById('${
     let content = f.content;
     let modified = false;
     
-    // Check if cookie banner already exists
-    const hasCookieBanner = 
+    // If the page has any cookie banner but not OUR settings modal, upgrade it.
+    const hasOurCookieSettings =
+      content.includes(COOKIE_MODAL_ID) ||
       content.includes(COOKIE_BANNER_ID) ||
-      /cookie[-_]?(?:banner|consent|notice|popup)/i.test(content) ||
-      /gdpr[-_]?(?:banner|consent|notice)/i.test(content);
-    
-    // Inject cookie banner if missing
-    if (!hasCookieBanner) {
-      warnings.push(`${f.path}: Added missing cookie banner`);
+      /cookiePreferences/i.test(content);
+
+    if (!hasOurCookieSettings) {
+      warnings.push(`${f.path}: Added/updated cookie settings (necessary/analytics/marketing)`);
       
       if (/<\/body>/i.test(content)) {
         content = content.replace(/<\/body>/i, `${cookieBannerHtml}\n</body>`);
@@ -1623,7 +1719,7 @@ if(localStorage.getItem('cookiesAccepted')==='true'){document.getElementById('${
         if (!hasCookieLink) {
           warnings.push(`${f.path}: Added missing Cookie Policy link to footer`);
           
-          const cookieLinkHtml = `<a href="${cookiePolicyPath}" class="footer-legal-link">${cookiePolicyText}</a>`;
+          const cookieLinkHtml = `<a href="${cookiePolicyPath}" class="footer-legal-link">${t.cookiePolicyText}</a>`;
           
           if (/<footer[\s\S]*?<(nav|ul)\b[\s\S]*?<\/\1>/i.test(content)) {
             content = content.replace(

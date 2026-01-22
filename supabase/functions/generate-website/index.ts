@@ -1190,6 +1190,7 @@ function ensureCookiePolicyAndBanner(
   const cookieBannerHtml = `
 <!-- Cookie Banner with Settings -->
 <style>
+#cookie-banner,.cookie-banner,#gdpr-cookie-banner,.gdpr-cookie-banner,.cookie-consent,.cookie-consent-banner{display:none!important}
 #${COOKIE_BANNER_ID}{position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;color:#fff;padding:16px 24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;z-index:9999;box-shadow:0 -2px 10px rgba(0,0,0,0.3);font-size:14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
 #${COOKIE_BANNER_ID} p{margin:0;flex:1;min-width:200px}
 #${COOKIE_BANNER_ID} a{color:#4da6ff;text-decoration:underline}
@@ -1308,15 +1309,20 @@ document.getElementById('${COOKIE_MODAL_ID}').addEventListener('click',function(
     let content = f.content;
     let modified = false;
     
-    // Check if cookie banner already exists
-    const hasCookieBanner = 
+    // If the page has any cookie banner but not OUR settings modal, upgrade it.
+    const hasOurCookieSettings =
+      content.includes(COOKIE_MODAL_ID) ||
       content.includes(COOKIE_BANNER_ID) ||
+      /cookiePreferences/i.test(content);
+
+    const hasAnyCookieBanner =
       /cookie[-_]?(?:banner|consent|notice|popup)/i.test(content) ||
-      /gdpr[-_]?(?:banner|consent|notice)/i.test(content);
-    
-    // Inject cookie banner if missing
-    if (!hasCookieBanner) {
-      warnings.push(`${f.path}: Added missing cookie banner`);
+      /gdpr[-_]?(?:banner|consent|notice)/i.test(content) ||
+      /id=["']cookie-banner["']/i.test(content) ||
+      /class=["'][^"']*cookie-banner/i.test(content);
+
+    if (!hasOurCookieSettings) {
+      warnings.push(`${f.path}: Added/updated cookie settings (necessary/analytics/marketing)`);
       
       if (/<\/body>/i.test(content)) {
         content = content.replace(/<\/body>/i, `${cookieBannerHtml}\n</body>`);
