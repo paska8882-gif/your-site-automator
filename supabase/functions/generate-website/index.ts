@@ -944,80 +944,363 @@ function ensureCookiePolicyAndBanner(
     /cookies?\.html?$/i.test(f.path)
   );
   
-  // Determine text based on language
+  // Determine text based on language - EXTENDED for cookie settings modal
   const langLower = (language || 'en').toLowerCase();
-  let cookiePolicyText = 'Cookie Policy';
-  let cookieBannerText = 'We use cookies to enhance your experience. By continuing to visit this site you agree to our use of cookies.';
-  let acceptButtonText = 'Accept';
-  let learnMoreText = 'Learn more';
   
-  if (langLower.includes('de')) {
-    cookiePolicyText = 'Cookie-Richtlinie';
-    cookieBannerText = 'Wir verwenden Cookies, um Ihre Erfahrung zu verbessern. Durch die weitere Nutzung dieser Website stimmen Sie der Verwendung von Cookies zu.';
-    acceptButtonText = 'Akzeptieren';
-    learnMoreText = 'Mehr erfahren';
-  } else if (langLower.includes('pl')) {
-    cookiePolicyText = 'Polityka Cookies';
-    cookieBannerText = 'Używamy plików cookie, aby poprawić Twoje doświadczenia. Kontynuując wizytę na tej stronie, zgadzasz się na używanie plików cookie.';
-    acceptButtonText = 'Akceptuję';
-    learnMoreText = 'Dowiedz się więcej';
-  } else if (langLower.includes('uk')) {
-    cookiePolicyText = 'Політика Cookie';
-    cookieBannerText = 'Ми використовуємо файли cookie для покращення вашого досвіду. Продовжуючи відвідувати цей сайт, ви погоджуєтесь на використання cookie.';
-    acceptButtonText = 'Прийняти';
-    learnMoreText = 'Дізнатися більше';
-  } else if (langLower.includes('ru')) {
-    cookiePolicyText = 'Политика Cookie';
-    cookieBannerText = 'Мы используем файлы cookie для улучшения вашего опыта. Продолжая посещать этот сайт, вы соглашаетесь на использование cookie.';
-    acceptButtonText = 'Принять';
-    learnMoreText = 'Узнать больше';
-  } else if (langLower.includes('fr')) {
-    cookiePolicyText = 'Politique de Cookies';
-    cookieBannerText = 'Nous utilisons des cookies pour améliorer votre expérience. En continuant à visiter ce site, vous acceptez l\'utilisation de cookies.';
-    acceptButtonText = 'Accepter';
-    learnMoreText = 'En savoir plus';
-  } else if (langLower.includes('es')) {
-    cookiePolicyText = 'Política de Cookies';
-    cookieBannerText = 'Utilizamos cookies para mejorar su experiencia. Al continuar visitando este sitio, acepta el uso de cookies.';
-    acceptButtonText = 'Aceptar';
-    learnMoreText = 'Saber más';
-  } else if (langLower.includes('it')) {
-    cookiePolicyText = 'Politica dei Cookie';
-    cookieBannerText = 'Utilizziamo i cookie per migliorare la tua esperienza. Continuando a visitare questo sito, accetti l\'uso dei cookie.';
-    acceptButtonText = 'Accetta';
-    learnMoreText = 'Scopri di più';
-  } else if (langLower.includes('ro')) {
-    cookiePolicyText = 'Politica Cookie';
-    cookieBannerText = 'Folosim cookie-uri pentru a vă îmbunătăți experiența. Continuând să vizitați acest site, sunteți de acord cu utilizarea cookie-urilor.';
-    acceptButtonText = 'Accept';
-    learnMoreText = 'Află mai multe';
-  } else if (langLower.includes('nl')) {
-    cookiePolicyText = 'Cookiebeleid';
-    cookieBannerText = 'Wij gebruiken cookies om uw ervaring te verbeteren. Door deze site te blijven bezoeken, gaat u akkoord met het gebruik van cookies.';
-    acceptButtonText = 'Accepteren';
-    learnMoreText = 'Meer informatie';
-  } else if (langLower.includes('pt')) {
-    cookiePolicyText = 'Política de Cookies';
-    cookieBannerText = 'Usamos cookies para melhorar sua experiência. Ao continuar visitando este site, você concorda com o uso de cookies.';
-    acceptButtonText = 'Aceitar';
-    learnMoreText = 'Saiba mais';
-  }
+  // Cookie texts object for all languages
+  const cookieTexts: { [key: string]: {
+    cookiePolicyText: string;
+    cookieBannerText: string;
+    acceptAllText: string;
+    settingsText: string;
+    saveSettingsText: string;
+    declineAllText: string;
+    learnMoreText: string;
+    cookieSettingsTitle: string;
+    cookieSettingsDesc: string;
+    necessaryTitle: string;
+    necessaryDesc: string;
+    analyticsTitle: string;
+    analyticsDesc: string;
+    marketingTitle: string;
+    marketingDesc: string;
+    alwaysActive: string;
+  }} = {
+    en: {
+      cookiePolicyText: 'Cookie Policy',
+      cookieBannerText: 'We use cookies to enhance your experience. You can customize your preferences below.',
+      acceptAllText: 'Accept All',
+      settingsText: 'Cookie Settings',
+      saveSettingsText: 'Save Settings',
+      declineAllText: 'Decline All',
+      learnMoreText: 'Learn more',
+      cookieSettingsTitle: 'Cookie Settings',
+      cookieSettingsDesc: 'Configure the types of cookies you allow on our site. Necessary cookies are required for the site to function.',
+      necessaryTitle: 'Necessary Cookies',
+      necessaryDesc: 'Provide basic site functionality. The site cannot function properly without these cookies.',
+      analyticsTitle: 'Analytics Cookies',
+      analyticsDesc: 'Help us understand how visitors interact with the site by collecting anonymous information.',
+      marketingTitle: 'Marketing Cookies',
+      marketingDesc: 'Used to track visitors across websites to display relevant advertisements.',
+      alwaysActive: 'Always active'
+    },
+    de: {
+      cookiePolicyText: 'Cookie-Richtlinie',
+      cookieBannerText: 'Wir verwenden Cookies, um Ihre Erfahrung zu verbessern. Sie können Ihre Einstellungen anpassen.',
+      acceptAllText: 'Alle akzeptieren',
+      settingsText: 'Cookie-Einstellungen',
+      saveSettingsText: 'Einstellungen speichern',
+      declineAllText: 'Alle ablehnen',
+      learnMoreText: 'Mehr erfahren',
+      cookieSettingsTitle: 'Cookie-Einstellungen',
+      cookieSettingsDesc: 'Konfigurieren Sie die Arten von Cookies, die Sie auf unserer Website zulassen. Notwendige Cookies sind für die Funktion der Website erforderlich.',
+      necessaryTitle: 'Notwendige Cookies',
+      necessaryDesc: 'Ermöglichen grundlegende Website-Funktionen. Die Website kann ohne diese Cookies nicht ordnungsgemäß funktionieren.',
+      analyticsTitle: 'Analyse-Cookies',
+      analyticsDesc: 'Helfen uns zu verstehen, wie Besucher mit der Website interagieren, indem sie anonyme Informationen sammeln.',
+      marketingTitle: 'Marketing-Cookies',
+      marketingDesc: 'Werden verwendet, um Besucher auf Websites zu verfolgen und relevante Werbung anzuzeigen.',
+      alwaysActive: 'Immer aktiv'
+    },
+    pl: {
+      cookiePolicyText: 'Polityka Cookies',
+      cookieBannerText: 'Używamy plików cookie, aby poprawić Twoje doświadczenia. Możesz dostosować swoje preferencje.',
+      acceptAllText: 'Akceptuj wszystkie',
+      settingsText: 'Ustawienia cookie',
+      saveSettingsText: 'Zapisz ustawienia',
+      declineAllText: 'Odrzuć wszystkie',
+      learnMoreText: 'Dowiedz się więcej',
+      cookieSettingsTitle: 'Ustawienia cookie',
+      cookieSettingsDesc: 'Skonfiguruj rodzaje plików cookie, które zezwalasz na naszej stronie. Niezbędne pliki cookie są wymagane do funkcjonowania strony.',
+      necessaryTitle: 'Niezbędne cookie',
+      necessaryDesc: 'Zapewniają podstawową funkcjonalność strony. Strona nie może działać poprawnie bez tych plików.',
+      analyticsTitle: 'Analityczne cookie',
+      analyticsDesc: 'Pomagają nam zrozumieć, jak odwiedzający wchodzą w interakcję ze stroną, zbierając anonimowe informacje.',
+      marketingTitle: 'Marketingowe cookie',
+      marketingDesc: 'Używane do śledzenia odwiedzających na stronach w celu wyświetlania odpowiednich reklam.',
+      alwaysActive: 'Zawsze aktywne'
+    },
+    uk: {
+      cookiePolicyText: 'Політика Cookie',
+      cookieBannerText: 'Ми використовуємо файли cookie для покращення вашого досвіду. Ви можете налаштувати свої вподобання.',
+      acceptAllText: 'Прийняти всі',
+      settingsText: 'Налаштування cookie',
+      saveSettingsText: 'Зберегти налаштування',
+      declineAllText: 'Відхилити всі',
+      learnMoreText: 'Дізнатися більше',
+      cookieSettingsTitle: 'Налаштування cookie',
+      cookieSettingsDesc: 'Налаштуйте типи файлів cookie, які ви дозволяєте на нашому сайті. Необхідні cookie потрібні для функціонування сайту.',
+      necessaryTitle: 'Необхідні cookie',
+      necessaryDesc: 'Забезпечують базову функціональність сайту. Сайт не може нормально працювати без цих файлів.',
+      analyticsTitle: 'Аналітичні cookie',
+      analyticsDesc: 'Допомагають нам зрозуміти, як відвідувачі взаємодіють із сайтом, збираючи анонімну інформацію.',
+      marketingTitle: 'Маркетингові cookie',
+      marketingDesc: 'Використовуються для відстеження відвідувачів на веб-сайтах з метою відображення релевантної реклами.',
+      alwaysActive: 'Завжди активні'
+    },
+    ru: {
+      cookiePolicyText: 'Политика Cookie',
+      cookieBannerText: 'Мы используем файлы cookie для улучшения вашего опыта. Вы можете настроить свои предпочтения.',
+      acceptAllText: 'Принять все',
+      settingsText: 'Настройки cookie',
+      saveSettingsText: 'Сохранить настройки',
+      declineAllText: 'Отклонить все',
+      learnMoreText: 'Узнать больше',
+      cookieSettingsTitle: 'Настройки cookie',
+      cookieSettingsDesc: 'Настройте типы cookie-файлов, которые вы разрешаете использовать на нашем сайте. Обязательные cookie необходимы для функционирования сайта.',
+      necessaryTitle: 'Необходимые cookie',
+      necessaryDesc: 'Обеспечивают базовую функциональность сайта. Сайт не может нормально работать без этих файлов.',
+      analyticsTitle: 'Аналитические cookie',
+      analyticsDesc: 'Помогают нам понять, как посетители взаимодействуют с сайтом, собирая анонимную информацию.',
+      marketingTitle: 'Маркетинговые cookie',
+      marketingDesc: 'Используются для отслеживания посетителей на веб-сайтах с целью отображения релевантной рекламы.',
+      alwaysActive: 'Всегда активны'
+    },
+    fr: {
+      cookiePolicyText: 'Politique de Cookies',
+      cookieBannerText: 'Nous utilisons des cookies pour améliorer votre expérience. Vous pouvez personnaliser vos préférences.',
+      acceptAllText: 'Tout accepter',
+      settingsText: 'Paramètres des cookies',
+      saveSettingsText: 'Enregistrer',
+      declineAllText: 'Tout refuser',
+      learnMoreText: 'En savoir plus',
+      cookieSettingsTitle: 'Paramètres des cookies',
+      cookieSettingsDesc: 'Configurez les types de cookies que vous autorisez sur notre site. Les cookies nécessaires sont requis pour le fonctionnement du site.',
+      necessaryTitle: 'Cookies nécessaires',
+      necessaryDesc: 'Assurent la fonctionnalité de base du site. Le site ne peut pas fonctionner correctement sans ces cookies.',
+      analyticsTitle: 'Cookies analytiques',
+      analyticsDesc: 'Nous aident à comprendre comment les visiteurs interagissent avec le site en collectant des informations anonymes.',
+      marketingTitle: 'Cookies marketing',
+      marketingDesc: 'Utilisés pour suivre les visiteurs sur les sites web afin d\'afficher des publicités pertinentes.',
+      alwaysActive: 'Toujours actif'
+    },
+    es: {
+      cookiePolicyText: 'Política de Cookies',
+      cookieBannerText: 'Utilizamos cookies para mejorar su experiencia. Puede personalizar sus preferencias.',
+      acceptAllText: 'Aceptar todas',
+      settingsText: 'Configuración de cookies',
+      saveSettingsText: 'Guardar configuración',
+      declineAllText: 'Rechazar todas',
+      learnMoreText: 'Saber más',
+      cookieSettingsTitle: 'Configuración de cookies',
+      cookieSettingsDesc: 'Configure los tipos de cookies que permite en nuestro sitio. Las cookies necesarias son requeridas para el funcionamiento del sitio.',
+      necessaryTitle: 'Cookies necesarias',
+      necessaryDesc: 'Proporcionan la funcionalidad básica del sitio. El sitio no puede funcionar correctamente sin estas cookies.',
+      analyticsTitle: 'Cookies analíticas',
+      analyticsDesc: 'Nos ayudan a entender cómo los visitantes interactúan con el sitio, recopilando información anónima.',
+      marketingTitle: 'Cookies de marketing',
+      marketingDesc: 'Se utilizan para rastrear visitantes en los sitios web para mostrar anuncios relevantes.',
+      alwaysActive: 'Siempre activas'
+    },
+    it: {
+      cookiePolicyText: 'Politica dei Cookie',
+      cookieBannerText: 'Utilizziamo i cookie per migliorare la tua esperienza. Puoi personalizzare le tue preferenze.',
+      acceptAllText: 'Accetta tutti',
+      settingsText: 'Impostazioni cookie',
+      saveSettingsText: 'Salva impostazioni',
+      declineAllText: 'Rifiuta tutti',
+      learnMoreText: 'Scopri di più',
+      cookieSettingsTitle: 'Impostazioni cookie',
+      cookieSettingsDesc: 'Configura i tipi di cookie che consenti sul nostro sito. I cookie necessari sono richiesti per il funzionamento del sito.',
+      necessaryTitle: 'Cookie necessari',
+      necessaryDesc: 'Forniscono funzionalità di base del sito. Il sito non può funzionare correttamente senza questi cookie.',
+      analyticsTitle: 'Cookie analitici',
+      analyticsDesc: 'Ci aiutano a capire come i visitatori interagiscono con il sito raccogliendo informazioni anonime.',
+      marketingTitle: 'Cookie di marketing',
+      marketingDesc: 'Utilizzati per tracciare i visitatori sui siti web al fine di visualizzare annunci pertinenti.',
+      alwaysActive: 'Sempre attivo'
+    },
+    ro: {
+      cookiePolicyText: 'Politica Cookie',
+      cookieBannerText: 'Folosim cookie-uri pentru a vă îmbunătăți experiența. Puteți personaliza preferințele.',
+      acceptAllText: 'Acceptă toate',
+      settingsText: 'Setări cookie',
+      saveSettingsText: 'Salvează setările',
+      declineAllText: 'Refuză toate',
+      learnMoreText: 'Află mai multe',
+      cookieSettingsTitle: 'Setări cookie',
+      cookieSettingsDesc: 'Configurați tipurile de cookie-uri pe care le permiteți pe site-ul nostru. Cookie-urile necesare sunt obligatorii pentru funcționarea site-ului.',
+      necessaryTitle: 'Cookie-uri necesare',
+      necessaryDesc: 'Asigură funcționalitatea de bază a site-ului. Site-ul nu poate funcționa corect fără aceste cookie-uri.',
+      analyticsTitle: 'Cookie-uri analitice',
+      analyticsDesc: 'Ne ajută să înțelegem cum interacționează vizitatorii cu site-ul, colectând informații anonime.',
+      marketingTitle: 'Cookie-uri de marketing',
+      marketingDesc: 'Folosite pentru a urmări vizitatorii pe site-uri web pentru a afișa reclame relevante.',
+      alwaysActive: 'Întotdeauna activ'
+    },
+    nl: {
+      cookiePolicyText: 'Cookiebeleid',
+      cookieBannerText: 'Wij gebruiken cookies om uw ervaring te verbeteren. U kunt uw voorkeuren aanpassen.',
+      acceptAllText: 'Alles accepteren',
+      settingsText: 'Cookie-instellingen',
+      saveSettingsText: 'Instellingen opslaan',
+      declineAllText: 'Alles weigeren',
+      learnMoreText: 'Meer informatie',
+      cookieSettingsTitle: 'Cookie-instellingen',
+      cookieSettingsDesc: 'Configureer de soorten cookies die u op onze site toestaat. Noodzakelijke cookies zijn vereist voor de werking van de site.',
+      necessaryTitle: 'Noodzakelijke cookies',
+      necessaryDesc: 'Bieden basisfunctionaliteit van de site. De site kan niet goed functioneren zonder deze cookies.',
+      analyticsTitle: 'Analytische cookies',
+      analyticsDesc: 'Helpen ons te begrijpen hoe bezoekers omgaan met de site door anonieme informatie te verzamelen.',
+      marketingTitle: 'Marketing cookies',
+      marketingDesc: 'Worden gebruikt om bezoekers op websites te volgen om relevante advertenties weer te geven.',
+      alwaysActive: 'Altijd actief'
+    },
+    pt: {
+      cookiePolicyText: 'Política de Cookies',
+      cookieBannerText: 'Usamos cookies para melhorar sua experiência. Você pode personalizar suas preferências.',
+      acceptAllText: 'Aceitar todos',
+      settingsText: 'Configurações de cookies',
+      saveSettingsText: 'Salvar configurações',
+      declineAllText: 'Recusar todos',
+      learnMoreText: 'Saiba mais',
+      cookieSettingsTitle: 'Configurações de cookies',
+      cookieSettingsDesc: 'Configure os tipos de cookies que você permite em nosso site. Os cookies necessários são obrigatórios para o funcionamento do site.',
+      necessaryTitle: 'Cookies necessários',
+      necessaryDesc: 'Fornecem funcionalidade básica do site. O site não pode funcionar corretamente sem esses cookies.',
+      analyticsTitle: 'Cookies analíticos',
+      analyticsDesc: 'Nos ajudam a entender como os visitantes interagem com o site, coletando informações anônimas.',
+      marketingTitle: 'Cookies de marketing',
+      marketingDesc: 'Usados para rastrear visitantes em sites para exibir anúncios relevantes.',
+      alwaysActive: 'Sempre ativo'
+    }
+  };
+  
+  // Detect language
+  let detectedLang = 'en';
+  if (langLower.includes('de')) detectedLang = 'de';
+  else if (langLower.includes('pl')) detectedLang = 'pl';
+  else if (langLower.includes('uk')) detectedLang = 'uk';
+  else if (langLower.includes('ru')) detectedLang = 'ru';
+  else if (langLower.includes('fr')) detectedLang = 'fr';
+  else if (langLower.includes('es')) detectedLang = 'es';
+  else if (langLower.includes('it')) detectedLang = 'it';
+  else if (langLower.includes('ro')) detectedLang = 'ro';
+  else if (langLower.includes('nl')) detectedLang = 'nl';
+  else if (langLower.includes('pt')) detectedLang = 'pt';
+  
+  const t = cookieTexts[detectedLang] || cookieTexts.en;
   
   const cookiePolicyPath = cookiePolicyFile?.path.replace(/^\.?\//, '') || 'cookie-policy.html';
   
-  // Cookie banner HTML with JS for accept/dismiss functionality
+  // Cookie banner HTML with settings modal
   const COOKIE_BANNER_ID = 'lovable-cookie-banner';
+  const COOKIE_MODAL_ID = 'lovable-cookie-modal';
+  
   const cookieBannerHtml = `
-<!-- Cookie Banner -->
-<div id="${COOKIE_BANNER_ID}" style="position: fixed; bottom: 0; left: 0; right: 0; background: #1a1a1a; color: #fff; padding: 16px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px; z-index: 9999; box-shadow: 0 -2px 10px rgba(0,0,0,0.2); font-size: 14px;">
-  <p style="margin: 0; flex: 1; min-width: 200px;">${cookieBannerText} <a href="${cookiePolicyPath}" style="color: #4da6ff; text-decoration: underline;">${learnMoreText}</a></p>
-  <button onclick="document.getElementById('${COOKIE_BANNER_ID}').style.display='none'; localStorage.setItem('cookiesAccepted', 'true');" style="background: #4da6ff; color: #fff; border: none; padding: 10px 24px; border-radius: 4px; cursor: pointer; font-weight: 600; white-space: nowrap;">${acceptButtonText}</button>
+<!-- Cookie Banner with Settings -->
+<style>
+#${COOKIE_BANNER_ID}{position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;color:#fff;padding:16px 24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;z-index:9999;box-shadow:0 -2px 10px rgba(0,0,0,0.3);font-size:14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+#${COOKIE_BANNER_ID} p{margin:0;flex:1;min-width:200px}
+#${COOKIE_BANNER_ID} a{color:#4da6ff;text-decoration:underline}
+#${COOKIE_BANNER_ID} .cookie-btn{border:none;padding:10px 20px;border-radius:4px;cursor:pointer;font-weight:600;font-size:14px;transition:opacity 0.2s}
+#${COOKIE_BANNER_ID} .cookie-btn-primary{background:#4da6ff;color:#fff}
+#${COOKIE_BANNER_ID} .cookie-btn-secondary{background:transparent;color:#4da6ff;border:1px solid #4da6ff}
+#${COOKIE_BANNER_ID} .cookie-btn:hover{opacity:0.9}
+#${COOKIE_MODAL_ID}{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+#${COOKIE_MODAL_ID}.show{display:flex}
+#${COOKIE_MODAL_ID} .modal-content{background:#fff;border-radius:12px;max-width:500px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+#${COOKIE_MODAL_ID} .modal-header{padding:20px 24px;border-bottom:1px solid #e5e5e5}
+#${COOKIE_MODAL_ID} .modal-header h3{margin:0 0 8px 0;font-size:20px;color:#1a1a1a}
+#${COOKIE_MODAL_ID} .modal-header p{margin:0;color:#666;font-size:14px;line-height:1.5}
+#${COOKIE_MODAL_ID} .modal-body{padding:0}
+#${COOKIE_MODAL_ID} .cookie-option{padding:20px 24px;border-bottom:1px solid #f0f0f0}
+#${COOKIE_MODAL_ID} .cookie-option:last-child{border-bottom:none}
+#${COOKIE_MODAL_ID} .cookie-option-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+#${COOKIE_MODAL_ID} .cookie-option-title{font-weight:600;color:#1a1a1a;font-size:15px}
+#${COOKIE_MODAL_ID} .cookie-option-desc{color:#666;font-size:13px;line-height:1.5}
+#${COOKIE_MODAL_ID} .cookie-toggle{position:relative;width:44px;height:24px}
+#${COOKIE_MODAL_ID} .cookie-toggle input{opacity:0;width:0;height:0}
+#${COOKIE_MODAL_ID} .cookie-toggle .slider{position:absolute;inset:0;background:#ccc;border-radius:24px;cursor:pointer;transition:0.3s}
+#${COOKIE_MODAL_ID} .cookie-toggle .slider:before{content:'';position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:0.3s}
+#${COOKIE_MODAL_ID} .cookie-toggle input:checked+.slider{background:#4da6ff}
+#${COOKIE_MODAL_ID} .cookie-toggle input:checked+.slider:before{transform:translateX(20px)}
+#${COOKIE_MODAL_ID} .cookie-toggle input:disabled+.slider{background:#4da6ff;cursor:default}
+#${COOKIE_MODAL_ID} .always-active{color:#4da6ff;font-size:13px;font-weight:500}
+#${COOKIE_MODAL_ID} .modal-footer{padding:16px 24px;border-top:1px solid #e5e5e5;display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap}
+#${COOKIE_MODAL_ID} .modal-footer .cookie-btn{padding:12px 24px}
+@media(max-width:480px){
+  #${COOKIE_BANNER_ID}{flex-direction:column;text-align:center}
+  #${COOKIE_MODAL_ID} .modal-footer{justify-content:center}
+}
+</style>
+<div id="${COOKIE_BANNER_ID}">
+  <p>${t.cookieBannerText} <a href="${cookiePolicyPath}">${t.learnMoreText}</a></p>
+  <button class="cookie-btn cookie-btn-secondary" onclick="document.getElementById('${COOKIE_MODAL_ID}').classList.add('show')">${t.settingsText}</button>
+  <button class="cookie-btn cookie-btn-primary" onclick="acceptAllCookies()">${t.acceptAllText}</button>
+</div>
+<div id="${COOKIE_MODAL_ID}">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>${t.cookieSettingsTitle}</h3>
+      <p>${t.cookieSettingsDesc}</p>
+    </div>
+    <div class="modal-body">
+      <div class="cookie-option">
+        <div class="cookie-option-header">
+          <span class="cookie-option-title">${t.necessaryTitle}</span>
+          <span class="always-active">${t.alwaysActive}</span>
+        </div>
+        <p class="cookie-option-desc">${t.necessaryDesc}</p>
+      </div>
+      <div class="cookie-option">
+        <div class="cookie-option-header">
+          <span class="cookie-option-title">${t.analyticsTitle}</span>
+          <label class="cookie-toggle">
+            <input type="checkbox" id="cookie-analytics">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <p class="cookie-option-desc">${t.analyticsDesc}</p>
+      </div>
+      <div class="cookie-option">
+        <div class="cookie-option-header">
+          <span class="cookie-option-title">${t.marketingTitle}</span>
+          <label class="cookie-toggle">
+            <input type="checkbox" id="cookie-marketing">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <p class="cookie-option-desc">${t.marketingDesc}</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="cookie-btn cookie-btn-secondary" onclick="declineAllCookies()">${t.declineAllText}</button>
+      <button class="cookie-btn cookie-btn-primary" onclick="saveCookieSettings()">${t.saveSettingsText}</button>
+    </div>
+  </div>
 </div>
 <script>
-if(localStorage.getItem('cookiesAccepted')==='true'){document.getElementById('${COOKIE_BANNER_ID}').style.display='none';}
+(function(){
+  var prefs=JSON.parse(localStorage.getItem('cookiePreferences')||'null');
+  if(prefs){
+    document.getElementById('${COOKIE_BANNER_ID}').style.display='none';
+  }
+  if(prefs){
+    var a=document.getElementById('cookie-analytics');
+    var m=document.getElementById('cookie-marketing');
+    if(a)a.checked=!!prefs.analytics;
+    if(m)m.checked=!!prefs.marketing;
+  }
+})();
+function saveCookiePrefs(a,m){
+  var prefs={necessary:true,analytics:!!a,marketing:!!m,savedAt:new Date().toISOString()};
+  localStorage.setItem('cookiePreferences',JSON.stringify(prefs));
+  document.getElementById('${COOKIE_BANNER_ID}').style.display='none';
+  document.getElementById('${COOKIE_MODAL_ID}').classList.remove('show');
+}
+function acceptAllCookies(){saveCookiePrefs(true,true);}
+function declineAllCookies(){saveCookiePrefs(false,false);}
+function saveCookieSettings(){
+  var a=document.getElementById('cookie-analytics');
+  var m=document.getElementById('cookie-marketing');
+  saveCookiePrefs(a&&a.checked,m&&m.checked);
+}
+document.getElementById('${COOKIE_MODAL_ID}').addEventListener('click',function(e){
+  if(e.target===this)this.classList.remove('show');
+});
 </script>
-<!-- End Cookie Banner -->
-`;
+<!-- End Cookie Banner -->`;
   
   const updatedFiles = files.map(f => {
     if (!/\.html?$/i.test(f.path)) return f;
@@ -1056,7 +1339,7 @@ if(localStorage.getItem('cookiesAccepted')==='true'){document.getElementById('${
         if (!hasCookieLink) {
           warnings.push(`${f.path}: Added missing Cookie Policy link to footer`);
           
-          const cookieLinkHtml = `<a href="${cookiePolicyPath}" class="footer-legal-link">${cookiePolicyText}</a>`;
+          const cookieLinkHtml = `<a href="${cookiePolicyPath}" class="footer-legal-link">${t.cookiePolicyText}</a>`;
           
           if (/<footer[\s\S]*?<(nav|ul)\b[\s\S]*?<\/\1>/i.test(content)) {
             content = content.replace(
