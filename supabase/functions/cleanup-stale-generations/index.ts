@@ -24,14 +24,14 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Find stale generations (older than 30 minutes)
-    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    // Find stale generations (older than 20 minutes)
+    const twentyMinutesAgo = new Date(Date.now() - 20 * 60 * 1000).toISOString();
 
     const { data: staleItems, error: fetchError } = await supabase
       .from("generation_history")
-      .select("id, user_id, sale_price")
+      .select("id, user_id, team_id, sale_price")
       .in("status", ["pending", "generating"])
-      .lt("created_at", thirtyMinutesAgo);
+      .lt("created_at", twentyMinutesAgo);
 
     if (fetchError) {
       const errMsg = fetchError.message || String(fetchError);
@@ -54,12 +54,17 @@ serve(async (req) => {
 
     let processed = 0;
     let refunded = 0;
+    let appealsCreated = 0;
+
+    const autoAppealReason = "Автоповідомлення: довга генерація (>20 хв). Кошти повернено автоматично.";
 
     for (const item of staleItems) {
       try {
-        // Refund balance if sale_price > 0
-        if (item.sale_price && item.sale_price > 0 && item.user_id) {
-          // Get user's team membership
+        const refundAmount = typeof item.sale_price === "number" ? item.sale_price : 0;
+        let effectiveTeamId: string | null = (item as any).team_id ?? null;
+
+        // Fallback for older rows where team_id might be missing
+        if (!effectiveTeamId && item.user_id) {
           const { data: membership } = await supabase
             .from("team_members")
             .select("team_id")
@@ -67,23 +72,71 @@ serve(async (req) => {
             .eq("status", "approved")
             .limit(1)
             .maybeSingle();
+          effectiveTeamId = membership?.team_id ?? null;
+        }
 
-          if (membership) {
-            const { data: team } = await supabase
+        // Refund balance if sale_price > 0 and we can resolve team
+        if (refundAmount > 0 && effectiveTeamId) {
+          const { data: team, error: teamErr } = await supabase
+            .from("teams")
+            .select("balance")
+            .eq("id", effectiveTeamId)
+            .single();
+
+          if (teamErr) {
+            console.error(`Failed to load team ${effectiveTeamId} for refund (generation ${item.id}):`, teamErr.message);
+          } else {
+            const { error: refundErr } = await supabase
               .from("teams")
-              .select("balance")
-              .eq("id", membership.team_id)
-              .single();
+              .update({ balance: (team.balance || 0) + refundAmount })
+              .eq("id", effectiveTeamId);
 
-            if (team) {
-              await supabase
-                .from("teams")
-                .update({ balance: (team.balance || 0) + item.sale_price })
-                .eq("id", membership.team_id);
-              console.log(`Refunded $${item.sale_price} to team ${membership.team_id} for stale generation ${item.id}`);
+            if (refundErr) {
+              console.error(`Failed to refund team ${effectiveTeamId} for generation ${item.id}:`, refundErr.message);
+            } else {
+              console.log(`Refunded $${refundAmount} to team ${effectiveTeamId} for stale generation ${item.id}`);
               refunded++;
             }
           }
+        }
+
+        // Create auto-approved appeal once per generation (idempotent)
+        if (item.user_id) {
+          const { data: existingAppeal, error: appealLookupErr } = await supabase
+            .from("appeals")
+            .select("id")
+            .eq("generation_id", item.id)
+            .limit(1)
+            .maybeSingle();
+
+          if (appealLookupErr) {
+            console.error(`Failed to lookup appeal for generation ${item.id}:`, appealLookupErr.message);
+          } else if (!existingAppeal) {
+            const adminCommentParts: string[] = ["Auto-timeout 20min."];
+            adminCommentParts.push(`Refunded: ${refundAmount}`);
+
+            const { error: appealInsertErr } = await supabase
+              .from("appeals")
+              .insert({
+                generation_id: item.id,
+                user_id: item.user_id,
+                team_id: effectiveTeamId,
+                reason: autoAppealReason,
+                status: "approved",
+                amount_to_refund: 0,
+                admin_comment: adminCommentParts.join(" "),
+                resolved_at: new Date().toISOString(),
+                resolved_by: null,
+              });
+
+            if (appealInsertErr) {
+              console.error(`Failed to create auto-appeal for generation ${item.id}:`, appealInsertErr.message);
+            } else {
+              appealsCreated++;
+            }
+          }
+        } else {
+          console.warn(`Skipping auto-appeal for generation ${item.id} because user_id is null`);
         }
 
         // Mark as failed
@@ -91,7 +144,7 @@ serve(async (req) => {
           .from("generation_history")
           .update({
             status: "failed",
-            error_message: "Перевищено час очікування (30 хв). Зверніться в підтримку https://t.me/assanatraf",
+            error_message: "Перевищено час очікування (20 хв). Зверніться в підтримку https://t.me/assanatraf",
             sale_price: 0, // Reset since refunded
           })
           .eq("id", item.id);
@@ -103,10 +156,10 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Cleanup complete: ${processed} processed, ${refunded} refunded`);
+    console.log(`Cleanup complete: ${processed} processed, ${refunded} refunded, ${appealsCreated} appeals created`);
 
     return new Response(
-      JSON.stringify({ success: true, processed, refunded }),
+      JSON.stringify({ success: true, processed, refunded, appealsCreated }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
