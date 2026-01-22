@@ -268,11 +268,11 @@ function SingleHistoryItem({
       return <XCircle className="h-4 w-4 text-destructive" />;
     }
     switch (status) {
-      case "pending": return <Clock className="h-4 w-4 text-muted-foreground" />;
+      case "pending": return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
       case "generating": return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
       case "completed": return <CheckCircle2 className="h-4 w-4 text-green-500" />;
       case "failed": return <XCircle className="h-4 w-4 text-destructive" />;
-      default: return <Clock className="h-4 w-4 text-muted-foreground" />;
+      default: return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
     }
   };
 
@@ -289,9 +289,11 @@ function SingleHistoryItem({
     }
   };
 
+  const isProcessing = item.status === "pending" || item.status === "generating";
+  
   return (
     <Collapsible open={expandedId === item.id}>
-      <div className={`rounded border ${compact ? "bg-background" : ""}`}>
+      <div className={`rounded border transition-all duration-300 ${compact ? "bg-background" : ""} ${isProcessing ? "border-primary/50 bg-primary/5 animate-pulse" : ""}`}>
         <CollapsibleTrigger asChild>
           <div
             className={`flex items-center justify-between cursor-pointer hover:bg-muted/50 transition-colors ${compact ? "px-2 py-1 gap-2" : "px-3 py-2 gap-3"}`}
