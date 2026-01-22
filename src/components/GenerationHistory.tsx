@@ -730,7 +730,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
   const [editFullscreen, setEditFullscreen] = useState(false);
   const editScrollRef = useRef<HTMLDivElement>(null);
 
-  // Retry failed generation handler
+  // Retry failed generation handler - uses retryHistoryId to update existing record
   const handleRetryGeneration = useCallback(async (itemId: string) => {
     const item = history.find(i => i.id === itemId);
     if (!item) return;
@@ -775,6 +775,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
           imageSource: item.image_source || "basic",
           teamId: teamMember?.team_id,
           geo: item.geo,
+          retryHistoryId: item.id, // Pass existing record ID for in-place retry
         }),
       });
 
@@ -787,11 +788,10 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
       
       if (data.success) {
         toast({
-          title: "Генерацію запущено",
-          description: "Нова генерація почалась. Слідкуйте за прогресом в історії.",
+          title: "Генерацію перезапущено",
+          description: "Повторна генерація почалась. Слідкуйте за прогресом.",
         });
-        // Refresh history to show new generation
-        await fetchHistory();
+        // The existing record will be updated via realtime, no need to refetch
       } else {
         throw new Error(data.error || "Помилка генерації");
       }

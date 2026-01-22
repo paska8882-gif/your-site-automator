@@ -5791,7 +5791,7 @@ serve(async (req) => {
     const userId = claimsData.claims.sub as string;
     console.log("Authenticated PHP generation request from user:", userId);
 
-    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo } = await req.json();
+    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, retryHistoryId } = await req.json();
 
     // Build prompt with language and geo context if provided
     let promptForGeneration = prompt;
@@ -5970,56 +5970,118 @@ ${promptForGeneration}`;
       }
     }
 
-    // Create history entry
-    const { data: historyEntry, error: insertError } = await supabase
-      .from("generation_history")
-      .insert({
-        prompt: promptToSave,
-        improved_prompt: improvedPromptToSave,
-        language: language || "auto",
-        user_id: userId,
-        team_id: teamId || null,
-        status: "pending",
-        ai_model: aiModel,
-        website_type: "php",
-        site_name: siteName || null,
-        image_source: imageSource || "basic",
-        sale_price: salePrice,
-        geo: geo || null,
-      })
-      .select()
-      .single();
-
-    if (insertError || !historyEntry) {
-      console.error("Failed to create history entry:", insertError);
-      // REFUND if we already deducted
-      if (teamId && salePrice > 0) {
-        const { data: team } = await supabase
-          .from("teams")
-          .select("balance")
-          .eq("id", teamId)
-          .single();
-        if (team) {
-          await supabase
-            .from("teams")
-            .update({ balance: (team.balance || 0) + salePrice })
-            .eq("id", teamId);
-          console.log(`REFUNDED $${salePrice} to team ${teamId} due to history creation failure`);
+    // Handle retry: update existing record OR create new one
+    let historyId: string;
+    
+    if (retryHistoryId) {
+      // RETRY MODE: Update existing failed record instead of creating new one
+      console.log(`🔄 RETRY MODE: Updating existing PHP record ${retryHistoryId}`);
+      
+      const { data: existingRecord, error: fetchError } = await supabase
+        .from("generation_history")
+        .select("id, status, user_id")
+        .eq("id", retryHistoryId)
+        .single();
+      
+      if (fetchError || !existingRecord) {
+        console.error("Failed to find retry record:", fetchError);
+        if (teamId && salePrice > 0) {
+          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+          if (team) {
+            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+          }
         }
+        return new Response(JSON.stringify({ success: false, error: "Retry record not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
-      return new Response(JSON.stringify({ success: false, error: "Failed to start generation" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+      
+      if (existingRecord.user_id !== userId) {
+        if (teamId && salePrice > 0) {
+          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+          if (team) {
+            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+          }
+        }
+        return new Response(JSON.stringify({ success: false, error: "Unauthorized retry" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      const { error: updateError } = await supabase
+        .from("generation_history")
+        .update({
+          status: "pending",
+          error_message: null,
+          files_data: null,
+          zip_data: null,
+          completed_at: null,
+          sale_price: salePrice,
+        })
+        .eq("id", retryHistoryId);
+      
+      if (updateError) {
+        console.error("Failed to update retry record:", updateError);
+        if (teamId && salePrice > 0) {
+          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+          if (team) {
+            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+          }
+        }
+        return new Response(JSON.stringify({ success: false, error: "Failed to start retry" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      historyId = retryHistoryId;
+      console.log(`🔄 Updated existing record for PHP retry: ${retryHistoryId}`);
+    } else {
+      const { data: historyEntry, error: insertError } = await supabase
+        .from("generation_history")
+        .insert({
+          prompt: promptToSave,
+          improved_prompt: improvedPromptToSave,
+          language: language || "auto",
+          user_id: userId,
+          team_id: teamId || null,
+          status: "pending",
+          ai_model: aiModel,
+          website_type: "php",
+          site_name: siteName || null,
+          image_source: imageSource || "basic",
+          sale_price: salePrice,
+          geo: geo || null,
+        })
+        .select()
+        .single();
 
-    console.log("Created PHP history entry:", historyEntry.id);
+      if (insertError || !historyEntry) {
+        console.error("Failed to create history entry:", insertError);
+        if (teamId && salePrice > 0) {
+          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+          if (team) {
+            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+          }
+        }
+        return new Response(JSON.stringify({ success: false, error: "Failed to start generation" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      historyId = historyEntry.id;
+    }
+    
+    console.log("Using PHP history entry:", historyId);
 
     // ASYNC PATTERN: Return immediately, run generation in background
     // UI polls status via realtime subscription on generation_history table
     const backgroundPromise = (async () => {
       try {
-        console.log("[BG-PHP] Starting async generation for:", historyEntry.id);
+        console.log("[BG-PHP] Starting async generation for:", historyId);
         
         const result = await runGeneration({
           prompt: promptForGeneration,
@@ -6056,14 +6118,14 @@ ${promptForGeneration}`;
               error_message: result.error || "PHP generation failed",
               sale_price: 0,
             })
-            .eq("id", historyEntry.id);
+            .eq("id", historyId);
 
           await supabase.from("notifications").insert({
             user_id: userId,
             type: "generation_failed",
             title: "Помилка генерації PHP",
             message: result.error || "Не вдалося згенерувати PHP сайт",
-            data: { historyId: historyEntry.id, error: result.error }
+            data: { historyId: historyId, error: result.error }
           });
           return;
         }
@@ -6115,7 +6177,7 @@ ${promptForGeneration}`;
             specific_ai_model: result.specificModel || null,
             completed_at: new Date().toISOString(),
           })
-          .eq("id", historyEntry.id);
+          .eq("id", historyId);
 
         // Send notification
         await supabase.from("notifications").insert({
@@ -6123,10 +6185,10 @@ ${promptForGeneration}`;
           type: "generation_complete",
           title: "PHP сайт згенеровано",
           message: `PHP сайт успішно створено (${enforcedFiles.length} файлів)`,
-          data: { historyId: historyEntry.id, filesCount: enforcedFiles.length }
+          data: { historyId: historyId, filesCount: enforcedFiles.length }
         });
 
-        console.log(`[BG-PHP] Completed: ${historyEntry.id}, ${enforcedFiles.length} files`);
+        console.log(`[BG-PHP] Completed: ${historyId}, ${enforcedFiles.length} files`);
       } catch (error) {
         console.error("[BG-PHP] Error:", error);
         
@@ -6157,7 +6219,7 @@ ${promptForGeneration}`;
             error_message: error instanceof Error ? error.message : "Unknown error",
             sale_price: 0,
           })
-          .eq("id", historyEntry.id);
+          .eq("id", historyId);
       }
     })();
 
@@ -6175,7 +6237,7 @@ ${promptForGeneration}`;
     return new Response(
       JSON.stringify({
         success: true,
-        historyId: historyEntry.id,
+        historyId: historyId,
         status: "pending",
         message: "PHP generation started. Check history for results.",
       }),
