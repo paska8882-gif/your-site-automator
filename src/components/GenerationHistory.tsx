@@ -10,7 +10,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File, AlertTriangle, Upload, X, Layers, Filter, CalendarDays, MonitorPlay, Ban, Send, User, Bot, Crown, Zap, Maximize2, Minimize2, Folder, FolderOpen, Copy, Play, StopCircle } from "lucide-react";
+import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File, AlertTriangle, Upload, X, Layers, Filter, CalendarDays, MonitorPlay, Ban, Send, User, Bot, Crown, Zap, Maximize2, Minimize2, Folder, FolderOpen, Copy, Play, StopCircle, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -407,19 +408,41 @@ function SingleHistoryItem({
                       </Button>
                     </>
                   ) : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-primary hover:text-primary"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onRetry(item);
-                      }}
-                      title="Повторити генерацію"
-                    >
-                      <RefreshCw className="h-4 w-4 mr-1" />
-                      Retry
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {item.error_message && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-destructive/70 hover:text-destructive"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Info className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-xs">
+                              <p className="text-xs font-medium mb-1">Причина помилки:</p>
+                              <p className="text-xs text-muted-foreground break-words">{item.error_message}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-primary hover:text-primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRetry(item);
+                        }}
+                        title={item.error_message ? `Повторити: ${item.error_message.substring(0, 50)}...` : "Повторити генерацію"}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-1" />
+                        Retry
+                      </Button>
+                    </div>
                   )}
                 </>
               )}
