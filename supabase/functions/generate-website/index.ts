@@ -7627,6 +7627,183 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
     });
   };
 
+  // NEW: Repair empty/near-empty HTML pages (sometimes model returns blank secondary pages)
+  const ensureNonEmptyHtmlPages = (
+    generatedFiles: GeneratedFile[],
+    lang: string,
+    siteName?: string
+  ): GeneratedFile[] => {
+    const normalizeLangLocal = (l: string) => (l || "en").toLowerCase().trim().slice(0, 2);
+    const L = normalizeLangLocal(lang);
+    const name = (siteName || "Website").trim() || "Website";
+
+    const hasStyles = generatedFiles.some((f) => f.path.toLowerCase() === "styles.css");
+
+    const pages = generatedFiles
+      .filter((f) => f.path.toLowerCase().endsWith(".html"))
+      .map((f) => f.path)
+      .sort();
+
+    const navLinks = (() => {
+      const preferred = [
+        "index.html",
+        "services.html",
+        "about.html",
+        "contact.html",
+        "pricing.html",
+        "portfolio.html",
+        "blog.html",
+      ];
+      const set = new Set(pages.map((p) => p.toLowerCase()));
+      const final: string[] = [];
+      for (const p of preferred) if (set.has(p)) final.push(p);
+      // Add up to 3 extra pages if present
+      for (const p of pages) {
+        const lower = p.toLowerCase();
+        if (final.length >= 7) break;
+        if (!final.includes(lower) && lower !== "200.html" && lower !== "404.html") {
+          final.push(p);
+        }
+      }
+      if (!final.includes("index.html")) final.unshift("index.html");
+      return final;
+    })();
+
+    const t = {
+      title:
+        L === "ru"
+          ? "Страница временно недоступна"
+          : L === "uk"
+            ? "Сторінка тимчасово недоступна"
+            : L === "de"
+              ? "Seite vorübergehend nicht verfügbar"
+              : "Page temporarily unavailable",
+      desc:
+        L === "ru"
+          ? "Эта страница сгенерировалась неполной. Мы восстановили её безопасной версией, чтобы сайт не содержал пустых страниц."
+          : L === "uk"
+            ? "Ця сторінка згенерувалася неповною. Ми відновили її безпечною версією, щоб сайт не містив порожніх сторінок."
+            : L === "de"
+              ? "Diese Seite wurde unvollständig generiert. Wir haben eine sichere Version wiederhergestellt, damit die Website keine leeren Seiten enthält."
+              : "This page was generated incompletely. We restored a safe version so the site has no empty pages.",
+      back:
+        L === "ru"
+          ? "На главную"
+          : L === "uk"
+            ? "На головну"
+            : L === "de"
+              ? "Zur Startseite"
+              : "Back to home",
+    } as const;
+
+    const makeFallbackHtml = (filePath: string) => {
+      const nav = navLinks
+        .filter((p) => p)
+        .map((p) => {
+          const label = p
+            .replace(/\.html$/i, "")
+            .replace(/[-_]/g, " ")
+            .replace(/\b\w/g, (m) => m.toUpperCase());
+          const active = p.toLowerCase() === filePath.toLowerCase();
+          return `<a class="nav-link${active ? " is-active" : ""}" href="${p}">${label}</a>`;
+        })
+        .join("\n");
+
+      return `<!doctype html>
+<html lang="${L}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${name} — ${t.title}</title>
+    ${hasStyles ? '<link rel="stylesheet" href="styles.css" />' : ""}
+    <style>
+      /* Fallback page styles (only used when a page was empty) */
+      :root { --fallback-bg: #0b1220; --fallback-fg: #e7e9ee; --fallback-muted: rgba(231,233,238,.7); --fallback-card: rgba(255,255,255,.06); --fallback-border: rgba(255,255,255,.14); }
+      body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: var(--fallback-bg); color: var(--fallback-fg); }
+      .wrap { min-height: 100vh; display: flex; flex-direction: column; }
+      header { border-bottom: 1px solid var(--fallback-border); background: rgba(255,255,255,.02); }
+      .bar { max-width: 1120px; margin: 0 auto; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+      .brand { font-weight: 700; letter-spacing: .2px; }
+      nav { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+      .nav-link { color: var(--fallback-muted); text-decoration: none; font-size: 14px; padding: 6px 10px; border-radius: 999px; border: 1px solid transparent; }
+      .nav-link:hover { color: var(--fallback-fg); border-color: var(--fallback-border); }
+      .nav-link.is-active { color: var(--fallback-fg); border-color: var(--fallback-border); background: var(--fallback-card); }
+      main { flex: 1; }
+      .content { max-width: 1120px; margin: 0 auto; padding: 64px 20px; }
+      .card { background: var(--fallback-card); border: 1px solid var(--fallback-border); border-radius: 18px; padding: 28px; }
+      h1 { margin: 0 0 10px; font-size: clamp(24px, 3vw, 34px); }
+      p { margin: 0 0 18px; color: var(--fallback-muted); line-height: 1.6; }
+      .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
+      .btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--fallback-border); text-decoration: none; color: var(--fallback-fg); background: rgba(255,255,255,.04); }
+      .btn:hover { background: rgba(255,255,255,.08); }
+      footer { border-top: 1px solid var(--fallback-border); background: rgba(255,255,255,.02); }
+      .foot { max-width: 1120px; margin: 0 auto; padding: 16px 20px; color: var(--fallback-muted); font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div class="bar">
+          <div class="brand">${name}</div>
+          <nav aria-label="Primary">
+            ${nav}
+          </nav>
+        </div>
+      </header>
+      <main>
+        <div class="content">
+          <div class="card">
+            <h1>${t.title}</h1>
+            <p>${t.desc}</p>
+            <div class="actions">
+              <a class="btn" href="index.html">${t.back}</a>
+            </div>
+          </div>
+        </div>
+      </main>
+      <footer>
+        <div class="foot">© ${new Date().getFullYear()} ${name}</div>
+      </footer>
+    </div>
+  </body>
+</html>`;
+    };
+
+    const isProbablyEmpty = (html: string) => {
+      const trimmed = (html || "").trim();
+      if (!trimmed) return true;
+      if (trimmed.length < 220) return true;
+
+      const bodyMatch = trimmed.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+      const body = (bodyMatch?.[1] || trimmed)
+        .replace(/<script[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[\s\S]*?<\/style>/gi, "")
+        .replace(/<!--([\s\S]*?)-->/g, "")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      // If almost no readable text, treat as empty.
+      if (body.length < 80) return true;
+      // Catch common "empty" placeholders
+      if (/\b(?:null|undefined|lorem ipsum)\b/i.test(body) && body.length < 200) return true;
+      return false;
+    };
+
+    return generatedFiles.map((file) => {
+      if (!file.path.toLowerCase().endsWith(".html")) return file;
+
+      // Don't replace helper pages here; they are handled by ensureMandatoryPages already.
+      const lower = file.path.toLowerCase();
+      if (lower === "404.html" || lower === "200.html") return file;
+
+      if (!isProbablyEmpty(file.content)) return file;
+
+      console.log(`🧱 Repaired empty page: ${file.path} (${file.content?.length || 0} chars)`);
+      return { ...file, content: makeFallbackHtml(file.path) };
+    });
+  };
+
   // NEW: Remove emojis and instruction symbols from generated content
   // This fixes AI hallucination where it copies emojis from the prompt into HTML
   const removeEmojisFromContent = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
@@ -7704,6 +7881,7 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
   finalFiles = removeEmojisFromContent(finalFiles); // Remove emojis and instruction symbols
   finalFiles = validateHtmlContent(finalFiles); // Validate HTML content
   finalFiles = ensureMandatoryPages(finalFiles, language || "en");
+  finalFiles = ensureNonEmptyHtmlPages(finalFiles, language || "en", siteName);
   finalFiles = ensureBilingualI18nInFiles(finalFiles, bilingualLanguages, siteName);
   console.log(`📁 Final files count (with all mandatory files): ${finalFiles.length}`);
 
