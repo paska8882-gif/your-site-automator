@@ -1026,18 +1026,43 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
                 } as HistoryItem;
                 setHistory((prev) => [newItem, ...prev]);
               } else if (payload.eventType === "UPDATE" && newRecord) {
-                setHistory((prev) =>
-                  prev.map((item) => {
-                    if (item.id === newRecord.id) {
-                      return {
-                        ...item,
-                        ...newRecord,
-                        files_data: (newRecord.files_data as GeneratedFile[] | null) ?? item.files_data
-                      };
-                    }
-                    return item;
-                  })
-                );
+                // For completed status, refetch full record including zip_data which may not be in realtime payload
+                if (newRecord.status === "completed") {
+                  supabase
+                    .from("generation_history")
+                    .select("*")
+                    .eq("id", newRecord.id)
+                    .single()
+                    .then(({ data: fullRecord }) => {
+                      if (fullRecord) {
+                        setHistory((prev) =>
+                          prev.map((item) => {
+                            if (item.id === fullRecord.id) {
+                              return {
+                                ...item,
+                                ...fullRecord,
+                                files_data: fullRecord.files_data as unknown as GeneratedFile[] | null
+                              };
+                            }
+                            return item;
+                          })
+                        );
+                      }
+                    });
+                } else {
+                  setHistory((prev) =>
+                    prev.map((item) => {
+                      if (item.id === newRecord.id) {
+                        return {
+                          ...item,
+                          ...newRecord,
+                          files_data: (newRecord.files_data as GeneratedFile[] | null) ?? item.files_data
+                        };
+                      }
+                      return item;
+                    })
+                  );
+                }
               } else if (payload.eventType === "DELETE" && oldRecord) {
                 setHistory((prev) =>
                   prev.filter((item) => item.id !== oldRecord.id)
