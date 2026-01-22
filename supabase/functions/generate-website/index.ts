@@ -7102,10 +7102,16 @@ async function runBackgroundGeneration(
         enforcedFiles = enforcePhoneInFiles(fixedFiles, autoPhone);
         console.log(`[BG] Enforced auto-generated phone "${autoPhone}" across all files`);
       }
-      enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
-      enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
-      enforcedFiles = enforceUiUxBaselineInFiles(enforcedFiles);
-      enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName);
+       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
+       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
+       enforcedFiles = enforceUiUxBaselineInFiles(enforcedFiles);
+
+       // CRITICAL: HTML generations MUST always include 200.html + 404.html.
+       // Do this in background flow too (otherwise DB gets saved without these files).
+       enforcedFiles = ensureMandatoryPages(enforcedFiles, language || "en");
+
+       // Ensure branding assets exist AND are linked in ALL html pages (including 200/404 added above)
+       enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName);
       
       // CRITICAL: Enforce business hours in footer
       enforcedFiles = enforceBusinessHoursInFiles(enforcedFiles, language);
