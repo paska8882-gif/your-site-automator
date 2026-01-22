@@ -368,6 +368,94 @@ function enforceResponsiveImagesInFiles(
     return { ...f, content };
   });
 }
+
+function ensureReactFaviconAndLogoInFiles(
+  files: Array<{ path: string; content: string }>,
+  siteNameRaw?: string
+): Array<{ path: string; content: string }> {
+  const siteName = (siteNameRaw || "Website").trim() || "Website";
+  const initials =
+    siteName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => (w[0] ? w[0].toUpperCase() : ""))
+      .join("") || "W";
+
+  const safeText = (s: string) =>
+    s.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c] as string));
+
+  const logoSvg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64" role="img" aria-label="${safeText(siteName)} logo">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10b981"/>
+      <stop offset="1" stop-color="#047857"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#g)"/>
+  <text x="32" y="41" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="26" font-weight="800" fill="#ffffff">${safeText(initials)}</text>
+  <text x="76" y="41" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="18" font-weight="700" fill="#111827">${safeText(siteName)}</text>
+</svg>`;
+
+  const faviconSvg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="${safeText(siteName)} favicon">
+  <defs>
+    <linearGradient id="fg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10b981"/>
+      <stop offset="1" stop-color="#047857"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="url(#fg)"/>
+  <text x="32" y="42" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="26" font-weight="900" fill="#ffffff">${safeText(initials)}</text>
+</svg>`;
+
+  const hasPublicLogo = files.some((f) => f.path.toLowerCase() === "public/logo.svg");
+  const hasPublicFavicon = files.some((f) => {
+    const p = f.path.toLowerCase();
+    return p === "public/favicon.svg" || p === "public/favicon.ico";
+  });
+
+  let next = [...files];
+  if (!hasPublicLogo) next.push({ path: "public/logo.svg", content: logoSvg });
+  if (!hasPublicFavicon) next.push({ path: "public/favicon.svg", content: faviconSvg });
+
+  // Ensure Vite index.html references favicon
+  next = next.map((f) => {
+    if (f.path.toLowerCase() !== "index.html") return f;
+    let content = f.content;
+    if (!/rel=["']icon["']/i.test(content)) {
+      const link = `\n<link rel="icon" href="/favicon.svg" type="image/svg+xml">\n`;
+      content = /<\/head>/i.test(content) ? content.replace(/<\/head>/i, `${link}</head>`) : `${link}${content}`;
+    }
+    return { ...f, content };
+  });
+
+  // Try to inject logo into App header if present
+  const appPath = next.find((f) => /src\/App\.(tsx|jsx)$/i.test(f.path))?.path;
+  if (appPath) {
+    next = next.map((f) => {
+      if (f.path !== appPath) return f;
+      let content = f.content;
+      if (/\b\/logo\.svg\b/.test(content)) return f;
+
+      // Add import if TS/JSX module
+      if (!/import\s+logo\s+from\s+["']\/logo\.svg["']/.test(content)) {
+        content = `import logo from "/logo.svg";\n` + content;
+      }
+
+      // Insert <img> into first <header> if no image already
+      content = content.replace(
+        /<header([^>]*)>(?![\s\S]*?<img[^>]+src=)/i,
+        `<header$1>\n  <img src={logo} alt={"${safeText(siteName)} logo"} style={{ height: 40, width: "auto", display: "block" }} />`
+      );
+
+      return { ...f, content };
+    });
+  }
+
+  return next;
+}
 // ============ END PHONE NUMBER VALIDATION ============
 
 const SYSTEM_PROMPT = `You are a prompt refiner for professional, multi-page React websites.
@@ -2281,6 +2369,7 @@ async function runBackgroundGeneration(
 
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
+      enforcedFiles = ensureReactFaviconAndLogoInFiles(enforcedFiles, desiredSiteName);
       
       // Create zip base64 with fixed files
       const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");

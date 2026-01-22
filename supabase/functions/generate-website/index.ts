@@ -1634,6 +1634,80 @@ function enforceResponsiveImagesInFiles(
     return { ...f, content };
   });
 }
+
+function ensureFaviconAndLogoInFiles(
+  files: Array<{ path: string; content: string }>,
+  siteNameRaw?: string
+): Array<{ path: string; content: string }> {
+  const siteName = (siteNameRaw || "Website").trim() || "Website";
+  const initials =
+    siteName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => (w[0] ? w[0].toUpperCase() : ""))
+      .join("") || "W";
+
+  const safeText = (s: string) =>
+    s.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c] as string));
+
+  const logoSvg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64" role="img" aria-label="${safeText(siteName)} logo">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10b981"/>
+      <stop offset="1" stop-color="#047857"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#g)"/>
+  <text x="32" y="41" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="26" font-weight="800" fill="#ffffff">${safeText(initials)}</text>
+  <text x="76" y="41" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="18" font-weight="700" fill="#111827">${safeText(siteName)}</text>
+</svg>`;
+
+  const faviconSvg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="${safeText(siteName)} favicon">
+  <defs>
+    <linearGradient id="fg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10b981"/>
+      <stop offset="1" stop-color="#047857"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="url(#fg)"/>
+  <text x="32" y="42" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="26" font-weight="900" fill="#ffffff">${safeText(initials)}</text>
+</svg>`;
+
+  const hasLogo = files.some((f) => f.path.toLowerCase() === "logo.svg");
+  const hasFavicon = files.some((f) => {
+    const p = f.path.toLowerCase();
+    return p === "favicon.svg" || p === "favicon.ico";
+  });
+
+  const withAssets = [...files];
+  if (!hasLogo) withAssets.push({ path: "logo.svg", content: logoSvg });
+  if (!hasFavicon) withAssets.push({ path: "favicon.svg", content: faviconSvg });
+
+  return withAssets.map((f) => {
+    if (!/\.(html?|php)$/i.test(f.path)) return f;
+    let content = f.content;
+
+    // Ensure favicon link exists
+    if (!/rel=["']icon["']/i.test(content)) {
+      const link = `\n<link rel="icon" href="favicon.svg" type="image/svg+xml">\n`;
+      content = /<\/head>/i.test(content)
+        ? content.replace(/<\/head>/i, `${link}</head>`)
+        : `${link}${content}`;
+    }
+
+    // Replace common text logo anchors with an <img> (only if there isn't already an <img>)
+    content = content.replace(
+      /<a([^>]*\bclass=["'][^"']*(?:nav-logo|logo|brand)[^"']*["'][^>]*)>(?!\s*<img\b)[\s\S]*?<\/a>/gi,
+      (_m, aAttrs) =>
+        `<a${aAttrs}><img src="logo.svg" alt="${safeText(siteName)} logo" style="height:40px;width:auto;display:block" loading="eager"></a>`
+    );
+
+    return { ...f, content };
+  });
+}
 // ============ END PHONE NUMBER VALIDATION ============
 
 const SYSTEM_PROMPT = `You are a prompt refiner for professional, multi-page websites.
@@ -6741,6 +6815,7 @@ async function runBackgroundGeneration(
       }
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
+      enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName);
       
       // CRITICAL: Enforce business hours in footer
       enforcedFiles = enforceBusinessHoursInFiles(enforcedFiles, language);
