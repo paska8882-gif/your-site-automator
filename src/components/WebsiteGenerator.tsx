@@ -3304,9 +3304,9 @@ export function WebsiteGenerator() {
           </div>
         </div>
 
-        {/* History with realtime updates and preview - today only */}
+        {/* History with realtime updates - last 24 hours only, compact mode */}
         <GenerationHistory 
-          defaultDateFilter="today"
+          compactMode
           onUsePrompt={(name, desc) => {
             setSiteNames(name ? [name] : []);
             setCurrentSiteNameInput("");

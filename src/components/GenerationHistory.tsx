@@ -176,7 +176,8 @@ interface Appeal {
 
 interface GenerationHistoryProps {
   onUsePrompt?: (siteName: string, prompt: string) => void;
-  defaultDateFilter?: "all" | "today" | "week" | "month";
+  defaultDateFilter?: "all" | "today" | "week" | "month" | "last24h";
+  compactMode?: boolean; // For generator page - hides filters, shows only last 24h
 }
 
 interface SingleHistoryItemProps {
@@ -680,7 +681,7 @@ function SingleHistoryItem({
   );
 }
 
-export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: GenerationHistoryProps) {
+export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", compactMode = false }: GenerationHistoryProps) {
   const { t } = useLanguage();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -1738,18 +1739,22 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
       return false;
     }
     
-    // Date filter
-    if (dateFilter !== "all") {
+    // Date filter - in compactMode always filter last 24h
+    const effectiveDateFilter = compactMode ? "last24h" : dateFilter;
+    if (effectiveDateFilter !== "all") {
       const itemDate = new Date(item.created_at);
       const now = new Date();
       
-      if (dateFilter === "today") {
+      if (effectiveDateFilter === "last24h") {
+        const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        if (itemDate < oneDayAgo) return false;
+      } else if (effectiveDateFilter === "today") {
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         if (itemDate < today) return false;
-      } else if (dateFilter === "week") {
+      } else if (effectiveDateFilter === "week") {
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         if (itemDate < weekAgo) return false;
-      } else if (dateFilter === "month") {
+      } else if (effectiveDateFilter === "month") {
         const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         if (itemDate < monthAgo) return false;
       }
@@ -1868,129 +1873,135 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base">
             <History className="h-4 w-4" />
-            {t("history.title")}
+            {compactMode ? t("history.recentGenerations") : t("history.title")}
+            {compactMode && (
+              <span className="text-xs font-normal text-muted-foreground">(24h)</span>
+            )}
           </CardTitle>
           <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={fetchHistory} disabled={isLoading}>
             <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
           </Button>
         </div>
-        <div className="flex items-center gap-2 mt-2">
-          <div className="relative flex-1 max-w-[200px]">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-            <Input
-              placeholder={t("common.search") + "..."}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-7 h-7 text-xs"
-            />
-          </div>
-          
-          <Popover open={showFilters} onOpenChange={setShowFilters}>
-            <PopoverTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className={`h-7 px-2 text-xs gap-1 ${hasActiveFilters ? "border-primary text-primary" : ""}`}
-              >
-                <Filter className="h-3 w-3" />
-                {t("common.filter")}
-                {hasActiveFilters && <span className="ml-1 px-1 bg-primary text-primary-foreground rounded text-[10px]">!</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-2" align="start">
-              <div className="flex flex-wrap gap-1.5">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[90px] h-7 text-xs">
-                    <SelectValue placeholder={t("history.status")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("common.all")}</SelectItem>
-                    <SelectItem value="completed">{t("history.completed")}</SelectItem>
-                    <SelectItem value="in_progress">{t("history.inProgress")}</SelectItem>
-                    <SelectItem value="failed">{t("history.failed")}</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger className="w-[70px] h-7 text-xs">
-                    <SelectValue placeholder={t("history.type")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("common.all")}</SelectItem>
-                    <SelectItem value="html">HTML</SelectItem>
-                    <SelectItem value="react">React</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                <Select value={dateFilter} onValueChange={setDateFilter}>
-                  <SelectTrigger className="w-[90px] h-7 text-xs">
-                    <SelectValue placeholder={t("history.date")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("common.all")}</SelectItem>
-                    <SelectItem value="today">{t("balance.today")}</SelectItem>
-                    <SelectItem value="week">{t("balance.week")}</SelectItem>
-                    <SelectItem value="month">{t("balance.month")}</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                {uniqueLanguages.length > 1 && (
-                  <Select value={languageFilter} onValueChange={setLanguageFilter}>
-                    <SelectTrigger className="w-[70px] h-7 text-xs">
-                      <SelectValue placeholder={t("history.language")} />
+        {!compactMode && (
+          <div className="flex items-center gap-2 mt-2">
+            <div className="relative flex-1 max-w-[200px]">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+              <Input
+                placeholder={t("common.search") + "..."}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-7 h-7 text-xs"
+              />
+            </div>
+            
+            <Popover open={showFilters} onOpenChange={setShowFilters}>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className={`h-7 px-2 text-xs gap-1 ${hasActiveFilters ? "border-primary text-primary" : ""}`}
+                >
+                  <Filter className="h-3 w-3" />
+                  {t("common.filter")}
+                  {hasActiveFilters && <span className="ml-1 px-1 bg-primary text-primary-foreground rounded text-[10px]">!</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-2" align="start">
+                <div className="flex flex-wrap gap-1.5">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[90px] h-7 text-xs">
+                      <SelectValue placeholder={t("history.status")} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">{t("common.all")}</SelectItem>
-                      {uniqueLanguages.map(lang => (
-                        <SelectItem key={lang} value={lang}>{lang.toUpperCase()}</SelectItem>
-                      ))}
+                      <SelectItem value="completed">{t("history.completed")}</SelectItem>
+                      <SelectItem value="in_progress">{t("history.inProgress")}</SelectItem>
+                      <SelectItem value="failed">{t("history.failed")}</SelectItem>
                     </SelectContent>
                   </Select>
-                )}
+                  
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger className="w-[70px] h-7 text-xs">
+                      <SelectValue placeholder={t("history.type")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("common.all")}</SelectItem>
+                      <SelectItem value="html">HTML</SelectItem>
+                      <SelectItem value="react">React</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <Select value={dateFilter} onValueChange={setDateFilter}>
+                    <SelectTrigger className="w-[90px] h-7 text-xs">
+                      <SelectValue placeholder={t("history.date")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("common.all")}</SelectItem>
+                      <SelectItem value="last24h">24h</SelectItem>
+                      <SelectItem value="today">{t("balance.today")}</SelectItem>
+                      <SelectItem value="week">{t("balance.week")}</SelectItem>
+                      <SelectItem value="month">{t("balance.month")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  {uniqueLanguages.length > 1 && (
+                    <Select value={languageFilter} onValueChange={setLanguageFilter}>
+                      <SelectTrigger className="w-[70px] h-7 text-xs">
+                        <SelectValue placeholder={t("history.language")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t("common.all")}</SelectItem>
+                        {uniqueLanguages.map(lang => (
+                          <SelectItem key={lang} value={lang}>{lang.toUpperCase()}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  
+                  <Select value={aiModelFilter} onValueChange={setAiModelFilter}>
+                    <SelectTrigger className="w-[65px] h-7 text-xs">
+                      <SelectValue placeholder="AI" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("common.all")}</SelectItem>
+                      <SelectItem value="junior">{t("generator.junior")}</SelectItem>
+                      <SelectItem value="senior">{t("generator.senior")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 
-                <Select value={aiModelFilter} onValueChange={setAiModelFilter}>
-                  <SelectTrigger className="w-[65px] h-7 text-xs">
-                    <SelectValue placeholder="AI" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("common.all")}</SelectItem>
-                    <SelectItem value="junior">{t("generator.junior")}</SelectItem>
-                    <SelectItem value="senior">{t("generator.senior")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {hasActiveFilters && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2 text-xs mt-2 w-full"
-                  onClick={() => {
-                    setStatusFilter("all");
-                    setTypeFilter("all");
-                    setDateFilter("all");
-                    setLanguageFilter("all");
-                    setAiModelFilter("all");
-                  }}
-                >
-                  <X className="h-3 w-3 mr-1" />
-                  {t("common.reset")}
-                </Button>
-              )}
-            </PopoverContent>
-          </Popover>
-          
-          {searchQuery && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 p-0"
-              onClick={() => setSearchQuery("")}
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          )}
-        </div>
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs mt-2 w-full"
+                    onClick={() => {
+                      setStatusFilter("all");
+                      setTypeFilter("all");
+                      setDateFilter("all");
+                      setLanguageFilter("all");
+                      setAiModelFilter("all");
+                    }}
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    {t("common.reset")}
+                  </Button>
+                )}
+              </PopoverContent>
+            </Popover>
+            
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={() => setSearchQuery("")}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        )}
       </CardHeader>
       <CardContent className="px-3 py-2">
         <div className="space-y-1.5">
