@@ -1171,6 +1171,16 @@ export function WebsiteGenerator() {
   // Get all site names (already an array)
   const getAllSiteNames = () => siteNames;
 
+  // Parse multiple site names from a string (comma, space, newline, semicolon separated)
+  const parseSiteNames = (input: string): string[] => {
+    // Split by common delimiters: comma, semicolon, newline, tab, multiple spaces
+    const names = input
+      .split(/[,;\n\t]+/)
+      .map(name => name.trim())
+      .filter(name => name.length > 0);
+    return names;
+  };
+
   // Add a new site name from input
   const addSiteName = () => {
     const trimmed = currentSiteNameInput.trim();
@@ -1178,6 +1188,28 @@ export function WebsiteGenerator() {
       setSiteNames(prev => [...prev, trimmed]);
       setCurrentSiteNameInput("");
     }
+  };
+
+  // Add multiple site names at once (for paste functionality)
+  const addMultipleSiteNames = (names: string[]) => {
+    const uniqueNewNames = names.filter(name => name && !siteNames.includes(name));
+    if (uniqueNewNames.length > 0) {
+      setSiteNames(prev => [...prev, ...uniqueNewNames]);
+      setCurrentSiteNameInput("");
+    }
+  };
+
+  // Handle paste event to detect and parse multiple site names
+  const handleSiteNamePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pastedText = e.clipboardData.getData("text");
+    const parsedNames = parseSiteNames(pastedText);
+    
+    // If pasted text contains multiple items, handle them all at once
+    if (parsedNames.length > 1) {
+      e.preventDefault();
+      addMultipleSiteNames(parsedNames);
+    }
+    // If single item, let default paste behavior work
   };
 
   // Remove a site name
@@ -1834,7 +1866,7 @@ export function WebsiteGenerator() {
                   <div className="flex gap-1">
                     <Input
                       id="siteName"
-                      placeholder="my-company"
+                      placeholder="my-company (можна вставити список)"
                       value={currentSiteNameInput}
                       onChange={(e) => setCurrentSiteNameInput(e.target.value)}
                       onKeyDown={(e) => {
@@ -1843,6 +1875,7 @@ export function WebsiteGenerator() {
                           addSiteName();
                         }
                       }}
+                      onPaste={handleSiteNamePaste}
                       disabled={isImproving}
                       className="h-8 text-sm flex-1"
                     />
