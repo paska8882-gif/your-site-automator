@@ -146,9 +146,9 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [offset, setOffset] = useState(0);
 
-  // Get initial data from localStorage cache
+  // Get initial data from localStorage cache (only for full mode - compact mode needs fresh data)
   const [initialData] = useState<CachedData | null>(() => 
-    user?.id ? getLocalCache(user.id) : null
+    user?.id && !compactMode ? getLocalCache(user.id) : null
   );
 
   const queryKey = compactMode 
@@ -317,10 +317,19 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
             console.log("[useGenerationHistory] Realtime update:", payload.eventType, newRecord?.id);
 
             if (payload.eventType === "INSERT" && newRecord) {
-              updateHistoryItem(newRecord);
+              // In compactMode, only add if it's an active status
+              const isActive = newRecord.status === "pending" || newRecord.status === "generating";
+              if (!compactMode || isActive) {
+                updateHistoryItem(newRecord);
+              }
             } else if (payload.eventType === "UPDATE" && newRecord) {
-              // For completed status, fetch full record to get zip_data
-              if (newRecord.status === "completed") {
+              const isActive = newRecord.status === "pending" || newRecord.status === "generating";
+              
+              // In compactMode, remove items that are no longer active
+              if (compactMode && !isActive) {
+                removeHistoryItem(newRecord.id as string);
+              } else if (newRecord.status === "completed") {
+                // For completed status, fetch full record to get zip_data
                 const { data: fullRecord } = await supabase
                   .from("generation_history")
                   .select("*")
