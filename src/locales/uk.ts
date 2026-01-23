@@ -188,6 +188,7 @@ export const uk = {
 
   history: {
     title: "Історія генерацій",
+    recentGenerations: "Останні генерації",
     subtitle: "Вся історія ваших згенерованих сайтів",
     empty: "Історія порожня",
     emptySubtitle: "Тут з'являться ваші згенеровані сайти",
