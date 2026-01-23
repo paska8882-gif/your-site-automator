@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserData } from "@/contexts/UserDataContext";
 import { useTaskNotificationSound } from "@/hooks/useTaskNotificationSound";
 
 interface TaskIndicators {
@@ -11,6 +12,7 @@ interface TaskIndicators {
 
 export const useTaskIndicators = (): TaskIndicators => {
   const { user } = useAuth();
+  const { isAdmin } = useUserData();
   const [hasNewTasks, setHasNewTasks] = useState(false);
   const [hasProblematic, setHasProblematic] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -19,60 +21,72 @@ export const useTaskIndicators = (): TaskIndicators => {
   const prevHasNewTasks = useRef(false);
   const prevHasProblematic = useRef(false);
   const isInitialLoad = useRef(true);
+  const lastFetchTime = useRef(0);
+  const minFetchInterval = 5000; // 5 seconds between fetches
 
   const fetchIndicators = useCallback(async () => {
-    if (!user) return;
+    // Only fetch if user is admin
+    if (!user || !isAdmin) {
+      setHasNewTasks(false);
+      setHasProblematic(false);
+      setLoading(false);
+      return;
+    }
+
+    // Throttle requests
+    const now = Date.now();
+    if (now - lastFetchTime.current < minFetchInterval) {
+      return;
+    }
+    lastFetchTime.current = now;
 
     try {
-      // Check for tasks assigned to current user that are in 'todo' status (new/pending)
-      const { data: newTasks, error: newError } = await supabase
-        .from("admin_tasks")
-        .select("id")
-        .eq("assigned_to", user.id)
-        .eq("status", "todo")
-        .limit(1);
+      // Single query to get both counts
+      const [newTasksResult, problematicResult] = await Promise.all([
+        supabase
+          .from("admin_tasks")
+          .select("id", { count: "exact", head: true })
+          .eq("assigned_to", user.id)
+          .eq("status", "todo"),
+        supabase
+          .from("admin_tasks")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "problematic")
+          .or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`),
+      ]);
 
-      if (!newError) {
-        const newHasNewTasks = (newTasks?.length || 0) > 0;
-        
-        // Play sound if new tasks appeared (not on initial load)
-        if (!isInitialLoad.current && newHasNewTasks && !prevHasNewTasks.current) {
+      const newHasNewTasks = (newTasksResult.count || 0) > 0;
+      const newHasProblematic = (problematicResult.count || 0) > 0;
+      
+      // Play sound if new tasks appeared (not on initial load)
+      if (!isInitialLoad.current) {
+        if (newHasNewTasks && !prevHasNewTasks.current) {
           playNewTaskSound();
         }
-        
-        prevHasNewTasks.current = newHasNewTasks;
-        setHasNewTasks(newHasNewTasks);
-      }
-
-      // Check for problematic tasks (assigned to user or created by user)
-      const { data: problematicTasks, error: probError } = await supabase
-        .from("admin_tasks")
-        .select("id")
-        .eq("status", "problematic")
-        .or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`)
-        .limit(1);
-
-      if (!probError) {
-        const newHasProblematic = (problematicTasks?.length || 0) > 0;
-        
-        // Play sound if problematic tasks appeared (not on initial load)
-        if (!isInitialLoad.current && newHasProblematic && !prevHasProblematic.current) {
+        if (newHasProblematic && !prevHasProblematic.current) {
           playProblematicTaskSound();
         }
-        
-        prevHasProblematic.current = newHasProblematic;
-        setHasProblematic(newHasProblematic);
       }
       
+      prevHasNewTasks.current = newHasNewTasks;
+      prevHasProblematic.current = newHasProblematic;
+      setHasNewTasks(newHasNewTasks);
+      setHasProblematic(newHasProblematic);
       isInitialLoad.current = false;
     } catch (error) {
       console.error("Error fetching task indicators:", error);
     } finally {
       setLoading(false);
     }
-  }, [user, playNewTaskSound, playProblematicTaskSound]);
+  }, [user, isAdmin, playNewTaskSound, playProblematicTaskSound]);
 
   useEffect(() => {
+    // Only set up subscription for admins
+    if (!user || !isAdmin) {
+      setLoading(false);
+      return;
+    }
+
     fetchIndicators();
 
     // Subscribe to realtime changes
@@ -90,7 +104,7 @@ export const useTaskIndicators = (): TaskIndicators => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchIndicators]);
+  }, [fetchIndicators, user, isAdmin]);
 
   return { hasNewTasks, hasProblematic, loading };
 };
