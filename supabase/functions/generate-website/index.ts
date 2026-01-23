@@ -817,6 +817,76 @@ function enforceSiteNameInFiles(
   });
 }
 
+// ============ EMAIL ENFORCEMENT FROM SITE NAME ============
+// Generate domain-based email from site name: "My Company" -> info@mycompany.com
+function generateEmailFromSiteName(siteName: string): string {
+  // Clean site name: lowercase, remove special chars, replace spaces with nothing
+  const domain = siteName
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/gi, '') // Remove special chars
+    .replace(/\s+/g, '')          // Remove spaces
+    .trim();
+  
+  return domain ? `info@${domain}.com` : 'info@example.com';
+}
+
+// Enforce email based on site name across all files
+function enforceEmailInFiles(
+  files: Array<{ path: string; content: string }>,
+  desiredSiteNameRaw: string | undefined
+): Array<{ path: string; content: string }> {
+  if (!desiredSiteNameRaw) return files;
+  
+  const desiredEmail = generateEmailFromSiteName(desiredSiteNameRaw);
+  console.log(`[enforceEmailInFiles] Generated email "${desiredEmail}" from site name "${desiredSiteNameRaw}"`);
+  
+  // Common placeholder/fake email patterns to replace
+  const emailPatterns = [
+    /info@example\.com/gi,
+    /contact@example\.com/gi,
+    /support@example\.com/gi,
+    /info@company\.com/gi,
+    /contact@company\.com/gi,
+    /info@companyname\.com/gi,
+    /contact@yoursite\.com/gi,
+    /info@yoursite\.com/gi,
+    /email@example\.com/gi,
+    /test@example\.com/gi,
+    /hello@example\.com/gi,
+    /info@yourdomain\.com/gi,
+    /contact@yourdomain\.com/gi,
+    /info@placeholder\.com/gi,
+  ];
+  
+  return files.map((f) => {
+    if (!/\.(html?|php|jsx?|tsx?)$/i.test(f.path)) return f;
+    
+    let content = f.content;
+    let replacedCount = 0;
+    
+    // Replace all placeholder emails with the generated one
+    for (const pattern of emailPatterns) {
+      const matches = content.match(pattern);
+      if (matches) {
+        replacedCount += matches.length;
+        content = content.replace(pattern, desiredEmail);
+      }
+    }
+    
+    // Also replace mailto: links with placeholder emails
+    content = content.replace(
+      /mailto:(info|contact|support|email|test|hello)@(example|company|companyname|yoursite|yourdomain|placeholder)\.com/gi,
+      `mailto:${desiredEmail}`
+    );
+    
+    if (replacedCount > 0) {
+      console.log(`[enforceEmailInFiles] Replaced ${replacedCount} placeholder email(s) in ${f.path} with "${desiredEmail}"`);
+    }
+    
+    return { ...f, content };
+  });
+}
+
 // ============ CONTACT INFO & FOOTER LINK VALIDATION ============
 // Validate and fix contact.html to ensure phone/email are present
 function validateContactPage(
@@ -8023,6 +8093,7 @@ async function runBackgroundGeneration(
         console.log(`[BG] Enforced auto-generated phone "${autoPhone}" across all files`);
       }
        enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
+       enforcedFiles = enforceEmailInFiles(enforcedFiles, desiredSiteName);
        enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
        enforcedFiles = enforceUiUxBaselineInFiles(enforcedFiles);
 
