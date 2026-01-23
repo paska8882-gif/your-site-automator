@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { UserDataProvider } from "@/contexts/UserDataContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Edit from "./pages/Edit";
@@ -26,7 +27,8 @@ const App = () => (
     <ThemeProvider>
       <LanguageProvider>
         <AuthProvider>
-          <TooltipProvider>
+          <UserDataProvider>
+            <TooltipProvider>
             <Toaster />
             <Sonner />
             <BrowserRouter>
@@ -46,7 +48,8 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
-          </TooltipProvider>
+            </TooltipProvider>
+          </UserDataProvider>
         </AuthProvider>
       </LanguageProvider>
     </ThemeProvider>
