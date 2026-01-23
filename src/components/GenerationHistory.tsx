@@ -293,7 +293,7 @@ function SingleHistoryItem({
   
   return (
     <Collapsible open={expandedId === item.id}>
-      <div className={`rounded border transition-all duration-300 ${compact ? "bg-background" : ""} ${isProcessing ? "border-primary/50 bg-primary/5 animate-pulse" : ""}`}>
+      <div className={`rounded border transition-all duration-300 ${compact ? "bg-background" : ""} ${isProcessing ? "border-yellow-500/50 bg-yellow-500/10" : ""}`}>
         <CollapsibleTrigger asChild>
           <div
             className={`flex items-center justify-between cursor-pointer hover:bg-muted/50 transition-colors ${compact ? "px-2 py-1 gap-2" : "px-3 py-2 gap-3"}`}
