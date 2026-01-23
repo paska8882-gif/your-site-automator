@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -548,8 +548,8 @@ const Spends = () => {
     const isExpanded = expandedRows.has(gen.id);
     const isSelected = selectedItems.has(gen.id);
     return (
-      <>
-        <TableRow key={gen.id} className={`cursor-pointer hover:bg-muted/50 ${isSelected ? "bg-primary/10" : ""}`} onClick={() => toggleRow(gen.id)}>
+      <React.Fragment key={gen.id}>
+        <TableRow className={`cursor-pointer hover:bg-muted/50 ${isSelected ? "bg-primary/10" : ""}`} onClick={() => toggleRow(gen.id)}>
           <TableCell className="p-2" onClick={(e) => e.stopPropagation()}>
             <Checkbox 
               checked={isSelected}
@@ -646,7 +646,7 @@ const Spends = () => {
           </TableCell>
         </TableRow>
         {isExpanded && (
-          <TableRow key={`${gen.id}-expanded`}>
+          <TableRow>
             <TableCell colSpan={12} className="p-0 bg-muted/30">
               <div className="p-4 space-y-4">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -684,7 +684,7 @@ const Spends = () => {
             </TableCell>
           </TableRow>
         )}
-      </>
+      </React.Fragment>
     );
   };
 
