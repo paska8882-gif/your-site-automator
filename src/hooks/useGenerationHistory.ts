@@ -38,7 +38,7 @@ interface CachedData {
 const CACHE_KEY_PREFIX = "generation_history_cache_";
 const CACHE_MAX_ITEMS = 100;
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
-const PAGE_SIZE = 100; // Load 100 items per page
+const PAGE_SIZE = 10; // Load 100 items per page
 
 // Helper to get cache from localStorage
 function getLocalCache(userId: string): CachedData | null {
