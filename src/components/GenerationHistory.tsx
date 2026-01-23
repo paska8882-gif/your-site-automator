@@ -1644,11 +1644,8 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
       <CardHeader className="py-3 px-4">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base">
-            <History className="h-4 w-4" />
+            {compactMode ? <Loader2 className="h-4 w-4" /> : <History className="h-4 w-4" />}
             {compactMode ? t("history.recentGenerations") : t("history.title")}
-            {compactMode && (
-              <span className="text-xs font-normal text-muted-foreground">(24h)</span>
-            )}
           </CardTitle>
           <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => refetchHistory()} disabled={isLoading}>
             <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
@@ -1777,6 +1774,21 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
       </CardHeader>
       <CardContent className="px-3 py-2">
         <div className="space-y-1.5">
+          {groupedHistory().length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-6 text-center text-muted-foreground">
+              {compactMode ? (
+                <>
+                  <CheckCircle2 className="h-8 w-8 mb-2 text-green-500/50" />
+                  <p className="text-sm">{t("history.noActiveGenerations")}</p>
+                </>
+              ) : (
+                <>
+                  <History className="h-8 w-8 mb-2 opacity-50" />
+                  <p className="text-sm">{t("history.empty")}</p>
+                </>
+              )}
+            </div>
+          ) : null}
           {groupedHistory().map((entry) => {
             if (isBatchGroup(entry)) {
               // Render batch group
