@@ -818,13 +818,31 @@ function enforceSiteNameInFiles(
 }
 
 // ============ EMAIL ENFORCEMENT FROM SITE NAME ============
-// Generate domain-based email from site name: "My Company" -> info@mycompany.com
+// Generate domain-based email from site name
+// If site name looks like a domain (contains .com, .es, etc.) - use it directly
+// Otherwise clean it and add .com: "My Company" -> info@mycompany.com
 function generateEmailFromSiteName(siteName: string): string {
-  // Clean site name: lowercase, remove special chars, replace spaces with nothing
-  const domain = siteName
+  const trimmed = siteName.trim();
+  
+  // Check if site name already looks like a domain (e.g., "example.com", "site.es")
+  const domainMatch = trimmed.match(/^([a-z0-9][-a-z0-9]*\.)+[a-z]{2,}$/i);
+  if (domainMatch) {
+    // It's already a domain, use it directly
+    return `info@${trimmed.toLowerCase()}`;
+  }
+  
+  // Check if site name contains a domain-like part at the end
+  const containsDomainMatch = trimmed.match(/([a-z0-9][-a-z0-9]*\.[a-z]{2,})$/i);
+  if (containsDomainMatch) {
+    // Extract the domain part and use it
+    return `info@${containsDomainMatch[1].toLowerCase()}`;
+  }
+  
+  // Clean site name: lowercase, remove special chars, replace spaces/underscores/dashes with nothing
+  const domain = trimmed
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/gi, '') // Remove special chars
-    .replace(/\s+/g, '')          // Remove spaces
+    .replace(/[^a-z0-9\s_-]/gi, '') // Remove special chars except underscore/dash
+    .replace(/[\s_-]+/g, '')         // Remove spaces, underscores, dashes
     .trim();
   
   return domain ? `info@${domain}.com` : 'info@example.com';
