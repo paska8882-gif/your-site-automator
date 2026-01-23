@@ -905,6 +905,140 @@ function enforceEmailInFiles(
   });
 }
 
+// ============ NORMALIZE INTERNAL LINKS ============
+// Fix internal link paths to work correctly on static hosts
+// - Remove leading slashes: href="/about.html" -> href="about.html"
+// - Remove ./ prefix: href="./about.html" -> href="about.html"
+// - Ensure .html extension for internal pages
+// - Skip external links, anchors, tel:, mailto:, javascript:, etc.
+function normalizeInternalLinks(
+  files: Array<{ path: string; content: string }>
+): { files: Array<{ path: string; content: string }>; totalFixed: number } {
+  let totalFixed = 0;
+  
+  // Get list of actual HTML file names (without path prefix) for validation
+  const htmlFiles = new Set(
+    files
+      .filter(f => /\.html?$/i.test(f.path))
+      .map(f => f.path.replace(/^\.?\//, '').toLowerCase())
+  );
+  
+  const updatedFiles = files.map(f => {
+    if (!/\.(html?|php)$/i.test(f.path)) return f;
+    
+    let content = f.content;
+    let fixedInFile = 0;
+    
+    // Pattern to match href attributes (capturing the URL)
+    // Skip: external URLs, #anchors, tel:, mailto:, javascript:, data:
+    content = content.replace(
+      /href=["']([^"']+)["']/gi,
+      (match, url: string) => {
+        const trimmedUrl = url.trim();
+        
+        // Skip external URLs
+        if (/^https?:\/\//i.test(trimmedUrl)) return match;
+        
+        // Skip special protocols
+        if (/^(?:tel:|mailto:|javascript:|data:|#)/i.test(trimmedUrl)) return match;
+        
+        // Skip empty hrefs
+        if (!trimmedUrl || trimmedUrl === '#') return match;
+        
+        // Skip if it's just an anchor on current page
+        if (trimmedUrl.startsWith('#')) return match;
+        
+        let fixedUrl = trimmedUrl;
+        let wasFixed = false;
+        
+        // Remove leading slash (critical for static hosts in subdirectories)
+        if (fixedUrl.startsWith('/')) {
+          fixedUrl = fixedUrl.slice(1);
+          wasFixed = true;
+        }
+        
+        // Remove ./ prefix
+        if (fixedUrl.startsWith('./')) {
+          fixedUrl = fixedUrl.slice(2);
+          wasFixed = true;
+        }
+        
+        // Handle paths with anchors (e.g., "/about.html#section" -> "about.html#section")
+        const [pathPart, anchorPart] = fixedUrl.split('#');
+        let cleanPath = pathPart;
+        
+        // If it looks like an internal page link without extension, add .html
+        // Skip asset paths (css, js, images, fonts, etc.)
+        if (cleanPath && 
+            !cleanPath.includes('.') && 
+            !/^(?:assets|css|js|images?|img|fonts?|media|files?)\//i.test(cleanPath)) {
+          // Check if adding .html would match an actual file
+          const withHtml = cleanPath.toLowerCase() + '.html';
+          if (htmlFiles.has(withHtml)) {
+            cleanPath = cleanPath + '.html';
+            wasFixed = true;
+          }
+        }
+        
+        // Reconstruct URL with anchor if present
+        fixedUrl = anchorPart ? `${cleanPath}#${anchorPart}` : cleanPath;
+        
+        if (wasFixed) {
+          fixedInFile++;
+          return `href="${fixedUrl}"`;
+        }
+        
+        return match;
+      }
+    );
+    
+    // Also fix src attributes that might have leading slashes (for local assets)
+    content = content.replace(
+      /src=["']([^"']+)["']/gi,
+      (match, url: string) => {
+        const trimmedUrl = url.trim();
+        
+        // Skip external URLs
+        if (/^https?:\/\//i.test(trimmedUrl)) return match;
+        
+        // Skip data URIs
+        if (/^data:/i.test(trimmedUrl)) return match;
+        
+        let fixedUrl = trimmedUrl;
+        let wasFixed = false;
+        
+        // Remove leading slash for local assets
+        if (fixedUrl.startsWith('/') && !fixedUrl.startsWith('//')) {
+          fixedUrl = fixedUrl.slice(1);
+          wasFixed = true;
+        }
+        
+        // Remove ./ prefix
+        if (fixedUrl.startsWith('./')) {
+          fixedUrl = fixedUrl.slice(2);
+          wasFixed = true;
+        }
+        
+        if (wasFixed) {
+          fixedInFile++;
+          return `src="${fixedUrl}"`;
+        }
+        
+        return match;
+      }
+    );
+    
+    if (fixedInFile > 0) {
+      totalFixed += fixedInFile;
+      console.log(`🔗 [normalizeInternalLinks] Fixed ${fixedInFile} link(s) in ${f.path}`);
+    }
+    
+    return { ...f, content };
+  });
+  
+  return { files: updatedFiles, totalFixed };
+}
+
 // ============ CONTACT INFO & FOOTER LINK VALIDATION ============
 // Validate and fix contact.html to ensure phone/email are present
 function validateContactPage(
@@ -8023,6 +8157,14 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
   finalFiles = ensureMandatoryPages(finalFiles, language || "en");
   finalFiles = ensureNonEmptyHtmlPages(finalFiles, language || "en", siteName);
   finalFiles = ensureBilingualI18nInFiles(finalFiles, bilingualLanguages, siteName);
+  
+  // CRITICAL: Normalize internal links for static hosting
+  const { files: linkNormalizedFiles, totalFixed: linksFixed } = normalizeInternalLinks(finalFiles);
+  finalFiles = linkNormalizedFiles;
+  if (linksFixed > 0) {
+    console.log(`🔗 Normalized ${linksFixed} internal link(s) for static hosting compatibility`);
+  }
+  
   console.log(`📁 Final files count (with all mandatory files): ${finalFiles.length}`);
 
   return {
@@ -8123,7 +8265,15 @@ async function runBackgroundGeneration(
        // Ensure branding assets exist AND are linked in ALL html pages (including 200/404 added above)
        enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName);
       
-      // CRITICAL: Enforce business hours in footer
+       // CRITICAL: Enforce business hours in footer
+       
+       // CRITICAL: Normalize internal links to work on static hosts
+       // Removes leading slashes and ./ prefixes from href/src attributes
+       const { files: linkNormalizedFiles, totalFixed: linksFixed } = normalizeInternalLinks(enforcedFiles);
+       enforcedFiles = linkNormalizedFiles;
+       if (linksFixed > 0) {
+         console.log(`[BG] Normalized ${linksFixed} internal link(s) for static hosting compatibility`);
+       }
       enforcedFiles = enforceBusinessHoursInFiles(enforcedFiles, language);
       console.log(`[BG] Enforced business hours in footers (language: ${language || 'en'})`);
       
