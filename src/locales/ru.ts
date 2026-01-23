@@ -188,9 +188,10 @@ export const ru = {
 
   history: {
     title: "История генераций",
-    recentGenerations: "Последние генерации",
+    recentGenerations: "Активные генерации",
     subtitle: "Вся история ваших сгенерированных сайтов",
     empty: "История пуста",
+    noActiveGenerations: "Нет активных генераций",
     emptySubtitle: "Здесь появятся ваши сгенерированные сайты",
     search: "Поиск по названию или промпту",
     filter: "Фильтр",

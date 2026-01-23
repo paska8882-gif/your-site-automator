@@ -90,10 +90,9 @@ async function fetchGenerationHistory({ userId, compactMode }: FetchParams): Pro
     .eq("user_id", userId)
     .order("number", { ascending: false });
 
-  // In compactMode, only fetch last 24 hours - reduces data significantly
+  // In compactMode (Generator tab), only fetch active generations (pending/generating)
   if (compactMode) {
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    query = query.gte("created_at", twentyFourHoursAgo);
+    query = query.in("status", ["pending", "generating"]);
   }
 
   const { data, error } = await query;

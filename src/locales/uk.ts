@@ -188,9 +188,10 @@ export const uk = {
 
   history: {
     title: "Історія генерацій",
-    recentGenerations: "Останні генерації",
+    recentGenerations: "Активні генерації",
     subtitle: "Вся історія ваших згенерованих сайтів",
     empty: "Історія порожня",
+    noActiveGenerations: "Немає активних генерацій",
     emptySubtitle: "Тут з'являться ваші згенеровані сайти",
     search: "Пошук по назві або промпту",
     filter: "Фільтр",
