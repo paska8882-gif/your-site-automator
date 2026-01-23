@@ -20,6 +20,7 @@ import { FilePreview } from "./FilePreview";
 import { PhpPreviewDialog } from "./PhpPreviewDialog";
 import { GeneratedFile } from "@/lib/websiteGenerator";
 import { useAutoRetry } from "@/hooks/useAutoRetry";
+import { useGenerationHistory, HistoryItem, Appeal } from "@/hooks/useGenerationHistory";
 
 function getFileIcon(path: string) {
   const fileName = path.split("/").pop() || path;
@@ -28,25 +29,6 @@ function getFileIcon(path: string) {
   if (fileName.endsWith(".js") || fileName.endsWith(".jsx")) return <FileCode className="h-4 w-4 text-yellow-500" />;
   if (fileName.endsWith(".json")) return <FileText className="h-4 w-4 text-green-500" />;
   return <File className="h-4 w-4 text-muted-foreground" />;
-}
-
-interface HistoryItem {
-  id: string;
-  number: number;
-  prompt: string;
-  language: string;
-  zip_data: string | null;
-  files_data: GeneratedFile[] | null;
-  status: string;
-  error_message: string | null;
-  created_at: string;
-  completed_at: string | null;
-  ai_model: string | null;
-  website_type: string | null;
-  site_name: string | null;
-  sale_price: number | null;
-  image_source: string | null;
-  geo: string | null;
 }
 
 // Helper function to calculate and format generation duration
@@ -168,11 +150,7 @@ function getGeoLabel(geoCode: string): string {
   return GEO_LABELS[geoCode] || geoCode.toUpperCase();
 }
 
-interface Appeal {
-  id: string;
-  generation_id: string;
-  status: string;
-}
+// Appeal interface imported from useGenerationHistory hook
 
 interface GenerationHistoryProps {
   onUsePrompt?: (siteName: string, prompt: string) => void;
@@ -686,9 +664,15 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
   const { toast } = useToast();
   const navigate = useNavigate();
   const { isAdmin } = useAdmin();
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [appeals, setAppeals] = useState<Appeal[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // Use cached hook for history data with realtime + localStorage caching
+  const { 
+    history, 
+    appeals, 
+    isLoading, 
+    refetch: refetchHistory,
+  } = useGenerationHistory({ compactMode });
+
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedPromptId, setExpandedPromptId] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<GeneratedFile | null>(null);
@@ -832,49 +816,6 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
     manualRetry(item.id);
   }, [manualRetry]);
 
-  const fetchHistory = async () => {
-    setIsLoading(true);
-    
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      setIsLoading(false);
-      return;
-    }
-    
-    // Fetch only current user's generations (without improved_prompt - commercial secret)
-    const { data, error } = await supabase
-      .from("generation_history")
-      .select("id, number, prompt, language, zip_data, files_data, status, error_message, created_at, completed_at, ai_model, website_type, site_name, sale_price, image_source, geo")
-      .eq("user_id", user.id)
-      .order("number", { ascending: false });
-
-    if (error) {
-      console.error("Error fetching history:", error);
-      toast({
-        title: t("common.error"),
-        description: t("historyExtra.loadError"),
-        variant: "destructive",
-      });
-    } else {
-      const typedData = (data || []).map(item => ({
-        ...item,
-        files_data: item.files_data as unknown as GeneratedFile[] | null
-      }));
-      setHistory(typedData);
-    }
-
-    // Fetch user's appeals
-    const { data: appealsData } = await supabase
-      .from("appeals")
-      .select("id, generation_id, status")
-      .eq("user_id", user.id);
-    
-    setAppeals(appealsData || []);
-    setIsLoading(false);
-  };
-
   // Check for stale generations (older than 20 minutes) and mark them as failed with refund
   // NOTE: best-effort; must not spam backend when unhealthy.
   const staleCheckStateRef = useRef({
@@ -883,7 +824,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
     lastToastAt: 0,
   });
 
-  const checkStaleGenerations = async () => {
+  const checkStaleGenerations = useCallback(async () => {
     const state = staleCheckStateRef.current;
 
     // Backoff guard - wait longer between retries after failures
@@ -929,7 +870,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
 
       if (result.processed > 0) {
         console.log(`Stale cleanup: ${result.processed} processed, ${result.refunded} refunded`);
-        fetchHistory();
+        refetchHistory();
       }
     } catch (error) {
       state.failureCount += 1;
@@ -951,183 +892,14 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
     } finally {
       clearTimeout(timeout);
     }
-  };
+  }, [refetchHistory, toast, t]);
 
-  // Refs for realtime status tracking
-  const realtimeActiveRef = useRef(false);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastFetchRef = useRef<number>(0);
-
-  // Fallback polling for when realtime is not working
-  const startFallbackPolling = () => {
-    if (pollingIntervalRef.current) return; // Already polling
-    
-    console.log("[GenerationHistory] Starting fallback polling (realtime inactive)");
-    pollingIntervalRef.current = setInterval(async () => {
-      // Only poll if we have generating items
-      const hasGenerating = history.some(item => item.status === "generating");
-      if (hasGenerating && Date.now() - lastFetchRef.current > 5000) {
-        console.log("[GenerationHistory] Polling for updates...");
-        await fetchHistory();
-        lastFetchRef.current = Date.now();
-      }
-    }, 10_000); // Poll every 10 seconds when there are generating items
-  };
-
-  const stopFallbackPolling = () => {
-    if (pollingIntervalRef.current) {
-      console.log("[GenerationHistory] Stopping fallback polling (realtime active)");
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-  };
-
+  // Check for stale generations on mount and periodically
   useEffect(() => {
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    let staleCheckInterval: NodeJS.Timeout | null = null;
-    let reconnectTimeout: NodeJS.Timeout | null = null;
-
-    const setupRealtimeAndFetch = async () => {
-      await fetchHistory();
-      lastFetchRef.current = Date.now();
-      
-      // Check for stale generations on load and every minute
-      await checkStaleGenerations();
-      staleCheckInterval = setInterval(checkStaleGenerations, 60 * 1000);
-      
-      // Get current user for realtime filter
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) return;
-
-      const setupChannel = () => {
-        // Clean up existing channel if any
-        if (channel) {
-          supabase.removeChannel(channel);
-        }
-
-        // Subscribe to realtime updates for current user only
-        channel = supabase
-          .channel("generation_history_changes")
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "generation_history",
-              filter: `user_id=eq.${user.id}`,
-            },
-            (payload) => {
-              const newRecord = payload.new as Record<string, any> | undefined;
-              const oldRecord = payload.old as Record<string, any> | undefined;
-              console.log("[GenerationHistory] Realtime update:", payload.eventType, newRecord?.id);
-              
-              if (payload.eventType === "INSERT" && newRecord) {
-                const newItem = {
-                  ...newRecord,
-                  files_data: newRecord.files_data as GeneratedFile[] | null
-                } as HistoryItem;
-                setHistory((prev) => [newItem, ...prev]);
-              } else if (payload.eventType === "UPDATE" && newRecord) {
-                // For completed status, refetch full record including zip_data which may not be in realtime payload
-                if (newRecord.status === "completed") {
-                  supabase
-                    .from("generation_history")
-                    .select("*")
-                    .eq("id", newRecord.id)
-                    .single()
-                    .then(({ data: fullRecord }) => {
-                      if (fullRecord) {
-                        setHistory((prev) =>
-                          prev.map((item) => {
-                            if (item.id === fullRecord.id) {
-                              return {
-                                ...item,
-                                ...fullRecord,
-                                files_data: fullRecord.files_data as unknown as GeneratedFile[] | null
-                              };
-                            }
-                            return item;
-                          })
-                        );
-                      }
-                    });
-                } else {
-                  setHistory((prev) =>
-                    prev.map((item) => {
-                      if (item.id === newRecord.id) {
-                        return {
-                          ...item,
-                          ...newRecord,
-                          files_data: (newRecord.files_data as GeneratedFile[] | null) ?? item.files_data
-                        };
-                      }
-                      return item;
-                    })
-                  );
-                }
-              } else if (payload.eventType === "DELETE" && oldRecord) {
-                setHistory((prev) =>
-                  prev.filter((item) => item.id !== oldRecord.id)
-                );
-              }
-            }
-          )
-          .subscribe((status, err) => {
-            console.log("[GenerationHistory] Realtime status:", status, err?.message);
-            
-            if (status === "SUBSCRIBED") {
-              realtimeActiveRef.current = true;
-              stopFallbackPolling();
-            } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
-              realtimeActiveRef.current = false;
-              startFallbackPolling();
-              
-              // Attempt to reconnect after a delay
-              if (reconnectTimeout) clearTimeout(reconnectTimeout);
-              reconnectTimeout = setTimeout(() => {
-                console.log("[GenerationHistory] Attempting to reconnect realtime...");
-                setupChannel();
-              }, 5000);
-            } else if (status === "TIMED_OUT") {
-              realtimeActiveRef.current = false;
-              startFallbackPolling();
-              
-              // Attempt to reconnect after longer delay for timeout
-              if (reconnectTimeout) clearTimeout(reconnectTimeout);
-              reconnectTimeout = setTimeout(() => {
-                console.log("[GenerationHistory] Reconnecting after timeout...");
-                setupChannel();
-              }, 10000);
-            }
-          });
-      };
-
-      setupChannel();
-      
-      // Initial fallback polling check - if realtime doesn't connect within 3 seconds
-      setTimeout(() => {
-        if (!realtimeActiveRef.current) {
-          startFallbackPolling();
-        }
-      }, 3000);
-    };
-
-    setupRealtimeAndFetch();
-
-    return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
-      if (staleCheckInterval) {
-        clearInterval(staleCheckInterval);
-      }
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
-      stopFallbackPolling();
-    };
-  }, []);
+    checkStaleGenerations();
+    const interval = setInterval(checkStaleGenerations, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [checkStaleGenerations]);
 
   const handleDownload = (item: HistoryItem) => {
     if (!item.zip_data) {
@@ -1387,8 +1159,8 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
         // Save to localStorage
         localStorage.setItem(`edit-chat-${editItem.id}`, JSON.stringify(newMessages));
         
-        // Update history item
-        setHistory(prev => prev.map(h => h.id === editItem.id ? { ...h, files_data: data.files } : h));
+        // Refetch history to get updated files
+        refetchHistory();
 
         toast({
           title: t("historyExtra.siteUpdated"),
@@ -1703,7 +1475,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
       setAppealReason("");
       setAppealScreenshots([]);
       setAppealScreenshotPreviews([]);
-      fetchHistory();
+      refetchHistory();
     } catch (error) {
       console.error("Error submitting appeal:", error);
       toast({
@@ -1878,7 +1650,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
               <span className="text-xs font-normal text-muted-foreground">(24h)</span>
             )}
           </CardTitle>
-          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={fetchHistory} disabled={isLoading}>
+          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => refetchHistory()} disabled={isLoading}>
             <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
           </Button>
         </div>
