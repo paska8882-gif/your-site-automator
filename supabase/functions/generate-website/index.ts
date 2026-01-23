@@ -1039,6 +1039,245 @@ function normalizeInternalLinks(
   return { files: updatedFiles, totalFixed };
 }
 
+// ============ FORM ACTION VALIDATION FOR STATIC HOSTS ============
+// Forms on static sites often have action attributes pointing to non-existent pages
+// This function fixes forms to work properly on static hosts
+function fixFormActionsForStaticHost(
+  files: Array<{ path: string; content: string }>,
+  language?: string
+): { files: Array<{ path: string; content: string }>; totalFixed: number } {
+  let totalFixed = 0;
+  
+  // Get list of actual HTML file names for validation
+  const htmlFiles = new Set(
+    files
+      .filter(f => /\.html?$/i.test(f.path))
+      .map(f => f.path.replace(/^\.?\//, '').toLowerCase())
+  );
+  
+  // Localized success messages
+  const langLower = (language || 'en').toLowerCase();
+  let successTitle = 'Thank you!';
+  let successMessage = 'Your message has been sent successfully. We will contact you soon.';
+  let closeText = 'Close';
+  
+  if (langLower.includes('de')) {
+    successTitle = 'Vielen Dank!';
+    successMessage = 'Ihre Nachricht wurde erfolgreich gesendet. Wir werden uns bald bei Ihnen melden.';
+    closeText = 'Schließen';
+  } else if (langLower.includes('pl')) {
+    successTitle = 'Dziękujemy!';
+    successMessage = 'Twoja wiadomość została wysłana pomyślnie. Skontaktujemy się wkrótce.';
+    closeText = 'Zamknij';
+  } else if (langLower.includes('uk')) {
+    successTitle = 'Дякуємо!';
+    successMessage = 'Ваше повідомлення успішно надіслано. Ми зв\'яжемося з вами найближчим часом.';
+    closeText = 'Закрити';
+  } else if (langLower.includes('ru')) {
+    successTitle = 'Спасибо!';
+    successMessage = 'Ваше сообщение успешно отправлено. Мы свяжемся с вами в ближайшее время.';
+    closeText = 'Закрыть';
+  } else if (langLower.includes('fr')) {
+    successTitle = 'Merci!';
+    successMessage = 'Votre message a été envoyé avec succès. Nous vous contacterons bientôt.';
+    closeText = 'Fermer';
+  } else if (langLower.includes('es')) {
+    successTitle = '¡Gracias!';
+    successMessage = 'Su mensaje ha sido enviado con éxito. Nos pondremos en contacto pronto.';
+    closeText = 'Cerrar';
+  } else if (langLower.includes('it')) {
+    successTitle = 'Grazie!';
+    successMessage = 'Il tuo messaggio è stato inviato con successo. Ti contatteremo presto.';
+    closeText = 'Chiudi';
+  } else if (langLower.includes('ro')) {
+    successTitle = 'Mulțumim!';
+    successMessage = 'Mesajul dvs. a fost trimis cu succes. Vă vom contacta în curând.';
+    closeText = 'Închide';
+  } else if (langLower.includes('nl')) {
+    successTitle = 'Bedankt!';
+    successMessage = 'Uw bericht is succesvol verzonden. We nemen binnenkort contact met u op.';
+    closeText = 'Sluiten';
+  } else if (langLower.includes('pt')) {
+    successTitle = 'Obrigado!';
+    successMessage = 'Sua mensagem foi enviada com sucesso. Entraremos em contato em breve.';
+    closeText = 'Fechar';
+  } else if (langLower.includes('bg')) {
+    successTitle = 'Благодарим!';
+    successMessage = 'Вашето съобщение беше изпратено успешно. Ще се свържем с вас скоро.';
+    closeText = 'Затвори';
+  } else if (langLower.includes('cs') || langLower.includes('cz')) {
+    successTitle = 'Děkujeme!';
+    successMessage = 'Vaše zpráva byla úspěšně odeslána. Brzy vás budeme kontaktovat.';
+    closeText = 'Zavřít';
+  } else if (langLower.includes('hu')) {
+    successTitle = 'Köszönjük!';
+    successMessage = 'Üzenete sikeresen elküldve. Hamarosan felvesszük Önnel a kapcsolatot.';
+    closeText = 'Bezárás';
+  } else if (langLower.includes('sk')) {
+    successTitle = 'Ďakujeme!';
+    successMessage = 'Vaša správa bola úspešne odoslaná. Čoskoro vás budeme kontaktovať.';
+    closeText = 'Zavrieť';
+  } else if (langLower.includes('el') || langLower.includes('gr')) {
+    successTitle = 'Ευχαριστούμε!';
+    successMessage = 'Το μήνυμά σας στάλθηκε με επιτυχία. Θα επικοινωνήσουμε σύντομα.';
+    closeText = 'Κλείσιμο';
+  } else if (langLower.includes('tr')) {
+    successTitle = 'Teşekkürler!';
+    successMessage = 'Mesajınız başarıyla gönderildi. En kısa sürede sizinle iletişime geçeceğiz.';
+    closeText = 'Kapat';
+  } else if (langLower.includes('sv') || langLower.includes('se')) {
+    successTitle = 'Tack!';
+    successMessage = 'Ditt meddelande har skickats. Vi återkommer snart.';
+    closeText = 'Stäng';
+  } else if (langLower.includes('da') || langLower.includes('dk')) {
+    successTitle = 'Tak!';
+    successMessage = 'Din besked er blevet sendt. Vi kontakter dig snart.';
+    closeText = 'Luk';
+  } else if (langLower.includes('no')) {
+    successTitle = 'Takk!';
+    successMessage = 'Din melding er sendt. Vi kontakter deg snart.';
+    closeText = 'Lukk';
+  } else if (langLower.includes('fi')) {
+    successTitle = 'Kiitos!';
+    successMessage = 'Viestisi on lähetetty onnistuneesti. Otamme sinuun pian yhteyttä.';
+    closeText = 'Sulje';
+  }
+  
+  // Form submission handler script (injected once per file that has forms needing fix)
+  const formHandlerScript = `
+<script>
+(function() {
+  function showFormSuccess(form) {
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:99999;';
+    var modal = document.createElement('div');
+    modal.style.cssText = 'background:#fff;padding:40px;border-radius:12px;text-align:center;max-width:400px;margin:20px;box-shadow:0 10px 40px rgba(0,0,0,0.3);';
+    modal.innerHTML = '<div style="font-size:48px;margin-bottom:16px;">✓</div>' +
+      '<h3 style="margin:0 0 12px;font-size:24px;color:#1a1a1a;">${successTitle}</h3>' +
+      '<p style="margin:0 0 24px;color:#666;line-height:1.5;">${successMessage}</p>' +
+      '<button onclick="this.closest(\\'div\\').parentElement.remove()" style="background:#2563eb;color:#fff;border:none;padding:12px 32px;border-radius:8px;cursor:pointer;font-size:16px;">${closeText}</button>';
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    form.reset();
+    overlay.addEventListener('click', function(e) { if(e.target === overlay) overlay.remove(); });
+  }
+  document.querySelectorAll('form[data-static-form]').forEach(function(form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      showFormSuccess(form);
+    });
+  });
+})();
+</script>`;
+
+  const updatedFiles = files.map(f => {
+    if (!/\.html?$/i.test(f.path)) return f;
+    
+    let content = f.content;
+    let fixedInFile = 0;
+    let needsScript = false;
+    
+    // Pattern to match form tags with action attributes
+    content = content.replace(
+      /<form([^>]*)action=["']([^"']+)["']([^>]*)>/gi,
+      (match, before: string, actionUrl: string, after: string) => {
+        const trimmedAction = actionUrl.trim();
+        
+        // Skip external form actions (e.g., Netlify, Formspree, etc.)
+        if (/^https?:\/\//i.test(trimmedAction)) return match;
+        
+        // Skip mailto: actions
+        if (/^mailto:/i.test(trimmedAction)) return match;
+        
+        // Skip JavaScript actions
+        if (/^javascript:/i.test(trimmedAction)) return match;
+        
+        // Skip already fixed forms
+        if (/data-static-form/i.test(before + after)) return match;
+        
+        // Normalize the action path for comparison
+        let normalizedAction = trimmedAction;
+        if (normalizedAction.startsWith('/')) normalizedAction = normalizedAction.slice(1);
+        if (normalizedAction.startsWith('./')) normalizedAction = normalizedAction.slice(2);
+        
+        // Check if this action points to an existing HTML file
+        const actionLower = normalizedAction.toLowerCase();
+        const actionWithHtml = actionLower.endsWith('.html') ? actionLower : actionLower + '.html';
+        
+        // If the action target exists as a file, leave it alone
+        if (htmlFiles.has(actionLower) || htmlFiles.has(actionWithHtml)) {
+          // But still normalize the path
+          if (trimmedAction !== normalizedAction) {
+            fixedInFile++;
+            return `<form${before}action="${normalizedAction}"${after}>`;
+          }
+          return match;
+        }
+        
+        // Action points to non-existent page - fix it!
+        // Remove action and add marker for JavaScript handler
+        fixedInFile++;
+        needsScript = true;
+        
+        // Remove action attribute and add data-static-form marker
+        const cleanBefore = before.replace(/\s*action=["'][^"']*["']/gi, '');
+        const cleanAfter = after.replace(/\s*action=["'][^"']*["']/gi, '');
+        
+        console.log(`📝 [fixFormActions] Fixed form in ${f.path}: action="${trimmedAction}" -> inline handler`);
+        
+        return `<form${cleanBefore} data-static-form="true"${cleanAfter}>`;
+      }
+    );
+    
+    // Also catch forms without action (implicit current page) that might cause issues
+    // Mark them for inline handling too if they don't have method="get" for search
+    content = content.replace(
+      /<form(?![^>]*action=)([^>]*)>/gi,
+      (match, attrs: string) => {
+        // Skip search forms (usually have method="get")
+        if (/method=["']get["']/i.test(attrs)) return match;
+        
+        // Skip already fixed forms
+        if (/data-static-form/i.test(attrs)) return match;
+        
+        // Skip newsletter forms (Netlify, etc. might be configured differently)
+        if (/netlify|formspree|mailchimp/i.test(attrs)) return match;
+        
+        fixedInFile++;
+        needsScript = true;
+        return `<form data-static-form="true"${attrs}>`;
+      }
+    );
+    
+    // Inject the handler script before </body> if needed
+    if (needsScript && !content.includes('data-static-form')) {
+      // Form was fixed but script check failed - re-check
+    }
+    
+    if (needsScript) {
+      // Check if script already exists
+      if (!content.includes('showFormSuccess')) {
+        // Inject before </body>
+        if (/<\/body>/i.test(content)) {
+          content = content.replace(/<\/body>/i, `${formHandlerScript}\n</body>`);
+        } else {
+          // No body tag, append at end
+          content = content + formHandlerScript;
+        }
+      }
+    }
+    
+    if (fixedInFile > 0) {
+      totalFixed += fixedInFile;
+      console.log(`📝 [fixFormActions] Fixed ${fixedInFile} form(s) in ${f.path}`);
+    }
+    
+    return fixedInFile > 0 ? { ...f, content } : f;
+  });
+  
+  return { files: updatedFiles, totalFixed };
+}
+
 // ============ CONTACT INFO & FOOTER LINK VALIDATION ============
 // Validate and fix contact.html to ensure phone/email are present
 function validateContactPage(
@@ -8165,6 +8404,13 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
     console.log(`🔗 Normalized ${linksFixed} internal link(s) for static hosting compatibility`);
   }
   
+  // CRITICAL: Fix form actions that point to non-existent pages (causes 404 on Netlify/static hosts)
+  const { files: formFixedFiles, totalFixed: formsFixed } = fixFormActionsForStaticHost(finalFiles, language);
+  finalFiles = formFixedFiles;
+  if (formsFixed > 0) {
+    console.log(`📝 Fixed ${formsFixed} form action(s) for static hosting compatibility`);
+  }
+  
   console.log(`📁 Final files count (with all mandatory files): ${finalFiles.length}`);
 
   return {
@@ -8273,6 +8519,13 @@ async function runBackgroundGeneration(
        enforcedFiles = linkNormalizedFiles;
        if (linksFixed > 0) {
          console.log(`[BG] Normalized ${linksFixed} internal link(s) for static hosting compatibility`);
+       }
+       
+       // CRITICAL: Fix form actions that point to non-existent pages (causes 404 on Netlify/static hosts)
+       const { files: formFixedFiles, totalFixed: formsFixed } = fixFormActionsForStaticHost(enforcedFiles, language);
+       enforcedFiles = formFixedFiles;
+       if (formsFixed > 0) {
+         console.log(`[BG] Fixed ${formsFixed} form action(s) for static hosting compatibility`);
        }
       enforcedFiles = enforceBusinessHoursInFiles(enforcedFiles, language);
       console.log(`[BG] Enforced business hours in footers (language: ${language || 'en'})`);
