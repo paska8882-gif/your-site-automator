@@ -8680,7 +8680,7 @@ serve(async (req) => {
       });
     }
 
-    // Validate JWT (server-side) using auth.getUser(token). This is more reliable than local verification.
+    // Validate JWT using getClaims() - more reliable than getUser() for token validation
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -8700,17 +8700,18 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: userData, error: userError } = await supabaseAuth.auth.getUser(token);
+    // Use getClaims() instead of getUser() - validates JWT without requiring active session
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
 
-    if (userError || !userData?.user) {
-      console.error("JWT validation failed (getUser):", userError);
+    if (claimsError || !claimsData?.claims) {
+      console.error("JWT validation failed (getClaims):", claimsError);
       return new Response(JSON.stringify({ code: 401, message: "Invalid JWT" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const userId = userData.user.id;
+    const userId = claimsData.claims.sub as string;
 
     // Use service role key for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
