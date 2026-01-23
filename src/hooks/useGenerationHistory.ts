@@ -36,8 +36,9 @@ interface CachedData {
 }
 
 const CACHE_KEY_PREFIX = "generation_history_cache_";
-const CACHE_MAX_ITEMS = 50;
+const CACHE_MAX_ITEMS = 100;
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+const PAGE_SIZE = 100; // Load 100 items per page
 
 // Helper to get cache from localStorage
 function getLocalCache(userId: string): CachedData | null {
@@ -62,7 +63,7 @@ function getLocalCache(userId: string): CachedData | null {
 function setLocalCache(userId: string, history: HistoryItem[], appeals: Appeal[]) {
   try {
     const key = `${CACHE_KEY_PREFIX}${userId}`;
-    // Only cache last 50 items (without zip_data to save space)
+    // Only cache last items (without zip_data to save space)
     const trimmedHistory = history.slice(0, CACHE_MAX_ITEMS).map(item => ({
       ...item,
       zip_data: null // Don't cache zip data - it's large
@@ -81,14 +82,17 @@ function setLocalCache(userId: string, history: HistoryItem[], appeals: Appeal[]
 interface FetchParams {
   userId: string;
   compactMode?: boolean;
+  offset?: number;
+  limit?: number;
 }
 
-async function fetchGenerationHistory({ userId, compactMode }: FetchParams): Promise<{ history: HistoryItem[]; appeals: Appeal[] }> {
+async function fetchGenerationHistory({ userId, compactMode, offset = 0, limit = PAGE_SIZE }: FetchParams): Promise<{ history: HistoryItem[]; appeals: Appeal[]; hasMore: boolean }> {
   let query = supabase
     .from("generation_history")
     .select("id, number, prompt, language, zip_data, files_data, status, error_message, created_at, completed_at, ai_model, website_type, site_name, sale_price, image_source, geo")
     .eq("user_id", userId)
-    .order("number", { ascending: false });
+    .order("number", { ascending: false })
+    .range(offset, offset + limit - 1);
 
   // In compactMode (Generator tab), only fetch active generations (pending/generating)
   if (compactMode) {
@@ -107,15 +111,20 @@ async function fetchGenerationHistory({ userId, compactMode }: FetchParams): Pro
     files_data: item.files_data as unknown as GeneratedFile[] | null
   }));
 
-  // Fetch appeals
-  const { data: appealsData } = await supabase
-    .from("appeals")
-    .select("id, generation_id, status")
-    .eq("user_id", userId);
+  // Fetch appeals only on first page
+  let appealsData: Appeal[] = [];
+  if (offset === 0) {
+    const { data: appeals } = await supabase
+      .from("appeals")
+      .select("id, generation_id, status")
+      .eq("user_id", userId);
+    appealsData = appeals || [];
+  }
 
   return {
     history: typedData,
-    appeals: appealsData || []
+    appeals: appealsData,
+    hasMore: typedData.length === limit
   };
 }
 
@@ -129,6 +138,13 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
   const realtimeActiveRef = useRef(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  
+  // Pagination state
+  const [allHistory, setAllHistory] = useState<HistoryItem[]>([]);
+  const [allAppeals, setAllAppeals] = useState<Appeal[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [offset, setOffset] = useState(0);
 
   // Get initial data from localStorage cache
   const [initialData] = useState<CachedData | null>(() => 
@@ -139,54 +155,111 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
     ? ["generationHistory", user?.id, "compact"] 
     : ["generationHistory", user?.id, "full"];
 
+  // Initial fetch - first page only
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey,
-    queryFn: () => fetchGenerationHistory({ userId: user!.id, compactMode }),
+    queryFn: () => fetchGenerationHistory({ userId: user!.id, compactMode, offset: 0, limit: PAGE_SIZE }),
     enabled: !!user?.id,
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes cache
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    // Use localStorage cache as placeholder while fetching
-    placeholderData: initialData ? { history: initialData.history, appeals: initialData.appeals } : undefined,
+    placeholderData: initialData ? { 
+      history: initialData.history, 
+      appeals: initialData.appeals,
+      hasMore: true 
+    } : undefined,
   });
+
+  // Update local state when initial data loads
+  useEffect(() => {
+    if (data) {
+      setAllHistory(data.history);
+      if (data.appeals.length > 0) {
+        setAllAppeals(data.appeals);
+      }
+      setHasMore(data.hasMore);
+      setOffset(data.history.length);
+    }
+  }, [data]);
 
   // Save to localStorage when data changes
   useEffect(() => {
-    if (user?.id && data && !isFetching) {
-      setLocalCache(user.id, data.history, data.appeals);
+    if (user?.id && allHistory.length > 0 && !isFetching) {
+      setLocalCache(user.id, allHistory, allAppeals);
     }
-  }, [user?.id, data, isFetching]);
+  }, [user?.id, allHistory, allAppeals, isFetching]);
+
+  // Load more function
+  const loadMore = useCallback(async () => {
+    if (!user?.id || isLoadingMore || !hasMore) return;
+    
+    setIsLoadingMore(true);
+    try {
+      const result = await fetchGenerationHistory({ 
+        userId: user.id, 
+        compactMode, 
+        offset, 
+        limit: PAGE_SIZE 
+      });
+      
+      setAllHistory(prev => {
+        // Deduplicate by id
+        const existingIds = new Set(prev.map(item => item.id));
+        const newItems = result.history.filter(item => !existingIds.has(item.id));
+        return [...prev, ...newItems];
+      });
+      setHasMore(result.hasMore);
+      setOffset(prev => prev + result.history.length);
+    } catch (error) {
+      console.error("Error loading more history:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [user?.id, compactMode, offset, isLoadingMore, hasMore]);
 
   // Update cache with new/updated item
   const updateHistoryItem = useCallback((newRecord: Record<string, unknown>) => {
-    queryClient.setQueryData(queryKey, (old: { history: HistoryItem[]; appeals: Appeal[] } | undefined) => {
-      if (!old) return old;
-      
-      const existingIndex = old.history.findIndex(item => item.id === newRecord.id);
-      const newItem = {
-        ...newRecord,
-        files_data: newRecord.files_data as GeneratedFile[] | null
-      } as HistoryItem;
+    const newItem = {
+      ...newRecord,
+      files_data: newRecord.files_data as GeneratedFile[] | null
+    } as HistoryItem;
 
-      let newHistory: HistoryItem[];
+    setAllHistory(prev => {
+      const existingIndex = prev.findIndex(item => item.id === newRecord.id);
       if (existingIndex >= 0) {
         // Update existing
-        newHistory = old.history.map((item, idx) => 
+        return prev.map((item, idx) => 
           idx === existingIndex ? { ...item, ...newItem } : item
         );
       } else {
         // Insert new at beginning
+        return [newItem, ...prev];
+      }
+    });
+
+    // Also update React Query cache
+    queryClient.setQueryData(queryKey, (old: { history: HistoryItem[]; appeals: Appeal[]; hasMore: boolean } | undefined) => {
+      if (!old) return old;
+      
+      const existingIndex = old.history.findIndex(item => item.id === newRecord.id);
+      let newHistory: HistoryItem[];
+      if (existingIndex >= 0) {
+        newHistory = old.history.map((item, idx) => 
+          idx === existingIndex ? { ...item, ...newItem } : item
+        );
+      } else {
         newHistory = [newItem, ...old.history];
       }
-
       return { ...old, history: newHistory };
     });
   }, [queryClient, queryKey]);
 
   // Remove item from cache
   const removeHistoryItem = useCallback((itemId: string) => {
-    queryClient.setQueryData(queryKey, (old: { history: HistoryItem[]; appeals: Appeal[] } | undefined) => {
+    setAllHistory(prev => prev.filter(item => item.id !== itemId));
+    
+    queryClient.setQueryData(queryKey, (old: { history: HistoryItem[]; appeals: Appeal[]; hasMore: boolean } | undefined) => {
       if (!old) return old;
       return {
         ...old,
@@ -201,8 +274,7 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
     
     console.log("[useGenerationHistory] Starting fallback polling");
     pollingIntervalRef.current = setInterval(() => {
-      const currentData = queryClient.getQueryData<{ history: HistoryItem[] }>(queryKey);
-      const hasGenerating = currentData?.history?.some(item => 
+      const hasGenerating = allHistory.some(item => 
         item.status === "generating" || item.status === "pending"
       );
       if (hasGenerating) {
@@ -210,7 +282,7 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
         refetch();
       }
     }, 10_000);
-  }, [queryClient, queryKey, refetch]);
+  }, [allHistory, refetch]);
 
   const stopFallbackPolling = useCallback(() => {
     if (pollingIntervalRef.current) {
@@ -303,12 +375,16 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
   }, [user?.id, compactMode, updateHistoryItem, removeHistoryItem, startFallbackPolling, stopFallbackPolling]);
 
   return {
-    history: data?.history || initialData?.history || [],
-    appeals: data?.appeals || initialData?.appeals || [],
-    isLoading: isLoading && !initialData,
+    history: allHistory.length > 0 ? allHistory : (initialData?.history || []),
+    appeals: allAppeals.length > 0 ? allAppeals : (initialData?.appeals || []),
+    isLoading: isLoading && !initialData && allHistory.length === 0,
     isFetching,
     refetch,
     updateHistoryItem,
     removeHistoryItem,
+    // Pagination
+    hasMore,
+    loadMore,
+    isLoadingMore,
   };
 }

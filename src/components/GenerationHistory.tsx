@@ -665,12 +665,15 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
   const navigate = useNavigate();
   const { isAdmin } = useAdmin();
   
-  // Use cached hook for history data with realtime + localStorage caching
+  // Use cached hook for history data with realtime + localStorage caching + pagination
   const { 
     history, 
     appeals, 
     isLoading, 
     refetch: refetchHistory,
+    hasMore,
+    loadMore,
+    isLoadingMore,
   } = useGenerationHistory({ compactMode });
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -1936,6 +1939,31 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
               );
             }
           })}
+          
+          {/* Load More Button - only show in full history mode */}
+          {!compactMode && hasMore && groupedHistory().length > 0 && (
+            <div className="flex justify-center pt-4 pb-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadMore}
+                disabled={isLoadingMore}
+                className="gap-2"
+              >
+                {isLoadingMore ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {t("common.loading")}
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-4 w-4" />
+                    {t("history.loadMore")}
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       </CardContent>
 
