@@ -1852,9 +1852,9 @@ export function WebsiteGenerator() {
                       size="sm"
                       onClick={addSiteName}
                       disabled={isImproving || !currentSiteNameInput.trim()}
-                      className="h-8 px-2"
+                      className={`h-8 px-2 ${siteNames.length === 0 && currentSiteNameInput.trim() ? "animate-pulse ring-2 ring-primary/50 bg-primary/10" : ""}`}
                     >
-                      <Plus className="h-4 w-4" />
+                      <Plus className={`h-4 w-4 ${siteNames.length === 0 && currentSiteNameInput.trim() ? "text-primary" : ""}`} />
                     </Button>
                   </div>
                   {siteNames.length > 0 && (
