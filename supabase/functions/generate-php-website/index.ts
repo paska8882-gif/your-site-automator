@@ -412,6 +412,72 @@ function enforceSiteNameInFiles(
   });
 }
 
+// ============ EMAIL ENFORCEMENT FROM SITE NAME ============
+// Generate domain-based email from site name: "My Company" -> info@mycompany.com
+function generateEmailFromSiteName(siteName: string): string {
+  const domain = siteName
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/gi, '')
+    .replace(/\s+/g, '')
+    .trim();
+  
+  return domain ? `info@${domain}.com` : 'info@example.com';
+}
+
+// Enforce email based on site name across all files
+function enforceEmailInFiles(
+  files: Array<{ path: string; content: string }>,
+  desiredSiteNameRaw: string | undefined
+): Array<{ path: string; content: string }> {
+  if (!desiredSiteNameRaw) return files;
+  
+  const desiredEmail = generateEmailFromSiteName(desiredSiteNameRaw);
+  console.log(`[enforceEmailInFiles] Generated email "${desiredEmail}" from site name "${desiredSiteNameRaw}"`);
+  
+  const emailPatterns = [
+    /info@example\.com/gi,
+    /contact@example\.com/gi,
+    /support@example\.com/gi,
+    /info@company\.com/gi,
+    /contact@company\.com/gi,
+    /info@companyname\.com/gi,
+    /contact@yoursite\.com/gi,
+    /info@yoursite\.com/gi,
+    /email@example\.com/gi,
+    /test@example\.com/gi,
+    /hello@example\.com/gi,
+    /info@yourdomain\.com/gi,
+    /contact@yourdomain\.com/gi,
+    /info@placeholder\.com/gi,
+  ];
+  
+  return files.map((f) => {
+    if (!/\.(html?|php|jsx?|tsx?)$/i.test(f.path)) return f;
+    
+    let content = f.content;
+    let replacedCount = 0;
+    
+    for (const pattern of emailPatterns) {
+      const matches = content.match(pattern);
+      if (matches) {
+        replacedCount += matches.length;
+        content = content.replace(pattern, desiredEmail);
+      }
+    }
+    
+    content = content.replace(
+      /mailto:(info|contact|support|email|test|hello)@(example|company|companyname|yoursite|yourdomain|placeholder)\.com/gi,
+      `mailto:${desiredEmail}`
+    );
+    
+    if (replacedCount > 0) {
+      console.log(`[enforceEmailInFiles] Replaced ${replacedCount} placeholder email(s) in ${f.path} with "${desiredEmail}"`);
+    }
+    
+    return { ...f, content };
+  });
+}
+
 // ============ CONTACT INFO & FOOTER LINK VALIDATION ============
 function validateContactPage(
   files: Array<{ path: string; content: string }>,
@@ -5614,6 +5680,7 @@ async function runBackgroundGeneration(
       }
 
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
+      enforcedFiles = enforceEmailInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
       enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName);
       
@@ -6149,6 +6216,7 @@ ${promptForGeneration}`;
         const phoneToUse = desiredPhone || generateRealisticPhone(geoToUse);
         enforcedFiles = enforcePhoneInFiles(fixedFiles, phoneToUse);
         enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
+        enforcedFiles = enforceEmailInFiles(enforcedFiles, desiredSiteName);
         enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
         
         const { files: contactValidatedFiles } = runContactValidation(enforcedFiles, geoToUse, language);
