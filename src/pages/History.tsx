@@ -36,7 +36,8 @@ const History = () => {
           <p className="text-muted-foreground text-sm">{t("history.subtitle")}</p>
         </div>
         
-        <GenerationHistory />
+        {/* Force full history mode on /history route */}
+        <GenerationHistory compactMode={false} />
       </div>
     </AppLayout>
   );
