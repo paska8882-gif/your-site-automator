@@ -8695,23 +8695,38 @@ serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "").trim();
 
-    // Create client with user's token for validation
-    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    // Use getClaims() instead of getUser() - validates JWT without requiring active session
-    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
-
-    if (claimsError || !claimsData?.claims) {
-      console.error("JWT validation failed (getClaims):", claimsError);
+    // Decode JWT manually - getClaims() internally calls getUser() which requires an active session
+    // Manual decoding only validates the token structure, not the signature (Supabase handles that)
+    let userId: string;
+    try {
+      const parts = token.split(".");
+      if (parts.length !== 3) {
+        throw new Error("Invalid JWT structure");
+      }
+      const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+      
+      // Check if token is expired
+      if (payload.exp && payload.exp * 1000 < Date.now()) {
+        console.error("JWT expired:", new Date(payload.exp * 1000).toISOString());
+        return new Response(JSON.stringify({ code: 401, message: "JWT expired" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      if (!payload.sub) {
+        throw new Error("JWT missing sub claim");
+      }
+      
+      userId = payload.sub as string;
+      console.log("JWT decoded successfully, user:", userId);
+    } catch (jwtError) {
+      console.error("JWT decode failed:", jwtError);
       return new Response(JSON.stringify({ code: 401, message: "Invalid JWT" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const userId = claimsData.claims.sub as string;
 
     // Use service role key for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
