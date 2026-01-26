@@ -184,7 +184,7 @@ export const uk = {
     generateButton: "Генерувати",
     stopGeneration: "Зупинити",
     generationStopped: "Генерацію зупинено",
-    manualRequest: "Ручний запит",
+    manualRequest: "Запросити ручну зборку",
     manualRequestDesc: "Надіслати запит на ручну генерацію адміністратору",
     manualRequestSent: "Запит надіслано",
     manualRequestSentDesc: "Адміністратор отримав ваш запит і незабаром виконає генерацію",
