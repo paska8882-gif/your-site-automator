@@ -1,139 +1,101 @@
 
-# План: Виправлення кольорової схеми, стилю та брендінгу
+# План виправлення Auto-Retry генерації
 
-## Виявлені проблеми
+## Проблема
+При автоматичному або ручному retry (повторній генерації) сайту втрачаються ключові параметри:
+- **colorScheme** (кольорова гама)
+- **layoutStyle** (стиль макету)
+- **improvedPrompt** (покращений промпт)
+- **vipPrompt** (VIP промпт)
 
-### Проблема 1: Логотип і фавікон завжди зелені
-**Файл:** `supabase/functions/generate-website/index.ts` (рядки 2487-2510)
-
-Функція `ensureFaviconAndLogoInFiles` має хардкоджені кольори:
-```
-stop-color="#10b981"  // Зелений - завжди!
-stop-color="#047857"  // Темно-зелений - завжди!
-```
-
-Ці кольори ніколи не змінюються, незалежно від вибраної схеми.
-
-### Проблема 2: AI не знає про вибрану кольорову схему
-**Файл:** `supabase/functions/generate-website/index.ts` (рядки 5666-5679)
-
-Промпт до AI НЕ включає вибрану кольорову схему. AI просто каже "Generate a UNIQUE color palette based on the industry" - і генерує що хоче.
-
-Кольорова схема застосовується ТІЛЬКИ в `ensureQualityCSS()` (рядок 6316-6345) - це вже ПІСЛЯ генерації, коли AI вже написав свої кольори.
-
-### Проблема 3: Layout style не примушує AI
-AI отримує опис стилю макету, але без жорстких маркерів "MANDATORY" - тому часто ігнорує.
+Перший запит працює коректно, бо всі параметри передаються з форми. Але retry бере дані з `HistoryItem`, який не містить цих полів, і не передає їх в edge function.
 
 ---
 
-## Рішення
+## Що потрібно виправити
 
-### 1. Передати кольорову схему логотипу/фавікону
+### 1. Оновити інтерфейс HistoryItem
+**Файл:** `src/hooks/useGenerationHistory.ts`
 
-**Файл:** `supabase/functions/generate-website/index.ts`
-
-**Зміни:**
-```text
-Функція ensureFaviconAndLogoInFiles:
-- Додати параметр colorScheme?: { primary: string; accent: string }
-- Замінити хардкоджені #10b981 та #047857 на colorScheme.primary та colorScheme.accent
-- Якщо colorScheme не передано - використовувати дефолт
-```
-
-**Оновити виклик:**
+Додати поля до інтерфейсу:
 ```typescript
-// Рядок 8555: передати кольорову схему
-const selectedScheme = COLOR_SCHEMES.find(s => s.name === colorScheme) || COLOR_SCHEMES[0];
-enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName, {
-  primary: selectedScheme.primary,
-  accent: selectedScheme.accent
-});
-```
-
-### 2. Додати кольорову схему в AI промпт
-
-**Файл:** `supabase/functions/generate-website/index.ts` (рядки 5666-5679)
-
-**Перед формуванням websiteRequestBody:**
-```typescript
-// Отримати HEX кольори вибраної схеми
-let mandatoryColorSection = "";
-if (userColorScheme) {
-  const scheme = COLOR_SCHEMES.find(s => s.name === userColorScheme);
-  if (scheme) {
-    mandatoryColorSection = `
-⚠️⚠️⚠️ MANDATORY COLOR PALETTE - YOU MUST USE THESE EXACT COLORS! ⚠️⚠️⚠️
-
-Color Scheme: "${scheme.name}"
-PRIMARY COLOR: ${scheme.primary} (main brand color - buttons, links, accents)
-SECONDARY COLOR: ${scheme.secondary} (darker variant - hovers, headers)
-ACCENT COLOR: ${scheme.accent} (highlights, CTAs, icons)
-BACKGROUND LIGHT: ${scheme.bgLight} (section backgrounds)
-BORDER COLOR: ${scheme.border} (borders, dividers)
-HEADING TEXT: ${scheme.heading} (all headings)
-BODY TEXT: ${scheme.text} (paragraphs, descriptions)
-
-⚠️ USE THESE EXACT HEX CODES IN YOUR CSS! DO NOT CHANGE THEM!
-⚠️ Primary buttons = ${scheme.primary}
-⚠️ Links = ${scheme.primary}  
-⚠️ Section highlights = ${scheme.bgLight}
-⚠️ All colored elements MUST use these colors!
-
-`;
-  }
+export interface HistoryItem {
+  // ... існуючі поля
+  improved_prompt: string | null;  // ДОДАТИ
+  vip_prompt: string | null;       // ДОДАТИ
+  // color_scheme та layout_style вже є
 }
 ```
 
-**В промпт (рядок 5677):**
+### 2. Оновити SELECT запит
+**Файл:** `src/hooks/useGenerationHistory.ts`
+
+Включити нові поля в select:
+```sql
+...improved_prompt, vip_prompt...
+```
+
+### 3. Оновити функцію handleRetryGeneration
+**Файл:** `src/components/GenerationHistory.tsx`
+
+Передавати всі необхідні параметри при retry:
 ```typescript
-content: `${HTML_GENERATION_PROMPT}\n\n${mandatoryColorSection}${imageStrategy}\n\n...`
+body: JSON.stringify({
+  prompt: item.prompt,
+  language: item.language,
+  aiModel: item.ai_model || "senior",
+  siteName: item.site_name,
+  imageSource: item.image_source || "basic",
+  teamId: teamMember?.team_id,
+  geo: item.geo,
+  retryHistoryId: item.id,
+  // ДОДАТИ:
+  colorScheme: item.color_scheme,
+  layoutStyle: item.layout_style,
+  improvedPrompt: item.improved_prompt,  // НЕ vip_prompt - він вже в prompt
+}),
 ```
 
-### 3. Посилити Layout Style директиви
+### 4. Оновити addOptimisticItem (опціонально)
+**Файл:** `src/hooks/useGenerationHistory.ts`
 
-**Файл:** `supabase/functions/generate-website/index.ts` (рядок 5677)
-
-Замінити:
-```
-=== MANDATORY LAYOUT STRUCTURE (FOLLOW EXACTLY) ===
-${selectedLayout.description}
-```
-
-На:
-```
-⚠️⚠️⚠️ MANDATORY LAYOUT STRUCTURE - NON-NEGOTIABLE! ⚠️⚠️⚠️
-LAYOUT STYLE: "${selectedLayout.name}"
-
-${selectedLayout.description}
-
-⚠️ YOU MUST FOLLOW THIS LAYOUT EXACTLY!
-⚠️ Hero section MUST match the layout description above!
-⚠️ Card grids MUST use the specified arrangement!
-⚠️ IF YOU IGNORE THIS LAYOUT = GENERATION FAILURE!
-```
+Додати дефолтні значення для нових полів.
 
 ---
 
-## Файли для зміни
+## Технічні деталі
 
-| Файл | Зміни |
-|------|-------|
-| `supabase/functions/generate-website/index.ts` | 1. Оновити `ensureFaviconAndLogoInFiles` для прийому кольорової схеми |
-| | 2. Оновити виклик функції (рядок 8555) |
-| | 3. Додати `mandatoryColorSection` в промпт (рядок ~5660) |
-| | 4. Посилити layout style директиви (рядок 5677) |
-| `supabase/functions/generate-php-website/index.ts` | Аналогічні зміни для PHP генератора |
+### Структура даних в БД (generation_history)
+Колонки що вже існують:
+- `color_scheme` - text
+- `layout_style` - text  
+- `improved_prompt` - text
+- `vip_prompt` - text
+
+### Edge Function (generate-website/index.ts)
+Вже приймає `colorScheme` та `layoutStyle` з body запиту (лінія 9190):
+```typescript
+const { ..., colorScheme } = body;
+```
+
+І передає їх в `runBackgroundGeneration` (лінія 9668).
+
+### Потік даних при Retry
+```text
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  HistoryItem    │ --> │ handleRetryGen.  │ --> │  Edge Function  │
+│  (з БД)         │     │ (формує body)    │     │  (генерує)      │
+├─────────────────┤     ├──────────────────┤     ├─────────────────┤
+│ color_scheme    │ ==> │ colorScheme      │ ==> │ colorScheme     │
+│ layout_style    │ ==> │ layoutStyle      │ ==> │ layoutStyle     │
+│ improved_prompt │ ==> │ improvedPrompt   │ ==> │ improvedPrompt  │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+```
 
 ---
 
 ## Результат
-
-**До:**
-- Логотип/фавікон: завжди зелений
-- AI кольори: випадкові, ігнорує вибір
-- Layout: часто ігнорується
-
-**Після:**
-- Логотип/фавікон: відповідає вибраній схемі (синій/червоний/фіолетовий...)
-- AI кольори: жорстко прописані HEX у промпті
-- Layout: MANDATORY директиви з попередженнями
+Після виправлення retry буде зберігати всі стилістичні налаштування оригінальної генерації:
+- Кольорова гама
+- Стиль макету
+- Покращений/VIP промпт
