@@ -1371,8 +1371,8 @@ export function WebsiteGenerator() {
     };
 
     fetchActiveGenerations();
-    // Poll every 10 seconds to reduce load and avoid piling up requests on slow backend
-    const interval = setInterval(fetchActiveGenerations, 10000);
+    // Poll every 20 seconds - reduces Cloud costs while keeping UI responsive
+    const interval = setInterval(fetchActiveGenerations, 20_000);
     return () => clearInterval(interval);
   }, [user]);
 
