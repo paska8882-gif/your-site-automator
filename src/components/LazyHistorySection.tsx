@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -19,7 +19,8 @@ import {
   RotateCcw, 
   Copy,
   FileCode,
-  MonitorPlay
+  MonitorPlay,
+  RefreshCw
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { GeneratedFile } from "@/lib/websiteGenerator";
@@ -44,7 +45,16 @@ interface HistoryItem {
   geo: string | null;
 }
 
+interface CachedHistory {
+  items: HistoryItem[];
+  offset: number;
+  hasMore: boolean;
+  timestamp: number;
+}
+
 const PAGE_SIZE = 10;
+const CACHE_KEY_PREFIX = "lazy_history_cache_";
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 // Geo code to label mapping
 const GEO_LABELS: Record<string, string> = {
@@ -122,6 +132,51 @@ function getGenerationDuration(createdAt: string, completedAt: string | null): {
   return { text, colorClass };
 }
 
+// Cache helpers
+function getCache(userId: string): CachedHistory | null {
+  try {
+    const key = `${CACHE_KEY_PREFIX}${userId}`;
+    const cached = localStorage.getItem(key);
+    if (!cached) return null;
+    
+    const data = JSON.parse(cached) as CachedHistory;
+    if (Date.now() - data.timestamp > CACHE_TTL) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    // Don't cache zip_data - it's too large
+    return {
+      ...data,
+      items: data.items.map(item => ({ ...item, zip_data: null }))
+    };
+  } catch {
+    return null;
+  }
+}
+
+function setCache(userId: string, items: HistoryItem[], offset: number, hasMore: boolean) {
+  try {
+    const key = `${CACHE_KEY_PREFIX}${userId}`;
+    // Store without zip_data to save space
+    const trimmedItems = items.map(item => ({ ...item, zip_data: null }));
+    const data: CachedHistory = {
+      items: trimmedItems,
+      offset,
+      hasMore,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {
+    console.warn("Failed to cache lazy history:", e);
+  }
+}
+
+function clearCache(userId: string) {
+  try {
+    localStorage.removeItem(`${CACHE_KEY_PREFIX}${userId}`);
+  } catch {}
+}
+
 interface LazyHistorySectionProps {
   onUsePrompt?: (siteName: string, prompt: string) => void;
 }
@@ -132,11 +187,28 @@ export function LazyHistorySection({ onUsePrompt }: LazyHistorySectionProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
   
-  const [history, setHistory] = useState<HistoryItem[]>([]);
+  // Initialize from cache
+  const [history, setHistory] = useState<HistoryItem[]>(() => {
+    if (!user?.id) return [];
+    const cached = getCache(user.id);
+    return cached?.items || [];
+  });
   const [isLoading, setIsLoading] = useState(false);
-  const [hasLoaded, setHasLoaded] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [offset, setOffset] = useState(0);
+  const [hasLoaded, setHasLoaded] = useState(() => {
+    if (!user?.id) return false;
+    const cached = getCache(user.id);
+    return cached !== null;
+  });
+  const [hasMore, setHasMore] = useState(() => {
+    if (!user?.id) return true;
+    const cached = getCache(user.id);
+    return cached?.hasMore ?? true;
+  });
+  const [offset, setOffset] = useState(() => {
+    if (!user?.id) return 0;
+    const cached = getCache(user.id);
+    return cached?.offset ?? 0;
+  });
   
   const loadHistory = useCallback(async (isLoadMore = false) => {
     if (!user?.id || isLoading) return;
@@ -169,23 +241,44 @@ export function LazyHistorySection({ onUsePrompt }: LazyHistorySectionProps) {
         files_data: item.files_data as unknown as GeneratedFile[] | null
       }));
       
+      let newHistory: HistoryItem[];
+      let newOffset: number;
+      let newHasMore: boolean;
+      
       if (isLoadMore) {
-        setHistory(prev => {
-          const existingIds = new Set(prev.map(item => item.id));
-          const newItems = typedData.filter(item => !existingIds.has(item.id));
-          return [...prev, ...newItems];
-        });
+        const existingIds = new Set(history.map(item => item.id));
+        const newItems = typedData.filter(item => !existingIds.has(item.id));
+        newHistory = [...history, ...newItems];
       } else {
-        setHistory(typedData);
+        newHistory = typedData;
         setHasLoaded(true);
       }
       
-      setOffset(currentOffset + typedData.length);
-      setHasMore(typedData.length === PAGE_SIZE);
+      newOffset = currentOffset + typedData.length;
+      newHasMore = typedData.length === PAGE_SIZE;
+      
+      setHistory(newHistory);
+      setOffset(newOffset);
+      setHasMore(newHasMore);
+      
+      // Save to cache
+      if (user.id) {
+        setCache(user.id, newHistory, newOffset, newHasMore);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, offset, isLoading, toast]);
+  }, [user?.id, offset, history, isLoading, toast]);
+  
+  // Force refresh - clears cache and reloads
+  const handleRefresh = useCallback(() => {
+    if (!user?.id) return;
+    clearCache(user.id);
+    setHistory([]);
+    setOffset(0);
+    setHasMore(true);
+    setHasLoaded(false);
+  }, [user?.id]);
   
   const handleDownload = async (item: HistoryItem) => {
     if (!item.zip_data) {
@@ -254,13 +347,27 @@ export function LazyHistorySection({ onUsePrompt }: LazyHistorySectionProps) {
   return (
     <Card className="mt-4">
       <CardHeader className="py-3 px-4">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <History className="h-4 w-4" />
-          Історія генерацій
-          {history.length > 0 && (
-            <Badge variant="secondary" className="text-xs">
-              {history.length}
-            </Badge>
+        <CardTitle className="text-sm flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <History className="h-4 w-4" />
+            Історія генерацій
+            {history.length > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {history.length}
+              </Badge>
+            )}
+          </div>
+          {hasLoaded && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={handleRefresh}
+              disabled={isLoading}
+              title="Оновити історію"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
           )}
         </CardTitle>
       </CardHeader>
