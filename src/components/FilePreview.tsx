@@ -3,7 +3,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { GeneratedFile } from "@/lib/websiteGenerator";
 import { inlineLocalImages } from "@/lib/inlineAssets";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useId } from "react";
 import { ImageIcon, Check } from "lucide-react";
 
 interface FilePreviewProps {
@@ -235,34 +235,36 @@ function buildReactPreviewHtml(files: GeneratedFile[]): string {
 </html>`;
 }
 
-// Script to track image loading and report to parent
-const IMAGE_TRACKING_SCRIPT = `
+// Script to track image loading and report to parent - accepts frameId as parameter
+function createImageTrackingScript(frameId: string): string {
+  return `
 <script>
 (function() {
+  var FRAME_ID = "${frameId}";
   function trackImages() {
-    const images = document.querySelectorAll('img');
-    const total = images.length;
-    let loaded = 0;
+    var images = document.querySelectorAll('img');
+    var total = images.length;
+    var loaded = 0;
     
     if (total === 0) {
-      window.parent.postMessage({ type: 'image-progress', loaded: 0, total: 0, done: true }, '*');
+      window.parent.postMessage({ type: 'image-progress', frameId: FRAME_ID, loaded: 0, total: 0, done: true }, '*');
       return;
     }
     
-    window.parent.postMessage({ type: 'image-progress', loaded: 0, total: total, done: false }, '*');
+    window.parent.postMessage({ type: 'image-progress', frameId: FRAME_ID, loaded: 0, total: total, done: false }, '*');
     
     images.forEach(function(img) {
       if (img.complete && img.naturalHeight !== 0) {
         loaded++;
-        window.parent.postMessage({ type: 'image-progress', loaded: loaded, total: total, done: loaded === total }, '*');
+        window.parent.postMessage({ type: 'image-progress', frameId: FRAME_ID, loaded: loaded, total: total, done: loaded === total }, '*');
       } else {
         img.addEventListener('load', function() {
           loaded++;
-          window.parent.postMessage({ type: 'image-progress', loaded: loaded, total: total, done: loaded === total }, '*');
+          window.parent.postMessage({ type: 'image-progress', frameId: FRAME_ID, loaded: loaded, total: total, done: loaded === total }, '*');
         });
         img.addEventListener('error', function() {
           loaded++;
-          window.parent.postMessage({ type: 'image-progress', loaded: loaded, total: total, done: loaded === total }, '*');
+          window.parent.postMessage({ type: 'image-progress', frameId: FRAME_ID, loaded: loaded, total: total, done: loaded === total }, '*');
         });
       }
     });
@@ -276,19 +278,21 @@ const IMAGE_TRACKING_SCRIPT = `
 })();
 </script>
 `;
+}
 
 export function FilePreview({ file, cssFile, allFiles, websiteType, viewMode }: FilePreviewProps) {
   const [imageProgress, setImageProgress] = useState({ loaded: 0, total: 0, done: true });
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const frameId = useId(); // Unique ID for this component instance
   
   const isHtml = file.path.endsWith(".html");
   const isReact = websiteType === "react";
   const canPreview = isHtml || isReact;
 
-  // Listen for image progress messages from iframe
+  // Listen for image progress messages from iframe - only accept messages with matching frameId
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'image-progress') {
+      if (event.data?.type === 'image-progress' && event.data?.frameId === frameId) {
         setImageProgress({
           loaded: event.data.loaded,
           total: event.data.total,
@@ -299,7 +303,7 @@ export function FilePreview({ file, cssFile, allFiles, websiteType, viewMode }: 
     
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [frameId]);
 
   // Reset progress when content changes
   useEffect(() => {
@@ -307,11 +311,13 @@ export function FilePreview({ file, cssFile, allFiles, websiteType, viewMode }: 
   }, [file, allFiles]);
 
   const getPreviewContent = () => {
+    const trackingScript = createImageTrackingScript(frameId);
+    
     // For React projects, build a standalone HTML preview
     if (isReact && allFiles && allFiles.length > 0) {
       let html = buildReactPreviewHtml(allFiles);
       // Inject tracking script before </body>
-      html = html.replace('</body>', IMAGE_TRACKING_SCRIPT + '</body>');
+      html = html.replace('</body>', trackingScript + '</body>');
       return html;
     }
     
@@ -338,9 +344,9 @@ export function FilePreview({ file, cssFile, allFiles, websiteType, viewMode }: 
     
     // Inject tracking script before </body>
     if (html.includes("</body>")) {
-      html = html.replace("</body>", IMAGE_TRACKING_SCRIPT + "</body>");
+      html = html.replace("</body>", trackingScript + "</body>");
     } else {
-      html = html + IMAGE_TRACKING_SCRIPT;
+      html = html + trackingScript;
     }
 
     return html;

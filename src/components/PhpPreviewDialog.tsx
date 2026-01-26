@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useId } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,7 @@ export function PhpPreviewDialog({ open, onOpenChange, files, siteName }: PhpPre
   const [isLoading, setIsLoading] = useState(true);
   const [imageProgress, setImageProgress] = useState({ loaded: 0, total: 0 });
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const frameId = useId(); // Unique ID to filter messages from this specific iframe
 
   const pages = getPhpPages(files);
   const brokenLinksCount = allLinks.filter(l => !l.exists && !l.isExternal).length;
@@ -104,20 +105,21 @@ export function PhpPreviewDialog({ open, onOpenChange, files, siteName }: PhpPre
     }
   }, [open]);
 
-  // Listen for image progress messages from iframe
+  // Listen for image progress messages from iframe - filter by frameId
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
       if (e.data?.type === "php-navigate" && e.data.href) {
         navigateTo(e.data.href);
       }
-      if (e.data?.type === "image-progress") {
+      // Only accept image-progress from this specific iframe
+      if (e.data?.type === "image-progress" && e.data?.frameId === frameId) {
         setImageProgress({ loaded: e.data.loaded, total: e.data.total });
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, []);
+  }, [frameId]);
 
   const navigateTo = useCallback((path: string) => {
     const normalizedPath = path.replace(/^\.\//, "").replace(/^\//, "");
@@ -169,30 +171,31 @@ export function PhpPreviewDialog({ open, onOpenChange, files, siteName }: PhpPre
       html = html.replace(/<head[^>]*>/i, (match) => `${match}<base href=".">`);
     }
 
-    // Add script to intercept link clicks and track image loading
+    // Add script to intercept link clicks and track image loading with unique frameId
     const injectedScript = `
       <script>
-        // Track image loading progress
+        // Track image loading progress with unique frame ID
         (function() {
+          var FRAME_ID = "${frameId}";
           var images = document.querySelectorAll('img');
           var total = images.length;
           var loaded = 0;
           
           if (total > 0) {
-            window.parent.postMessage({ type: 'image-progress', loaded: 0, total: total }, '*');
+            window.parent.postMessage({ type: 'image-progress', frameId: FRAME_ID, loaded: 0, total: total }, '*');
             
             images.forEach(function(img) {
               if (img.complete) {
                 loaded++;
-                window.parent.postMessage({ type: 'image-progress', loaded: loaded, total: total }, '*');
+                window.parent.postMessage({ type: 'image-progress', frameId: FRAME_ID, loaded: loaded, total: total }, '*');
               } else {
                 img.addEventListener('load', function() {
                   loaded++;
-                  window.parent.postMessage({ type: 'image-progress', loaded: loaded, total: total }, '*');
+                  window.parent.postMessage({ type: 'image-progress', frameId: FRAME_ID, loaded: loaded, total: total }, '*');
                 });
                 img.addEventListener('error', function() {
                   loaded++;
-                  window.parent.postMessage({ type: 'image-progress', loaded: loaded, total: total }, '*');
+                  window.parent.postMessage({ type: 'image-progress', frameId: FRAME_ID, loaded: loaded, total: total }, '*');
                 });
               }
             });
