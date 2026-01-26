@@ -3462,7 +3462,16 @@ export function WebsiteGenerator() {
                 {/* Generate Button - left side */}
                 <Button
                   onClick={handleGenerateClick}
-                  disabled={siteNames.length === 0 || !prompt.trim() || (isBilingualMode ? (!bilingualLang1 || !bilingualLang2) : getAllSelectedLanguages().length === 0) || selectedAiModels.length === 0 || selectedWebsiteTypes.length === 0 || selectedImageSources.length === 0 || (isAdmin ? exceedsCreditLimit : insufficientBalance) || (isAdmin && !selectedAdminTeamId)}
+                  disabled={
+                    siteNames.length === 0 || 
+                    (promptMode === "theme" ? !selectedTopic : !prompt.trim()) || 
+                    (isBilingualMode ? (!bilingualLang1 || !bilingualLang2) : getAllSelectedLanguages().length === 0) || 
+                    selectedAiModels.length === 0 || 
+                    selectedWebsiteTypes.length === 0 || 
+                    selectedImageSources.length === 0 || 
+                    (isAdmin ? exceedsCreditLimit : insufficientBalance) || 
+                    (isAdmin && !selectedAdminTeamId)
+                  }
                   className="h-9 text-sm"
                 >
                   {isSubmitting ? (
