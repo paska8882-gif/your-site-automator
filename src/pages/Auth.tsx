@@ -75,15 +75,14 @@ export default function Auth() {
   };
 
   const validateInviteCode = async (code: string): Promise<{ valid: boolean }> => {
-    const { data, error } = await supabase
-      .from("invite_codes")
-      .select("id")
-      .eq("code", code.toUpperCase())
-      .eq("is_active", true)
-      .is("used_by", null)
-      .maybeSingle();
+    // Use secure RPC function to validate without exposing all codes
+    const { data, error } = await supabase.rpc('validate_invite_code', { 
+      p_code: code 
+    });
     
-    return { valid: !error && !!data };
+    if (error) return { valid: false };
+    const result = data as { valid?: boolean } | null;
+    return { valid: result?.valid || false };
   };
 
   const notifyAdminsAndOwners = async (teamId: string, userName: string, userRole: string) => {
@@ -116,7 +115,7 @@ export default function Auth() {
       admins?.forEach(a => userIds.add(a.user_id));
       owners?.forEach(o => userIds.add(o.user_id));
 
-      // Create notifications for each
+      // Create notifications via secure edge function
       const notifications = Array.from(userIds).map(userId => ({
         user_id: userId,
         type: "member_pending_approval",
@@ -126,7 +125,9 @@ export default function Auth() {
       }));
 
       if (notifications.length > 0) {
-        await supabase.from("notifications").insert(notifications);
+        await supabase.functions.invoke('create-notification', {
+          body: { notifications }
+        });
       }
     } catch (error) {
       console.error("Error sending notifications:", error);

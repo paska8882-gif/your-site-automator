@@ -341,15 +341,19 @@ export function AdminAppealsTab() {
         }
       }
 
-      // Create notification for user about appeal resolution
-      await supabase.from("notifications").insert({
-        user_id: selectedAppeal.user_id,
-        type: approved ? "appeal_approved" : "appeal_rejected",
-        title: approved ? "Апеляцію схвалено" : "Апеляцію відхилено",
-        message: approved 
-          ? `Вашу апеляцію схвалено. Повернено $${selectedAppeal.amount_to_refund.toFixed(2)}`
-          : `Вашу апеляцію відхилено${adminComment ? `: ${adminComment}` : ""}`,
-        data: { appealId: selectedAppeal.id, approved, amount: approved ? selectedAppeal.amount_to_refund : 0 }
+      // Create notification for user about appeal resolution via secure edge function
+      await supabase.functions.invoke('create-notification', {
+        body: {
+          notifications: [{
+            user_id: selectedAppeal.user_id,
+            type: approved ? "appeal_approved" : "appeal_rejected",
+            title: approved ? "Апеляцію схвалено" : "Апеляцію відхилено",
+            message: approved 
+              ? `Вашу апеляцію схвалено. Повернено $${selectedAppeal.amount_to_refund.toFixed(2)}`
+              : `Вашу апеляцію відхилено${adminComment ? `: ${adminComment}` : ""}`,
+            data: { appealId: selectedAppeal.id, approved, amount: approved ? selectedAppeal.amount_to_refund : 0 }
+          }]
+        }
       });
 
       toast({
