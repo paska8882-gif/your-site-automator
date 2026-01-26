@@ -18,9 +18,24 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { FilePreview } from "./FilePreview";
 import { PhpPreviewDialog } from "./PhpPreviewDialog";
-import { GeneratedFile } from "@/lib/websiteGenerator";
+import { GeneratedFile, COLOR_SCHEMES_UI, LAYOUT_STYLES } from "@/lib/websiteGenerator";
 import { useAutoRetry } from "@/hooks/useAutoRetry";
 import { useGenerationHistory, HistoryItem, Appeal } from "@/hooks/useGenerationHistory";
+
+// Helper to get color scheme display data
+function getColorSchemeDisplay(schemeId: string | null): { name: string; colors: string[] } | null {
+  if (!schemeId) return null;
+  const scheme = COLOR_SCHEMES_UI.find(s => s.id === schemeId);
+  if (!scheme || scheme.id === "random") return null;
+  return { name: scheme.name, colors: scheme.colors };
+}
+
+// Helper to get layout style name
+function getLayoutStyleName(styleId: string | null): string | null {
+  if (!styleId) return null;
+  const style = LAYOUT_STYLES.find(s => s.id === styleId);
+  return style?.name || styleId;
+}
 
 function getFileIcon(path: string) {
   const fileName = path.split("/").pop() || path;
@@ -302,6 +317,45 @@ function SingleHistoryItem({
                   {getGeoLabel(item.geo)}
                 </Badge>
               )}
+              {/* Color scheme badge with swatches */}
+              {item.status === "completed" && item.color_scheme && (() => {
+                const schemeDisplay = getColorSchemeDisplay(item.color_scheme);
+                if (schemeDisplay) {
+                  return (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-0.5 px-1.5 py-0 h-5 rounded border bg-background">
+                            {schemeDisplay.colors.slice(0, 3).map((color, i) => (
+                              <div
+                                key={i}
+                                className="w-2.5 h-2.5 rounded-full border border-border"
+                                style={{ backgroundColor: color }}
+                              />
+                            ))}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          <p className="text-xs">{schemeDisplay.name}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  );
+                }
+                return null;
+              })()}
+              {/* Layout style badge */}
+              {item.status === "completed" && item.layout_style && (() => {
+                const layoutName = getLayoutStyleName(item.layout_style);
+                if (layoutName) {
+                  return (
+                    <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-muted/50">
+                      📐 {layoutName}
+                    </Badge>
+                  );
+                }
+                return null;
+              })()}
               {item.status === "completed" && (() => {
                 const duration = getGenerationDuration(item.created_at, item.completed_at);
                 if (duration) {
