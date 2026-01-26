@@ -247,6 +247,12 @@ export const AdminSitesTab = () => {
   const [manualUploadFile, setManualUploadFile] = useState<File | null>(null);
   const [manualUploading, setManualUploading] = useState(false);
   
+  // Details dialog inline upload state
+  const [detailsUploadFile, setDetailsUploadFile] = useState<File | null>(null);
+  const [detailsUploadPrice, setDetailsUploadPrice] = useState<number>(0);
+  const [detailsUploadNote, setDetailsUploadNote] = useState<string>("");
+  const [detailsUploading, setDetailsUploading] = useState(false);
+  
   // Sorting
   const [sortColumn, setSortColumn] = useState<SortColumn>("created_at");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -671,6 +677,107 @@ export const AdminSitesTab = () => {
       toast.error(t("admin.uploadError"));
     } finally {
       setManualUploading(false);
+    }
+  };
+
+  // Complete manual request from details dialog
+  const handleCompleteFromDetails = async () => {
+    if (!detailsUploadFile || !detailsItem) {
+      toast.error(t("admin.fillAllFields"));
+      return;
+    }
+
+    setDetailsUploading(true);
+
+    try {
+      // Read and parse ZIP file
+      const zip = new JSZip();
+      const zipContent = await zip.loadAsync(detailsUploadFile);
+      
+      // Extract files from ZIP
+      const filesData: GeneratedFile[] = [];
+      const filePromises: Promise<void>[] = [];
+      
+      zipContent.forEach((relativePath, file) => {
+        if (!file.dir) {
+          filePromises.push(
+            file.async("string").then(content => {
+              filesData.push({
+                path: relativePath,
+                content: content
+              });
+            })
+          );
+        }
+      });
+      
+      await Promise.all(filePromises);
+
+      // Convert ZIP to base64
+      const arrayBuffer = await detailsUploadFile.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = "";
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const zipBase64 = btoa(binary);
+
+      const now = new Date().toISOString();
+
+      // Update generation record
+      const { error: updateError } = await supabase
+        .from("generation_history")
+        .update({
+          status: "completed",
+          files_data: filesData as unknown as null,
+          zip_data: zipBase64,
+          completed_at: now,
+          sale_price: detailsUploadPrice,
+          admin_note: detailsUploadNote || null,
+          image_source: "manual"
+        })
+        .eq("id", detailsItem.id);
+
+      if (updateError) throw updateError;
+
+      // Update team balance if there's a sale price
+      if (detailsUploadPrice > 0 && detailsItem.team_id) {
+        const team = teams.find(t => t.id === detailsItem.team_id);
+        if (team) {
+          const { error: balanceError } = await supabase
+            .from("teams")
+            .update({ balance: team.balance - detailsUploadPrice })
+            .eq("id", detailsItem.team_id);
+
+          if (balanceError) throw balanceError;
+
+          // Create balance transaction record
+          await supabase
+            .from("balance_transactions")
+            .insert({
+              team_id: detailsItem.team_id,
+              amount: -detailsUploadPrice,
+              balance_before: team.balance,
+              balance_after: team.balance - detailsUploadPrice,
+              note: `Ручна генерація: ${detailsItem.site_name || `Site ${detailsItem.number}`}`,
+              admin_id: user?.id || ""
+            });
+        }
+      }
+
+      toast.success(t("admin.manualRequestCompleted"));
+      setDetailsOpen(false);
+      setDetailsItem(null);
+      setDetailsUploadFile(null);
+      setDetailsUploadPrice(0);
+      setDetailsUploadNote("");
+      fetchAllGenerations();
+      fetchTeams();
+    } catch (error) {
+      console.error("Error completing from details:", error);
+      toast.error(t("admin.uploadError"));
+    } finally {
+      setDetailsUploading(false);
     }
   };
 
@@ -1110,6 +1217,16 @@ export const AdminSitesTab = () => {
                           className="cursor-pointer hover:bg-accent/50"
                           onClick={() => {
                             setDetailsItem(item);
+                            // Reset upload form for manual requests
+                            if (item.status === "manual_request" || item.status === "manual_in_progress") {
+                              const pricing = item.team_id ? teamPricings.find(p => p.team_id === item.team_id) : null;
+                              const defaultPrice = pricing 
+                                ? (item.website_type === "react" ? pricing.react_price : pricing.html_price)
+                                : 0;
+                              setDetailsUploadPrice(defaultPrice);
+                              setDetailsUploadNote("");
+                              setDetailsUploadFile(null);
+                            }
                             setDetailsOpen(true);
                           }}
                         >
@@ -1513,7 +1630,10 @@ export const AdminSitesTab = () => {
                     <span className="font-medium">
                       {detailsItem.status === "completed" ? t("admin.sitesDetails.statusCompleted") :
                        detailsItem.status === "generating" ? t("admin.sitesDetails.statusGenerating") :
-                       detailsItem.status === "pending" ? t("admin.sitesDetails.statusPending") : t("admin.sitesDetails.statusFailed")}
+                       detailsItem.status === "pending" ? t("admin.sitesDetails.statusPending") :
+                       detailsItem.status === "manual_request" ? t("admin.manualRequest") :
+                       detailsItem.status === "manual_in_progress" ? t("admin.manualRequestInWork") :
+                       t("admin.sitesDetails.statusFailed")}
                     </span>
                   </div>
                 </div>
@@ -1583,6 +1703,78 @@ export const AdminSitesTab = () => {
                   <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive">
                     {detailsItem.error_message}
                   </div>
+                </div>
+              )}
+
+              {/* Upload form for manual requests */}
+              {(detailsItem.status === "manual_request" || detailsItem.status === "manual_in_progress") && (
+                <div className="space-y-4 p-4 rounded-lg bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900">
+                  <div className="flex items-center gap-2 text-purple-700 dark:text-purple-300">
+                    <Upload className="h-5 w-5" />
+                    <span className="font-semibold">{t("admin.uploadResult")}</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs">{t("admin.salePrice")}</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={detailsUploadPrice}
+                        onChange={(e) => setDetailsUploadPrice(parseFloat(e.target.value) || 0)}
+                        placeholder="0.00"
+                      />
+                      {detailsItem.team_id && (() => {
+                        const pricing = teamPricings.find(p => p.team_id === detailsItem.team_id);
+                        if (pricing) {
+                          const standardPrice = detailsItem.website_type === "react" ? pricing.react_price : pricing.html_price;
+                          return (
+                            <p className="text-xs text-muted-foreground">
+                              {t("admin.sitesUpload.salePriceStandard")} {(detailsItem.website_type || "html").toUpperCase()}: <span className="font-medium">${standardPrice.toFixed(2)}</span>
+                            </p>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">{t("admin.uploadZip")} *</Label>
+                      <Input
+                        type="file"
+                        accept=".zip"
+                        onChange={(e) => setDetailsUploadFile(e.target.files?.[0] || null)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs">{t("admin.adminNote")}</Label>
+                    <Textarea
+                      value={detailsUploadNote}
+                      onChange={(e) => setDetailsUploadNote(e.target.value)}
+                      placeholder={t("admin.adminNotePlaceholder")}
+                      className="min-h-[60px]"
+                    />
+                  </div>
+
+                  <Button 
+                    onClick={handleCompleteFromDetails} 
+                    disabled={!detailsUploadFile || detailsUploading}
+                    className="w-full bg-purple-600 hover:bg-purple-700"
+                  >
+                    {detailsUploading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        {t("common.loading")}
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        {t("admin.completeAndUpload")}
+                      </>
+                    )}
+                  </Button>
                 </div>
               )}
             </div>

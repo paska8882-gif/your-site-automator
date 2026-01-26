@@ -618,6 +618,7 @@ export const ru = {
     manualRequestCompleted: "Ручной запрос выполнен",
     adminNote: "Примечание от админа",
     adminNotePlaceholder: "Дополнительная информация для пользователя...",
+    completeAndUpload: "Завершить и загрузить",
     statusFilter: "Статус",
     typeFilter: "Тип",
     modelFilter: "Модель",
