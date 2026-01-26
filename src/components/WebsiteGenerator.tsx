@@ -30,6 +30,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { startGeneration, AiModel, WebsiteType, SeniorMode, ImageSource, LAYOUT_STYLES } from "@/lib/websiteGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { GenerationHistory } from "./GenerationHistory";
+import { LazyHistorySection } from "./LazyHistorySection";
 import { DebtNotificationPopup } from "./DebtNotificationPopup";
 import { AdminTeamsDashboard } from "./AdminTeamsDashboard";
 import { useAuth } from "@/hooks/useAuth";
@@ -3304,9 +3305,19 @@ export function WebsiteGenerator() {
           </div>
         </div>
 
-        {/* History with realtime updates - last 24 hours only, compact mode */}
+        {/* Active generations only - realtime updates */}
         <GenerationHistory 
           compactMode
+          onUsePrompt={(name, desc) => {
+            setSiteNames(name ? [name] : []);
+            setCurrentSiteNameInput("");
+            setPrompt(desc);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+        />
+        
+        {/* Lazy-loaded history - manual load, 10 items at a time */}
+        <LazyHistorySection 
           onUsePrompt={(name, desc) => {
             setSiteNames(name ? [name] : []);
             setCurrentSiteNameInput("");
