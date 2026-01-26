@@ -1,68 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Wallet, TrendingDown, TrendingUp, Clock, XCircle, Loader2, Users, CalendarDays, Building2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
-import { useAdmin } from "@/hooks/useAdmin";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { format, subDays, eachDayOfInterval } from "date-fns";
-import { uk as ukLocale } from "date-fns/locale";
-import { ru as ruLocale } from "date-fns/locale";
+import { format } from "date-fns";
+import { uk as ukLocale, ru as ruLocale } from "date-fns/locale";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { BalanceRequestForm } from "@/components/BalanceRequestForm";
 import { BalanceRequestsList } from "@/components/BalanceRequestsList";
-
-interface Transaction {
-  id: string;
-  type: "generation" | "refund" | "appeal_pending" | "appeal_approved" | "appeal_rejected";
-  amount: number;
-  description: string;
-  date: string;
-  status?: string;
-  site_name?: string;
-  user_email?: string;
-}
-
-interface TeamInfo {
-  id: string;
-  name: string;
-  balance: number;
-}
-
-interface DailyData {
-  date: string;
-  amount: number;
-  count: number;
-}
-
-interface BuyerData {
-  name: string;
-  email: string;
-  amount: number;
-  count: number;
-}
-
-interface TeamSpendingData {
-  name: string;
-  amount: number;
-  count: number;
-}
-
-interface BalanceRequest {
-  id: string;
-  amount: number;
-  note: string;
-  status: string;
-  admin_comment: string | null;
-  created_at: string;
-  processed_at: string | null;
-  user_display_name?: string;
-}
+import { useBalanceData, useBalanceRequests, Transaction } from "@/hooks/useBalanceData";
 
 const CHART_COLORS = [
   "hsl(var(--primary))",
@@ -81,322 +32,27 @@ const Balance = () => {
   const { isTeamOwner } = useTeamOwner();
   const { t, language } = useLanguage();
   const dateLocale = language === "uk" ? ukLocale : ruLocale;
-  const { isAdmin } = useAdmin();
-  const [teamInfo, setTeamInfo] = useState<TeamInfo | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [dailyData, setDailyData] = useState<DailyData[]>([]);
-  const [buyerData, setBuyerData] = useState<BuyerData[]>([]);
-  const [teamSpendingData, setTeamSpendingData] = useState<TeamSpendingData[]>([]);
-  const [balanceRequests, setBalanceRequests] = useState<BalanceRequest[]>([]);
-  const [teamBalanceRequests, setTeamBalanceRequests] = useState<BalanceRequest[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+
+  const { 
+    teamInfo, 
+    transactions, 
+    dailyData, 
+    buyerData, 
+    teamSpendingData, 
+    isLoading 
+  } = useBalanceData();
+
+  const { 
+    balanceRequests, 
+    teamBalanceRequests, 
+    refetch: refetchRequests 
+  } = useBalanceRequests(teamInfo);
 
   useEffect(() => {
     if (!loading && !user) {
       navigate("/auth");
     }
   }, [user, loading, navigate]);
-
-  useEffect(() => {
-    if (user) {
-      fetchFinancialData();
-    }
-  }, [user, isTeamOwner, isAdmin]);
-
-  useEffect(() => {
-    if (user && teamInfo) {
-      fetchBalanceRequests();
-    }
-  }, [user, teamInfo, isTeamOwner]);
-
-  const fetchBalanceRequests = async () => {
-    try {
-      // Fetch user's own requests
-      const { data: ownRequests } = await supabase
-        .from("balance_requests")
-        .select("id, amount, note, status, admin_comment, created_at, processed_at")
-        .eq("user_id", user!.id)
-        .order("created_at", { ascending: false });
-      
-      setBalanceRequests(ownRequests || []);
-
-      // If team owner, fetch all team requests
-      if (isTeamOwner && teamInfo) {
-        const { data: teamRequests } = await supabase
-          .from("balance_requests")
-          .select("id, user_id, amount, note, status, admin_comment, created_at, processed_at")
-          .eq("team_id", teamInfo.id)
-          .neq("user_id", user!.id)
-          .order("created_at", { ascending: false });
-
-        if (teamRequests && teamRequests.length > 0) {
-          // Get user names
-          const userIds = [...new Set(teamRequests.map(r => r.user_id))];
-          const { data: profiles } = await supabase
-            .from("profiles")
-            .select("user_id, display_name")
-            .in("user_id", userIds);
-
-          const profileMap = new Map(profiles?.map(p => [p.user_id, p.display_name]) || []);
-
-          const enrichedRequests = teamRequests.map(r => ({
-            ...r,
-            user_display_name: profileMap.get(r.user_id) || "Невідомий"
-          }));
-
-          setTeamBalanceRequests(enrichedRequests);
-        } else {
-          setTeamBalanceRequests([]);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching balance requests:", error);
-    }
-  };
-
-  const fetchFinancialData = async () => {
-    setIsLoading(true);
-    
-    try {
-      // Get user's team
-      const { data: membership } = await supabase
-        .from("team_members")
-        .select("team_id, teams(id, name, balance)")
-        .eq("user_id", user!.id)
-        .eq("status", "approved")
-        .limit(1)
-        .maybeSingle();
-
-      let teamId: string | null = null;
-      if (membership?.teams) {
-        const team = membership.teams as unknown as TeamInfo;
-        teamId = team.id;
-        setTeamInfo({
-          id: team.id,
-          name: team.name,
-          balance: team.balance
-        });
-      }
-
-      // Get generation history - for team owners, get all team members' data
-      let generationsQuery = supabase
-        .from("generation_history")
-        .select("id, site_name, sale_price, status, created_at, user_id")
-        .not("sale_price", "is", null)
-        .order("created_at", { ascending: false });
-
-      if (!isTeamOwner) {
-        generationsQuery = generationsQuery.eq("user_id", user!.id);
-      }
-
-      const { data: generations } = await generationsQuery;
-
-      // Get team members for buyer chart (only for team owners)
-      let teamMembersMap: Map<string, { email: string; name: string }> = new Map();
-      if (isTeamOwner && teamId) {
-        const { data: teamMembers } = await supabase
-          .from("team_members")
-          .select("user_id")
-          .eq("team_id", teamId)
-          .eq("status", "approved");
-
-        if (teamMembers) {
-          const userIds = teamMembers.map(m => m.user_id);
-          
-          // Get profiles for these users
-          const { data: profiles } = await supabase
-            .from("profiles")
-            .select("user_id, display_name")
-            .in("user_id", userIds);
-
-          profiles?.forEach(p => {
-            teamMembersMap.set(p.user_id, { 
-              email: p.display_name || p.user_id.slice(0, 8), 
-              name: p.display_name || "Користувач" 
-            });
-          });
-        }
-      }
-
-      // Get appeals
-      let appealsQuery = supabase
-        .from("appeals")
-        .select("id, generation_id, amount_to_refund, status, created_at, resolved_at")
-        .order("created_at", { ascending: false });
-
-      if (!isTeamOwner) {
-        appealsQuery = appealsQuery.eq("user_id", user!.id);
-      }
-
-      const { data: appeals } = await appealsQuery;
-
-      // Build transactions list
-      const txList: Transaction[] = [];
-
-      // Add generations as transactions
-      generations?.forEach(gen => {
-        if (gen.sale_price && gen.sale_price > 0) {
-          const userInfo = teamMembersMap.get(gen.user_id || "");
-          txList.push({
-            id: gen.id,
-            type: "generation",
-            amount: -gen.sale_price,
-            description: gen.site_name || "Генерація сайту",
-            date: gen.created_at,
-            status: gen.status,
-            site_name: gen.site_name || undefined,
-            user_email: userInfo?.email
-          });
-        }
-      });
-
-      // Add appeals as transactions
-      appeals?.forEach(appeal => {
-        if (appeal.status === "approved") {
-          txList.push({
-            id: appeal.id,
-            type: "appeal_approved",
-            amount: appeal.amount_to_refund,
-            description: "Повернення за апеляцією",
-            date: appeal.resolved_at || appeal.created_at
-          });
-        } else if (appeal.status === "rejected") {
-          txList.push({
-            id: appeal.id,
-            type: "appeal_rejected",
-            amount: 0,
-            description: "Апеляція відхилена",
-            date: appeal.resolved_at || appeal.created_at
-          });
-        } else {
-          txList.push({
-            id: appeal.id,
-            type: "appeal_pending",
-            amount: appeal.amount_to_refund,
-            description: "Апеляція на розгляді",
-            date: appeal.created_at
-          });
-        }
-      });
-
-      // Sort by date descending
-      txList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setTransactions(txList);
-
-      // Build daily chart data (last 14 days)
-      const last14Days = eachDayOfInterval({
-        start: subDays(new Date(), 13),
-        end: new Date()
-      });
-
-      const dailyMap = new Map<string, { amount: number; count: number }>();
-      last14Days.forEach(day => {
-        dailyMap.set(format(day, "yyyy-MM-dd"), { amount: 0, count: 0 });
-      });
-
-      generations?.forEach(gen => {
-        if (gen.sale_price && gen.sale_price > 0) {
-          const dateKey = format(new Date(gen.created_at), "yyyy-MM-dd");
-          if (dailyMap.has(dateKey)) {
-            const current = dailyMap.get(dateKey)!;
-            dailyMap.set(dateKey, {
-              amount: current.amount + gen.sale_price,
-              count: current.count + 1
-            });
-          }
-        }
-      });
-
-      const dailyChartData = Array.from(dailyMap.entries()).map(([date, data]) => ({
-        date: format(new Date(date), "d MMM", { locale: dateLocale }),
-        amount: data.amount,
-        count: data.count
-      }));
-      setDailyData(dailyChartData);
-
-      // Build buyer chart data (only for team owners)
-      if (isTeamOwner && generations) {
-        const buyerMap = new Map<string, { email: string; name: string; amount: number; count: number }>();
-        
-        generations.forEach(gen => {
-          if (gen.sale_price && gen.sale_price > 0 && gen.user_id) {
-            const userInfo = teamMembersMap.get(gen.user_id) || { email: gen.user_id.slice(0, 8), name: "Невідомий" };
-            const current = buyerMap.get(gen.user_id) || { ...userInfo, amount: 0, count: 0 };
-            buyerMap.set(gen.user_id, {
-              ...current,
-              amount: current.amount + gen.sale_price,
-              count: current.count + 1
-            });
-          }
-        });
-
-        const buyerChartData = Array.from(buyerMap.values())
-          .sort((a, b) => b.amount - a.amount)
-          .slice(0, 8);
-        setBuyerData(buyerChartData);
-      }
-
-      // Build team spending chart data (for admins or team owners)
-      if (isAdmin || isTeamOwner) {
-        // Get all teams with their generation totals
-        const { data: allTeams } = await supabase
-          .from("teams")
-          .select("id, name");
-
-        if (allTeams) {
-          const teamSpendingMap = new Map<string, { name: string; amount: number; count: number }>();
-          
-          allTeams.forEach(team => {
-            teamSpendingMap.set(team.id, { name: team.name, amount: 0, count: 0 });
-          });
-
-          // Get all generations with team info via team_members
-          const { data: allGenerations } = await supabase
-            .from("generation_history")
-            .select("user_id, sale_price")
-            .not("sale_price", "is", null);
-
-          if (allGenerations) {
-            // Get user to team mapping
-            const { data: allMemberships } = await supabase
-              .from("team_members")
-              .select("user_id, team_id")
-              .eq("status", "approved");
-
-            const userTeamMap = new Map<string, string>();
-            allMemberships?.forEach(m => {
-              userTeamMap.set(m.user_id, m.team_id);
-            });
-
-            allGenerations.forEach(gen => {
-              if (gen.sale_price && gen.sale_price > 0 && gen.user_id) {
-                const teamId = userTeamMap.get(gen.user_id);
-                if (teamId && teamSpendingMap.has(teamId)) {
-                  const current = teamSpendingMap.get(teamId)!;
-                  teamSpendingMap.set(teamId, {
-                    ...current,
-                    amount: current.amount + gen.sale_price,
-                    count: current.count + 1
-                  });
-                }
-              }
-            });
-          }
-
-          const teamChartData = Array.from(teamSpendingMap.values())
-            .filter(t => t.amount > 0)
-            .sort((a, b) => b.amount - a.amount)
-            .slice(0, 10);
-          setTeamSpendingData(teamChartData);
-        }
-      }
-
-    } catch (error) {
-      console.error("Error fetching financial data:", error);
-    }
-    
-    setIsLoading(false);
-  };
 
   if (loading) {
     return (
@@ -564,7 +220,7 @@ const Balance = () => {
               )}
 
               {/* Team Spending Chart */}
-              {(isAdmin || isTeamOwner) && teamSpendingData.length > 0 && (
+              {teamSpendingData.length > 0 && (
                 <Card className="p-3">
                   <div className="flex items-center gap-1.5 text-xs font-medium mb-2">
                     <Building2 className="h-3 w-3" />
@@ -592,7 +248,7 @@ const Balance = () => {
                 <BalanceRequestForm 
                   userId={user.id} 
                   teamId={teamInfo.id}
-                  onSuccess={fetchBalanceRequests}
+                  onSuccess={refetchRequests}
                 />
                 <BalanceRequestsList 
                   requests={balanceRequests}

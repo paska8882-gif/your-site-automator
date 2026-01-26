@@ -1,4 +1,3 @@
-import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,85 +8,26 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useRealtimeTable } from "@/contexts/RealtimeContext";
+import { useNotifications } from "@/hooks/useNotifications";
 import { formatDistanceToNow } from "date-fns";
 import { uk, ru } from "date-fns/locale";
-
-interface Notification {
-  id: string;
-  type: string;
-  title: string;
-  message: string;
-  read: boolean;
-  data: unknown;
-  created_at: string;
-}
+import { useState } from "react";
 
 export function NotificationBell() {
-  const { user } = useAuth();
   const { isAdmin } = useAdmin();
   const { t, language } = useLanguage();
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
   const dateLocale = language === "ru" ? ru : uk;
 
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  const fetchNotifications = useCallback(async () => {
-    if (!user) return;
-
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(20);
-
-    if (data) {
-      setNotifications(data as Notification[]);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
-
-  // Subscribe to notifications via centralized RealtimeContext
-  const handleRealtimeUpdate = useCallback((event: { eventType: string; new: Record<string, unknown> | null }) => {
-    if (event.eventType === "INSERT" && event.new) {
-      setNotifications((prev) => [event.new as unknown as Notification, ...prev]);
-    }
-  }, []);
-
-  useRealtimeTable("notifications", handleRealtimeUpdate, [handleRealtimeUpdate]);
-
-  const markAsRead = async (id: string) => {
-    await supabase
-      .from("notifications")
-      .update({ read: true })
-      .eq("id", id);
-
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
-  };
-
-  const markAllAsRead = async () => {
-    if (!user) return;
-
-    await supabase
-      .from("notifications")
-      .update({ read: true })
-      .eq("user_id", user.id)
-      .eq("read", false);
-
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+  } = useNotifications();
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -108,7 +48,7 @@ export function NotificationBell() {
     }
   };
 
-  const handleNotificationClick = async (notification: Notification) => {
+  const handleNotificationClick = async (notification: { id: string; type: string; data: unknown }) => {
     await markAsRead(notification.id);
     setOpen(false);
     
