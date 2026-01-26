@@ -235,10 +235,63 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Cleanup complete: ${processed} processed, ${appealsCreated} pending appeals, ${retriedCount} retried`);
+    // ==========================================
+    // STEP 3: Sync active_generations counter with reality
+    // ==========================================
+    const { count: actualActiveCount, error: countError } = await supabase
+      .from("generation_history")
+      .select("*", { count: "exact", head: true })
+      .in("status", ["pending", "generating"]);
+
+    let counterSynced = false;
+    let oldCounter = 0;
+    let newCounter = 0;
+
+    if (countError) {
+      console.error("Error counting active generations:", countError.message);
+    } else {
+      const actualCount = actualActiveCount ?? 0;
+      
+      // Get current counter value
+      const { data: limitsData } = await supabase
+        .from("system_limits")
+        .select("active_generations")
+        .eq("id", "global")
+        .single();
+      
+      oldCounter = limitsData?.active_generations ?? 0;
+      
+      // Only update if there's a mismatch
+      if (oldCounter !== actualCount) {
+        const { error: updateError } = await supabase
+          .from("system_limits")
+          .update({ 
+            active_generations: actualCount,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", "global");
+
+        if (updateError) {
+          console.error("Error syncing counter:", updateError.message);
+        } else {
+          counterSynced = true;
+          newCounter = actualCount;
+          console.log(`🔄 Counter synced: ${oldCounter} → ${actualCount}`);
+        }
+      }
+    }
+
+    console.log(`Cleanup complete: ${processed} processed, ${appealsCreated} pending appeals, ${retriedCount} retried${counterSynced ? `, counter synced ${oldCounter}→${newCounter}` : ""}`);
 
     return new Response(
-      JSON.stringify({ success: true, processed, appealsCreated, retried: retriedCount }),
+      JSON.stringify({ 
+        success: true, 
+        processed, 
+        appealsCreated, 
+        retried: retriedCount,
+        counterSynced,
+        ...(counterSynced && { counterBefore: oldCounter, counterAfter: newCounter })
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
