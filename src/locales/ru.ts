@@ -1138,6 +1138,7 @@ export const ru = {
       salePrice: "Цена продажи",
       clientPrompt: "Промпт клиента (оригинальный)",
       improvedPrompt: "Улучшенный промпт (AI+)",
+      vipPrompt: "VIP промпт",
       commercialSecret: "Коммерческая тайна",
       error: "Ошибка",
       close: "Закрыть",

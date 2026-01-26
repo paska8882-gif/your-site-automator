@@ -1725,11 +1725,26 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
                   <Label className="text-sm font-semibold flex items-center gap-2">
                     {t("admin.sitesDetails.improvedPrompt")}
                     <Badge variant="outline" className="text-[10px] px-1 py-0 text-primary border-primary/50">
-                      {t("admin.sitesDetails.commercialSecret")}
+                      AI+
                     </Badge>
                   </Label>
                   <div className="p-3 rounded-md bg-primary/5 border border-primary/20 text-sm whitespace-pre-wrap max-h-60 overflow-y-auto">
                     {detailsItem.improved_prompt}
+                  </div>
+                </div>
+              )}
+
+              {/* VIP prompt (commercial secret) */}
+              {detailsItem.vip_prompt && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold flex items-center gap-2">
+                    {t("admin.sitesDetails.vipPrompt")}
+                    <Badge variant="outline" className="text-[10px] px-1 py-0 text-amber-500 border-amber-500/50 bg-amber-500/10">
+                      VIP
+                    </Badge>
+                  </Label>
+                  <div className="p-3 rounded-md bg-amber-500/5 border border-amber-500/20 text-sm whitespace-pre-wrap max-h-60 overflow-y-auto">
+                    {detailsItem.vip_prompt}
                   </div>
                 </div>
               )}
