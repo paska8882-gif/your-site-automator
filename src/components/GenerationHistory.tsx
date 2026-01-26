@@ -396,20 +396,42 @@ function SingleHistoryItem({
                   <RotateCcw className="h-4 w-4" />
                 </Button>
               )}
-              {(item.status === "pending" || item.status === "generating") && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onCancel(item);
-                  }}
-                  title={t("historyExtra.cancelGeneration")}
-                >
-                  <Ban className="h-4 w-4" />
-                </Button>
-              )}
+              {(item.status === "pending" || item.status === "generating") && (() => {
+                const createdAt = new Date(item.created_at).getTime();
+                const now = Date.now();
+                const tenMinutesMs = 10 * 60 * 1000;
+                const canCancel = now - createdAt >= tenMinutesMs;
+                const remainingMinutes = Math.max(0, Math.ceil((tenMinutesMs - (now - createdAt)) / 60000));
+                
+                return (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={`h-7 w-7 p-0 ${canCancel ? "text-destructive hover:text-destructive" : "text-muted-foreground opacity-50 cursor-not-allowed"}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (canCancel) {
+                              onCancel(item);
+                            }
+                          }}
+                          disabled={!canCancel}
+                        >
+                          <Ban className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        {canCancel 
+                          ? t("historyExtra.cancelGeneration")
+                          : `${t("historyExtra.cannotCancelYet")} (${remainingMinutes} хв)`
+                        }
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                );
+              })()}
               {/* Failed item - show retry button with countdown */}
               {item.status === "failed" && (
                 <>
@@ -1137,6 +1159,21 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
 
   const handleCancel = async (item: HistoryItem) => {
     try {
+      // Check if generation has been running for at least 10 minutes
+      const createdAt = new Date(item.created_at).getTime();
+      const now = Date.now();
+      const tenMinutesMs = 10 * 60 * 1000;
+      
+      if (now - createdAt < tenMinutesMs) {
+        const remainingMinutes = Math.ceil((tenMinutesMs - (now - createdAt)) / 60000);
+        toast({
+          title: t("historyExtra.cannotCancelYet"),
+          description: t("historyExtra.cannotCancelYetDesc").replace("{minutes}", String(remainingMinutes)),
+          variant: "destructive",
+        });
+        return;
+      }
+
       // First, refund balance if there was a sale_price
       if (item.sale_price && item.sale_price > 0) {
         // Get current user
