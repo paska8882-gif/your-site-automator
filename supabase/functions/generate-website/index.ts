@@ -5717,20 +5717,47 @@ async function runGeneration({
     const fullScheme = BRAND_COLOR_MAP[userColorScheme];
     if (fullScheme) {
       mandatoryColorSection = `
-⚠️⚠️⚠️ MANDATORY COLOR PALETTE - YOU MUST USE THESE EXACT COLORS! ⚠️⚠️⚠️
+⚠️⚠️⚠️ MANDATORY COLOR PALETTE - YOU MUST USE THESE EXACT COLORS EVERYWHERE! ⚠️⚠️⚠️
 
 Color Scheme: "${userColorScheme}"
-PRIMARY COLOR: ${schemeColors.primary} (main brand color - buttons, links, headers, accents)
-ACCENT COLOR: ${schemeColors.accent} (highlights, CTAs, icons, hover states)
+PRIMARY COLOR: ${schemeColors.primary} (main brand color)
+ACCENT COLOR: ${schemeColors.accent} (highlights and CTAs)
 
-⚠️ CRITICAL COLOR RULES - NON-NEGOTIABLE:
-- Primary buttons MUST use background: ${schemeColors.primary}
-- All links MUST use color: ${schemeColors.primary}
-- Section accents and highlights MUST use ${schemeColors.accent}
-- Header/navbar accent elements MUST use ${schemeColors.primary}
-- CTA buttons MUST use ${schemeColors.accent} or ${schemeColors.primary}
-- DO NOT use green (#10b981) or emerald colors unless that's the selected scheme!
-- DO NOT generate your own random colors - USE THESE EXACT HEX CODES!
+═══════════════════════════════════════════════════════════════════
+🔴 BUTTONS - CRITICAL (MUST USE PRIMARY/ACCENT COLORS):
+═══════════════════════════════════════════════════════════════════
+- ALL primary buttons: background-color: ${schemeColors.primary}; color: #fff;
+- ALL secondary buttons: border: 2px solid ${schemeColors.primary}; color: ${schemeColors.primary};
+- ALL CTA buttons (Call-to-Action): background-color: ${schemeColors.accent}; color: #fff;
+- Button hover states: use darker shade of ${schemeColors.primary} or ${schemeColors.accent}
+- NEVER use default blue, green, or gray buttons!
+
+═══════════════════════════════════════════════════════════════════
+🔴 FOOTER - CRITICAL (MUST APPLY COLOR SCHEME):
+═══════════════════════════════════════════════════════════════════
+- Footer background: use dark shade based on ${schemeColors.primary} (e.g., darken by 30-40%)
+- Footer links on hover: color: ${schemeColors.accent}
+- Footer social icons: color: ${schemeColors.accent}
+- Footer headings: slightly lighter than footer text
+- Copyright bar: subtle use of ${schemeColors.primary} as accent line or background
+- Newsletter button in footer: background-color: ${schemeColors.accent}
+
+═══════════════════════════════════════════════════════════════════
+🔴 OTHER ELEMENTS (MUST USE COLOR SCHEME):
+═══════════════════════════════════════════════════════════════════
+- Links: color: ${schemeColors.primary}; hover: ${schemeColors.accent}
+- Section accents/borders: ${schemeColors.accent}
+- Active nav items: ${schemeColors.primary}
+- Card hover borders: ${schemeColors.primary}
+- Icons and badges: ${schemeColors.accent}
+- Form focus states: border-color: ${schemeColors.primary}
+
+⛔ FORBIDDEN:
+- DO NOT use green (#10b981, #047857, #38a169) unless that's the selected scheme!
+- DO NOT use default Bootstrap/Tailwind colors!
+- DO NOT generate random colors - USE ONLY THESE HEX CODES!
+- DO NOT leave any buttons without the color scheme applied!
+- DO NOT leave the footer without brand colors!
 
 `;
       console.log(`🎨 Injecting mandatory color scheme "${userColorScheme}" into AI prompt: primary=${schemeColors.primary}, accent=${schemeColors.accent}`);
