@@ -3117,22 +3117,23 @@ export function WebsiteGenerator() {
               </div>
 
               {/* Bundle Images Toggle */}
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Image className="h-3 w-3" />
-                  {t("genForm.imageBundling")}
-                </Label>
-                <div className="flex flex-col gap-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <Checkbox
-                      checked={bundleImages}
-                      onCheckedChange={(checked) => setBundleImages(!!checked)}
-                    />
-                    <span className="text-xs">{t("genForm.bundleImagesLabel")}</span>
-                  </label>
-                  <p className="text-[10px] text-muted-foreground leading-tight">
-                    {bundleImages ? t("genForm.bundleImagesOnDesc") : t("genForm.bundleImagesOffDesc")}
-                  </p>
+              <div className="col-span-2 sm:col-span-1">
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30 hover:bg-muted/50 transition-colors">
+                  <Checkbox
+                    id="bundleImages"
+                    checked={bundleImages}
+                    onCheckedChange={(checked) => setBundleImages(!!checked)}
+                    className="h-5 w-5"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <label htmlFor="bundleImages" className="text-sm font-medium cursor-pointer flex items-center gap-2">
+                      <Image className="h-4 w-4 text-muted-foreground" />
+                      {t("genForm.bundleImagesLabel")}
+                    </label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {bundleImages ? t("genForm.bundleImagesOnDesc") : t("genForm.bundleImagesOffDesc")}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
