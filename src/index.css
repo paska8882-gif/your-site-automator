@@ -142,6 +142,14 @@
   body {
     @apply bg-background text-foreground transition-colors duration-300;
   }
+
+  /* Global fix: SVGs inside buttons should not capture pointer events */
+  button svg,
+  a svg,
+  [role="button"] svg,
+  [role="link"] svg {
+    pointer-events: none;
+  }
   
   .dark body {
     background: linear-gradient(135deg, hsl(0 0% 4%) 0%, hsl(0 0% 10%) 50%, hsl(0 0% 6%) 100%);
