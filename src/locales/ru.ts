@@ -232,6 +232,9 @@ export const ru = {
     type: "Тип",
     createdAt: "Создано",
     completedAt: "Завершено",
+    manualRequest: "Ручной запрос",
+    manualInProgress: "В работе",
+    adminNote: "Примечание от админа",
   },
 
   balance: {
@@ -613,6 +616,8 @@ export const ru = {
     uploadResult: "Загрузить результат",
     manualRequestTaken: "Запрос взят в работу",
     manualRequestCompleted: "Ручной запрос выполнен",
+    adminNote: "Примечание от админа",
+    adminNotePlaceholder: "Дополнительная информация для пользователя...",
     statusFilter: "Статус",
     typeFilter: "Тип",
     modelFilter: "Модель",

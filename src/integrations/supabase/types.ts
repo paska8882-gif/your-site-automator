@@ -241,6 +241,7 @@ export type Database = {
       }
       generation_history: {
         Row: {
+          admin_note: string | null
           ai_model: string | null
           completed_at: string | null
           created_at: string
@@ -265,6 +266,7 @@ export type Database = {
           zip_data: string | null
         }
         Insert: {
+          admin_note?: string | null
           ai_model?: string | null
           completed_at?: string | null
           created_at?: string
@@ -289,6 +291,7 @@ export type Database = {
           zip_data?: string | null
         }
         Update: {
+          admin_note?: string | null
           ai_model?: string | null
           completed_at?: string | null
           created_at?: string

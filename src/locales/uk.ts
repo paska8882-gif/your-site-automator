@@ -232,6 +232,9 @@ export const uk = {
     type: "Тип",
     createdAt: "Створено",
     completedAt: "Завершено",
+    manualRequest: "Ручний запит",
+    manualInProgress: "В роботі",
+    adminNote: "Примітка від адміна",
   },
 
   balance: {
@@ -613,6 +616,8 @@ export const uk = {
     uploadResult: "Завантажити результат",
     manualRequestTaken: "Запит взято в роботу",
     manualRequestCompleted: "Ручний запит виконано",
+    adminNote: "Примітка від адміна",
+    adminNotePlaceholder: "Додаткова інформація для користувача...",
     statusFilter: "Статус",
     typeFilter: "Тип",
     modelFilter: "Модель",
