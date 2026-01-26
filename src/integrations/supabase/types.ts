@@ -787,6 +787,30 @@ export type Database = {
           },
         ]
       }
+      system_limits: {
+        Row: {
+          active_generations: number
+          id: string
+          max_concurrent_generations: number
+          max_generations_per_user: number
+          updated_at: string
+        }
+        Insert: {
+          active_generations?: number
+          id?: string
+          max_concurrent_generations?: number
+          max_generations_per_user?: number
+          updated_at?: string
+        }
+        Update: {
+          active_generations?: number
+          id?: string
+          max_concurrent_generations?: number
+          max_generations_per_user?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       task_comments: {
         Row: {
           created_at: string
@@ -1001,6 +1025,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      decrement_active_generations: { Args: never; Returns: undefined }
+      get_task_indicators: {
+        Args: { p_user_id: string }
+        Returns: {
+          has_new_tasks: boolean
+          has_problematic: boolean
+        }[]
+      }
+      get_user_active_generations: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1008,6 +1044,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_active_generations: { Args: never; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       is_team_member: {
         Args: { _team_id: string; _user_id: string }

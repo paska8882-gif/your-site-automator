@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useRealtimeTable } from "@/contexts/RealtimeContext";
 import { formatDistanceToNow } from "date-fns";
 import { uk, ru } from "date-fns/locale";
 
@@ -22,7 +23,7 @@ interface Notification {
   title: string;
   message: string;
   read: boolean;
-  data: any;
+  data: unknown;
   created_at: string;
 }
 
@@ -37,7 +38,7 @@ export function NotificationBell() {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!user) return;
 
     const { data } = await supabase
@@ -50,32 +51,20 @@ export function NotificationBell() {
     if (data) {
       setNotifications(data as Notification[]);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchNotifications();
+  }, [fetchNotifications]);
 
-    // Subscribe to new notifications
-    const channel = supabase
-      .channel("notifications_realtime")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user?.id}`,
-        },
-        (payload) => {
-          setNotifications((prev) => [payload.new as Notification, ...prev]);
-        }
-      )
-      .subscribe();
+  // Subscribe to notifications via centralized RealtimeContext
+  const handleRealtimeUpdate = useCallback((event: { eventType: string; new: Record<string, unknown> | null }) => {
+    if (event.eventType === "INSERT" && event.new) {
+      setNotifications((prev) => [event.new as unknown as Notification, ...prev]);
+    }
+  }, []);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
+  useRealtimeTable("notifications", handleRealtimeUpdate, [handleRealtimeUpdate]);
 
   const markAsRead = async (id: string) => {
     await supabase

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserData } from "@/contexts/UserDataContext";
 import { useTaskNotificationSound } from "@/hooks/useTaskNotificationSound";
+import { useRealtimeTable } from "@/contexts/RealtimeContext";
 
 interface TaskIndicators {
   hasNewTasks: boolean;
@@ -21,11 +22,9 @@ export const useTaskIndicators = (): TaskIndicators => {
   const prevHasNewTasks = useRef(false);
   const prevHasProblematic = useRef(false);
   const isInitialLoad = useRef(true);
-  const lastFetchTime = useRef(0);
-  const minFetchInterval = 5000; // 5 seconds between fetches
 
+  // Use optimized RPC function instead of two separate queries
   const fetchIndicators = useCallback(async () => {
-    // Only fetch if user is admin
     if (!user || !isAdmin) {
       setHasNewTasks(false);
       setHasProblematic(false);
@@ -33,30 +32,18 @@ export const useTaskIndicators = (): TaskIndicators => {
       return;
     }
 
-    // Throttle requests
-    const now = Date.now();
-    if (now - lastFetchTime.current < minFetchInterval) {
-      return;
-    }
-    lastFetchTime.current = now;
-
     try {
-      // Single query to get both counts
-      const [newTasksResult, problematicResult] = await Promise.all([
-        supabase
-          .from("admin_tasks")
-          .select("id", { count: "exact", head: true })
-          .eq("assigned_to", user.id)
-          .eq("status", "todo"),
-        supabase
-          .from("admin_tasks")
-          .select("id", { count: "exact", head: true })
-          .eq("status", "problematic")
-          .or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`),
-      ]);
+      const { data, error } = await supabase.rpc('get_task_indicators', {
+        p_user_id: user.id
+      });
 
-      const newHasNewTasks = (newTasksResult.count || 0) > 0;
-      const newHasProblematic = (problematicResult.count || 0) > 0;
+      if (error) {
+        console.error("Error fetching task indicators:", error);
+        return;
+      }
+
+      const newHasNewTasks = data?.[0]?.has_new_tasks ?? false;
+      const newHasProblematic = data?.[0]?.has_problematic ?? false;
       
       // Play sound if new tasks appeared (not on initial load)
       if (!isInitialLoad.current) {
@@ -80,31 +67,21 @@ export const useTaskIndicators = (): TaskIndicators => {
     }
   }, [user, isAdmin, playNewTaskSound, playProblematicTaskSound]);
 
+  // Initial fetch
   useEffect(() => {
-    // Only set up subscription for admins
     if (!user || !isAdmin) {
       setLoading(false);
       return;
     }
-
     fetchIndicators();
-
-    // Subscribe to realtime changes
-    const channel = supabase
-      .channel("task-indicators")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "admin_tasks" },
-        () => {
-          fetchIndicators();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [fetchIndicators, user, isAdmin]);
+
+  // Subscribe to admin_tasks changes via centralized RealtimeContext
+  const handleRealtimeUpdate = useCallback(() => {
+    fetchIndicators();
+  }, [fetchIndicators]);
+
+  useRealtimeTable("admin_tasks", handleRealtimeUpdate, [handleRealtimeUpdate]);
 
   return { hasNewTasks, hasProblematic, loading };
 };

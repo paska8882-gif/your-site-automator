@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Users, Wallet } from "lucide-react";
 import { useBalanceSound } from "@/hooks/useBalanceSound";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useRealtimeTable } from "@/contexts/RealtimeContext";
 
 type TeamRole = "owner" | "team_lead" | "buyer" | "tech_dev";
 
@@ -29,55 +30,7 @@ export function UserTeamInfo() {
     tech_dev: t("team.techDev")
   };
 
-  useEffect(() => {
-    fetchTeamInfo();
-
-    // Realtime subscription for balance updates
-    const channel = supabase
-      .channel("user-team-balance")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "teams" },
-        (payload) => {
-          const teamId = payload.new.id;
-          const newBalance = payload.new.balance;
-          const prevBalance = prevBalancesRef.current[teamId];
-
-          setTeams(prev => {
-            const teamExists = prev.some(t => t.team_id === teamId);
-            if (!teamExists) return prev;
-
-            // Determine if balance increased or decreased
-            if (prevBalance !== undefined && prevBalance !== newBalance) {
-              const isPositive = newBalance > prevBalance;
-              setBalanceDirection(isPositive ? "positive" : "negative");
-              setAnimatingTeamId(teamId);
-              playBalanceSound(isPositive);
-              
-              setTimeout(() => {
-                setAnimatingTeamId(null);
-                setBalanceDirection(null);
-              }, 600);
-            }
-
-            prevBalancesRef.current[teamId] = newBalance;
-
-            return prev.map(team =>
-              team.team_id === teamId
-                ? { ...team, team_balance: newBalance }
-                : team
-            );
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [playBalanceSound]);
-
-  const fetchTeamInfo = async () => {
+  const fetchTeamInfo = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       setLoading(false);
@@ -115,7 +68,49 @@ export function UserTeamInfo() {
 
     setTeams(teamMemberships);
     setLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchTeamInfo();
+  }, [fetchTeamInfo]);
+
+  // Subscribe to team updates via centralized RealtimeContext
+  const handleTeamUpdate = useCallback((event: { eventType: string; new: Record<string, unknown> | null }) => {
+    if (event.eventType !== "UPDATE" || !event.new) return;
+
+    const teamId = event.new.id as string;
+    const newBalance = event.new.balance as number;
+    const prevBalance = prevBalancesRef.current[teamId];
+
+    setTeams(prev => {
+      const teamExists = prev.some(t => t.team_id === teamId);
+      if (!teamExists) return prev;
+
+      // Determine if balance increased or decreased
+      if (prevBalance !== undefined && prevBalance !== newBalance) {
+        const isPositive = newBalance > prevBalance;
+        setBalanceDirection(isPositive ? "positive" : "negative");
+        setAnimatingTeamId(teamId);
+        playBalanceSound(isPositive);
+        
+        setTimeout(() => {
+          setAnimatingTeamId(null);
+          setBalanceDirection(null);
+        }, 600);
+      }
+
+      prevBalancesRef.current[teamId] = newBalance;
+
+      return prev.map(team =>
+        team.team_id === teamId
+          ? { ...team, team_balance: newBalance }
+          : team
+      );
+    });
+  }, [playBalanceSound]);
+
+  useRealtimeTable("teams", handleTeamUpdate, [handleTeamUpdate]);
+
 
   if (loading) {
     return (
