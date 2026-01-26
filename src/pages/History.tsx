@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { GenerationHistory } from "@/components/GenerationHistory";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,12 +10,21 @@ const History = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const { t } = useLanguage();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!loading && !user) {
       navigate("/auth");
     }
   }, [user, loading, navigate]);
+
+  // Force refetch history data when navigating to this page
+  useEffect(() => {
+    if (user?.id) {
+      // Invalidate full history cache to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ["generationHistory", user.id, "full"] });
+    }
+  }, [user?.id, queryClient]);
 
   if (loading) {
     return (

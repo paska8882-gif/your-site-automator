@@ -161,10 +161,10 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
     queryKey,
     queryFn: () => fetchGenerationHistory({ userId: user!.id, compactMode, offset: 0, limit: PAGE_SIZE }),
     enabled: !!user?.id,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: compactMode ? 2 * 60 * 1000 : 30 * 1000, // 2 min for compact, 30s for full
     gcTime: 10 * 60 * 1000, // 10 minutes cache
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    refetchOnMount: !compactMode, // Always refetch on mount for full mode
     placeholderData: initialData ? { 
       history: initialData.history, 
       appeals: initialData.appeals,
@@ -353,15 +353,34 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
                 // Some other status like cancelled - remove immediately
                 removeHistoryItem(newRecord.id as string);
               } else if (isCompleted) {
-                // For completed status, fetch full record to get zip_data
-                const { data: fullRecord } = await supabase
-                  .from("generation_history")
-                  .select("*")
-                  .eq("id", newRecord.id as string)
-                  .single();
-                if (fullRecord) {
-                  updateHistoryItem(fullRecord);
-                }
+                // For completed status, fetch full record to get zip_data with retry
+                const fetchWithRetry = async (attempts = 3): Promise<void> => {
+                  for (let i = 0; i < attempts; i++) {
+                    const { data: fullRecord, error } = await supabase
+                      .from("generation_history")
+                      .select("*")
+                      .eq("id", newRecord.id as string)
+                      .single();
+                    
+                    if (!error && fullRecord) {
+                      updateHistoryItem(fullRecord);
+                      
+                      // Also invalidate full history cache when in compact mode
+                      if (compactMode) {
+                        queryClient.invalidateQueries({ queryKey: ["generationHistory", user?.id, "full"] });
+                      }
+                      return;
+                    }
+                    
+                    if (i < attempts - 1) {
+                      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); // Exponential backoff
+                    }
+                  }
+                  // Fallback: update with what we have from realtime
+                  console.warn("[useGenerationHistory] Failed to fetch full record after retries, using realtime payload");
+                  updateHistoryItem(newRecord);
+                };
+                fetchWithRetry();
               } else {
                 updateHistoryItem(newRecord);
               }
