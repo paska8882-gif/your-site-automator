@@ -23,7 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Hash, Palette, ChevronDown, AlertTriangle, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp, Filter, Newspaper, MapPin, X, Plus, Star, Phone, Building2, Tag, Shuffle } from "lucide-react";
+import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Hash, Palette, ChevronDown, AlertTriangle, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp, Filter, Newspaper, MapPin, X, Plus, Star, Phone, Building2, Tag, Shuffle, Hand } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -1636,6 +1636,85 @@ export function WebsiteGenerator() {
     }
   };
 
+  // Handle manual request (user sends request to admin)
+  const handleManualRequest = async () => {
+    const siteNames = getAllSiteNames();
+    if (siteNames.length === 0) {
+      toast({
+        title: t("common.error"),
+        description: t("genForm.enterSiteName"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!prompt.trim()) {
+      toast({
+        title: t("common.error"),
+        description: t("genForm.enterDescription"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Non-admin users need to have a team
+    if (!teamPricing) {
+      toast({
+        title: t("common.error"),
+        description: t("genForm.noTeam"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const allLangs = getAllSelectedLanguages();
+      const language = allLangs.length > 0 ? allLangs[0] : "uk";
+      const websiteType = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes[0] : "html";
+      const aiModel = selectedAiModels.length > 0 ? selectedAiModels[0] : "senior";
+      
+      // Create manual request records
+      for (const siteName of siteNames) {
+        const { error } = await supabase.from("generation_history").insert({
+          prompt: prompt.trim(),
+          site_name: siteName,
+          language,
+          website_type: websiteType,
+          ai_model: aiModel,
+          status: "manual_request",
+          team_id: teamPricing.teamId,
+          user_id: user?.id,
+          image_source: "manual"
+        });
+
+        if (error) throw error;
+      }
+
+      toast({
+        title: t("genForm.manualRequestSent"),
+        description: t("genForm.manualRequestSentDesc"),
+      });
+
+      // Clear inputs
+      setSiteNames([]);
+      setPrompt("");
+      setOriginalPrompt("");
+      setImprovedPromptValue("");
+      
+    } catch (error) {
+      console.error("Manual request error:", error);
+      toast({
+        title: t("common.error"),
+        description: error instanceof Error ? error.message : t("common.error"),
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Admin must select team first
   if (isAdmin && !selectedAdminTeamId) {
     const positiveTeams = adminTeams.filter(team => team.balance >= 0).sort((a, b) => b.balance - a.balance);
@@ -3157,6 +3236,20 @@ export function WebsiteGenerator() {
                     </>
                   )}
                 </Button>
+
+                {/* Manual Request Button - only for non-admins */}
+                {!isAdmin && (
+                  <Button
+                    variant="outline"
+                    onClick={handleManualRequest}
+                    disabled={siteNames.length === 0 || !prompt.trim() || isSubmitting}
+                    className="h-9 text-sm border-purple-500/50 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950"
+                    title={t("genForm.manualRequestDesc")}
+                  >
+                    <Hand className="mr-1 h-3 w-3" />
+                    {t("genForm.manualRequest")}
+                  </Button>
+                )}
 
                 {/* Preset Management - same row */}
                 <Input

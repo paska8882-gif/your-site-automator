@@ -36,7 +36,9 @@ import {
   Eye,
   Pencil,
   Upload,
-  Plus
+  Plus,
+  Hand,
+  Play
 } from "lucide-react";
 
 interface GeneratedFile {
@@ -143,6 +145,11 @@ interface ExternalUploadForm {
   generationCost: number;
 }
 
+interface ManualRequestUploadForm {
+  generationId: string;
+  salePrice: number;
+}
+
 // Fetch functions for React Query
 const fetchGenerationsData = async () => {
   const { data, error } = await supabase
@@ -227,6 +234,16 @@ export const AdminSitesTab = () => {
   });
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  
+  // Manual request upload dialog state
+  const [manualUploadDialogOpen, setManualUploadDialogOpen] = useState(false);
+  const [manualUploadItem, setManualUploadItem] = useState<GenerationItem | null>(null);
+  const [manualUploadForm, setManualUploadForm] = useState<ManualRequestUploadForm>({
+    generationId: "",
+    salePrice: 0
+  });
+  const [manualUploadFile, setManualUploadFile] = useState<File | null>(null);
+  const [manualUploading, setManualUploading] = useState(false);
   
   // Sorting
   const [sortColumn, setSortColumn] = useState<SortColumn>("created_at");
@@ -487,6 +504,10 @@ export const AdminSitesTab = () => {
       case "pending":
       case "generating":
         return <Clock className="h-4 w-4 text-yellow-500" />;
+      case "manual_request":
+        return <Hand className="h-4 w-4 text-purple-500" />;
+      case "manual_in_progress":
+        return <Play className="h-4 w-4 text-blue-500" />;
       default:
         return <Clock className="h-4 w-4 text-muted-foreground" />;
     }
@@ -507,8 +528,145 @@ export const AdminSitesTab = () => {
         return <Badge variant="secondary">{t("admin.sitesStatus.pending")}</Badge>;
       case "generating":
         return <Badge variant="secondary" className="bg-yellow-500 text-black">{t("admin.sitesStatus.generating")}</Badge>;
+      case "manual_request":
+        return <Badge variant="secondary" className="bg-purple-500 text-white">{t("admin.manualRequest")}</Badge>;
+      case "manual_in_progress":
+        return <Badge variant="secondary" className="bg-blue-500 text-white">{t("admin.manualRequestInWork")}</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  // Take manual request in progress
+  const handleTakeInWork = async (item: GenerationItem) => {
+    try {
+      const { error } = await supabase
+        .from("generation_history")
+        .update({ status: "manual_in_progress" })
+        .eq("id", item.id);
+
+      if (error) throw error;
+      
+      toast.success(t("admin.manualRequestTaken"));
+      fetchAllGenerations();
+    } catch (error) {
+      console.error("Error taking manual request:", error);
+      toast.error(t("common.error"));
+    }
+  };
+
+  // Open manual upload dialog
+  const handleOpenManualUpload = (item: GenerationItem) => {
+    // Get team pricing for default sale price
+    const pricing = item.team_id ? teamPricings.find(p => p.team_id === item.team_id) : null;
+    const defaultPrice = pricing 
+      ? (item.website_type === "react" ? pricing.react_price : pricing.html_price)
+      : 0;
+
+    setManualUploadItem(item);
+    setManualUploadForm({
+      generationId: item.id,
+      salePrice: defaultPrice
+    });
+    setManualUploadFile(null);
+    setManualUploadDialogOpen(true);
+  };
+
+  // Complete manual request with uploaded ZIP
+  const handleCompleteManualRequest = async () => {
+    if (!manualUploadFile || !manualUploadItem) {
+      toast.error(t("admin.fillAllFields"));
+      return;
+    }
+
+    setManualUploading(true);
+
+    try {
+      // Read and parse ZIP file
+      const zip = new JSZip();
+      const zipContent = await zip.loadAsync(manualUploadFile);
+      
+      // Extract files from ZIP
+      const filesData: GeneratedFile[] = [];
+      const filePromises: Promise<void>[] = [];
+      
+      zipContent.forEach((relativePath, file) => {
+        if (!file.dir) {
+          filePromises.push(
+            file.async("string").then(content => {
+              filesData.push({
+                path: relativePath,
+                content: content
+              });
+            })
+          );
+        }
+      });
+      
+      await Promise.all(filePromises);
+
+      // Convert ZIP to base64
+      const arrayBuffer = await manualUploadFile.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = "";
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const zipBase64 = btoa(binary);
+
+      const now = new Date().toISOString();
+
+      // Update generation record
+      const { error: updateError } = await supabase
+        .from("generation_history")
+        .update({
+          status: "completed",
+          files_data: filesData as unknown as null,
+          zip_data: zipBase64,
+          completed_at: now,
+          sale_price: manualUploadForm.salePrice,
+          image_source: "manual"
+        })
+        .eq("id", manualUploadItem.id);
+
+      if (updateError) throw updateError;
+
+      // Update team balance if there's a sale price
+      if (manualUploadForm.salePrice > 0 && manualUploadItem.team_id) {
+        const team = teams.find(t => t.id === manualUploadItem.team_id);
+        if (team) {
+          const { error: balanceError } = await supabase
+            .from("teams")
+            .update({ balance: team.balance - manualUploadForm.salePrice })
+            .eq("id", manualUploadItem.team_id);
+
+          if (balanceError) throw balanceError;
+
+          // Create balance transaction record
+          await supabase
+            .from("balance_transactions")
+            .insert({
+              team_id: manualUploadItem.team_id,
+              amount: -manualUploadForm.salePrice,
+              balance_before: team.balance,
+              balance_after: team.balance - manualUploadForm.salePrice,
+              note: `Ручна генерація: ${manualUploadItem.site_name || `Site ${manualUploadItem.number}`}`,
+              admin_id: user?.id || ""
+            });
+        }
+      }
+
+      toast.success(t("admin.manualRequestCompleted"));
+      setManualUploadDialogOpen(false);
+      setManualUploadItem(null);
+      setManualUploadFile(null);
+      fetchAllGenerations();
+      fetchTeams();
+    } catch (error) {
+      console.error("Error completing manual request:", error);
+      toast.error(t("admin.uploadError"));
+    } finally {
+      setManualUploading(false);
     }
   };
 
@@ -793,6 +951,8 @@ export const AdminSitesTab = () => {
             <SelectItem value="generating" className="text-xs">{t("admin.sitesFilters.generating")}</SelectItem>
             <SelectItem value="pending" className="text-xs">{t("admin.sitesFilters.pending")}</SelectItem>
             <SelectItem value="failed" className="text-xs">{t("admin.sitesFilters.failed")}</SelectItem>
+            <SelectItem value="manual_request" className="text-xs">{t("admin.manualRequest")}</SelectItem>
+            <SelectItem value="manual_in_progress" className="text-xs">{t("admin.manualRequestInWork")}</SelectItem>
           </SelectContent>
         </Select>
         <Select value={aiModelFilter} onValueChange={setAiModelFilter}>
@@ -1049,6 +1209,34 @@ export const AdminSitesTab = () => {
                                     <Download className="h-3.5 w-3.5" />
                                   </Button>
                                 </>
+                              )}
+                              {item.status === "manual_request" && (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className="h-7 text-xs bg-purple-500 hover:bg-purple-600"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleTakeInWork(item);
+                                  }}
+                                >
+                                  <Play className="h-3 w-3 mr-1" />
+                                  {t("admin.takeInWork")}
+                                </Button>
+                              )}
+                              {item.status === "manual_in_progress" && (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className="h-7 text-xs bg-blue-500 hover:bg-blue-600"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenManualUpload(item);
+                                  }}
+                                >
+                                  <Upload className="h-3 w-3 mr-1" />
+                                  {t("admin.uploadResult")}
+                                </Button>
                               )}
                             </div>
                           </TableCell>
@@ -1409,6 +1597,78 @@ export const AdminSitesTab = () => {
                 {t("admin.sitesDetails.preview")}
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manual Request Upload Dialog */}
+      <Dialog open={manualUploadDialogOpen} onOpenChange={setManualUploadDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              {t("admin.uploadResult")}
+            </DialogTitle>
+            <DialogDescription>
+              {manualUploadItem?.site_name || `Site ${manualUploadItem?.number}`} — {manualUploadItem?.prompt?.slice(0, 100)}...
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>{t("admin.salePrice")}</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={manualUploadForm.salePrice}
+                onChange={(e) => setManualUploadForm(prev => ({ ...prev, salePrice: parseFloat(e.target.value) || 0 }))}
+                placeholder="0.00"
+              />
+              {manualUploadItem?.team_id && (() => {
+                const pricing = teamPricings.find(p => p.team_id === manualUploadItem.team_id);
+                if (pricing) {
+                  const standardPrice = manualUploadItem.website_type === "react" ? pricing.react_price : pricing.html_price;
+                  return (
+                    <p className="text-xs text-muted-foreground">
+                      {t("admin.sitesUpload.salePriceStandard")} {(manualUploadItem.website_type || "html").toUpperCase()}: <span className="font-medium">${standardPrice.toFixed(2)}</span>
+                    </p>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t("admin.uploadZip")} *</Label>
+              <Input
+                type="file"
+                accept=".zip"
+                onChange={(e) => setManualUploadFile(e.target.files?.[0] || null)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualUploadDialogOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button 
+              onClick={handleCompleteManualRequest} 
+              disabled={!manualUploadFile || manualUploading}
+            >
+              {manualUploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {t("common.loading")}
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  {t("admin.upload")}
+                </>
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
