@@ -59,6 +59,7 @@ export const uk = {
     tasks: "Завдання",
     teams: "Команди",
     sites: "Сайти",
+    manualRequests: "Ручні запити",
     users: "Користувачі",
     appeals: "Апеляції",
     communication: "Комунікація",

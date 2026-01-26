@@ -204,7 +204,11 @@ const fetchTeamsData = async () => {
   return { teams: teamsRes.data || [], pricings: pricingsRes.data || [] };
 };
 
-export const AdminSitesTab = () => {
+interface AdminSitesTabProps {
+  filterManualOnly?: boolean;
+}
+
+export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -844,6 +848,13 @@ export const AdminSitesTab = () => {
   const uniqueTeams = Object.values(teamsMap);
 
   const filteredHistory = history.filter(item => {
+    // If filterManualOnly is true, only show manual_request and manual_in_progress
+    if (filterManualOnly) {
+      if (item.status !== "manual_request" && item.status !== "manual_in_progress") {
+        return false;
+      }
+    }
+    
     if (statusFilter !== "all" && item.status !== statusFilter) return false;
     if (aiModelFilter !== "all" && (item.ai_model || "junior") !== aiModelFilter) return false;
     if (websiteTypeFilter !== "all" && (item.website_type || "html") !== websiteTypeFilter) return false;

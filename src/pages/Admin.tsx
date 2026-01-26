@@ -56,6 +56,8 @@ const Admin = () => {
         return <AdminTeamsTab />;
       case "sites":
         return <AdminSitesTab />;
+      case "manual-requests":
+        return <AdminSitesTab filterManualOnly />;
       case "users":
         return <AdminUsersManager />;
       case "appeals":

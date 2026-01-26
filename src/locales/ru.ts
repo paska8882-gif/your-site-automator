@@ -59,6 +59,7 @@ export const ru = {
     tasks: "Задачи",
     teams: "Команды",
     sites: "Сайты",
+    manualRequests: "Ручные запросы",
     users: "Пользователи",
     appeals: "Апелляции",
     communication: "Коммуникация",
