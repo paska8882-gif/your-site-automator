@@ -68,6 +68,14 @@ interface GenerationItem {
   user_id: string | null;
   team_id: string | null;
   sale_price: number | null;
+  admin_note: string | null;
+}
+
+// Helper function to parse retry count from admin_note
+function getRetryCount(adminNote: string | null): number {
+  if (!adminNote) return 0;
+  const match = adminNote.match(/retry:(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
 }
 
 // Helper function to calculate and format generation duration
@@ -155,7 +163,7 @@ interface ManualRequestUploadForm {
 const fetchGenerationsData = async () => {
   const { data, error } = await supabase
     .from("generation_history")
-    .select("id, number, prompt, improved_prompt, vip_prompt, language, created_at, completed_at, website_type, site_name, status, error_message, ai_model, user_id, team_id, sale_price")
+    .select("id, number, prompt, improved_prompt, vip_prompt, language, created_at, completed_at, website_type, site_name, status, error_message, ai_model, user_id, team_id, sale_price, admin_note")
     .order("created_at", { ascending: false })
     .limit(500);
 
@@ -1318,6 +1326,21 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
                           <TableCell>
                             <div className="flex items-center gap-1">
                               {getStatusIcon(item.status, item.sale_price)}
+                              {(() => {
+                                const retryCount = getRetryCount(item.admin_note);
+                                if (retryCount > 0) {
+                                  return (
+                                    <Badge 
+                                      variant="outline" 
+                                      className="text-[10px] px-1 py-0 text-orange-500 border-orange-500/50"
+                                      title={`Автоматично перезапущено ${retryCount} раз(и)`}
+                                    >
+                                      🔄{retryCount}
+                                    </Badge>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </div>
                           </TableCell>
                           <TableCell className="font-medium">
