@@ -3016,13 +3016,13 @@ export function WebsiteGenerator() {
 
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-end">
               {/* AI Model Multi-Select */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">{t("genForm.aiModel")}</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between h-8 text-xs">
+                    <Button variant="outline" className="w-full justify-between h-9 text-xs">
                       <span className="truncate">
                         {selectedAiModels.length === 0 
                           ? t("genForm.selectAiModel")
@@ -3063,7 +3063,7 @@ export function WebsiteGenerator() {
                   value={selectedWebsiteTypes[0] || "html"} 
                   onValueChange={(value) => selectWebsiteType(value as WebsiteType)}
                 >
-                  <SelectTrigger className="h-8 text-xs">
+                  <SelectTrigger className="h-9 text-xs">
                     <SelectValue placeholder={t("genForm.selectType")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -3096,7 +3096,7 @@ export function WebsiteGenerator() {
                   value={selectedImageSources[0] || "basic"} 
                   onValueChange={(value) => selectImageSource(value as ImageSource)}
                 >
-                  <SelectTrigger className="h-8 text-xs">
+                  <SelectTrigger className="h-9 text-xs">
                     <SelectValue placeholder={t("genForm.selectAiModel")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -3117,24 +3117,21 @@ export function WebsiteGenerator() {
               </div>
 
               {/* Bundle Images Toggle */}
-              <div className="col-span-2 sm:col-span-1">
-                <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30 hover:bg-muted/50 transition-colors">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">{t("genForm.imageBundling")}</Label>
+                <label 
+                  htmlFor="bundleImages" 
+                  className="flex items-center gap-2 h-9 px-3 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
+                >
                   <Checkbox
                     id="bundleImages"
                     checked={bundleImages}
                     onCheckedChange={(checked) => setBundleImages(!!checked)}
-                    className="h-5 w-5"
                   />
-                  <div className="flex-1 min-w-0">
-                    <label htmlFor="bundleImages" className="text-sm font-medium cursor-pointer flex items-center gap-2">
-                      <Image className="h-4 w-4 text-muted-foreground" />
-                      {t("genForm.bundleImagesLabel")}
-                    </label>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {bundleImages ? t("genForm.bundleImagesOnDesc") : t("genForm.bundleImagesOffDesc")}
-                    </p>
-                  </div>
-                </div>
+                  <span className="text-xs truncate">
+                    {bundleImages ? "📦 В архів" : "🔗 URL"}
+                  </span>
+                </label>
               </div>
             </div>
 
