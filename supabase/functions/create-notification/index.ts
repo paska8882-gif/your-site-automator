@@ -32,7 +32,7 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Verify requesting user is an admin
+    // Verify requesting user
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -45,8 +45,10 @@ serve(async (req) => {
       );
     }
 
-    // Check if requester is admin
-    const { data: adminRole } = await supabase
+    // Use service role to check admin status (bypasses RLS)
+    const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { data: adminRole } = await serviceSupabase
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
@@ -54,6 +56,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!adminRole) {
+      console.log(`User ${user.id} attempted admin action without admin role`);
       return new Response(
         JSON.stringify({ error: "Forbidden - Admin access required" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -116,8 +119,7 @@ serve(async (req) => {
       );
     }
 
-    // Use service role to insert notifications
-    const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Insert notifications using the already created service client
 
     const { error } = await serviceSupabase
       .from("notifications")
