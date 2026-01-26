@@ -442,7 +442,7 @@ interface GeneratorDraft {
   selectedStyles: string[];
   customStyle: string;
   isOtherStyleSelected: boolean;
-  sitesPerLanguage: number;
+  // sitesPerLanguage removed - always 1 site per name now
   selectedAiModels: AiModel[];
   selectedWebsiteTypes: WebsiteType[];
   selectedImageSources: ImageSource[];
@@ -494,7 +494,8 @@ export function WebsiteGenerator() {
   const [selectedStyles, setSelectedStyles] = useState<string[]>(draft.selectedStyles || []);
   const [customStyle, setCustomStyle] = useState(draft.customStyle || "");
   const [isOtherStyleSelected, setIsOtherStyleSelected] = useState(draft.isOtherStyleSelected || false);
-  const [sitesPerLanguage, setSitesPerLanguage] = useState(draft.sitesPerLanguage || 1);
+  // Removed: sitesPerLanguage selector - now always 1 site per name (each request is unique)
+  const sitesPerLanguage = 1;
   // Multi-select for AI models, website types, image sources
   const [selectedAiModels, setSelectedAiModels] = useState<AiModel[]>(draft.selectedAiModels || ["senior"]);
   const [selectedWebsiteTypes, setSelectedWebsiteTypes] = useState<WebsiteType[]>(draft.selectedWebsiteTypes || ["html"]);
@@ -623,7 +624,7 @@ export function WebsiteGenerator() {
       selectedStyles,
       customStyle,
       isOtherStyleSelected,
-      sitesPerLanguage,
+      // sitesPerLanguage removed - always 1
       selectedAiModels,
       selectedWebsiteTypes,
       selectedImageSources,
@@ -633,7 +634,7 @@ export function WebsiteGenerator() {
   }, [
     siteNames, prompt, exactPhone, selectedLanguages, selectedGeo, customGeo, isOtherGeoSelected,
     customLanguage, isOtherSelected,
-    selectedStyles, customStyle, isOtherStyleSelected, sitesPerLanguage,
+    selectedStyles, customStyle, isOtherStyleSelected,
     selectedAiModels, selectedWebsiteTypes, selectedImageSources,
     seniorMode, adminGenerationMode
   ]);
@@ -836,7 +837,7 @@ export function WebsiteGenerator() {
       selectedStyles,
       customStyle,
       isOtherStyleSelected,
-      sitesPerLanguage,
+      sitesPerLanguage: 1, // Always 1, kept for backward compatibility
       selectedAiModels,
       selectedWebsiteTypes,
       selectedImageSources,
@@ -858,7 +859,7 @@ export function WebsiteGenerator() {
     setSelectedStyles(preset.selectedStyles);
     setCustomStyle(preset.customStyle);
     setIsOtherStyleSelected(preset.isOtherStyleSelected);
-    setSitesPerLanguage(preset.sitesPerLanguage);
+    // sitesPerLanguage is now always 1 (removed from presets)
     setSelectedAiModels(preset.selectedAiModels);
     setSelectedWebsiteTypes(preset.selectedWebsiteTypes);
     setSelectedImageSources(preset.selectedImageSources);
@@ -887,7 +888,7 @@ export function WebsiteGenerator() {
     setSelectedStyles([]);
     setCustomStyle("");
     setIsOtherStyleSelected(false);
-    setSitesPerLanguage(1);
+    // sitesPerLanguage is now always 1
     setSelectedAiModels([]);
     setSelectedWebsiteTypes([]);
     setSelectedImageSources([]);
@@ -3013,23 +3014,12 @@ export function WebsiteGenerator() {
               </div>
               )}
 
-              {/* Quantity */}
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">{t("genForm.quantity")}</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={sitesPerLanguage}
-                    onChange={(e) => setSitesPerLanguage(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
-                    className="w-16 h-8 text-xs"
-                  />
-                  <span className={`text-xs whitespace-nowrap ${wouldExceedLimit ? 'text-destructive font-medium' : activeGenerationsCount > 20 ? 'text-yellow-600' : 'text-muted-foreground'}`}>
-                    = <strong>{totalGenerations}</strong> {t("genForm.sitesCount")} {activeGenerationsCount > 0 && <span className="opacity-70">({t("genForm.activeGenerations")}: {activeGenerationsCount}/{userMaxGenerations})</span>}
-                    {wouldExceedLimit && " ⚠️"}
-                  </span>
-                </div>
+              {/* Generation count summary (removed quantity selector - 1 site per name) */}
+              <div className="space-y-1.5 flex items-end">
+                <span className={`text-xs whitespace-nowrap ${wouldExceedLimit ? 'text-destructive font-medium' : activeGenerationsCount > 20 ? 'text-yellow-600' : 'text-muted-foreground'}`}>
+                  = <strong>{totalGenerations}</strong> {t("genForm.sitesCount")} {activeGenerationsCount > 0 && <span className="opacity-70">({t("genForm.activeGenerations")}: {activeGenerationsCount}/{userMaxGenerations})</span>}
+                  {wouldExceedLimit && " ⚠️"}
+                </span>
               </div>
             </div>
 
@@ -3368,7 +3358,7 @@ export function WebsiteGenerator() {
               <Collapsible open={showCostBreakdown} onOpenChange={setShowCostBreakdown}>
                 <div className={`flex items-center justify-between text-xs border p-2 ${wouldExceedLimit ? 'border-destructive bg-destructive/5' : 'border-border'}`}>
                   <span className={wouldExceedLimit ? 'text-destructive' : 'text-muted-foreground'}>
-                    {allLanguages.length}×{sitesPerLanguage}×{styleCount}×{aiModelCount}×{websiteTypeCount}×{imageSourceCount} = <strong className={wouldExceedLimit ? 'text-destructive' : 'text-foreground'}>{totalGenerations}</strong> {t("genForm.sitesCount")} • <strong className="text-foreground">${calculateTotalCost().toFixed(2)}</strong>
+                    {siteNamesCount}×{allLanguages.length}×{styleCount}×{aiModelCount}×{websiteTypeCount}×{imageSourceCount} = <strong className={wouldExceedLimit ? 'text-destructive' : 'text-foreground'}>{totalGenerations}</strong> {t("genForm.sitesCount")} • <strong className="text-foreground">${calculateTotalCost().toFixed(2)}</strong>
                     {activeGenerationsCount > 0 && <span className="ml-2 opacity-70">({t("genForm.activeGenerations")}: {activeGenerationsCount}, {t("genForm.available")}: {availableSlots})</span>}
                     {wouldExceedLimit && ` (${t("genForm.limitExceeded")})`}
                   </span>
