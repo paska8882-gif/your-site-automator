@@ -5,39 +5,274 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ============ GEO DATA HELPERS ============
+
+const GEO_PHONE_FORMATS: Record<string, { code: string; area: string[]; format: (area: string, num: string) => string }> = {
+  "Canada": { code: "+1", area: ["416", "604", "514", "403", "613"], format: (a, n) => `+1 ${a}-${n.slice(0,3)}-${n.slice(3,7)}` },
+  "USA": { code: "+1", area: ["212", "310", "312", "415", "305"], format: (a, n) => `+1 ${a}-${n.slice(0,3)}-${n.slice(3,7)}` },
+  "UK": { code: "+44", area: ["20", "161", "141", "131", "117"], format: (a, n) => `+44 ${a} ${n.slice(0,4)} ${n.slice(4,8)}` },
+  "Germany": { code: "+49", area: ["30", "89", "40", "69", "221"], format: (a, n) => `+49 ${a} ${n.slice(0,4)} ${n.slice(4,8)}` },
+  "France": { code: "+33", area: ["1", "4", "6", "9"], format: (a, n) => `+33 ${a} ${n.slice(0,2)} ${n.slice(2,4)} ${n.slice(4,6)} ${n.slice(6,8)}` },
+  "Spain": { code: "+34", area: ["91", "93", "96", "95"], format: (a, n) => `+34 ${a} ${n.slice(0,3)} ${n.slice(3,6)}` },
+  "Italy": { code: "+39", area: ["02", "06", "011", "055"], format: (a, n) => `+39 ${a} ${n.slice(0,4)} ${n.slice(4,8)}` },
+  "Portugal": { code: "+351", area: ["21", "22", "91", "93"], format: (a, n) => `+351 ${a} ${n.slice(0,3)} ${n.slice(3,6)}` },
+  "Poland": { code: "+48", area: ["22", "12", "71", "61"], format: (a, n) => `+48 ${a} ${n.slice(0,3)} ${n.slice(3,5)} ${n.slice(5,7)}` },
+  "Netherlands": { code: "+31", area: ["20", "10", "70", "30"], format: (a, n) => `+31 ${a} ${n.slice(0,3)} ${n.slice(3,7)}` },
+  "Belgium": { code: "+32", area: ["2", "3", "9", "4"], format: (a, n) => `+32 ${a} ${n.slice(0,3)} ${n.slice(3,5)} ${n.slice(5,7)}` },
+  "Austria": { code: "+43", area: ["1", "662", "512", "316"], format: (a, n) => `+43 ${a} ${n.slice(0,4)} ${n.slice(4,8)}` },
+  "Switzerland": { code: "+41", area: ["44", "22", "31", "61"], format: (a, n) => `+41 ${a} ${n.slice(0,3)} ${n.slice(3,5)} ${n.slice(5,7)}` },
+  "Ireland": { code: "+353", area: ["1", "21", "61", "91"], format: (a, n) => `+353 ${a} ${n.slice(0,3)} ${n.slice(3,7)}` },
+  "Sweden": { code: "+46", area: ["8", "31", "40", "90"], format: (a, n) => `+46 ${a} ${n.slice(0,3)} ${n.slice(3,5)} ${n.slice(5,7)}` },
+  "Norway": { code: "+47", area: ["22", "55", "73"], format: (a, n) => `+47 ${a} ${n.slice(0,2)} ${n.slice(2,4)} ${n.slice(4,6)}` },
+  "Denmark": { code: "+45", area: [""], format: (_, n) => `+45 ${n.slice(0,2)} ${n.slice(2,4)} ${n.slice(4,6)} ${n.slice(6,8)}` },
+  "Finland": { code: "+358", area: ["9", "2", "3", "5"], format: (a, n) => `+358 ${a} ${n.slice(0,4)} ${n.slice(4,8)}` },
+  "Australia": { code: "+61", area: ["2", "3", "7", "8"], format: (a, n) => `+61 ${a} ${n.slice(0,4)} ${n.slice(4,8)}` },
+  "New Zealand": { code: "+64", area: ["9", "4", "3", "7"], format: (a, n) => `+64 ${a} ${n.slice(0,3)} ${n.slice(3,7)}` },
+  "Japan": { code: "+81", area: ["3", "6", "52", "11"], format: (a, n) => `+81 ${a}-${n.slice(0,4)}-${n.slice(4,8)}` },
+  "South Korea": { code: "+82", area: ["2", "51", "53", "42"], format: (a, n) => `+82 ${a}-${n.slice(0,4)}-${n.slice(4,8)}` },
+  "Singapore": { code: "+65", area: [""], format: (_, n) => `+65 ${n.slice(0,4)} ${n.slice(4,8)}` },
+  "Hong Kong": { code: "+852", area: [""], format: (_, n) => `+852 ${n.slice(0,4)} ${n.slice(4,8)}` },
+  "Brazil": { code: "+55", area: ["11", "21", "31", "41"], format: (a, n) => `+55 ${a} ${n.slice(0,5)}-${n.slice(5,9)}` },
+  "Mexico": { code: "+52", area: ["55", "33", "81", "664"], format: (a, n) => `+52 ${a} ${n.slice(0,4)} ${n.slice(4,8)}` },
+  "Argentina": { code: "+54", area: ["11", "351", "261", "341"], format: (a, n) => `+54 ${a} ${n.slice(0,4)}-${n.slice(4,8)}` },
+  "Chile": { code: "+56", area: ["2", "32", "41", "51"], format: (a, n) => `+56 ${a} ${n.slice(0,4)} ${n.slice(4,8)}` },
+  "India": { code: "+91", area: ["11", "22", "33", "80"], format: (a, n) => `+91 ${a} ${n.slice(0,4)} ${n.slice(4,8)}` },
+  "UAE": { code: "+971", area: ["4", "2", "6", "7"], format: (a, n) => `+971 ${a} ${n.slice(0,3)} ${n.slice(3,7)}` },
+  "Saudi Arabia": { code: "+966", area: ["11", "12", "13", "14"], format: (a, n) => `+966 ${a} ${n.slice(0,3)} ${n.slice(3,7)}` },
+  "South Africa": { code: "+27", area: ["11", "21", "31", "12"], format: (a, n) => `+27 ${a} ${n.slice(0,3)} ${n.slice(3,7)}` },
+  "Romania": { code: "+40", area: ["21", "31", "264", "256"], format: (a, n) => `+40 ${a} ${n.slice(0,3)} ${n.slice(3,6)}` },
+  "Czech Republic": { code: "+420", area: ["2", "5", "3", "4"], format: (a, n) => `+420 ${a}${n.slice(0,2)} ${n.slice(2,5)} ${n.slice(5,8)}` },
+  "Hungary": { code: "+36", area: ["1", "20", "30", "70"], format: (a, n) => `+36 ${a} ${n.slice(0,3)} ${n.slice(3,7)}` },
+  "Greece": { code: "+30", area: ["21", "231", "261", "251"], format: (a, n) => `+30 ${a} ${n.slice(0,3)} ${n.slice(3,7)}` },
+  "Turkey": { code: "+90", area: ["212", "216", "312", "232"], format: (a, n) => `+90 ${a} ${n.slice(0,3)} ${n.slice(3,5)} ${n.slice(5,7)}` },
+  "Israel": { code: "+972", area: ["2", "3", "4", "8"], format: (a, n) => `+972 ${a}-${n.slice(0,3)}-${n.slice(3,7)}` },
+};
+
+const GEO_ADDRESS_DATA: Record<string, { cities: { name: string; region: string; postal: string }[]; streets: string[] }> = {
+  "Canada": {
+    cities: [
+      { name: "Toronto", region: "ON", postal: "M5V" },
+      { name: "Vancouver", region: "BC", postal: "V6B" },
+      { name: "Montreal", region: "QC", postal: "H3B" },
+      { name: "Calgary", region: "AB", postal: "T2P" }
+    ],
+    streets: ["Bay Street", "King Street West", "Granville Street", "Saint-Catherine Street", "Stephen Avenue"]
+  },
+  "USA": {
+    cities: [
+      { name: "New York", region: "NY", postal: "10001" },
+      { name: "Los Angeles", region: "CA", postal: "90001" },
+      { name: "Chicago", region: "IL", postal: "60601" },
+      { name: "Miami", region: "FL", postal: "33101" }
+    ],
+    streets: ["Broadway", "Main Street", "Oak Avenue", "Sunset Boulevard", "Market Street"]
+  },
+  "UK": {
+    cities: [
+      { name: "London", region: "England", postal: "EC1A" },
+      { name: "Manchester", region: "England", postal: "M1" },
+      { name: "Birmingham", region: "England", postal: "B1" },
+      { name: "Edinburgh", region: "Scotland", postal: "EH1" }
+    ],
+    streets: ["High Street", "Oxford Street", "King's Road", "Victoria Street", "Church Lane"]
+  },
+  "Germany": {
+    cities: [
+      { name: "Berlin", region: "Berlin", postal: "10115" },
+      { name: "Munich", region: "Bavaria", postal: "80331" },
+      { name: "Hamburg", region: "Hamburg", postal: "20095" },
+      { name: "Frankfurt", region: "Hesse", postal: "60311" }
+    ],
+    streets: ["Hauptstraße", "Berliner Straße", "Bahnhofstraße", "Schillerstraße", "Goethestraße"]
+  },
+  "France": {
+    cities: [
+      { name: "Paris", region: "Île-de-France", postal: "75001" },
+      { name: "Lyon", region: "Auvergne-Rhône-Alpes", postal: "69001" },
+      { name: "Marseille", region: "Provence-Alpes-Côte d'Azur", postal: "13001" },
+      { name: "Nice", region: "Provence-Alpes-Côte d'Azur", postal: "06000" }
+    ],
+    streets: ["Rue de la Paix", "Avenue des Champs-Élysées", "Boulevard Saint-Germain", "Rue du Commerce", "Avenue Victor Hugo"]
+  },
+  "Spain": {
+    cities: [
+      { name: "Madrid", region: "Community of Madrid", postal: "28001" },
+      { name: "Barcelona", region: "Catalonia", postal: "08001" },
+      { name: "Valencia", region: "Valencian Community", postal: "46001" },
+      { name: "Seville", region: "Andalusia", postal: "41001" }
+    ],
+    streets: ["Calle Mayor", "Gran Vía", "Paseo de la Castellana", "Rambla de Catalunya", "Avenida de la Constitución"]
+  },
+  "Italy": {
+    cities: [
+      { name: "Rome", region: "Lazio", postal: "00100" },
+      { name: "Milan", region: "Lombardy", postal: "20121" },
+      { name: "Florence", region: "Tuscany", postal: "50121" },
+      { name: "Venice", region: "Veneto", postal: "30121" }
+    ],
+    streets: ["Via Roma", "Corso Vittorio Emanuele", "Via Nazionale", "Via del Corso", "Piazza del Duomo"]
+  },
+  "Portugal": {
+    cities: [
+      { name: "Lisbon", region: "Lisbon", postal: "1100" },
+      { name: "Porto", region: "Porto", postal: "4000" },
+      { name: "Faro", region: "Algarve", postal: "8000" }
+    ],
+    streets: ["Avenida da Liberdade", "Rua Augusta", "Rua de Santa Catarina", "Praça do Comércio"]
+  },
+  "Poland": {
+    cities: [
+      { name: "Warsaw", region: "Masovian", postal: "00-001" },
+      { name: "Krakow", region: "Lesser Poland", postal: "30-001" },
+      { name: "Wroclaw", region: "Lower Silesian", postal: "50-001" }
+    ],
+    streets: ["ul. Marszałkowska", "ul. Floriańska", "ul. Świdnicka", "Al. Jerozolimskie"]
+  },
+  "Netherlands": {
+    cities: [
+      { name: "Amsterdam", region: "North Holland", postal: "1012" },
+      { name: "Rotterdam", region: "South Holland", postal: "3011" },
+      { name: "The Hague", region: "South Holland", postal: "2511" }
+    ],
+    streets: ["Damrak", "Kalverstraat", "Coolsingel", "Lange Voorhout"]
+  },
+  "Australia": {
+    cities: [
+      { name: "Sydney", region: "NSW", postal: "2000" },
+      { name: "Melbourne", region: "VIC", postal: "3000" },
+      { name: "Brisbane", region: "QLD", postal: "4000" }
+    ],
+    streets: ["George Street", "Collins Street", "Queen Street", "Pitt Street"]
+  },
+  "Romania": {
+    cities: [
+      { name: "Bucharest", region: "Bucharest", postal: "010011" },
+      { name: "Cluj-Napoca", region: "Cluj", postal: "400001" },
+      { name: "Timișoara", region: "Timiș", postal: "300001" }
+    ],
+    streets: ["Calea Victoriei", "Bulevardul Unirii", "Strada Lipscani", "Bulevardul Eroilor"]
+  }
+};
+
+const INDUSTRY_MAPPING: Record<string, { palette: { name: string; hex: string }[]; jsonLd: string; tone: string[] }> = {
+  "IT": { palette: [{ name: "Deep Blue", hex: "#0d4f8b" }, { name: "Steel Gray", hex: "#4a5568" }, { name: "Tech Cyan", hex: "#0891b2" }], jsonLd: "ITService", tone: ["Technical", "Innovative", "Reliable", "Advanced"] },
+  "Tech": { palette: [{ name: "Deep Blue", hex: "#0d4f8b" }, { name: "Steel Gray", hex: "#4a5568" }, { name: "Tech Cyan", hex: "#0891b2" }], jsonLd: "ITService", tone: ["Technical", "Innovative", "Reliable", "Advanced"] },
+  "Software": { palette: [{ name: "Deep Blue", hex: "#0d4f8b" }, { name: "Steel Gray", hex: "#4a5568" }, { name: "Tech Cyan", hex: "#0891b2" }], jsonLd: "ITService", tone: ["Technical", "Innovative", "Reliable", "Advanced"] },
+  "Health": { palette: [{ name: "Healing Green", hex: "#2d8f5e" }, { name: "Calm Teal", hex: "#0d9488" }, { name: "Pure White", hex: "#f0fdf4" }], jsonLd: "MedicalBusiness", tone: ["Caring", "Professional", "Trusted", "Compassionate"] },
+  "Medical": { palette: [{ name: "Healing Green", hex: "#2d8f5e" }, { name: "Calm Teal", hex: "#0d9488" }, { name: "Pure White", hex: "#f0fdf4" }], jsonLd: "MedicalBusiness", tone: ["Caring", "Professional", "Trusted", "Compassionate"] },
+  "Wellness": { palette: [{ name: "Healing Green", hex: "#2d8f5e" }, { name: "Calm Teal", hex: "#0d9488" }, { name: "Pure White", hex: "#f0fdf4" }], jsonLd: "HealthAndBeautyBusiness", tone: ["Holistic", "Balanced", "Natural", "Nurturing"] },
+  "Finance": { palette: [{ name: "Midnight Navy", hex: "#1a365d" }, { name: "Gold Accent", hex: "#d69e2e" }, { name: "Silver", hex: "#a0aec0" }], jsonLd: "FinancialService", tone: ["Strategic", "Dependable", "Expert", "Trustworthy"] },
+  "Banking": { palette: [{ name: "Midnight Navy", hex: "#1a365d" }, { name: "Gold Accent", hex: "#d69e2e" }, { name: "Silver", hex: "#a0aec0" }], jsonLd: "FinancialService", tone: ["Strategic", "Dependable", "Expert", "Trustworthy"] },
+  "Beauty": { palette: [{ name: "Rose Pink", hex: "#e8507b" }, { name: "Soft Lavender", hex: "#d6bcfa" }, { name: "Cream", hex: "#fdf2f8" }], jsonLd: "BeautySalon", tone: ["Elegant", "Modern", "Luxurious", "Sophisticated"] },
+  "Cosmetics": { palette: [{ name: "Rose Pink", hex: "#e8507b" }, { name: "Soft Lavender", hex: "#d6bcfa" }, { name: "Cream", hex: "#fdf2f8" }], jsonLd: "BeautySalon", tone: ["Elegant", "Modern", "Luxurious", "Sophisticated"] },
+  "Legal": { palette: [{ name: "Corporate Blue", hex: "#234e70" }, { name: "Brass", hex: "#b7791f" }, { name: "Slate", hex: "#64748b" }], jsonLd: "LegalService", tone: ["Authoritative", "Trustworthy", "Professional", "Decisive"] },
+  "Law": { palette: [{ name: "Corporate Blue", hex: "#234e70" }, { name: "Brass", hex: "#b7791f" }, { name: "Slate", hex: "#64748b" }], jsonLd: "LegalService", tone: ["Authoritative", "Trustworthy", "Professional", "Decisive"] },
+  "Food": { palette: [{ name: "Warm Orange", hex: "#e67e22" }, { name: "Fresh Green", hex: "#22c55e" }, { name: "Cream", hex: "#fef3c7" }], jsonLd: "Restaurant", tone: ["Appetizing", "Welcoming", "Fresh", "Authentic"] },
+  "Restaurant": { palette: [{ name: "Warm Orange", hex: "#e67e22" }, { name: "Fresh Green", hex: "#22c55e" }, { name: "Cream", hex: "#fef3c7" }], jsonLd: "Restaurant", tone: ["Appetizing", "Welcoming", "Fresh", "Authentic"] },
+  "Education": { palette: [{ name: "Academic Blue", hex: "#2563eb" }, { name: "Warm Yellow", hex: "#f59e0b" }, { name: "Clean White", hex: "#f8fafc" }], jsonLd: "EducationalOrganization", tone: ["Inspiring", "Knowledgeable", "Supportive", "Progressive"] },
+  "Learning": { palette: [{ name: "Academic Blue", hex: "#2563eb" }, { name: "Warm Yellow", hex: "#f59e0b" }, { name: "Clean White", hex: "#f8fafc" }], jsonLd: "EducationalOrganization", tone: ["Inspiring", "Knowledgeable", "Supportive", "Progressive"] },
+  "Real Estate": { palette: [{ name: "Elegant Charcoal", hex: "#374151" }, { name: "Gold", hex: "#ca8a04" }, { name: "Warm Beige", hex: "#fef3c7" }], jsonLd: "RealEstateAgent", tone: ["Professional", "Trustworthy", "Sophisticated", "Reliable"] },
+  "Property": { palette: [{ name: "Elegant Charcoal", hex: "#374151" }, { name: "Gold", hex: "#ca8a04" }, { name: "Warm Beige", hex: "#fef3c7" }], jsonLd: "RealEstateAgent", tone: ["Professional", "Trustworthy", "Sophisticated", "Reliable"] },
+  "Travel": { palette: [{ name: "Sky Blue", hex: "#0ea5e9" }, { name: "Sunset Orange", hex: "#f97316" }, { name: "Sand", hex: "#fef3c7" }], jsonLd: "TravelAgency", tone: ["Adventurous", "Exciting", "Inspiring", "Welcoming"] },
+  "Tourism": { palette: [{ name: "Sky Blue", hex: "#0ea5e9" }, { name: "Sunset Orange", hex: "#f97316" }, { name: "Sand", hex: "#fef3c7" }], jsonLd: "TravelAgency", tone: ["Adventurous", "Exciting", "Inspiring", "Welcoming"] },
+  "Fitness": { palette: [{ name: "Energetic Red", hex: "#dc2626" }, { name: "Power Black", hex: "#171717" }, { name: "Steel", hex: "#a1a1aa" }], jsonLd: "SportsActivityLocation", tone: ["Energetic", "Motivating", "Strong", "Dynamic"] },
+  "Gym": { palette: [{ name: "Energetic Red", hex: "#dc2626" }, { name: "Power Black", hex: "#171717" }, { name: "Steel", hex: "#a1a1aa" }], jsonLd: "SportsActivityLocation", tone: ["Energetic", "Motivating", "Strong", "Dynamic"] },
+  "Sports": { palette: [{ name: "Energetic Red", hex: "#dc2626" }, { name: "Power Black", hex: "#171717" }, { name: "Steel", hex: "#a1a1aa" }], jsonLd: "SportsActivityLocation", tone: ["Energetic", "Motivating", "Strong", "Dynamic"] },
+  "Marketing": { palette: [{ name: "Creative Purple", hex: "#7c3aed" }, { name: "Hot Pink", hex: "#ec4899" }, { name: "Light", hex: "#faf5ff" }], jsonLd: "ProfessionalService", tone: ["Creative", "Strategic", "Bold", "Results-Driven"] },
+  "Advertising": { palette: [{ name: "Creative Purple", hex: "#7c3aed" }, { name: "Hot Pink", hex: "#ec4899" }, { name: "Light", hex: "#faf5ff" }], jsonLd: "ProfessionalService", tone: ["Creative", "Strategic", "Bold", "Results-Driven"] },
+  "Construction": { palette: [{ name: "Safety Orange", hex: "#ea580c" }, { name: "Concrete Gray", hex: "#6b7280" }, { name: "Yellow", hex: "#facc15" }], jsonLd: "GeneralContractor", tone: ["Reliable", "Strong", "Professional", "Experienced"] },
+  "Building": { palette: [{ name: "Safety Orange", hex: "#ea580c" }, { name: "Concrete Gray", hex: "#6b7280" }, { name: "Yellow", hex: "#facc15" }], jsonLd: "GeneralContractor", tone: ["Reliable", "Strong", "Professional", "Experienced"] },
+  "Automotive": { palette: [{ name: "Racing Red", hex: "#b91c1c" }, { name: "Carbon Black", hex: "#18181b" }, { name: "Chrome", hex: "#d4d4d8" }], jsonLd: "AutoDealer", tone: ["Powerful", "Precision", "Quality", "Performance"] },
+  "Cars": { palette: [{ name: "Racing Red", hex: "#b91c1c" }, { name: "Carbon Black", hex: "#18181b" }, { name: "Chrome", hex: "#d4d4d8" }], jsonLd: "AutoDealer", tone: ["Powerful", "Precision", "Quality", "Performance"] },
+  "Maritime": { palette: [{ name: "Deep Sea Blue", hex: "#000080" }, { name: "Navigational White", hex: "#f8fafc" }, { name: "Compass Brass", hex: "#b7791f" }], jsonLd: "MarineService", tone: ["Strategic", "Nautical", "Dependable", "Advanced"] },
+  "Shipping": { palette: [{ name: "Deep Sea Blue", hex: "#000080" }, { name: "Navigational White", hex: "#f8fafc" }, { name: "Compass Brass", hex: "#b7791f" }], jsonLd: "MarineService", tone: ["Strategic", "Nautical", "Dependable", "Advanced"] },
+  "Logistics": { palette: [{ name: "Industrial Blue", hex: "#1e40af" }, { name: "Safety Orange", hex: "#ea580c" }, { name: "Steel", hex: "#71717a" }], jsonLd: "ProfessionalService", tone: ["Efficient", "Reliable", "Global", "Precise"] },
+  "Default": { palette: [{ name: "Professional Blue", hex: "#3b82f6" }, { name: "Neutral Gray", hex: "#6b7280" }, { name: "Clean White", hex: "#f9fafb" }], jsonLd: "LocalBusiness", tone: ["Professional", "Trustworthy", "Modern", "Reliable"] }
+};
+
+function generateRandomDigits(count: number): string {
+  return Array.from({ length: count }, () => Math.floor(Math.random() * 10)).join('');
+}
+
+function generatePhoneByGeo(geo: string): string {
+  const geoData = GEO_PHONE_FORMATS[geo] || GEO_PHONE_FORMATS["USA"];
+  const area = geoData.area[Math.floor(Math.random() * geoData.area.length)];
+  const number = generateRandomDigits(8);
+  return geoData.format(area, number);
+}
+
+function generateAddressByGeo(geo: string): string {
+  const geoData = GEO_ADDRESS_DATA[geo] || GEO_ADDRESS_DATA["USA"];
+  const city = geoData.cities[Math.floor(Math.random() * geoData.cities.length)];
+  const street = geoData.streets[Math.floor(Math.random() * geoData.streets.length)];
+  const number = Math.floor(Math.random() * 500) + 1;
+  
+  if (geo === "Canada") {
+    return `${number} ${street}, ${city.name}, ${city.region} ${city.postal} ${generateRandomDigits(3)}`;
+  } else if (geo === "USA") {
+    return `${number} ${street}, ${city.name}, ${city.region} ${city.postal}`;
+  } else if (geo === "UK") {
+    return `${number} ${street}, ${city.name} ${city.postal} ${generateRandomDigits(1)}${String.fromCharCode(65 + Math.floor(Math.random() * 26))}${String.fromCharCode(65 + Math.floor(Math.random() * 26))}`;
+  } else if (geo === "Germany" || geo === "France" || geo === "Spain" || geo === "Italy" || geo === "Portugal") {
+    return `${street} ${number}, ${city.postal} ${city.name}`;
+  } else if (geo === "Poland") {
+    return `${street} ${number}, ${city.postal} ${city.name}`;
+  } else if (geo === "Netherlands") {
+    return `${street} ${number}, ${city.postal} ${String.fromCharCode(65 + Math.floor(Math.random() * 26))}${String.fromCharCode(65 + Math.floor(Math.random() * 26))} ${city.name}`;
+  } else if (geo === "Australia") {
+    return `${number} ${street}, ${city.name} ${city.region} ${city.postal}`;
+  } else if (geo === "Romania") {
+    return `${street} ${number}, ${city.postal} ${city.name}`;
+  }
+  
+  return `${number} ${street}, ${city.name}, ${city.region} ${city.postal}`;
+}
+
+function detectIndustry(prompt: string): string {
+  const promptLower = prompt.toLowerCase();
+  const keywords: Record<string, string[]> = {
+    "IT": ["it ", "software", "програмування", "programming", "web", "веб", "app", "digital", "tech", "code", "developer", "розробка"],
+    "Health": ["health", "здоров", "медицин", "medical", "clinic", "клініка", "doctor", "лікар", "hospital", "wellness", "therapy", "терапі"],
+    "Finance": ["фінанс", "finance", "bank", "банк", "investment", "інвест", "trading", "трейдинг", "accounting", "бухгалтер"],
+    "Beauty": ["краса", "beauty", "salon", "салон", "cosmetic", "косметик", "spa", "massage", "манікюр", "manicure", "візаж", "makeup"],
+    "Legal": ["юрид", "legal", "law", "адвокат", "lawyer", "attorney", "нотаріус", "notary", "право"],
+    "Food": ["їжа", "food", "restaurant", "ресторан", "cafe", "кафе", "catering", "кейтерин", "cook", "кухар", "кулінар", "culinary"],
+    "Education": ["освіта", "education", "course", "курс", "training", "тренінг", "school", "школа", "learn", "навчан"],
+    "Real Estate": ["нерухом", "real estate", "property", "квартир", "apartment", "house", "будинок", "ріелтор", "realtor"],
+    "Travel": ["travel", "подорож", "tourism", "туризм", "hotel", "готель", "vacation", "відпустка", "trip"],
+    "Fitness": ["fitness", "фітнес", "gym", "спортзал", "sport", "спорт", "yoga", "йога", "workout", "тренуван"],
+    "Marketing": ["marketing", "маркетин", "advertis", "реклам", "seo", "smm", "pr ", "branding", "бренд"],
+    "Construction": ["будівн", "construct", "ремонт", "repair", "architect", "архітект", "design interior", "дизайн інтер"],
+    "Automotive": ["auto", "авто", "car", "машин", "vehicle", "транспорт", "garage", "гараж"],
+    "Maritime": ["maritime", "морськ", "ship", "корабел", "fleet", "флот", "naval", "навігац", "navigation"],
+    "Logistics": ["logistics", "логіст", "transport", "транспорт", "delivery", "доставк", "shipping", "warehouse", "склад"]
+  };
+  
+  for (const [industry, terms] of Object.entries(keywords)) {
+    if (terms.some(term => promptLower.includes(term))) {
+      return industry;
+    }
+  }
+  return "Default";
+}
+
+function getIndustryData(industry: string) {
+  return INDUSTRY_MAPPING[industry] || INDUSTRY_MAPPING["Default"];
+}
+
+// Normalize duplicate country code patterns
+const normalizeDuplicateCountryCodes = (text: string) => {
+  let out = text;
+  out = out.replace(/\+(\d{1,3})[\s\-]*?(?:\(0\)[\s\-]*?)?\+[\s\-]*?\1\b/g, (_m, code) => `+${code}`);
+  out = out.replace(/\+(\d{1,3})[\s\-]*?(?:\(0\)[\s\-]*?)?\b\1\b/g, (_m, code) => `+${code}`);
+  out = out.replace(/\+(\d{1,3})\1(\d{6,})\b/g, (_m, code, rest) => `+${code}${rest}`);
+  return out;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
-
-  // Normalize duplicate country code patterns produced by the model.
-  // Examples:
-  // - "+353+353 1 234 5678" -> "+353 1 234 5678"
-  // - "+353 353 1 234 5678" -> "+353 1 234 5678"
-  // - "+353-353-1-234-5678" -> "+353-1-234-5678"
-  // - "+353 (0) 353 1 234 5678" -> "+353 1 234 5678"
-  // - "tel:+3533531234567" -> "tel:+3531234567"
-  const normalizeDuplicateCountryCodes = (text: string) => {
-    let out = text;
-
-    // 1) Two explicit +codes, allowing separators and optional (0)
-    out = out.replace(
-      /\+(\d{1,3})[\s\-]*?(?:\(0\)[\s\-]*?)?\+[\s\-]*?\1\b/g,
-      (_m, code) => `+${code}`
-    );
-
-    // 2) "+code code" (second code without +), allowing separators and optional (0)
-    out = out.replace(
-      /\+(\d{1,3})[\s\-]*?(?:\(0\)[\s\-]*?)?\b\1\b/g,
-      (_m, code) => `+${code}`
-    );
-
-    // 3) Digits form: "+353353..." (code repeated immediately)
-    // Keep the first country code and the rest of the number.
-    out = out.replace(/\+(\d{1,3})\1(\d{6,})\b/g, (_m, code, rest) => `+${code}${rest}`);
-
-    return out;
-  };
 
   try {
     const { prompt, geo, phone } = await req.json();
@@ -57,6 +292,64 @@ serve(async (req) => {
     console.log("Improving prompt:", prompt.substring(0, 100) + "...");
     console.log("Geo:", geo || "not specified", "Phone:", phone || "not specified");
 
+    // Detect industry and get data
+    const industry = detectIndustry(prompt);
+    const industryData = getIndustryData(industry);
+    
+    // Generate geo-based data
+    const generatedPhone = phone || generatePhoneByGeo(geo || "USA");
+    const generatedAddress = generateAddressByGeo(geo || "USA");
+    const paletteString = industryData.palette.map(c => `${c.name} (${c.hex})`).join(", ");
+
+    const systemPrompt = `You are an expert website brief writer. Your task is to create a STRUCTURED, COMPACT website brief.
+
+OUTPUT FORMAT (follow EXACTLY):
+
+[creative-domain].com ([Industry Type])
+
+Company Name: [Creative Business Name]
+Geo: [Country/Region]
+Language: [Language]
+Industry: [Industry Type]
+Core Theme: [One sentence describing what the company does]
+
+1. Company Overview
+[2-3 sentences about what the company does, their specialization, and unique value proposition]
+
+2. Tone & Editorial Identity
+Tone: ${industryData.tone.join(", ")}
+Audience: [Specific target audience - be detailed]
+Principles: [4-5 core business principles]
+
+3. Website Architecture
+index.html: Hero "[Catchy tagline]"; [Section 1: specific name]; [Section 2: specific name]; [Section 3: specific name]; [CTA Section]
+[service-page].html: [Hero]; [Section 1]; [Section 2]; [Section 3]
+[about-page].html: [Hero]; [Team Section]; [History/Values]; [Achievements]
+[resources-page].html: [Hero]; [Category 1]; [Category 2]; [Featured Items]
+contact.html: [Hero]; [Contact Form]; [Location Map]; [Office Hours]
+
+4. Visual Direction
+Palette: ${paletteString}
+Imagery: [4-5 specific image types relevant to this industry]
+
+5. Technical & SEO
+SEO: "[keyword1]", "[keyword2]", "[keyword3]", "[keyword4]"
+JSON-LD: ${industryData.jsonLd}
+
+6. Keywords & Restrictions
+Keywords: [8-12 industry-specific keywords]
+Restrictions: Do not use: gratuit, miracle, free, profit, money, price, guarantee, 100%, crypto, health claims
+
+CRITICAL RULES:
+- Use this EXACT phone: ${generatedPhone}
+- Use this EXACT address: ${generatedAddress}
+- Keep the entire brief under 400 words
+- Be SPECIFIC and UNIQUE to the niche
+- Use the provided HEX color codes
+- Write in the same language as the input prompt
+- Domain should be creative and memorable
+- Each page must have 3-5 unique sections`;
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -66,128 +359,14 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          {
-            role: "system",
-            content: `Ти супер досвідчений веб-розробник корпоративних сайтів з 15+ роками досвіду. Твоя спеціалізація - створення детальних технічних завдань для розробки професійних веб-сайтів.
-
-ТВОЯ ЗАДАЧА: На основі короткого опису створити розгорнуте, структуроване, професійне технічне завдання на розробку сайту.
-
-ОБОВ'ЯЗКОВА СТРУКТУРА ТЕХНІЧНОГО ЗАВДАННЯ:
-
-ЗАГАЛЬНА ІНФОРМАЦІЯ
-- Назва проекту та домен
-- Тип сайту: корпоративний / лендінг / портфоліо / каталог / блог
-- Цільова аудиторія та її потреби
-- Ключові цілі та задачі сайту
-- Конкурентні переваги що мають бути відображені
-
-АРХІТЕКТУРА САЙТУ (мінімум 5-7 сторінок)
-Для кожної сторінки детально опиши:
-
-1. ГОЛОВНА СТОРІНКА
-- Hero-секція: заголовок, підзаголовок, CTA-кнопка, фонове зображення/відео
-- Секція переваг: 4-6 ключових переваг з іконками
-- Секція послуг: картки послуг з описом та посиланнями
-- Секція про компанію: коротка історія, місія, цінності
-- Секція відгуків: слайдер з відгуками клієнтів
-- Секція партнерів/клієнтів: логотипи
-- Секція CTA: заклик до дії з формою
-- Секція новин/блогу: останні публікації
-
-2. ПРО НАС
-- Hero з заголовком та зображенням команди
-- Історія компанії: таймлайн розвитку
-- Місія та цінності: блоки з іконками
-- Команда: фото, імена, посади, соцмережі
-- Досягнення: цифри та факти
-- Сертифікати та нагороди
-
-3. ПОСЛУГИ
-- Каталог послуг: картки з детальним описом
-- Для кожної послуги: опис, переваги, процес роботи
-- Ціни або CTA для отримання пропозиції
-- FAQ по послугах
-
-4. ПОРТФОЛІО / ПРОЕКТИ
-- Галерея робіт з фільтрацією по категоріях
-- Детальні кейси: задача, рішення, результат
-- До/після якщо релевантно
-
-5. КОНТАКТИ
-- Контактна інформація: адреса, телефон, email
-- ОБОВ'ЯЗКОВО вкажи реальний номер телефону у форматі країни
-- Карта з розташуванням офісу
-- Форма зворотного зв'язку: ім'я, телефон, email, повідомлення
-- Графік роботи
-- Соціальні мережі
-
-6. БЛОГ / НОВИНИ (якщо релевантно)
-- Список статей з пагінацією
-- Категорії та теги
-- Пошук по блогу
-
-7. ДОДАТКОВІ СТОРІНКИ
-- Політика конфіденційності
-- Умови використання
-- Сторінка 404
-
-ДИЗАЙН ТА ВІЗУАЛЬНИЙ СТИЛЬ
-- Колірна палітра: основний колір, акцентний, фоновий, текстовий
-- Типографіка: шрифт заголовків, шрифт тексту, розміри
-- Стиль: мінімалізм / корпоративний / креативний / елегантний / технологічний
-- Іконки: лінійні / заливка / 3D
-- Фотографії: професійні / lifestyle / абстрактні
-- Анімації: scroll-анімації, hover-ефекти, transitions
-
-ФУНКЦІОНАЛЬНІ ЕЛЕМЕНТИ
-- Sticky навігація з мобільним меню (бургер)
-- Breadcrumbs для внутрішніх сторінок
-- Кнопка "Вгору"
-- Cookie consent банер
-- Форми з валідацією
-- Інтеграція з Google Maps
-- Соціальні кнопки
-- Чат або callback віджет
-
-ТЕХНІЧНІ ВИМОГИ
-- Responsive: desktop (1920px), laptop (1366px), tablet (768px), mobile (375px)
-- SEO: meta-теги, Open Graph, структуровані дані, sitemap.xml, robots.txt
-- Швидкість завантаження: оптимізація зображень, lazy loading
-- Доступність: WCAG 2.1 AA
-- Кросбраузерність: Chrome, Firefox, Safari, Edge
-
-ПРАВИЛА НАПИСАННЯ:
-- Зберігай мову оригінального опису
-- Пиши конкретно та професійно
-- Кожен пункт має бути змістовним
-- Без зайвих пробілів, переносів та спецсимволів
-- Одразу починай з технічного завдання без вступних фраз
-- КРИТИЧНО ВАЖЛИВО: Якщо вказано гео (країну) - використовуй реальний формат телефонних номерів цієї країни
-- КРИТИЧНО ВАЖЛИВО: Якщо вказано конкретний телефон - обов'язково включи його в секцію контактів`,
-          },
-          {
-            role: "user",
-            content: buildUserPrompt(prompt.trim(), geo, phone),
-          },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Create a structured website brief for this business:\n\n${prompt.trim()}\n\nGeo: ${geo || "International"}\nLanguage: Auto-detect from prompt or English` },
         ],
+        max_tokens: 2000,
+        temperature: 0.7,
       }),
     });
 
-    function buildUserPrompt(basePrompt: string, geo?: string, phone?: string): string {
-      let fullPrompt = basePrompt;
-      
-      if (geo) {
-        fullPrompt += `\n\nГЕО/КРАЇНА: ${geo}`;
-      }
-      
-      if (phone) {
-        fullPrompt += `\n\nКОНТАКТНИЙ ТЕЛЕФОН (ОБОВ'ЯЗКОВО ВКЛЮЧИТИ): ${phone}`;
-      }
-      
-      return fullPrompt;
-    }
-
-    // Get response text first to safely handle empty/truncated responses
     const responseText = await response.text();
     console.log("AI response length:", responseText.length, "chars");
 
@@ -210,19 +389,16 @@ serve(async (req) => {
       throw new Error(`AI gateway error: ${response.status}`);
     }
 
-    // Handle empty response
     if (!responseText || responseText.trim().length === 0) {
       console.error("Empty response from AI gateway");
       throw new Error("Порожня відповідь від AI. Спробуйте ще раз.");
     }
 
-    // Parse JSON safely
     let data;
     try {
       data = JSON.parse(responseText);
     } catch (parseError) {
       console.error("Failed to parse AI response:", parseError);
-      console.error("Raw response (first 500 chars):", responseText.substring(0, 500));
       throw new Error("Помилка парсингу відповіді AI. Спробуйте ще раз.");
     }
 
