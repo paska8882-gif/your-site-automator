@@ -43,6 +43,8 @@ interface HistoryItem {
   sale_price: number | null;
   image_source: string | null;
   geo: string | null;
+  color_scheme: string | null;
+  layout_style: string | null;
 }
 
 interface CachedHistory {
@@ -222,7 +224,7 @@ export function LazyHistorySection({ onUsePrompt }: LazyHistorySectionProps) {
       
       const { data, error } = await supabase
         .from("generation_history")
-        .select("id, number, prompt, language, zip_data, files_data, status, error_message, created_at, completed_at, ai_model, website_type, site_name, sale_price, image_source, geo")
+        .select("id, number, prompt, language, zip_data, files_data, status, error_message, created_at, completed_at, ai_model, website_type, site_name, sale_price, image_source, geo, color_scheme, layout_style")
         .eq("user_id", user.id)
         .in("status", ["completed", "failed"]) // Only completed/failed, not active
         .order("number", { ascending: false })
@@ -414,6 +416,16 @@ export function LazyHistorySection({ onUsePrompt }: LazyHistorySectionProps) {
                       {item.geo && (
                         <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5">
                           {getGeoLabel(item.geo)}
+                        </Badge>
+                      )}
+                      {item.layout_style && (
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-purple-500/10 border-purple-500/30">
+                          🎨 {item.layout_style}
+                        </Badge>
+                      )}
+                      {item.color_scheme && (
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-amber-500/10 border-amber-500/30">
+                          🌈 {item.color_scheme}
                         </Badge>
                       )}
                       {item.status === "completed" && (() => {
