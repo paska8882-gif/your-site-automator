@@ -853,6 +853,10 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
           teamId: teamMember?.team_id,
           geo: item.geo,
           retryHistoryId: item.id, // Pass existing record ID for in-place retry
+          colorScheme: item.color_scheme,
+          layoutStyle: item.layout_style,
+          improvedPrompt: item.improved_prompt,
+          vipPrompt: item.vip_prompt,
         }),
       });
 
