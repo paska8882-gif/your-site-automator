@@ -694,20 +694,26 @@ export const AdminSitesTab = () => {
       const zip = new JSZip();
       const zipContent = await zip.loadAsync(detailsUploadFile);
       
-      // Extract files from ZIP
+      // Extract only text files from ZIP (skip binary files like images)
+      const textExtensions = ['.html', '.htm', '.css', '.js', '.jsx', '.ts', '.tsx', '.json', '.xml', '.svg', '.txt', '.md', '.php'];
       const filesData: GeneratedFile[] = [];
       const filePromises: Promise<void>[] = [];
       
       zipContent.forEach((relativePath, file) => {
         if (!file.dir) {
-          filePromises.push(
-            file.async("string").then(content => {
-              filesData.push({
-                path: relativePath,
-                content: content
-              });
-            })
-          );
+          const ext = relativePath.toLowerCase().substring(relativePath.lastIndexOf('.'));
+          if (textExtensions.includes(ext)) {
+            filePromises.push(
+              file.async("text").then(content => {
+                filesData.push({
+                  path: relativePath,
+                  content: content
+                });
+              }).catch(() => {
+                // Skip files that can't be read as text
+              })
+            );
+          }
         }
       });
       
@@ -724,12 +730,15 @@ export const AdminSitesTab = () => {
 
       const now = new Date().toISOString();
 
+      // Prepare files_data as proper JSON array
+      const filesDataJson = filesData.length > 0 ? (filesData as unknown as null) : null;
+
       // Update generation record
       const { error: updateError } = await supabase
         .from("generation_history")
         .update({
           status: "completed",
-          files_data: JSON.parse(JSON.stringify(filesData)),
+          files_data: filesDataJson,
           zip_data: zipBase64,
           completed_at: now,
           sale_price: detailsUploadPrice,
