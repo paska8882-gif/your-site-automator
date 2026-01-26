@@ -8707,44 +8707,71 @@ serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "").trim();
 
-    // Decode JWT manually - getClaims() internally calls getUser() which requires an active session
-    // Manual decoding only validates the token structure, not the signature (Supabase handles that)
+    // Use service role key for database operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Read body first to check for retryHistoryId (needed for service key auth bypass)
+    const body = await req.json();
+    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, bilingualLanguages, retryHistoryId } = body;
+
+    // Determine userId - either from JWT or from DB for retry requests
     let userId: string;
-    try {
-      const parts = token.split(".");
-      if (parts.length !== 3) {
-        throw new Error("Invalid JWT structure");
-      }
-      const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+    
+    // Check if this is a retry request from cleanup-stale-generations using SERVICE_ROLE_KEY
+    if (retryHistoryId && token === supabaseServiceKey) {
+      // SERVICE KEY AUTH: Get userId from existing generation_history record
+      console.log("🔄 Retry mode detected with service key for:", retryHistoryId);
       
-      // Check if token is expired
-      if (payload.exp && payload.exp * 1000 < Date.now()) {
-        console.error("JWT expired:", new Date(payload.exp * 1000).toISOString());
-        return new Response(JSON.stringify({ code: 401, message: "JWT expired" }), {
-          status: 401,
+      const { data: existingRecord, error: fetchError } = await supabase
+        .from("generation_history")
+        .select("user_id")
+        .eq("id", retryHistoryId)
+        .single();
+      
+      if (fetchError || !existingRecord?.user_id) {
+        console.error("Failed to find retry record:", fetchError);
+        return new Response(JSON.stringify({ code: 404, message: "Retry record not found" }), {
+          status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       
-      if (!payload.sub) {
-        throw new Error("JWT missing sub claim");
+      userId = existingRecord.user_id;
+      console.log("🔄 Retry mode: userId from DB:", userId);
+    } else {
+      // NORMAL JWT AUTH: Decode JWT manually
+      try {
+        const parts = token.split(".");
+        if (parts.length !== 3) {
+          throw new Error("Invalid JWT structure");
+        }
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+        
+        // Check if token is expired
+        if (payload.exp && payload.exp * 1000 < Date.now()) {
+          console.error("JWT expired:", new Date(payload.exp * 1000).toISOString());
+          return new Response(JSON.stringify({ code: 401, message: "JWT expired" }), {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        
+        if (!payload.sub) {
+          throw new Error("JWT missing sub claim");
+        }
+        
+        userId = payload.sub as string;
+        console.log("JWT decoded successfully, user:", userId);
+      } catch (jwtError) {
+        console.error("JWT decode failed:", jwtError);
+        return new Response(JSON.stringify({ code: 401, message: "Invalid JWT" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
-      
-      userId = payload.sub as string;
-      console.log("JWT decoded successfully, user:", userId);
-    } catch (jwtError) {
-      console.error("JWT decode failed:", jwtError);
-      return new Response(JSON.stringify({ code: 401, message: "Invalid JWT" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
-
-    // Use service role key for database operations
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
     console.log("Authenticated request from user:", userId);
-
-    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, bilingualLanguages, retryHistoryId } = await req.json();
 
     // Build prompt with language and geo context if provided
     let promptForGeneration = prompt;

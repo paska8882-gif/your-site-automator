@@ -60,7 +60,14 @@ serve(async (req) => {
             continue;
           }
 
-          console.log(`🔄 Auto-retrying generation ${item.id} (attempt ${currentRetries + 1}/${MAX_RETRIES})`);
+          // Determine which edge function to call based on website_type
+          const functionName = item.website_type === "react" 
+            ? "generate-react-website" 
+            : item.website_type === "php" 
+              ? "generate-php-website" 
+              : "generate-website";
+
+          console.log(`🔄 Auto-retrying generation ${item.id} (attempt ${currentRetries + 1}/${MAX_RETRIES}) via ${functionName}`);
 
           // Update retry counter in admin_note
           const newAdminNote = item.admin_note 
@@ -76,13 +83,6 @@ serve(async (req) => {
               admin_note: newAdminNote.includes("retry:") ? newAdminNote : `${newAdminNote} retry:${currentRetries + 1}`,
             })
             .eq("id", item.id);
-
-          // Determine which edge function to call based on website_type
-          const functionName = item.website_type === "react" 
-            ? "generate-react-website" 
-            : item.website_type === "php" 
-              ? "generate-php-website" 
-              : "generate-website";
 
           // Call the generation function with retry flag
           const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {

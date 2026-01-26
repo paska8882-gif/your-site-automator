@@ -5862,22 +5862,52 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Validate JWT using getClaims for more reliable token validation
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
     
-    if (claimsError || !claimsData?.claims) {
-      console.error("JWT validation failed:", claimsError);
-      return new Response(JSON.stringify({ success: false, error: "Invalid token" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Read body first to check for retryHistoryId (needed for service key auth bypass)
+    const body = await req.json();
+    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, retryHistoryId } = body;
+
+    // Determine userId - either from JWT or from DB for retry requests
+    let userId: string;
+    
+    // Check if this is a retry request from cleanup-stale-generations using SERVICE_ROLE_KEY
+    if (retryHistoryId && token === supabaseKey) {
+      // SERVICE KEY AUTH: Get userId from existing generation_history record
+      console.log("🔄 Retry mode detected with service key for:", retryHistoryId);
+      
+      const { data: existingRecord, error: fetchError } = await supabase
+        .from("generation_history")
+        .select("user_id")
+        .eq("id", retryHistoryId)
+        .single();
+      
+      if (fetchError || !existingRecord?.user_id) {
+        console.error("Failed to find retry record:", fetchError);
+        return new Response(JSON.stringify({ success: false, error: "Retry record not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      userId = existingRecord.user_id;
+      console.log("🔄 Retry mode: userId from DB:", userId);
+    } else {
+      // NORMAL JWT AUTH: Validate using getClaims
+      const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+      
+      if (claimsError || !claimsData?.claims) {
+        console.error("JWT validation failed:", claimsError);
+        return new Response(JSON.stringify({ success: false, error: "Invalid token" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      userId = claimsData.claims.sub as string;
     }
-
-    const userId = claimsData.claims.sub as string;
+    
     console.log("Authenticated PHP generation request from user:", userId);
-
-    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, retryHistoryId } = await req.json();
 
     // Build prompt with language and geo context if provided
     let promptForGeneration = prompt;
