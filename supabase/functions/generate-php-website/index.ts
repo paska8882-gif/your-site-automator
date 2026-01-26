@@ -2410,8 +2410,9 @@ CONTACT:
 - address: <if present>
 `.trim();
 
-// 10 unique layout variations for randomization or manual selection
+// ~30 unique layout variations for randomization or manual selection
 const LAYOUT_VARIATIONS = [
+  // Classic & Corporate
   {
     id: "classic",
     name: "Classic Corporate",
@@ -2423,6 +2424,40 @@ const LAYOUT_VARIATIONS = [
 - CTA: Full-width banner with gradient background
 - Footer: 4-column layout with newsletter subscription`
   },
+  {
+    id: "corporate",
+    name: "Business Serious",
+    description: `LAYOUT STYLE: Business Serious
+- Hero: Conservative hero with company logo prominent, subtle background pattern
+- Sections: Clean professional grid with consistent spacing
+- Features: 4-column grid with formal icons and descriptions
+- Testimonials: Professional quotes with company names and positions
+- CTA: Understated call-to-action with navy/dark color scheme
+- Footer: Comprehensive footer with all company information`
+  },
+  {
+    id: "professional",
+    name: "Professional",
+    description: `LAYOUT STYLE: Professional
+- Hero: Balanced hero with professional imagery and clear value proposition
+- Sections: Two-column layout with professional photos
+- Features: Clean icon grid with hover effects
+- Testimonials: Formal testimonial cards with headshots
+- CTA: Professional button design with trust indicators
+- Footer: Well-organized footer with sitemap`
+  },
+  {
+    id: "executive",
+    name: "Elite Executive",
+    description: `LAYOUT STYLE: Elite Executive
+- Hero: Luxury feel with subtle animations and premium typography
+- Sections: Generous whitespace with high-end photography
+- Features: Minimal but impactful feature presentation
+- Testimonials: High-profile client testimonials with logos
+- CTA: Exclusive invitation-style call-to-action
+- Footer: Minimal luxury footer with gold/silver accents`
+  },
+  // Modern & Creative
   {
     id: "asymmetric",
     name: "Modern Asymmetric",
@@ -2457,6 +2492,29 @@ const LAYOUT_VARIATIONS = [
 - Footer: Compact dark footer with social icons prominent`
   },
   {
+    id: "creative",
+    name: "Creative Chaos",
+    description: `LAYOUT STYLE: Creative Chaos
+- Hero: Unconventional layout with overlapping elements and artistic flair
+- Sections: Non-traditional grid with creative element placement
+- Features: Scattered cards with rotation and creative positioning
+- Testimonials: Handwritten-style quotes with artistic backgrounds
+- CTA: Creative button with unique hover animations
+- Footer: Artistic footer with decorative elements`
+  },
+  {
+    id: "artistic",
+    name: "Art Gallery",
+    description: `LAYOUT STYLE: Art Gallery
+- Hero: Full-screen artwork with minimal text overlay
+- Sections: Museum-like spacing with large visual focus
+- Features: Art-inspired cards with frame-like borders
+- Testimonials: Curator-style quotes with artistic typography
+- CTA: Elegant invitation-style button
+- Footer: Minimal gallery-style footer`
+  },
+  // Minimalist & Clean
+  {
     id: "minimalist",
     name: "Minimalist Zen",
     description: `LAYOUT STYLE: Minimalist Zen
@@ -2468,6 +2526,40 @@ const LAYOUT_VARIATIONS = [
 - Footer: Ultra-minimal with only essential links`
   },
   {
+    id: "zen",
+    name: "Zen Calm",
+    description: `LAYOUT STYLE: Zen Calm
+- Hero: Peaceful imagery with soft colors and mindful typography
+- Sections: Breathing room between sections, soft transitions
+- Features: Simple icons with calming color palette
+- Testimonials: Peaceful quotes with nature imagery
+- CTA: Soft, inviting call-to-action
+- Footer: Serene footer with minimal links`
+  },
+  {
+    id: "clean",
+    name: "Clean Space",
+    description: `LAYOUT STYLE: Clean Space
+- Hero: Crisp, clean hero with sharp typography
+- Sections: Well-defined sections with clear boundaries
+- Features: Clean card grid with consistent styling
+- Testimonials: Simple, elegant testimonial display
+- CTA: Clean, prominent button
+- Footer: Organized, clean footer layout`
+  },
+  {
+    id: "whitespace",
+    name: "Lots of Air",
+    description: `LAYOUT STYLE: Lots of Air
+- Hero: Spacious hero with minimal content
+- Sections: Extra generous padding and margins
+- Features: Widely spaced feature cards
+- Testimonials: Single testimonial with lots of breathing room
+- CTA: Isolated button with significant whitespace
+- Footer: Spread out footer elements`
+  },
+  // Dynamic & Interactive
+  {
     id: "showcase",
     name: "Dynamic Showcase",
     description: `LAYOUT STYLE: Dynamic Showcase
@@ -2478,6 +2570,85 @@ const LAYOUT_VARIATIONS = [
 - CTA: Floating action button that follows scroll
 - Footer: Multi-level footer with expandable sections on mobile`
   },
+  {
+    id: "interactive",
+    name: "Interactive",
+    description: `LAYOUT STYLE: Interactive
+- Hero: Engaging hero with interactive elements
+- Sections: Sections with reveal-on-scroll effects
+- Features: Cards with flip or expand interactions
+- Testimonials: Interactive testimonial carousel
+- CTA: Animated button with micro-interactions
+- Footer: Footer with interactive elements`
+  },
+  {
+    id: "animated",
+    name: "Animated",
+    description: `LAYOUT STYLE: Animated
+- Hero: Smooth entrance animations on load
+- Sections: Scroll-triggered animations for each section
+- Features: Animated icons and card transitions
+- Testimonials: Fade-in testimonials with motion
+- CTA: Pulsing or animated call-to-action button
+- Footer: Subtle footer animations`
+  },
+  {
+    id: "parallax",
+    name: "Parallax",
+    description: `LAYOUT STYLE: Parallax
+- Hero: Multi-layer parallax background effect
+- Sections: Parallax transitions between sections
+- Features: Cards with depth and shadow movement
+- Testimonials: Floating quote effect on scroll
+- CTA: Fixed background with scrolling content overlay
+- Footer: Parallax footer background`
+  },
+  // Tech & Product
+  {
+    id: "saas",
+    name: "SaaS Product",
+    description: `LAYOUT STYLE: SaaS Product
+- Hero: Product screenshot mockup in browser frame, floating UI elements
+- Sections: Feature comparison tables, pricing cards side by side
+- Features: Icon + title + description in 2x3 grid with hover animations
+- Testimonials: Company logos carousel + featured case study card
+- CTA: Free trial button with "No credit card required" text
+- Footer: Multi-column with product links, resources, company info`
+  },
+  {
+    id: "startup",
+    name: "Startup",
+    description: `LAYOUT STYLE: Startup
+- Hero: Bold headline with product demo video
+- Sections: Problem-solution format with clear visuals
+- Features: Benefit-focused cards with modern icons
+- Testimonials: Investor and customer quotes
+- CTA: Early access or signup emphasis
+- Footer: Startup footer with social and newsletter`
+  },
+  {
+    id: "tech",
+    name: "Tech Modern",
+    description: `LAYOUT STYLE: Tech Modern
+- Hero: Dark theme with neon accents and tech imagery
+- Sections: Code-inspired layouts with monospace fonts
+- Features: Terminal-style or dashboard-like presentation
+- Testimonials: Tech industry quotes with company logos
+- CTA: Tech-style button with hover glow
+- Footer: Dark footer with tech aesthetic`
+  },
+  {
+    id: "app",
+    name: "App Landing",
+    description: `LAYOUT STYLE: App Landing
+- Hero: Phone mockup with app screenshot, download buttons
+- Sections: App feature showcase with device frames
+- Features: App store style feature highlights
+- Testimonials: App store reviews with star ratings
+- CTA: Download on App Store / Google Play buttons
+- Footer: App links and support information`
+  },
+  // Style-specific
   {
     id: "gradient",
     name: "Gradient Flow",
@@ -2501,16 +2672,39 @@ const LAYOUT_VARIATIONS = [
 - Footer: Minimal with just copyright and essential links`
   },
   {
-    id: "saas",
-    name: "SaaS Product",
-    description: `LAYOUT STYLE: SaaS Product
-- Hero: Product screenshot mockup in browser frame, floating UI elements
-- Sections: Feature comparison tables, pricing cards side by side
-- Features: Icon + title + description in 2x3 grid with hover animations
-- Testimonials: Company logos carousel + featured case study card
-- CTA: Free trial button with "No credit card required" text
-- Footer: Multi-column with product links, resources, company info`
+    id: "glassmorphism",
+    name: "Glassmorphism",
+    description: `LAYOUT STYLE: Glassmorphism
+- Hero: Frosted glass effect with colorful blur background
+- Sections: Translucent sections with backdrop blur
+- Features: Glass cards with subtle borders and shadows
+- Testimonials: Floating glass quote cards
+- CTA: Glass button with light border
+- Footer: Semi-transparent footer`
   },
+  {
+    id: "neomorphism",
+    name: "Neomorphism",
+    description: `LAYOUT STYLE: Neomorphism
+- Hero: Soft shadows creating depth on light background
+- Sections: Raised and inset effects throughout
+- Features: Soft shadow cards that appear pressed or raised
+- Testimonials: Inset quote cards with soft shadows
+- CTA: Soft shadow button with press effect
+- Footer: Subtle neomorphic footer elements`
+  },
+  {
+    id: "retro",
+    name: "Retro 90s",
+    description: `LAYOUT STYLE: Retro 90s
+- Hero: Bold neon colors, geometric shapes, retro fonts
+- Sections: Memphis design influences with shapes and patterns
+- Features: Retro-styled cards with bright colors
+- Testimonials: Vintage-style quote presentations
+- CTA: Retro button with nostalgic styling
+- Footer: 90s-inspired footer design`
+  },
+  // Portfolio & Showcase
   {
     id: "portfolio",
     name: "Creative Portfolio",
@@ -2521,6 +2715,73 @@ const LAYOUT_VARIATIONS = [
 - Testimonials: Client logos with expandable reviews
 - CTA: "Let's work together" with contact form modal
 - Footer: Social links prominent with simple copyright`
+  },
+  {
+    id: "agency",
+    name: "Agency",
+    description: `LAYOUT STYLE: Agency
+- Hero: Bold agency branding with client work preview
+- Sections: Case studies with before/after or process steps
+- Features: Service offerings with visual icons
+- Testimonials: Client success stories with metrics
+- CTA: "Start a project" emphasis
+- Footer: Professional agency footer with awards`
+  },
+  {
+    id: "studio",
+    name: "Studio",
+    description: `LAYOUT STYLE: Studio
+- Hero: Cinematic hero with video background
+- Sections: Behind-the-scenes style content
+- Features: Equipment or capability showcase
+- Testimonials: Director/producer style quotes
+- CTA: Booking or consultation focused
+- Footer: Creative studio footer with showreel link`
+  },
+  // E-commerce & Services
+  {
+    id: "ecommerce",
+    name: "E-commerce",
+    description: `LAYOUT STYLE: E-commerce
+- Hero: Featured products with sale banner
+- Sections: Product grids with quick-view functionality
+- Features: Shipping, returns, payment icons
+- Testimonials: Customer reviews with star ratings
+- CTA: Shop now and add to cart emphasis
+- Footer: E-commerce footer with payment icons and policies`
+  },
+  {
+    id: "services",
+    name: "Service Company",
+    description: `LAYOUT STYLE: Service Company
+- Hero: Service highlight with booking CTA
+- Sections: Service packages with pricing
+- Features: Why choose us points
+- Testimonials: Customer success stories
+- CTA: Book appointment or get quote
+- Footer: Service area and contact information`
+  },
+  {
+    id: "restaurant",
+    name: "Restaurant/Cafe",
+    description: `LAYOUT STYLE: Restaurant/Cafe
+- Hero: Food photography with reservation CTA
+- Sections: Menu highlights with mouth-watering images
+- Features: Ambiance, chef, ingredients features
+- Testimonials: Diner reviews with food photos
+- CTA: Reserve a table or order online
+- Footer: Hours, location, delivery partners`
+  },
+  {
+    id: "hotel",
+    name: "Hotel/Resort",
+    description: `LAYOUT STYLE: Hotel/Resort
+- Hero: Stunning property photos with booking widget
+- Sections: Room types and amenities showcase
+- Features: Spa, dining, activities highlights
+- Testimonials: Guest reviews with travel platforms
+- CTA: Book your stay with date picker
+- Footer: Location map, contact, booking policies`
   }
 ];
 
