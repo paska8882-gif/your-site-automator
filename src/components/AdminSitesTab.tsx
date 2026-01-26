@@ -682,7 +682,9 @@ export const AdminSitesTab = () => {
 
   // Complete manual request from details dialog
   const handleCompleteFromDetails = async () => {
+    console.log("handleCompleteFromDetails called", { detailsUploadFile, detailsItem, detailsUploadPrice });
     if (!detailsUploadFile || !detailsItem) {
+      console.log("Validation failed", { hasFile: !!detailsUploadFile, hasItem: !!detailsItem });
       toast.error(t("admin.fillAllFields"));
       return;
     }
@@ -1752,8 +1754,15 @@ export const AdminSitesTab = () => {
                       <Input
                         type="file"
                         accept=".zip"
-                        onChange={(e) => setDetailsUploadFile(e.target.files?.[0] || null)}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          console.log("File selected:", file?.name, file?.size);
+                          setDetailsUploadFile(file);
+                        }}
                       />
+                      {detailsUploadFile && (
+                        <p className="text-xs text-green-600">{detailsUploadFile.name}</p>
+                      )}
                     </div>
                   </div>
 
