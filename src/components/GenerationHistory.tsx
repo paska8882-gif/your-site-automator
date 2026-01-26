@@ -469,7 +469,7 @@ function SingleHistoryItem({
                       e.stopPropagation();
                       onDownload(item);
                     }}
-                    disabled={!item.zip_data}
+                    disabled={item.status !== "completed"}
                     title={t("historyExtra.downloadZip")}
                   >
                     <Download className="h-4 w-4" />
@@ -927,18 +927,35 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
     return () => clearInterval(interval);
   }, [checkStaleGenerations]);
 
-  const handleDownload = (item: HistoryItem) => {
-    if (!item.zip_data) {
-      toast({
-        title: t("common.error"),
-        description: t("historyExtra.zipNotAvailable"),
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleDownload = async (item: HistoryItem) => {
     try {
-      const byteCharacters = atob(item.zip_data);
+      // zip_data can be missing in UI due to cache/realtime payload size limitations.
+      // If so, fetch the full record on-demand.
+      let zipData = item.zip_data;
+      if (!zipData) {
+        const { data: fullRecord, error } = await supabase
+          .from("generation_history")
+          .select("zip_data")
+          .eq("id", item.id)
+          .single();
+
+        if (error) {
+          console.error("Failed to fetch zip_data:", error);
+        }
+
+        zipData = (fullRecord as any)?.zip_data ?? null;
+      }
+
+      if (!zipData) {
+        toast({
+          title: t("common.error"),
+          description: t("historyExtra.zipNotAvailable"),
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const byteCharacters = atob(zipData);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
         byteNumbers[i] = byteCharacters.charCodeAt(i);
