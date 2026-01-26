@@ -1477,5 +1477,6 @@ export const uk = {
     themePromptCost: "+$1 за AI-генерацію опису",
     themePromptCostAuto: "Опис буде згенерований автоматично (+$1)",
     themeSelected: "Обрана тематика",
+    colorScheme: "Кольорова гама",
   },
 } as const;
