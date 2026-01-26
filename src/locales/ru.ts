@@ -613,6 +613,7 @@ export const ru = {
     manualRequestPending: "Ожидает обработки",
     manualRequestInWork: "В работе",
     takeInWork: "Взять в работу",
+    complete: "Завершить",
     uploadResult: "Загрузить результат",
     manualRequestTaken: "Запрос взят в работу",
     manualRequestCompleted: "Ручной запрос выполнен",
