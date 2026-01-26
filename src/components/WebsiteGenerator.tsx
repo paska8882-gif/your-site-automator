@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -538,6 +538,14 @@ export function WebsiteGenerator() {
   const prevAdminBalancesRef = useRef<Record<string, number>>({});
   const { playBalanceSound } = useBalanceSound();
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  
+  // Reference to addOptimisticItem function from GenerationHistory
+  const addOptimisticItemRef = useRef<((item: { id: string; site_name?: string | null; prompt?: string; language?: string; status?: string; ai_model?: string | null; website_type?: string | null; image_source?: string | null; geo?: string | null; created_at?: string }) => void) | null>(null);
+  
+  // Callback to receive addOptimisticItem from GenerationHistory
+  const handleAddOptimistic = useCallback((fn: (item: { id: string; site_name?: string | null; prompt?: string; language?: string; status?: string; ai_model?: string | null; website_type?: string | null; image_source?: string | null; geo?: string | null; created_at?: string }) => void) => {
+    addOptimisticItemRef.current = fn;
+  }, []);
 
   // Check super admin status via edge function
   useEffect(() => {
@@ -1534,6 +1542,24 @@ export function WebsiteGenerator() {
         // Use original prompt for display, improved prompt for generation (if available)
         const promptForDisplay = originalPromptSnapshot || promptSnapshot;
         const geoToUse = isOtherGeoSelected && customGeo ? customGeo : (selectedGeo && selectedGeo !== "none" ? selectedGeo : undefined);
+        
+        // Add optimistic item IMMEDIATELY before API call for instant UI feedback
+        const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        if (addOptimisticItemRef.current) {
+          addOptimisticItemRef.current({
+            id: optimisticId,
+            site_name: currentSiteName,
+            prompt: promptForDisplay,
+            language: lang,
+            status: "pending",
+            ai_model: model,
+            website_type: wType,
+            image_source: iSource,
+            geo: geoToUse || null,
+            created_at: new Date().toISOString(),
+          });
+        }
+        
         const result = await startGeneration(
           promptForDisplay,
           lang,
@@ -3314,6 +3340,7 @@ export function WebsiteGenerator() {
             setPrompt(desc);
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
+          onAddOptimistic={handleAddOptimistic}
         />
         
         {/* Lazy-loaded history - manual load, 10 items at a time */}

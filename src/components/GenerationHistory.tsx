@@ -156,6 +156,7 @@ interface GenerationHistoryProps {
   onUsePrompt?: (siteName: string, prompt: string) => void;
   defaultDateFilter?: "all" | "today" | "week" | "month" | "last24h";
   compactMode?: boolean; // For generator page - hides filters, shows only last 24h
+  onAddOptimistic?: (callback: (item: Partial<HistoryItem> & { id: string }) => void) => void;
 }
 
 interface SingleHistoryItemProps {
@@ -659,7 +660,7 @@ function SingleHistoryItem({
   );
 }
 
-export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", compactMode = false }: GenerationHistoryProps) {
+export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", compactMode = false, onAddOptimistic }: GenerationHistoryProps) {
   const { t } = useLanguage();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -674,7 +675,15 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
     hasMore,
     loadMore,
     isLoadingMore,
+    addOptimisticItem,
   } = useGenerationHistory({ compactMode });
+
+  // Expose addOptimisticItem to parent via callback
+  useEffect(() => {
+    if (onAddOptimistic) {
+      onAddOptimistic(addOptimisticItem);
+    }
+  }, [onAddOptimistic, addOptimisticItem]);
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedPromptId, setExpandedPromptId] = useState<string | null>(null);
