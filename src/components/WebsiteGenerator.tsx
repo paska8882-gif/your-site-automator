@@ -3014,13 +3014,6 @@ export function WebsiteGenerator() {
               </div>
               )}
 
-              {/* Generation count summary (removed quantity selector - 1 site per name) */}
-              <div className="space-y-1.5 flex items-end">
-                <span className={`text-xs whitespace-nowrap ${wouldExceedLimit ? 'text-destructive font-medium' : activeGenerationsCount > 20 ? 'text-yellow-600' : 'text-muted-foreground'}`}>
-                  = <strong>{totalGenerations}</strong> {t("genForm.sitesCount")} {activeGenerationsCount > 0 && <span className="opacity-70">({t("genForm.activeGenerations")}: {activeGenerationsCount}/{userMaxGenerations})</span>}
-                  {wouldExceedLimit && " ⚠️"}
-                </span>
-              </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
