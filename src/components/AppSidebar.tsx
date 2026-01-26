@@ -63,6 +63,7 @@ const getAdminNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.tasks"), tab: "tasks", icon: ClipboardList },
   { title: t("sidebar.teams"), tab: "teams", icon: Users },
   { title: t("sidebar.sites"), tab: "sites", icon: FileCode },
+  { title: t("sidebar.manualRequests"), tab: "manual-requests", icon: FileCode, highlight: "purple" },
   { title: t("sidebar.users"), tab: "users", icon: UserCog },
   { title: t("sidebar.appeals"), tab: "appeals", icon: MessageSquare },
   { title: t("sidebar.communication"), tab: "communication", icon: MessageCircle },
@@ -194,6 +195,7 @@ export function AppSidebar() {
               <SidebarMenu>
                 {adminNavItems.map((item) => {
                   const isTasksItem = item.tab === "tasks";
+                  const isPurpleItem = (item as any).highlight === "purple";
                   const hasIndicator = isTasksItem && (hasProblematic || hasNewTasks);
                   const indicatorBgClass = isTasksItem 
                     ? hasProblematic 
@@ -201,14 +203,18 @@ export function AppSidebar() {
                       : hasNewTasks 
                         ? "bg-amber-500/20 hover:bg-amber-500/30" 
                         : ""
-                    : "";
+                    : isPurpleItem
+                      ? "bg-purple-500/20 hover:bg-purple-500/30"
+                      : "";
                   const indicatorTextClass = isTasksItem
                     ? hasProblematic
                       ? "text-red-500 animate-pulse font-semibold"
                       : hasNewTasks
                         ? "text-amber-500 animate-pulse font-semibold"
                         : ""
-                    : "";
+                    : isPurpleItem
+                      ? "text-purple-500 font-semibold"
+                      : "";
                   
                   return (
                     <SidebarMenuItem key={item.tab}>
@@ -218,7 +224,7 @@ export function AppSidebar() {
                         tooltip={item.title}
                         className={`transition-colors ${indicatorBgClass}`}
                       >
-                        <item.icon className={`h-4 w-4 ${hasIndicator ? indicatorTextClass : ""}`} />
+                        <item.icon className={`h-4 w-4 ${isPurpleItem || hasIndicator ? indicatorTextClass : ""}`} />
                         <span className={indicatorTextClass}>{item.title}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
