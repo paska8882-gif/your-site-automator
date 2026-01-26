@@ -1358,14 +1358,14 @@ export const AdminSitesTab = () => {
                                 <Button
                                   variant="default"
                                   size="sm"
-                                  className="h-7 text-xs bg-blue-500 hover:bg-blue-600"
+                                  className="h-7 text-xs bg-green-500 hover:bg-green-600"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleOpenManualUpload(item);
                                   }}
                                 >
-                                  <Upload className="h-3 w-3 mr-1" />
-                                  {t("admin.uploadResult")}
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  {t("admin.complete")}
                                 </Button>
                               )}
                             </div>

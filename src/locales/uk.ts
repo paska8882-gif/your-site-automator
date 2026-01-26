@@ -613,6 +613,7 @@ export const uk = {
     manualRequestPending: "Очікує обробки",
     manualRequestInWork: "В роботі",
     takeInWork: "Взяти в роботу",
+    complete: "Завершити",
     uploadResult: "Завантажити результат",
     manualRequestTaken: "Запит взято в роботу",
     manualRequestCompleted: "Ручний запит виконано",
