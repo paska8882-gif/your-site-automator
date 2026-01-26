@@ -257,6 +257,12 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
   const [detailsUploadNote, setDetailsUploadNote] = useState<string>("");
   const [detailsUploading, setDetailsUploading] = useState(false);
   
+  // Cancel request dialog state
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelItem, setCancelItem] = useState<GenerationItem | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+  
   // Sorting
   const [sortColumn, setSortColumn] = useState<SortColumn>("created_at");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -520,6 +526,8 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
         return <Hand className="h-4 w-4 text-purple-500" />;
       case "manual_in_progress":
         return <Play className="h-4 w-4 text-blue-500" />;
+      case "cancelled":
+        return <XCircle className="h-4 w-4 text-gray-500" />;
       default:
         return <Clock className="h-4 w-4 text-muted-foreground" />;
     }
@@ -544,6 +552,8 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
         return <Badge variant="secondary" className="bg-purple-500 text-white">{t("admin.manualRequest")}</Badge>;
       case "manual_in_progress":
         return <Badge variant="secondary" className="bg-blue-500 text-white">{t("admin.manualRequestInWork")}</Badge>;
+      case "cancelled":
+        return <Badge variant="secondary" className="bg-gray-500 text-white">{t("admin.cancelled")}</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -565,6 +575,43 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
       console.error("Error taking manual request:", error);
       toast.error(t("common.error"));
     }
+  };
+
+  // Cancel manual request
+  const handleCancelRequest = async () => {
+    if (!cancelItem) return;
+
+    setCancelling(true);
+    try {
+      const { error } = await supabase
+        .from("generation_history")
+        .update({ 
+          status: "cancelled",
+          error_message: cancelReason || null,
+          completed_at: new Date().toISOString()
+        })
+        .eq("id", cancelItem.id);
+
+      if (error) throw error;
+      
+      toast.success(t("admin.requestCancelled"));
+      setCancelDialogOpen(false);
+      setCancelItem(null);
+      setCancelReason("");
+      fetchAllGenerations();
+    } catch (error) {
+      console.error("Error cancelling request:", error);
+      toast.error(t("common.error"));
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  // Open cancel dialog
+  const handleOpenCancelDialog = (item: GenerationItem) => {
+    setCancelItem(item);
+    setCancelReason("");
+    setCancelDialogOpen(true);
   };
 
   // Open manual upload dialog
@@ -1369,33 +1416,49 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
                                   </Button>
                                 </>
                               )}
-                              {item.status === "manual_request" && (
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  className="h-7 text-xs bg-purple-500 hover:bg-purple-600"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleTakeInWork(item);
-                                  }}
-                                >
-                                  <Play className="h-3 w-3 mr-1" />
-                                  {t("admin.takeInWork")}
-                                </Button>
-                              )}
-                              {item.status === "manual_in_progress" && (
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  className="h-7 text-xs bg-green-500 hover:bg-green-600"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenManualUpload(item);
-                                  }}
-                                >
-                                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                                  {t("admin.complete")}
-                                </Button>
+                              {(item.status === "manual_request" || item.status === "manual_in_progress") && (
+                                <div className="flex items-center gap-1">
+                                  {item.status === "manual_request" && (
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      className="h-7 text-xs bg-purple-500 hover:bg-purple-600"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleTakeInWork(item);
+                                      }}
+                                    >
+                                      <Play className="h-3 w-3 mr-1" />
+                                      {t("admin.takeInWork")}
+                                    </Button>
+                                  )}
+                                  {item.status === "manual_in_progress" && (
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      className="h-7 text-xs bg-green-500 hover:bg-green-600"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenManualUpload(item);
+                                      }}
+                                    >
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      {t("admin.complete")}
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenCancelDialog(item);
+                                    }}
+                                    title={t("admin.cancelRequest")}
+                                  >
+                                    <XCircle className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
                               )}
                             </div>
                           </TableCell>
@@ -1818,23 +1881,36 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
                     />
                   </div>
 
-                  <Button 
-                    onClick={handleCompleteFromDetails} 
-                    disabled={!detailsUploadFile || detailsUploading}
-                    className="w-full bg-purple-600 hover:bg-purple-700"
-                  >
-                    {detailsUploading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        {t("common.loading")}
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="h-4 w-4 mr-2" />
-                        {t("admin.completeAndUpload")}
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={handleCompleteFromDetails} 
+                      disabled={!detailsUploadFile || detailsUploading}
+                      className="flex-1 bg-purple-600 hover:bg-purple-700"
+                    >
+                      {detailsUploading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          {t("common.loading")}
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="h-4 w-4 mr-2" />
+                          {t("admin.completeAndUpload")}
+                        </>
+                      )}
+                    </Button>
+                    <Button 
+                      variant="destructive"
+                      onClick={() => {
+                        setDetailsOpen(false);
+                        handleOpenCancelDialog(detailsItem);
+                      }}
+                      disabled={detailsUploading}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      {t("admin.cancelRequest")}
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -1939,6 +2015,57 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
                 <>
                   <CheckCircle2 className="h-4 w-4 mr-2" />
                   {t("admin.upload")}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Request Dialog */}
+      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <XCircle className="h-5 w-5" />
+              {t("admin.cancelRequestTitle")}
+            </DialogTitle>
+            <DialogDescription>
+              {cancelItem?.site_name || `Site ${cancelItem?.number}`}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>{t("admin.cancelReason")}</Label>
+              <Textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder={t("admin.cancelReasonPlaceholder")}
+                className="min-h-[80px]"
+              />
+              <p className="text-xs text-muted-foreground">{t("admin.cancelReasonOptional")}</p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelDialogOpen(false)} disabled={cancelling}>
+              {t("common.cancel")}
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleCancelRequest} 
+              disabled={cancelling}
+            >
+              {cancelling ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {t("common.loading")}
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-4 w-4 mr-2" />
+                  {t("admin.confirmCancel")}
                 </>
               )}
             </Button>
