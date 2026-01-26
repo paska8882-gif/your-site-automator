@@ -1,235 +1,139 @@
 
-# План: Покращення генерації промптів до рівня прикладу
+# План: Виправлення кольорової схеми, стилю та брендінгу
 
-## Проблема
-Поточні функції `improve-prompt` та `generate-theme-prompt` генерують або занадто довгі ТЗ, або занадто короткі описи без структури. Потрібен компактний, структурований brief як у прикладі користувача.
+## Виявлені проблеми
+
+### Проблема 1: Логотип і фавікон завжди зелені
+**Файл:** `supabase/functions/generate-website/index.ts` (рядки 2487-2510)
+
+Функція `ensureFaviconAndLogoInFiles` має хардкоджені кольори:
+```
+stop-color="#10b981"  // Зелений - завжди!
+stop-color="#047857"  // Темно-зелений - завжди!
+```
+
+Ці кольори ніколи не змінюються, незалежно від вибраної схеми.
+
+### Проблема 2: AI не знає про вибрану кольорову схему
+**Файл:** `supabase/functions/generate-website/index.ts` (рядки 5666-5679)
+
+Промпт до AI НЕ включає вибрану кольорову схему. AI просто каже "Generate a UNIQUE color palette based on the industry" - і генерує що хоче.
+
+Кольорова схема застосовується ТІЛЬКИ в `ensureQualityCSS()` (рядок 6316-6345) - це вже ПІСЛЯ генерації, коли AI вже написав свої кольори.
+
+### Проблема 3: Layout style не примушує AI
+AI отримує опис стилю макету, але без жорстких маркерів "MANDATORY" - тому часто ігнорує.
 
 ---
 
-## Цільовий формат (як в прикладі)
+## Рішення
 
+### 1. Передати кольорову схему логотипу/фавікону
+
+**Файл:** `supabase/functions/generate-website/index.ts`
+
+**Зміни:**
 ```text
-[domain] ([industry])
-
-Company Name: [name] ([owners if relevant])
-Geo: [country/region]
-Language: [language]
-Industry: [industry type]
-Core Theme: [one sentence core business description]
-
-1. Company Overview
-[2-3 sentences about what the company does]
-
-2. Tone & Editorial Identity
-Tone: [4 descriptive words]
-Audience: [target audience]
-Principles: [4-5 key principles]
-
-3. Website Architecture
-index.html: Hero "[tagline]"; [3-4 sections with descriptions]
-[page2].html: [sections]
-[page3].html: [sections]
-[page4].html: [sections]
-contact.html: [contact form + details]
-
-4. Visual Direction
-Palette: [Color Name] (#HEX), [Color Name], [Accent Color]
-Imagery: [4-5 specific image types]
-
-5. Technical & SEO
-SEO: "[keyword1]", "[keyword2]", "[keyword3]", "[keyword4]"
-JSON-LD: [Schema.org type]
-
-6. Keywords & Restrictions
-Keywords: [8-12 relevant keywords]
-Restrictions: Do not use: [banned words list]
+Функція ensureFaviconAndLogoInFiles:
+- Додати параметр colorScheme?: { primary: string; accent: string }
+- Замінити хардкоджені #10b981 та #047857 на colorScheme.primary та colorScheme.accent
+- Якщо colorScheme не передано - використовувати дефолт
 ```
 
----
-
-## Технічні зміни
-
-### 1. Оновити `improve-prompt/index.ts`
-
-**Новий системний промпт:**
-- Генерувати brief у форматі прикладу
-- Автоматично придумувати реалістичну адресу по гео
-- Генерувати телефон у форматі країни
-- Підбирати SEO keywords по ніші
-- Визначати JSON-LD тип
-- Підбирати кольорову палітру по темі
-
-### 2. Оновити `generate-theme-prompt/index.ts`
-
-**Повністю переписати:**
-- Замість 150-300 слів генерувати повноцінний brief
-- Включати всі 6 секцій з прикладу
-- Автоматично генерувати:
-  - Креативну назву компанії
-  - Реалістичну адресу по гео
-  - Телефон по гео
-  - 5 сторінок архітектури
-  - Кольорову палітру по ніші
-  - SEO keywords
-
-### 3. Додати утилітні функції
-
-**Нові helper-функції:**
+**Оновити виклик:**
 ```typescript
-// Генерація реалістичного телефону по гео
-function generatePhoneByGeo(geo: string): string
-
-// Генерація реалістичної адреси по гео  
-function generateAddressByGeo(geo: string): string
-
-// Підбір JSON-LD типу по ніші
-function getSchemaType(industry: string): string
-
-// Підбір кольорової палітри по ніші
-function getColorPaletteByIndustry(industry: string): {name: string, hex: string}[]
-
-// Генерація SEO keywords по ніші
-function generateSEOKeywords(industry: string, geo: string): string[]
+// Рядок 8555: передати кольорову схему
+const selectedScheme = COLOR_SCHEMES.find(s => s.name === colorScheme) || COLOR_SCHEMES[0];
+enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName, {
+  primary: selectedScheme.primary,
+  accent: selectedScheme.accent
+});
 ```
 
----
+### 2. Додати кольорову схему в AI промпт
 
-## Детальна реалізація
+**Файл:** `supabase/functions/generate-website/index.ts` (рядки 5666-5679)
 
-### A. Новий системний промпт для `improve-prompt`
-
-```text
-You are an expert website brief writer. Create a STRUCTURED website brief in this EXACT format:
-
-[domain] ([industry])
-
-Company Name: [Creative business name]
-Geo: [Country from input]
-Language: [Language from input]
-Industry: [Industry/Niche]
-Core Theme: [One sentence describing the core business]
-
-1. Company Overview
-[2-3 sentences describing what the company does, their specialization, and unique value]
-
-2. Tone & Editorial Identity
-Tone: [4 descriptive words matching the industry]
-Audience: [Specific target audience description]
-Principles: [4-5 core business principles]
-
-3. Website Architecture
-index.html: Hero "[Catchy tagline]"; [3-4 specific sections]
-[service-page].html: [Relevant sections]
-[about-page].html: [Relevant sections]  
-[resources-page].html: [Relevant sections]
-contact.html: [Contact form + location details]
-
-4. Visual Direction
-Palette: [Primary Color Name] (#HEX), [Secondary], [Accent]
-Imagery: [4-5 specific image types for this industry]
-
-5. Technical & SEO
-SEO: "[keyword1]", "[keyword2]", "[keyword3]", "[keyword4]"
-JSON-LD: [Appropriate Schema.org type]
-
-6. Keywords & Restrictions
-Keywords: [8-12 industry-relevant keywords]
-Restrictions: Do not use: [standard banned words]
-
-CRITICAL RULES:
-- Use the EXACT phone number if provided
-- Generate REALISTIC address for the geo/country
-- Keep brief COMPACT - no more than 400 words total
-- Make content UNIQUE and SPECIFIC to the niche
-- Include REAL HEX color codes that match the industry
-```
-
-### B. Приклади по нішах
-
-| Ніша | Palette | JSON-LD | Tone |
-|------|---------|---------|------|
-| IT/Tech | Deep Blue (#0d4f8b), Steel Gray | ITService | Technical, Innovative, Reliable |
-| Health | Healing Green (#2d8f5e), Calm Teal | MedicalBusiness | Caring, Professional, Trusted |
-| Finance | Midnight Navy (#1a365d), Gold Accent | FinancialService | Strategic, Dependable, Expert |
-| Beauty | Rose Pink (#e8507b), Soft Lavender | BeautyService | Elegant, Modern, Luxurious |
-| Legal | Corporate Blue (#234e70), Brass | LegalService | Authoritative, Trustworthy |
-| Food | Warm Orange (#e67e22), Fresh Green | Restaurant | Appetizing, Welcoming, Fresh |
-
-### C. Генерація телефону по гео
-
+**Перед формуванням websiteRequestBody:**
 ```typescript
-const GEO_PHONE_FORMATS = {
-  "Canada": { code: "+1", format: "XXX-XXX-XXXX", area: ["416", "604", "514"] },
-  "USA": { code: "+1", format: "XXX-XXX-XXXX", area: ["212", "310", "312"] },
-  "UK": { code: "+44", format: "XXXX XXXXXX", area: ["20", "161", "141"] },
-  "Germany": { code: "+49", format: "XXX XXXXXXXX", area: ["30", "89", "40"] },
-  "France": { code: "+33", format: "X XX XX XX XX", area: ["1", "4", "6"] },
-  // ... 30+ countries
-};
+// Отримати HEX кольори вибраної схеми
+let mandatoryColorSection = "";
+if (userColorScheme) {
+  const scheme = COLOR_SCHEMES.find(s => s.name === userColorScheme);
+  if (scheme) {
+    mandatoryColorSection = `
+⚠️⚠️⚠️ MANDATORY COLOR PALETTE - YOU MUST USE THESE EXACT COLORS! ⚠️⚠️⚠️
+
+Color Scheme: "${scheme.name}"
+PRIMARY COLOR: ${scheme.primary} (main brand color - buttons, links, accents)
+SECONDARY COLOR: ${scheme.secondary} (darker variant - hovers, headers)
+ACCENT COLOR: ${scheme.accent} (highlights, CTAs, icons)
+BACKGROUND LIGHT: ${scheme.bgLight} (section backgrounds)
+BORDER COLOR: ${scheme.border} (borders, dividers)
+HEADING TEXT: ${scheme.heading} (all headings)
+BODY TEXT: ${scheme.text} (paragraphs, descriptions)
+
+⚠️ USE THESE EXACT HEX CODES IN YOUR CSS! DO NOT CHANGE THEM!
+⚠️ Primary buttons = ${scheme.primary}
+⚠️ Links = ${scheme.primary}  
+⚠️ Section highlights = ${scheme.bgLight}
+⚠️ All colored elements MUST use these colors!
+
+`;
+  }
+}
 ```
 
-### D. Генерація адреси по гео
-
+**В промпт (рядок 5677):**
 ```typescript
-const GEO_ADDRESS_TEMPLATES = {
-  "Canada": {
-    cities: ["Toronto", "Vancouver", "Montreal", "Calgary"],
-    streets: ["Bay Street", "Main Street", "King Street", "Granville Street"],
-    format: "{number} {street}, {city}, {province} {postal}"
-  },
-  // ... інші країни
-};
+content: `${HTML_GENERATION_PROMPT}\n\n${mandatoryColorSection}${imageStrategy}\n\n...`
+```
+
+### 3. Посилити Layout Style директиви
+
+**Файл:** `supabase/functions/generate-website/index.ts` (рядок 5677)
+
+Замінити:
+```
+=== MANDATORY LAYOUT STRUCTURE (FOLLOW EXACTLY) ===
+${selectedLayout.description}
+```
+
+На:
+```
+⚠️⚠️⚠️ MANDATORY LAYOUT STRUCTURE - NON-NEGOTIABLE! ⚠️⚠️⚠️
+LAYOUT STYLE: "${selectedLayout.name}"
+
+${selectedLayout.description}
+
+⚠️ YOU MUST FOLLOW THIS LAYOUT EXACTLY!
+⚠️ Hero section MUST match the layout description above!
+⚠️ Card grids MUST use the specified arrangement!
+⚠️ IF YOU IGNORE THIS LAYOUT = GENERATION FAILURE!
 ```
 
 ---
 
-## Порядок впровадження
+## Файли для зміни
 
-| # | Крок | Файл |
-|---|------|------|
-| 1 | Додати helper-функції для гео-даних | `improve-prompt/index.ts` |
-| 2 | Переписати системний промпт | `improve-prompt/index.ts` |
-| 3 | Додати той самий формат | `generate-theme-prompt/index.ts` |
-| 4 | Оновити VIP генерацію | `generate-vip-prompt/index.ts` |
-| 5 | Задеплоїти Edge Functions | — |
-| 6 | Тестування | — |
-
----
-
-## Очікуваний результат
-
-**До (поточний improve-prompt):**
-```
-ТЕХНІЧНЕ ЗАВДАННЯ
-ЗАГАЛЬНА ІНФОРМАЦІЯ
-- Назва проекту: ...
-- Тип сайту: корпоративний
-[... 1000+ слів нечитабельного тексту ...]
-```
-
-**Після (новий формат):**
-```
-bosman-fish.com (Maritime Fleet IT)
-
-Company Name: BOSMAN-FISH Maritime IT
-Geo: Canada (Atlantic & Pacific Coasts)
-Language: English
-Industry: IT Services / Maritime Logistics
-Core Theme: Developing maritime fleet management systems...
-
-1. Company Overview
-BOSMAN-FISH Maritime IT specializes in digital navigation...
-
-2. Tone & Editorial Identity
-Tone: Strategic, Nautical, Dependable, Advanced
-...
-```
+| Файл | Зміни |
+|------|-------|
+| `supabase/functions/generate-website/index.ts` | 1. Оновити `ensureFaviconAndLogoInFiles` для прийому кольорової схеми |
+| | 2. Оновити виклик функції (рядок 8555) |
+| | 3. Додати `mandatoryColorSection` в промпт (рядок ~5660) |
+| | 4. Посилити layout style директиви (рядок 5677) |
+| `supabase/functions/generate-php-website/index.ts` | Аналогічні зміни для PHP генератора |
 
 ---
 
-## Додаткові покращення
+## Результат
 
-1. **Auto-detect language** - визначати мову з гео якщо не вказана
-2. **Industry mapping** - автоматично мапити тему на індустрію
-3. **Smart domain** - генерувати домен з назви якщо не вказано
-4. **Validation** - перевіряти що всі секції заповнені
+**До:**
+- Логотип/фавікон: завжди зелений
+- AI кольори: випадкові, ігнорує вибір
+- Layout: часто ігнорується
+
+**Після:**
+- Логотип/фавікон: відповідає вибраній схемі (синій/червоний/фіолетовий...)
+- AI кольори: жорстко прописані HEX у промпті
+- Layout: MANDATORY директиви з попередженнями
