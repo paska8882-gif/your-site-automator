@@ -4537,6 +4537,7 @@ async function runGeneration({
   layoutStyle,
   imageSource = "basic",
   siteName,
+  colorScheme: userColorScheme,
 }: {
   prompt: string;
   language?: string;
@@ -4544,6 +4545,7 @@ async function runGeneration({
   layoutStyle?: string;
   imageSource?: "basic" | "ai";
   siteName?: string;
+  colorScheme?: string | null;
 }): Promise<GenerationResult> {
   const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
@@ -5081,8 +5083,15 @@ Generate complete, working code. No placeholders.${strictFormatBlock}`;
       { name: 'coral', primary: '#c05621', primaryRgb: '192, 86, 33', secondary: '#9c4221', accent: '#dd6b20', heading: '#1a202c', text: '#4a5568', bgLight: '#fffaf0', border: '#fbd38d' },
     ];
     
-    const colorScheme = COLOR_SCHEMES[Math.floor(Math.random() * COLOR_SCHEMES.length)];
-    console.log(`🎨 PHP CSS: Selected ${colorScheme.name} theme`);
+    // Select color scheme: use user-selected scheme if provided, otherwise random
+    let colorScheme;
+    if (userColorScheme) {
+      colorScheme = COLOR_SCHEMES.find(s => s.name === userColorScheme) || COLOR_SCHEMES[Math.floor(Math.random() * COLOR_SCHEMES.length)];
+      console.log(`🎨 PHP CSS: Using user-selected ${colorScheme.name} theme`);
+    } else {
+      colorScheme = COLOR_SCHEMES[Math.floor(Math.random() * COLOR_SCHEMES.length)];
+      console.log(`🎨 PHP CSS: Using random ${colorScheme.name} theme`);
+    }
     
     const BASELINE_PHP_CSS = `@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap');
 
@@ -5866,7 +5875,7 @@ serve(async (req) => {
     
     // Read body first to check for retryHistoryId (needed for service key auth bypass)
     const body = await req.json();
-    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, retryHistoryId } = body;
+    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, retryHistoryId, colorScheme } = body;
 
     // Determine userId - either from JWT or from DB for retry requests
     let userId: string;

@@ -5564,6 +5564,7 @@ async function runGeneration({
   imageSource = "basic",
   siteName,
   bilingualLanguages,
+  colorScheme: userColorScheme,
 }: {
   prompt: string;
   language?: string;
@@ -5572,6 +5573,7 @@ async function runGeneration({
   imageSource?: "basic" | "ai";
   siteName?: string;
   bilingualLanguages?: string[] | null;
+  colorScheme?: string | null;
 }): Promise<GenerationResult> {
   const isJunior = aiModel === "junior";
   console.log(`Using ${isJunior ? "Junior AI (OpenAI GPT-4o)" : "Senior AI (Lovable AI)"} for HTML generation`);
@@ -6284,8 +6286,15 @@ async function runGeneration({
       { sm: '2px 2px 0 rgba(0,0,0,0.1)', md: '4px 4px 0 rgba(0,0,0,0.15)', lg: '8px 8px 0 rgba(0,0,0,0.2)' }, // Brutalist
     ];
     
-    // Randomly select style variations
-    const colorScheme = COLOR_SCHEMES[Math.floor(Math.random() * COLOR_SCHEMES.length)];
+    // Select color scheme: use user-selected scheme if provided, otherwise random
+    let colorScheme;
+    if (userColorScheme) {
+      colorScheme = COLOR_SCHEMES.find(s => s.name === userColorScheme) || COLOR_SCHEMES[Math.floor(Math.random() * COLOR_SCHEMES.length)];
+      console.log(`🎨 Using user-selected color scheme: ${colorScheme.name}`);
+    } else {
+      colorScheme = COLOR_SCHEMES[Math.floor(Math.random() * COLOR_SCHEMES.length)];
+      console.log(`🎨 Using random color scheme: ${colorScheme.name}`);
+    }
     const radiusStyle = RADIUS_STYLES[Math.floor(Math.random() * RADIUS_STYLES.length)];
     const shadowStyle = SHADOW_STYLES[Math.floor(Math.random() * SHADOW_STYLES.length)];
     
@@ -8437,7 +8446,8 @@ async function runBackgroundGeneration(
   siteName?: string,
   geo?: string,
   bilingualLanguages?: string[] | null,
-  bundleImages: boolean = true // Whether to bundle external images into ZIP
+  bundleImages: boolean = true, // Whether to bundle external images into ZIP
+  colorScheme?: string | null // User-selected color scheme
 ) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -8456,7 +8466,7 @@ async function runBackgroundGeneration(
       .update({ status: "generating" })
       .eq("id", historyId);
 
-    const result = await runGeneration({ prompt, language, aiModel, layoutStyle, imageSource, siteName, bilingualLanguages });
+    const result = await runGeneration({ prompt, language, aiModel, layoutStyle, imageSource, siteName, bilingualLanguages, colorScheme });
 
     if (result.success && result.files) {
       // Prefer explicit geo passed from client, fallback to extracting from prompt
@@ -8768,7 +8778,7 @@ serve(async (req) => {
     
     // Read body first to check for retryHistoryId (needed for service key auth bypass)
     const body = await req.json();
-    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, bilingualLanguages, retryHistoryId, bundleImages = true } = body;
+    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, bilingualLanguages, retryHistoryId, bundleImages = true, colorScheme } = body;
 
     // Determine userId - either from JWT or from DB for retry requests
     let userId: string;
@@ -9245,7 +9255,8 @@ ${promptForGeneration}`;
         siteName,
         geo,
         bilingualLanguages || null,
-        bundleImages
+        bundleImages,
+        colorScheme || null
       )
     );
 

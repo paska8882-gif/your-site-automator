@@ -29,7 +29,7 @@ import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Has
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { startGeneration, AiModel, WebsiteType, SeniorMode, ImageSource, LAYOUT_STYLES } from "@/lib/websiteGenerator";
+import { startGeneration, AiModel, WebsiteType, SeniorMode, ImageSource, LAYOUT_STYLES, COLOR_SCHEMES_UI, ColorScheme } from "@/lib/websiteGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { GenerationHistory } from "./GenerationHistory";
 import { LazyHistorySection } from "./LazyHistorySection";
@@ -444,6 +444,7 @@ interface GeneratorDraft {
   selectedStyles: string[];
   customStyle: string;
   isOtherStyleSelected: boolean;
+  selectedColorScheme: ColorScheme;
   // sitesPerLanguage removed - always 1 site per name now
   selectedAiModels: AiModel[];
   selectedWebsiteTypes: WebsiteType[];
@@ -496,6 +497,7 @@ export function WebsiteGenerator() {
   const [selectedStyles, setSelectedStyles] = useState<string[]>(draft.selectedStyles || []);
   const [customStyle, setCustomStyle] = useState(draft.customStyle || "");
   const [isOtherStyleSelected, setIsOtherStyleSelected] = useState(draft.isOtherStyleSelected || false);
+  const [selectedColorScheme, setSelectedColorScheme] = useState<ColorScheme>(draft.selectedColorScheme || "random");
   // Removed: sitesPerLanguage selector - now always 1 site per name (each request is unique)
   const sitesPerLanguage = 1;
   // Multi-select for AI models, website types, image sources
@@ -691,6 +693,7 @@ export function WebsiteGenerator() {
       selectedStyles,
       customStyle,
       isOtherStyleSelected,
+      selectedColorScheme,
       // sitesPerLanguage removed - always 1
       selectedAiModels,
       selectedWebsiteTypes,
@@ -701,7 +704,7 @@ export function WebsiteGenerator() {
   }, [
     siteNames, prompt, exactPhone, selectedLanguages, selectedGeo, customGeo, isOtherGeoSelected,
     customLanguage, isOtherSelected,
-    selectedStyles, customStyle, isOtherStyleSelected,
+    selectedStyles, customStyle, isOtherStyleSelected, selectedColorScheme,
     selectedAiModels, selectedWebsiteTypes, selectedImageSources,
     seniorMode, adminGenerationMode
   ]);
@@ -1739,7 +1742,8 @@ export function WebsiteGenerator() {
           vipPromptSnapshot || undefined,
           exactPhone || undefined,
           bilingualLanguagesSnapshot || undefined, // Pass bilingual languages if in bilingual mode
-          bundleImages // Whether to bundle images into ZIP
+          bundleImages, // Whether to bundle images into ZIP
+          selectedColorScheme // Pass color scheme selection
         );
         setGenerationProgress((prev) => ({ ...prev, completed: prev.completed + 1 }));
         return result;
@@ -3196,6 +3200,40 @@ export function WebsiteGenerator() {
                     )}
                   </PopoverContent>
                 </Popover>
+              </div>
+
+              {/* Color Scheme Select */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">{t("genForm.colorScheme")}</Label>
+                <Select
+                  value={selectedColorScheme}
+                  onValueChange={(v) => setSelectedColorScheme(v as ColorScheme)}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <Palette className="h-3.5 w-3.5 mr-1" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COLOR_SCHEMES_UI.map((scheme) => (
+                      <SelectItem key={scheme.id} value={scheme.id}>
+                        <div className="flex items-center gap-2">
+                          <span>{scheme.name}</span>
+                          {scheme.colors.length > 0 && (
+                            <div className="flex gap-0.5">
+                              {scheme.colors.map((color, i) => (
+                                <div
+                                  key={i}
+                                  className="w-3 h-3 rounded-sm border border-border"
+                                  style={{ backgroundColor: color }}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Geo Select - hide in VIP mode */}
