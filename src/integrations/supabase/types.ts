@@ -1021,6 +1021,7 @@ export type Database = {
         Args: { p_invite_code: string; p_user_id: string }
         Returns: Json
       }
+      validate_invite_code: { Args: { p_code: string }; Returns: Json }
     }
     Enums: {
       admin_task_status: "todo" | "in_progress" | "done" | "problematic"

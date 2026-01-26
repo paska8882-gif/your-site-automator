@@ -147,13 +147,17 @@ export function AdminBalanceRequestsTab() {
 
       if (requestError) throw requestError;
 
-      // Create notification for user
-      await supabase.from("notifications").insert({
-        user_id: request.user_id,
-        title: t("admin.requestApproved"),
-        message: `${t("admin.balanceUpdated")}: $${request.amount.toFixed(2)}`,
-        type: "balance_approved",
-        data: { request_id: request.id, amount: request.amount }
+      // Create notification for user via secure edge function
+      await supabase.functions.invoke('create-notification', {
+        body: {
+          notifications: [{
+            user_id: request.user_id,
+            title: t("admin.requestApproved"),
+            message: `${t("admin.balanceUpdated")}: $${request.amount.toFixed(2)}`,
+            type: "balance_approved",
+            data: { request_id: request.id, amount: request.amount }
+          }]
+        }
       });
 
       toast.success(`${t("admin.requestApproved")} $${request.amount.toFixed(2)}`);
@@ -194,13 +198,17 @@ export function AdminBalanceRequestsTab() {
 
       if (error) throw error;
 
-      // Create notification for user
-      await supabase.from("notifications").insert({
-        user_id: request.user_id,
-        title: t("admin.balanceRequestRejected"),
-        message: `${t("admin.rejectionReason")}: ${comment}`,
-        type: "balance_rejected",
-        data: { request_id: request.id, amount: request.amount, reason: comment }
+      // Create notification for user via secure edge function
+      await supabase.functions.invoke('create-notification', {
+        body: {
+          notifications: [{
+            user_id: request.user_id,
+            title: t("admin.balanceRequestRejected"),
+            message: `${t("admin.rejectionReason")}: ${comment}`,
+            type: "balance_rejected",
+            data: { request_id: request.id, amount: request.amount, reason: comment }
+          }]
+        }
       });
 
       toast.success(t("admin.balanceRequestRejected"));

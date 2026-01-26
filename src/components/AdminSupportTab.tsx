@@ -178,13 +178,17 @@ export const AdminSupportTab = () => {
         .update({ updated_at: new Date().toISOString() })
         .eq("id", selectedConversation.id);
 
-      // Create notification for user
-      await supabase.from("notifications").insert({
-        user_id: selectedConversation.user_id,
-        title: t("admin.supportNewMessage"),
-        message: newMessage.trim().substring(0, 100) + (newMessage.length > 100 ? "..." : ""),
-        type: "support_message",
-        data: { conversation_id: selectedConversation.id },
+      // Create notification for user via secure edge function
+      await supabase.functions.invoke('create-notification', {
+        body: {
+          notifications: [{
+            user_id: selectedConversation.user_id,
+            title: t("admin.supportNewMessage"),
+            message: newMessage.trim().substring(0, 100) + (newMessage.length > 100 ? "..." : ""),
+            type: "support_message",
+            data: { conversation_id: selectedConversation.id },
+          }]
+        }
       });
 
       setNewMessage("");

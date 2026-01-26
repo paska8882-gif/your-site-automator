@@ -222,11 +222,15 @@ export const AdminTasksTab = () => {
       if (error) throw error;
 
       if (newTask.assigned_to !== user.id) {
-        await supabase.from("notifications").insert({
-          user_id: newTask.assigned_to,
-          title: t("admin.taskAssigned"),
-          message: `${t("admin.taskAssignedMsg")}: ${newTask.title}`,
-          type: "task_assigned",
+        await supabase.functions.invoke('create-notification', {
+          body: {
+            notifications: [{
+              user_id: newTask.assigned_to,
+              title: t("admin.taskAssigned"),
+              message: `${t("admin.taskAssignedMsg")}: ${newTask.title}`,
+              type: "task_assigned",
+            }]
+          }
         });
       }
 
@@ -266,11 +270,15 @@ export const AdminTasksTab = () => {
       });
 
       if (newStatus === "done" && task.created_by !== user?.id) {
-        await supabase.from("notifications").insert({
-          user_id: task.created_by,
-          title: t("admin.taskCompleted"),
-          message: `${t("admin.taskCompletedMsg")}: "${task.title}"`,
-          type: "task_completed",
+        await supabase.functions.invoke('create-notification', {
+          body: {
+            notifications: [{
+              user_id: task.created_by,
+              title: t("admin.taskCompleted"),
+              message: `${t("admin.taskCompletedMsg")}: "${task.title}"`,
+              type: "task_completed",
+            }]
+          }
         });
       }
 
@@ -324,13 +332,17 @@ export const AdminTasksTab = () => {
 
       if (error) throw error;
 
-      // Notify new assignee if changed
+      // Notify new assignee if changed via secure edge function
       if (editTask.assigned_to !== editingTask.assigned_to && editTask.assigned_to !== user?.id) {
-        await supabase.from("notifications").insert({
-          user_id: editTask.assigned_to,
-          title: t("admin.taskReassigned"),
-          message: `${t("admin.taskReassignedMsg")}: ${editTask.title}`,
-          type: "task_assigned",
+        await supabase.functions.invoke('create-notification', {
+          body: {
+            notifications: [{
+              user_id: editTask.assigned_to,
+              title: t("admin.taskReassigned"),
+              message: `${t("admin.taskReassignedMsg")}: ${editTask.title}`,
+              type: "task_assigned",
+            }]
+          }
         });
       }
 

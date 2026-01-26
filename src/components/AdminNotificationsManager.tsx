@@ -56,11 +56,16 @@ export const AdminNotificationsManager = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("notifications").insert({
-        user_id: selectedUserId,
-        title: title.trim(),
-        message: message.trim(),
-        type: "admin_message",
+      // Use secure edge function for admin notifications
+      const { error } = await supabase.functions.invoke('create-notification', {
+        body: {
+          notifications: [{
+            user_id: selectedUserId,
+            title: title.trim(),
+            message: message.trim(),
+            type: "admin_message",
+          }]
+        }
       });
 
       if (error) throw error;
@@ -97,6 +102,7 @@ export const AdminNotificationsManager = () => {
 
     setLoading(true);
     try {
+      // Use secure edge function for admin broadcast notifications
       const notifications = users.map((user) => ({
         user_id: user.user_id,
         title: title.trim(),
@@ -104,7 +110,9 @@ export const AdminNotificationsManager = () => {
         type: "admin_broadcast",
       }));
 
-      const { error } = await supabase.from("notifications").insert(notifications);
+      const { error } = await supabase.functions.invoke('create-notification', {
+        body: { notifications }
+      });
 
       if (error) throw error;
 
