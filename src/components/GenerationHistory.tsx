@@ -183,6 +183,7 @@ interface SingleHistoryItemProps {
   toast: ReturnType<typeof useToast>["toast"];
   compact?: boolean;
   isAdmin?: boolean;
+  isDownloading?: boolean;
 }
 
 function SingleHistoryItem({
@@ -209,6 +210,7 @@ function SingleHistoryItem({
   toast,
   compact = false,
   isAdmin = false,
+  isDownloading = false,
 }: SingleHistoryItemProps) {
   const { t } = useLanguage();
   const retryState = getRetryState(item.id);
@@ -469,10 +471,14 @@ function SingleHistoryItem({
                       e.stopPropagation();
                       onDownload(item);
                     }}
-                    disabled={item.status !== "completed"}
+                    disabled={item.status !== "completed" || isDownloading}
                     title={t("historyExtra.downloadZip")}
                   >
-                    <Download className="h-4 w-4" />
+                    {isDownloading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
                   </Button>
                   {(() => {
                     const appeal = getAppeal(item.id);
@@ -690,6 +696,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
     loadMore,
     isLoadingMore,
     addOptimisticItem,
+    updateHistoryItem,
   } = useGenerationHistory({ compactMode });
 
   // Expose addOptimisticItem to parent via callback
@@ -742,6 +749,9 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
   const [editViewMode, setEditViewMode] = useState<"preview" | "code">("preview");
   const [editFullscreen, setEditFullscreen] = useState(false);
   const editScrollRef = useRef<HTMLDivElement>(null);
+  
+  // Download loading state
+  const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
 
   // Retry failed generation handler - uses retryHistoryId to update existing record
   const handleRetryGeneration = useCallback(async (itemId: string) => {
@@ -928,6 +938,9 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
   }, [checkStaleGenerations]);
 
   const handleDownload = async (item: HistoryItem) => {
+    // Add to downloading set
+    setDownloadingIds(prev => new Set(prev).add(item.id));
+    
     try {
       // zip_data can be missing in UI due to cache/realtime payload size limitations.
       // If so, fetch the full record on-demand.
@@ -943,7 +956,12 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
           console.error("Failed to fetch zip_data:", error);
         }
 
-        zipData = (fullRecord as any)?.zip_data ?? null;
+        zipData = (fullRecord as { zip_data: string | null } | null)?.zip_data ?? null;
+        
+        // Update the local cache with the fetched zip_data so next download is instant
+        if (zipData) {
+          updateHistoryItem({ id: item.id, zip_data: zipData });
+        }
       }
 
       if (!zipData) {
@@ -989,6 +1007,13 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
         title: t("common.error"),
         description: t("historyExtra.downloadError"),
         variant: "destructive",
+      });
+    } finally {
+      // Remove from downloading set
+      setDownloadingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(item.id);
+        return newSet;
       });
     }
   };
@@ -1935,6 +1960,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
                           toast={toast}
                           compact
                           isAdmin={isAdmin}
+                          isDownloading={downloadingIds.has(item.id)}
                         />
                       ))}
                     </div>
@@ -1975,6 +2001,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
                   getRetryState={getRetryState}
                   toast={toast}
                   isAdmin={isAdmin}
+                  isDownloading={downloadingIds.has(item.id)}
                 />
               );
             }
