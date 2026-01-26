@@ -255,11 +255,13 @@ export type Database = {
           language: string
           number: number
           prompt: string
+          retry_count: number | null
           sale_price: number | null
           site_name: string | null
           specific_ai_model: string | null
           status: string
           team_id: string | null
+          total_generation_cost: number | null
           user_id: string | null
           vip_prompt: string | null
           website_type: string | null
@@ -280,11 +282,13 @@ export type Database = {
           language?: string
           number?: number
           prompt: string
+          retry_count?: number | null
           sale_price?: number | null
           site_name?: string | null
           specific_ai_model?: string | null
           status?: string
           team_id?: string | null
+          total_generation_cost?: number | null
           user_id?: string | null
           vip_prompt?: string | null
           website_type?: string | null
@@ -305,11 +309,13 @@ export type Database = {
           language?: string
           number?: number
           prompt?: string
+          retry_count?: number | null
           sale_price?: number | null
           site_name?: string | null
           specific_ai_model?: string | null
           status?: string
           team_id?: string | null
+          total_generation_cost?: number | null
           user_id?: string | null
           vip_prompt?: string | null
           website_type?: string | null
