@@ -1,6 +1,7 @@
 import { Users } from "lucide-react";
 import { AdminTeamsManager } from "@/components/AdminTeamsManager";
 import { InviteCodesManager } from "@/components/InviteCodesManager";
+import { AdminSystemMonitor } from "@/components/AdminSystemMonitor";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -14,9 +15,14 @@ export const AdminTeamsTab = () => {
         title={t("admin.teamsTitle")} 
         description={t("admin.teamsDescription")} 
       />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 flex-1 min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 flex-1 min-h-0">
         <AdminTeamsManager />
-        <InviteCodesManager />
+        <div className="flex flex-col gap-3">
+          <AdminSystemMonitor />
+          <div className="flex-1 min-h-0">
+            <InviteCodesManager />
+          </div>
+        </div>
       </div>
     </div>
   );
