@@ -8582,17 +8582,39 @@ async function runBackgroundGeneration(
 
       // Update with success including generation cost and completion time
       const generationCost = result.totalCost || 0;
-        await supabase
-          .from("generation_history")
-          .update({
-            status: "completed",
-            files_data: enforcedFiles,
-            zip_data: zipBase64,
-            generation_cost: generationCost,
-            specific_ai_model: result.specificModel || null,
-            completed_at: new Date().toISOString(),
-          })
-          .eq("id", historyId);
+      
+      // Fetch current total_generation_cost to accumulate across retries
+      const { data: currentRecord } = await supabase
+        .from("generation_history")
+        .select("total_generation_cost, retry_count, admin_note")
+        .eq("id", historyId)
+        .single();
+      
+      const previousTotalCost = (currentRecord?.total_generation_cost as number) || 0;
+      const newTotalCost = previousTotalCost + generationCost;
+      
+      // Extract retry count from admin_note if not already in retry_count column
+      let retryCount = (currentRecord?.retry_count as number) || 0;
+      if (retryCount === 0 && currentRecord?.admin_note) {
+        const match = (currentRecord.admin_note as string).match(/retry:(\d+)/);
+        if (match) retryCount = parseInt(match[1], 10);
+      }
+      
+      await supabase
+        .from("generation_history")
+        .update({
+          status: "completed",
+          files_data: enforcedFiles,
+          zip_data: zipBase64,
+          generation_cost: generationCost,
+          total_generation_cost: newTotalCost,
+          retry_count: retryCount,
+          specific_ai_model: result.specificModel || null,
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", historyId);
+      
+      console.log(`[BG] Costs - this attempt: $${generationCost.toFixed(4)}, total accumulated: $${newTotalCost.toFixed(4)}, retries: ${retryCount}`);
 
       // Create notification for user
       await supabase.from("notifications").insert({
@@ -8622,16 +8644,39 @@ async function runBackgroundGeneration(
         }
       }
 
-      // Update with error - CRITICAL: Also record specific_ai_model for debugging
+      // Update with error - CRITICAL: Also accumulate generation costs from failed attempts
+      const failedAttemptCost = result.totalCost || 0;
+      
+      // Fetch current totals to accumulate
+      const { data: failedRecord } = await supabase
+        .from("generation_history")
+        .select("total_generation_cost, retry_count, admin_note")
+        .eq("id", historyId)
+        .single();
+      
+      const prevTotalCost = (failedRecord?.total_generation_cost as number) || 0;
+      const accumulatedCost = prevTotalCost + failedAttemptCost;
+      
+      let currentRetryCount = (failedRecord?.retry_count as number) || 0;
+      if (currentRetryCount === 0 && failedRecord?.admin_note) {
+        const match = (failedRecord.admin_note as string).match(/retry:(\d+)/);
+        if (match) currentRetryCount = parseInt(match[1], 10);
+      }
+      
       await supabase
         .from("generation_history")
         .update({
           status: "failed",
           error_message: result.error || "Generation failed",
           sale_price: 0, // Reset sale_price since refunded
+          generation_cost: failedAttemptCost,
+          total_generation_cost: accumulatedCost,
+          retry_count: currentRetryCount,
           specific_ai_model: result.specificModel || "unknown",
         })
         .eq("id", historyId);
+      
+      console.log(`[BG] Failed attempt cost: $${failedAttemptCost.toFixed(4)}, total accumulated: $${accumulatedCost.toFixed(4)}`);
 
       // Create notification for user about failure
       await supabase.from("notifications").insert({
