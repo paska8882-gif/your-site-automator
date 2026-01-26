@@ -32,8 +32,8 @@ export function AdminSystemMonitor() {
   useEffect(() => {
     fetchLimits();
     
-    // Refresh every 5 seconds for real-time monitoring
-    const interval = setInterval(fetchLimits, 5000);
+    // Refresh every 30 seconds - sufficient for monitoring, reduces Cloud costs
+    const interval = setInterval(fetchLimits, 30_000);
     return () => clearInterval(interval);
   }, []);
 

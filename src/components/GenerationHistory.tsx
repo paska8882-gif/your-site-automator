@@ -920,10 +920,10 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
     }
   }, [refetchHistory, toast, t]);
 
-  // Check for stale generations on mount and periodically
+  // Check for stale generations on mount and periodically (every 2 minutes)
   useEffect(() => {
     checkStaleGenerations();
-    const interval = setInterval(checkStaleGenerations, 60 * 1000);
+    const interval = setInterval(checkStaleGenerations, 2 * 60 * 1000);
     return () => clearInterval(interval);
   }, [checkStaleGenerations]);
 

@@ -301,7 +301,7 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
         console.log("[useGenerationHistory] Polling for updates...");
         refetch();
       }
-    }, 10_000);
+    }, 15_000); // Increased from 10s to 15s to reduce Cloud costs
   }, [allHistory, refetch]);
 
   const stopFallbackPolling = useCallback(() => {
