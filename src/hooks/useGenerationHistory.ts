@@ -318,13 +318,21 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
   useEffect(() => {
     if (!user?.id) return;
 
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+    let isSubscribed = true;
+
     const setupChannel = () => {
+      if (!isSubscribed) return;
+      
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
       }
 
+      const channelName = `generation_history_${compactMode ? 'compact' : 'full'}_${user.id}_${Date.now()}`;
+      
       channelRef.current = supabase
-        .channel(`generation_history_${compactMode ? 'compact' : 'full'}_${user.id}`)
+        .channel(channelName)
         .on(
           "postgres_changes",
           {
@@ -392,7 +400,7 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
           }
         )
         .subscribe((status, err) => {
-          console.log("[useGenerationHistory] Realtime status:", status, err?.message);
+          console.log("[useGenerationHistory] Realtime status:", status, err?.message || "");
           
           if (status === "SUBSCRIBED") {
             realtimeActiveRef.current = true;
@@ -401,11 +409,21 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
             realtimeActiveRef.current = false;
             startFallbackPolling();
             
-            // Reconnect after delay
-            setTimeout(() => {
-              console.log("[useGenerationHistory] Reconnecting...");
-              setupChannel();
-            }, status === "TIMED_OUT" ? 10000 : 5000);
+            // Clear any pending reconnect
+            if (reconnectTimeout) {
+              clearTimeout(reconnectTimeout);
+            }
+            
+            // Reconnect after delay (only if still subscribed)
+            if (isSubscribed) {
+              const delay = status === "TIMED_OUT" ? 10000 : 5000;
+              reconnectTimeout = setTimeout(() => {
+                if (isSubscribed) {
+                  console.log("[useGenerationHistory] Reconnecting...");
+                  setupChannel();
+                }
+              }, delay);
+            }
           }
         });
     };
@@ -420,13 +438,19 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
     }, 3000);
 
     return () => {
+      isSubscribed = false;
       clearTimeout(pollTimeout);
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
       }
       stopFallbackPolling();
     };
-  }, [user?.id, compactMode, updateHistoryItem, removeHistoryItem, startFallbackPolling, stopFallbackPolling]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, compactMode]); // Reduced dependencies to prevent re-subscription loops
 
   // Add optimistic item (for immediate UI feedback before DB insert)
   const addOptimisticItem = useCallback((item: Partial<HistoryItem> & { id: string }) => {
