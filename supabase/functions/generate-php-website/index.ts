@@ -6287,7 +6287,7 @@ serve(async (req) => {
     
     // Read body first to check for retryHistoryId (needed for service key auth bypass)
     const body = await req.json();
-    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, retryHistoryId, colorScheme } = body;
+    const { prompt, originalPrompt, improvedPrompt, vipPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, retryHistoryId, colorScheme } = body;
 
     // Determine userId - either from JWT or from DB for retry requests
     let userId: string;
@@ -6331,7 +6331,8 @@ serve(async (req) => {
     console.log("Authenticated PHP generation request from user:", userId);
 
     // Build prompt with language and geo context if provided
-    let promptForGeneration = prompt;
+    // Priority for retry: vipPrompt > improvedPrompt > prompt (same as startGeneration)
+    let promptForGeneration = vipPrompt || improvedPrompt || prompt;
     
     // Add language instruction FIRST (critical for content generation)
     if (language && language !== "auto") {

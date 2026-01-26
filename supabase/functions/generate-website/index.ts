@@ -9187,7 +9187,7 @@ serve(async (req) => {
     
     // Read body first to check for retryHistoryId (needed for service key auth bypass)
     const body = await req.json();
-    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, bilingualLanguages, retryHistoryId, bundleImages = true, colorScheme } = body;
+    const { prompt, originalPrompt, improvedPrompt, vipPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, bilingualLanguages, retryHistoryId, bundleImages = true, colorScheme } = body;
 
     // Determine userId - either from JWT or from DB for retry requests
     let userId: string;
@@ -9251,7 +9251,8 @@ serve(async (req) => {
     console.log("Authenticated request from user:", userId);
 
     // Build prompt with language and geo context if provided
-    let promptForGeneration = prompt;
+    // Priority for retry: vipPrompt > improvedPrompt > prompt (same as startGeneration)
+    let promptForGeneration = vipPrompt || improvedPrompt || prompt;
     
     // Check if this is a bilingual site request
     const isBilingual = bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2;
