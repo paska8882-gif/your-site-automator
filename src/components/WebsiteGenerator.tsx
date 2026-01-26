@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -3364,19 +3365,15 @@ export function WebsiteGenerator() {
               {/* Bundle Images Toggle */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">{t("genForm.imageBundling")}</Label>
-                <label 
-                  htmlFor="bundleImages" 
-                  className="flex items-center gap-2 h-9 px-3 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
-                >
-                  <Checkbox
+                <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-input bg-background">
+                  <span className="text-xs text-muted-foreground">🔗 URL</span>
+                  <Switch
                     id="bundleImages"
                     checked={bundleImages}
-                    onCheckedChange={(checked) => setBundleImages(!!checked)}
+                    onCheckedChange={setBundleImages}
                   />
-                  <span className="text-xs truncate">
-                    {bundleImages ? "📦 В архів" : "🔗 URL"}
-                  </span>
-                </label>
+                  <span className="text-xs text-muted-foreground">📦 ZIP</span>
+                </div>
               </div>
             </div>
 
