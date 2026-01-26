@@ -233,8 +233,18 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
           idx === existingIndex ? { ...item, ...newItem } : item
         );
       } else {
-        // Insert new at beginning
-        return [newItem, ...prev];
+        // Insert new at beginning, but first remove any matching optimistic items
+        // Optimistic items have IDs starting with "optimistic-"
+        const withoutMatchingOptimistic = prev.filter(item => {
+          if (!item.id.startsWith("optimistic-")) return true;
+          // Match by site_name, language, and website_type
+          return !(
+            item.site_name === newItem.site_name &&
+            item.language === newItem.language &&
+            item.website_type === newItem.website_type
+          );
+        });
+        return [newItem, ...withoutMatchingOptimistic];
       }
     });
 
@@ -249,7 +259,16 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
           idx === existingIndex ? { ...item, ...newItem } : item
         );
       } else {
-        newHistory = [newItem, ...old.history];
+        // Remove matching optimistic items
+        const withoutMatchingOptimistic = old.history.filter(item => {
+          if (!item.id.startsWith("optimistic-")) return true;
+          return !(
+            item.site_name === newItem.site_name &&
+            item.language === newItem.language &&
+            item.website_type === newItem.website_type
+          );
+        });
+        newHistory = [newItem, ...withoutMatchingOptimistic];
       }
       return { ...old, history: newHistory };
     });
@@ -383,6 +402,36 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
     };
   }, [user?.id, compactMode, updateHistoryItem, removeHistoryItem, startFallbackPolling, stopFallbackPolling]);
 
+  // Add optimistic item (for immediate UI feedback before DB insert)
+  const addOptimisticItem = useCallback((item: Partial<HistoryItem> & { id: string }) => {
+    const optimisticItem: HistoryItem = {
+      id: item.id,
+      number: item.number ?? 0,
+      prompt: item.prompt ?? "",
+      language: item.language ?? "en",
+      zip_data: null,
+      files_data: null,
+      status: item.status ?? "pending",
+      error_message: null,
+      created_at: item.created_at ?? new Date().toISOString(),
+      completed_at: null,
+      ai_model: item.ai_model ?? null,
+      website_type: item.website_type ?? null,
+      site_name: item.site_name ?? null,
+      sale_price: item.sale_price ?? null,
+      image_source: item.image_source ?? null,
+      geo: item.geo ?? null,
+    };
+
+    setAllHistory(prev => {
+      // Check if already exists
+      if (prev.some(h => h.id === item.id)) {
+        return prev;
+      }
+      return [optimisticItem, ...prev];
+    });
+  }, []);
+
   return {
     history: allHistory.length > 0 ? allHistory : (initialData?.history || []),
     appeals: allAppeals.length > 0 ? allAppeals : (initialData?.appeals || []),
@@ -391,6 +440,7 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
     refetch,
     updateHistoryItem,
     removeHistoryItem,
+    addOptimisticItem,
     // Pagination
     hasMore,
     loadMore,
