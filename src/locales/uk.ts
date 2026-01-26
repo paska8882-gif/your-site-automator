@@ -618,6 +618,7 @@ export const uk = {
     manualRequestCompleted: "Ручний запит виконано",
     adminNote: "Примітка від адміна",
     adminNotePlaceholder: "Додаткова інформація для користувача...",
+    completeAndUpload: "Завершити та завантажити",
     statusFilter: "Статус",
     typeFilter: "Тип",
     modelFilter: "Модель",
