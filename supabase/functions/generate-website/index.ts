@@ -8718,7 +8718,9 @@ serve(async (req) => {
     let userId: string;
     
     // Check if this is a retry request from cleanup-stale-generations using SERVICE_ROLE_KEY
-    if (retryHistoryId && token === supabaseServiceKey) {
+    const isRetryWithServiceKey = !!(retryHistoryId && token === supabaseServiceKey);
+    
+    if (isRetryWithServiceKey) {
       // SERVICE KEY AUTH: Get userId from existing generation_history record
       console.log("🔄 Retry mode detected with service key for:", retryHistoryId);
       
@@ -8939,39 +8941,46 @@ ${promptForGeneration}`;
     }
 
     // ===== RATE LIMITING CHECKS =====
-    // Check system-wide limit
-    const { data: limits } = await supabase
-      .from('system_limits')
-      .select('active_generations, max_concurrent_generations, max_generations_per_user')
-      .eq('id', 'global')
-      .single();
+    // SKIP rate limiting for retry requests - they already have a slot reserved
+    const skipRateLimiting = !!retryHistoryId && isRetryWithServiceKey;
     
-    if (limits && limits.active_generations >= limits.max_concurrent_generations) {
-      console.log(`🚫 RATE LIMIT: System at capacity (${limits.active_generations}/${limits.max_concurrent_generations})`);
-      return new Response(JSON.stringify({ 
-        success: false, 
-        error: "Система перевантажена. Спробуйте через хвилину." 
-      }), {
-        status: 429,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    if (!skipRateLimiting) {
+      // Check system-wide limit
+      const { data: limits } = await supabase
+        .from('system_limits')
+        .select('active_generations, max_concurrent_generations, max_generations_per_user')
+        .eq('id', 'global')
+        .single();
+      
+      if (limits && limits.active_generations >= limits.max_concurrent_generations) {
+        console.log(`🚫 RATE LIMIT: System at capacity (${limits.active_generations}/${limits.max_concurrent_generations})`);
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: "Система перевантажена. Спробуйте через хвилину." 
+        }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      // Check user-level limit
+      const { data: userActiveCount } = await supabase.rpc('get_user_active_generations', {
+        p_user_id: userId
       });
-    }
-    
-    // Check user-level limit
-    const { data: userActiveCount } = await supabase.rpc('get_user_active_generations', {
-      p_user_id: userId
-    });
-    
-    const maxPerUser = limits?.max_generations_per_user || 3;
-    if (userActiveCount !== null && userActiveCount >= maxPerUser) {
-      console.log(`🚫 RATE LIMIT: User ${userId} at capacity (${userActiveCount}/${maxPerUser})`);
-      return new Response(JSON.stringify({ 
-        success: false, 
-        error: `Ви досягли ліміту одночасних генерацій (${maxPerUser}). Дочекайтесь завершення попередніх.` 
-      }), {
-        status: 429,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      
+      const maxPerUser = limits?.max_generations_per_user || 3;
+      if (userActiveCount !== null && userActiveCount >= maxPerUser) {
+        console.log(`🚫 RATE LIMIT: User ${userId} at capacity (${userActiveCount}/${maxPerUser})`);
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: `Ви досягли ліміту одночасних генерацій (${maxPerUser}). Дочекайтесь завершення попередніх.` 
+        }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } else {
+      console.log(`⏭️ Skipping rate limit check for retry of ${retryHistoryId}`);
     }
     // ===== END RATE LIMITING =====
 
