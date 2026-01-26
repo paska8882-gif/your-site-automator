@@ -729,7 +729,7 @@ export const AdminSitesTab = () => {
         .from("generation_history")
         .update({
           status: "completed",
-          files_data: filesData as unknown as null,
+          files_data: JSON.parse(JSON.stringify(filesData)),
           zip_data: zipBase64,
           completed_at: now,
           sale_price: detailsUploadPrice,
