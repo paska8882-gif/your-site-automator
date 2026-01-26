@@ -156,10 +156,9 @@ serve(async (req) => {
     console.log(`Found ${staleItems.length} stale generations (>1h) to cleanup`);
 
     let processed = 0;
-    let refunded = 0;
     let appealsCreated = 0;
 
-    const autoAppealReason = "Автоповідомлення: довга генерація (>1 год). Кошти повернено автоматично.";
+    const autoAppealReason = "Автоповідомлення: генерація перевищила час очікування (>1 год). Потребує розгляду адміністратором.";
 
     for (const item of staleItems) {
       try {
@@ -178,32 +177,7 @@ serve(async (req) => {
           effectiveTeamId = membership?.team_id ?? null;
         }
 
-        // Refund balance if sale_price > 0 and we can resolve team
-        if (refundAmount > 0 && effectiveTeamId) {
-          const { data: team, error: teamErr } = await supabase
-            .from("teams")
-            .select("balance")
-            .eq("id", effectiveTeamId)
-            .single();
-
-          if (teamErr) {
-            console.error(`Failed to load team ${effectiveTeamId} for refund (generation ${item.id}):`, teamErr.message);
-          } else {
-            const { error: refundErr } = await supabase
-              .from("teams")
-              .update({ balance: (team.balance || 0) + refundAmount })
-              .eq("id", effectiveTeamId);
-
-            if (refundErr) {
-              console.error(`Failed to refund team ${effectiveTeamId} for generation ${item.id}:`, refundErr.message);
-            } else {
-              console.log(`Refunded $${refundAmount} to team ${effectiveTeamId} for stale generation ${item.id}`);
-              refunded++;
-            }
-          }
-        }
-
-        // Create auto-approved appeal once per generation (idempotent)
+        // Create pending appeal for admin review (no auto-refund)
         if (item.user_id) {
           const { data: existingAppeal, error: appealLookupErr } = await supabase
             .from("appeals")
@@ -217,11 +191,11 @@ serve(async (req) => {
           } else if (!existingAppeal) {
             // Include retry info in admin comment
             const retryCount = parseInt(item.admin_note?.match(/retry:(\d+)/)?.[1] || "0", 10);
-            const adminCommentParts: string[] = [`Auto-timeout 1h.`];
+            const adminCommentParts: string[] = [`⏱️ Auto-timeout 1h.`];
             if (retryCount > 0) {
               adminCommentParts.push(`Retried ${retryCount}x.`);
             }
-            adminCommentParts.push(`Refunded: ${refundAmount}`);
+            adminCommentParts.push(`Suggested refund: $${refundAmount}`);
 
             const { error: appealInsertErr } = await supabase
               .from("appeals")
@@ -230,17 +204,16 @@ serve(async (req) => {
                 user_id: item.user_id,
                 team_id: effectiveTeamId,
                 reason: autoAppealReason,
-                status: "approved",
-                amount_to_refund: 0,
+                status: "pending", // Admin will decide
+                amount_to_refund: refundAmount, // Suggest full refund, admin decides
                 admin_comment: adminCommentParts.join(" "),
-                resolved_at: new Date().toISOString(),
-                resolved_by: null,
               });
 
             if (appealInsertErr) {
               console.error(`Failed to create auto-appeal for generation ${item.id}:`, appealInsertErr.message);
             } else {
               appealsCreated++;
+              console.log(`Created pending appeal for generation ${item.id} with suggested refund $${refundAmount}`);
             }
           }
         } else {
@@ -250,16 +223,15 @@ serve(async (req) => {
         // Check retry count for error message
         const retryCount = parseInt(item.admin_note?.match(/retry:(\d+)/)?.[1] || "0", 10);
         const errorMsg = retryCount > 0
-          ? `Перевищено час очікування (1 год) після ${retryCount} спроб. Зверніться в підтримку https://t.me/assanatraf`
-          : "Перевищено час очікування (1 год). Зверніться в підтримку https://t.me/assanatraf";
+          ? `Перевищено час очікування (1 год) після ${retryCount} спроб. Апеляцію створено автоматично.`
+          : "Перевищено час очікування (1 год). Апеляцію створено автоматично.";
 
-        // Mark as failed
+        // Mark as failed but keep sale_price for potential refund by admin
         await supabase
           .from("generation_history")
           .update({
             status: "failed",
             error_message: errorMsg,
-            sale_price: 0, // Reset since refunded
           })
           .eq("id", item.id);
 
@@ -269,10 +241,10 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Cleanup complete: ${processed} processed, ${refunded} refunded, ${appealsCreated} appeals, ${retriedCount} retried`);
+    console.log(`Cleanup complete: ${processed} processed, ${appealsCreated} pending appeals, ${retriedCount} retried`);
 
     return new Response(
-      JSON.stringify({ success: true, processed, refunded, appealsCreated, retried: retriedCount }),
+      JSON.stringify({ success: true, processed, appealsCreated, retried: retriedCount }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
