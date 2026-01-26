@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -3365,14 +3366,25 @@ export function WebsiteGenerator() {
               {/* Bundle Images Toggle */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">{t("genForm.imageBundling")}</Label>
-                <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-input bg-background">
-                  <span className="text-xs text-muted-foreground">🔗 URL</span>
+                <div className="flex items-center justify-center gap-3 h-9 px-4 rounded-md border border-input bg-background/50">
+                  <span className={cn(
+                    "text-sm font-medium transition-colors",
+                    !bundleImages ? "text-primary" : "text-muted-foreground"
+                  )}>
+                    🔗 URL
+                  </span>
                   <Switch
                     id="bundleImages"
                     checked={bundleImages}
                     onCheckedChange={setBundleImages}
+                    className="data-[state=unchecked]:bg-muted-foreground/30"
                   />
-                  <span className="text-xs text-muted-foreground">📦 ZIP</span>
+                  <span className={cn(
+                    "text-sm font-medium transition-colors",
+                    bundleImages ? "text-primary" : "text-muted-foreground"
+                  )}>
+                    📦 ZIP
+                  </span>
                 </div>
               </div>
             </div>
