@@ -1277,6 +1277,8 @@ export const uk = {
     generationCancelled: "Генерацію скасовано",
     generationCancelledDesc: "була скасована",
     cancelError: "Не вдалося скасувати генерацію",
+    cannotCancelYet: "Скасування поки недоступне",
+    cannotCancelYetDesc: "Скасування можливе після 10 хвилин генерації. Залишилось {minutes} хв.",
     loadError: "Не вдалося завантажити історію",
     backendUnavailable: "Бекенд тимчасово недоступний",
     backendUnavailableDesc: "Деякі дані можуть не завантажуватись. Спробуйте пізніше.",

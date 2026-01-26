@@ -1277,6 +1277,8 @@ export const ru = {
     generationCancelled: "Генерация отменена",
     generationCancelledDesc: "была отменена",
     cancelError: "Не удалось отменить генерацию",
+    cannotCancelYet: "Отмена пока недоступна",
+    cannotCancelYetDesc: "Отмена возможна после 10 минут генерации. Осталось {minutes} мин.",
     loadError: "Не удалось загрузить историю",
     backendUnavailable: "Бэкенд временно недоступен",
     backendUnavailableDesc: "Некоторые данные могут не загружаться. Попробуйте позже.",
