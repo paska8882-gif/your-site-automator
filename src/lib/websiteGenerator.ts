@@ -22,18 +22,49 @@ export type WebsiteType = "html" | "react" | "php";
 export type SeniorMode = "codex" | "onepage" | "v0" | "reaktiv" | undefined;
 export type ImageSource = "basic" | "ai";
 
-// Layout styles available for selection
+// Layout styles available for selection (~30 styles with emojis)
 export const LAYOUT_STYLES = [
-  { id: "classic", name: "Класичний корпоративний" },
-  { id: "asymmetric", name: "Модерн асиметричний" },
-  { id: "editorial", name: "Журнальний" },
-  { id: "bold", name: "Сміливі блоки" },
-  { id: "minimalist", name: "Мінімалізм" },
-  { id: "showcase", name: "Динамічна вітрина" },
-  { id: "gradient", name: "Градієнтний" },
-  { id: "brutalist", name: "Бруталізм" },
-  { id: "saas", name: "SaaS продукт" },
-  { id: "portfolio", name: "Креативне портфоліо" },
+  // Classic & Corporate
+  { id: "classic", name: "🏛️ Класичний корпоративний" },
+  { id: "corporate", name: "💼 Бізнес-серйозний" },
+  { id: "professional", name: "👔 Професійний" },
+  { id: "executive", name: "🎩 Елітний" },
+  // Modern & Creative
+  { id: "asymmetric", name: "🔀 Модерн асиметричний" },
+  { id: "editorial", name: "📰 Журнальний" },
+  { id: "bold", name: "💪 Сміливі блоки" },
+  { id: "creative", name: "🎨 Креативний хаос" },
+  { id: "artistic", name: "🖼️ Арт-галерея" },
+  // Minimalist & Clean
+  { id: "minimalist", name: "⬜ Мінімалізм" },
+  { id: "zen", name: "🧘 Дзен-спокій" },
+  { id: "clean", name: "✨ Чистий простір" },
+  { id: "whitespace", name: "🌫️ Багато повітря" },
+  // Dynamic & Interactive
+  { id: "showcase", name: "🎬 Динамічна вітрина" },
+  { id: "interactive", name: "🕹️ Інтерактивний" },
+  { id: "animated", name: "🌊 Анімований" },
+  { id: "parallax", name: "📱 Паралакс" },
+  // Tech & Product
+  { id: "saas", name: "🚀 SaaS продукт" },
+  { id: "startup", name: "🦄 Стартап" },
+  { id: "tech", name: "💻 Tech-сучасний" },
+  { id: "app", name: "📲 Додаток-лендінг" },
+  // Style-specific
+  { id: "gradient", name: "🌈 Градієнтний" },
+  { id: "brutalist", name: "🔲 Бруталізм" },
+  { id: "glassmorphism", name: "🔮 Гласморфізм" },
+  { id: "neomorphism", name: "🫧 Неоморфізм" },
+  { id: "retro", name: "📺 Ретро 90-х" },
+  // Portfolio & Showcase
+  { id: "portfolio", name: "🎭 Креативне портфоліо" },
+  { id: "agency", name: "🏢 Агентство" },
+  { id: "studio", name: "🎥 Студія" },
+  // E-commerce & Services
+  { id: "ecommerce", name: "🛒 E-commerce" },
+  { id: "services", name: "🛠️ Сервісна компанія" },
+  { id: "restaurant", name: "🍽️ Ресторан/Кафе" },
+  { id: "hotel", name: "🏨 Готель/Курорт" },
 ];
 
 // Color schemes available for selection (matches Edge Functions) - 30 schemes
