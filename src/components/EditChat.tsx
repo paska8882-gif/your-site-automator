@@ -3,11 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Send, Loader2, User, Bot, Crown, Zap } from "lucide-react";
+import { Send, Loader2, User, Bot, Crown, Zap, X, Clock } from "lucide-react";
 import { GeneratedFile } from "@/lib/websiteGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import JSZip from "jszip";
 
 interface Message {
   role: "user" | "assistant";
@@ -25,6 +24,15 @@ interface EditChatProps {
   setIsEditing: (editing: boolean) => void;
 }
 
+const PROGRESS_STAGES = [
+  { time: 0, text: "Аналізую запит..." },
+  { time: 3000, text: "Вибираю релевантні файли..." },
+  { time: 6000, text: "Редагую код..." },
+  { time: 15000, text: "AI обробляє зміни..." },
+  { time: 30000, text: "Це займає більше часу, ніж зазвичай..." },
+  { time: 60000, text: "Все ще працюю... Складний запит." },
+];
+
 export function EditChat({
   generationId,
   files,
@@ -39,7 +47,12 @@ export function EditChat({
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [selectedAiModel, setSelectedAiModel] = useState<"junior" | "senior">(initialAiModel);
+  const [progressText, setProgressText] = useState("");
+  const [elapsedTime, setElapsedTime] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const startTimeRef = useRef<number>(0);
+  const timerRef = useRef<number | null>(null);
 
   // Load messages from localStorage
   useEffect(() => {
@@ -64,6 +77,51 @@ export function EditChat({
     }
   }, [messages]);
 
+  // Progress and elapsed time tracking
+  useEffect(() => {
+    if (isEditing) {
+      startTimeRef.current = Date.now();
+      setElapsedTime(0);
+      
+      // Update elapsed time every second
+      timerRef.current = window.setInterval(() => {
+        const elapsed = Date.now() - startTimeRef.current;
+        setElapsedTime(elapsed);
+        
+        // Update progress text based on elapsed time
+        const stage = [...PROGRESS_STAGES].reverse().find(s => elapsed >= s.time);
+        if (stage) {
+          setProgressText(stage.text);
+        }
+      }, 1000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      setProgressText("");
+      setElapsedTime(0);
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [isEditing]);
+
+  const handleCancel = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsEditing(false);
+    setMessages((prev) => [
+      ...prev,
+      { role: "assistant", content: "Запит скасовано." },
+    ]);
+  };
+
   const handleSend = async () => {
     if (!input.trim() || isEditing) return;
 
@@ -71,6 +129,9 @@ export function EditChat({
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsEditing(true);
+
+    // Create abort controller for this request
+    abortControllerRef.current = new AbortController();
 
     try {
       const {
@@ -80,6 +141,13 @@ export function EditChat({
       if (!session?.access_token) {
         throw new Error("Потрібна авторизація");
       }
+
+      // Client-side timeout (150 seconds)
+      const timeoutId = setTimeout(() => {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+      }, 150000);
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/edit-website`,
@@ -98,8 +166,11 @@ export function EditChat({
             websiteType,
             originalPrompt,
           }),
+          signal: abortControllerRef.current.signal,
         }
       );
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errText = await response.text();
@@ -110,36 +181,51 @@ export function EditChat({
 
       if (data.success && data.files) {
         onFilesUpdate(data.files);
+        
+        const timeSpent = Math.round((Date.now() - startTimeRef.current) / 1000);
+        const modelInfo = data.modelUsed ? ` (${data.modelUsed})` : "";
+        
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
-            content: data.message || "Готово! Зміни застосовано.",
+            content: `${data.message || "Готово! Зміни застосовано."}\n⏱️ Час: ${timeSpent}с${modelInfo}`,
           },
         ]);
 
         toast({
           title: "Успішно",
-          description: "Сайт оновлено",
+          description: `Сайт оновлено за ${timeSpent}с`,
         });
       } else {
         throw new Error(data.error || "Невідома помилка");
       }
     } catch (error) {
       console.error("Edit error:", error);
+      
+      let errorMessage = "Невідома помилка";
+      if (error instanceof Error) {
+        if (error.name === "AbortError") {
+          errorMessage = "Запит скасовано або час очікування вичерпано";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: `Помилка: ${error instanceof Error ? error.message : "Невідома помилка"}`,
+          content: `Помилка: ${errorMessage}`,
         },
       ]);
       toast({
         title: "Помилка",
-        description: error instanceof Error ? error.message : "Невідома помилка",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
+      abortControllerRef.current = null;
       setIsEditing(false);
     }
   };
@@ -149,6 +235,11 @@ export function EditChat({
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const formatTime = (ms: number) => {
+    const seconds = Math.floor(ms / 1000);
+    return `${seconds}с`;
   };
 
   return (
@@ -228,11 +319,24 @@ export function EditChat({
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                 <Bot className="h-4 w-4 text-primary" />
               </div>
-              <div className="bg-muted rounded-lg px-4 py-2">
+              <div className="bg-muted rounded-lg px-4 py-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm">Редагую сайт...</span>
+                  <span className="text-sm">{progressText || "Редагую сайт..."}</span>
                 </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  <span>{formatTime(elapsedTime)}</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCancel}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Скасувати
+                </Button>
               </div>
             </div>
           )}
