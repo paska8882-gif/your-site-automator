@@ -657,10 +657,7 @@ const Spends = () => {
                       </div>
                     </div>
                     
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">{t("generator.cost")}:</span>
-                      <p className="font-medium">${gen.sale_price?.toFixed(2) || "—"}</p>
-                    </div>
+                    {/* Intentionally not showing internal/sensitive cost fields here */}
                   </div>
 
                   <div>
