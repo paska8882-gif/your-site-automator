@@ -1046,6 +1046,16 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
   const htmlGenerations = history.filter(h => (h.website_type || "html") === "html");
   const reactGenerations = history.filter(h => h.website_type === "react");
 
+  // Calculate retry statistics
+  const retryStats = history.reduce((acc, item) => {
+    const retryCount = getRetryCount(item.admin_note);
+    if (retryCount > 0) {
+      acc.totalRetried++;
+      acc.totalRetryAttempts += retryCount;
+    }
+    return acc;
+  }, { totalRetried: 0, totalRetryAttempts: 0 });
+
   const stats = {
     total: history.length,
     completed: history.filter(h => h.status === "completed").length,
@@ -1056,7 +1066,9 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
     avgTimeHtml: calculateAvgTime(htmlGenerations),
     avgTimeReact: calculateAvgTime(reactGenerations),
     htmlCount: htmlGenerations.filter(h => h.status === "completed").length,
-    reactCount: reactGenerations.filter(h => h.status === "completed").length
+    reactCount: reactGenerations.filter(h => h.status === "completed").length,
+    retried: retryStats.totalRetried,
+    retryAttempts: retryStats.totalRetryAttempts
   };
 
   return (
@@ -1110,6 +1122,14 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
           <span className="text-xs text-muted-foreground">{t("admin.sitesStats.avgTimeReact")} ({stats.reactCount}):</span>
           <span className="text-sm font-bold">{stats.avgTimeReact}</span>
         </div>
+        {stats.retried > 0 && (
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card border-orange-500/30">
+            <span className="text-xs text-muted-foreground">🔄 Auto-retry:</span>
+            <span className="text-sm font-bold text-orange-500" title={`${stats.retryAttempts} спроб для ${stats.retried} генерацій`}>
+              {stats.retried} ({stats.retryAttempts} спроб)
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Filters - compact inline */}
