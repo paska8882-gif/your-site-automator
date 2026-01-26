@@ -36,6 +36,23 @@ export const LAYOUT_STYLES = [
   { id: "portfolio", name: "Креативне портфоліо" },
 ];
 
+// Color schemes available for selection (matches Edge Functions)
+export const COLOR_SCHEMES_UI = [
+  { id: "random", name: "🎲 Випадково", colors: [] },
+  { id: "ocean", name: "🌊 Океан", colors: ["#0d4f8b", "#1a365d", "#3182ce"] },
+  { id: "forest", name: "🌲 Ліс", colors: ["#276749", "#22543d", "#38a169"] },
+  { id: "sunset", name: "🌅 Захід", colors: ["#c53030", "#9b2c2c", "#e53e3e"] },
+  { id: "royal", name: "👑 Королівський", colors: ["#553c9a", "#44337a", "#805ad5"] },
+  { id: "slate", name: "🌫️ Сланець", colors: ["#2d3748", "#1a202c", "#4a5568"] },
+  { id: "teal", name: "🦢 Чирок", colors: ["#234e52", "#1d4044", "#319795"] },
+  { id: "coral", name: "🪸 Корал", colors: ["#c05621", "#9c4221", "#dd6b20"] },
+  { id: "midnight", name: "🌙 Північ", colors: ["#1a1a2e", "#16213e", "#2563eb"] },
+  { id: "rose", name: "🌹 Роза", colors: ["#97266d", "#702459", "#d53f8c"] },
+  { id: "emerald", name: "💎 Смарагд", colors: ["#047857", "#065f46", "#10b981"] },
+];
+
+export type ColorScheme = typeof COLOR_SCHEMES_UI[number]["id"];
+
 // Geo code to country name mapping
 const GEO_NAMES: Record<string, string> = {
   uk: "United Kingdom",
@@ -141,7 +158,8 @@ export async function startGeneration(
   vipPrompt?: string, // VIP detailed prompt (+$2)
   exactPhone?: string, // Optional exact phone to enforce
   bilingualLanguages?: string[], // Optional array of 2 languages for bilingual site (+$3)
-  bundleImages: boolean = true // Whether to bundle images into ZIP (slower) or keep as URLs (faster)
+  bundleImages: boolean = true, // Whether to bundle images into ZIP (slower) or keep as URLs (faster)
+  colorScheme?: ColorScheme // Optional color scheme (if 'random' or undefined, use random selection)
 ): Promise<GenerationResult> {
   // IMPORTANT: seniorMode (codex/reaktiv) only applies to React websites
   // HTML and PHP websites always use their dedicated generation functions
@@ -195,7 +213,8 @@ export async function startGeneration(
           vipPrompt: vipPrompt || null,
           language, aiModel, layoutStyle, siteName, seniorMode, imageSource, teamId, geo,
           bilingualLanguages: bilingualLanguages || null, // Pass bilingual languages for bilingual sites
-          bundleImages // Whether to download images into ZIP
+          bundleImages, // Whether to download images into ZIP
+          colorScheme: colorScheme && colorScheme !== 'random' ? colorScheme : null // Pass color scheme if not random
         }),
         signal: controller.signal,
       });
