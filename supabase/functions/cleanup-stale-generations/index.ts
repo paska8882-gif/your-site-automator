@@ -24,14 +24,14 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Find stale generations (older than 20 minutes)
-    const twentyMinutesAgo = new Date(Date.now() - 20 * 60 * 1000).toISOString();
+    // Find stale generations (older than 1 hour)
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
     const { data: staleItems, error: fetchError } = await supabase
       .from("generation_history")
       .select("id, user_id, team_id, sale_price")
       .in("status", ["pending", "generating"])
-      .lt("created_at", twentyMinutesAgo);
+      .lt("created_at", oneHourAgo);
 
     if (fetchError) {
       const errMsg = fetchError.message || String(fetchError);
@@ -56,7 +56,7 @@ serve(async (req) => {
     let refunded = 0;
     let appealsCreated = 0;
 
-    const autoAppealReason = "Автоповідомлення: довга генерація (>20 хв). Кошти повернено автоматично.";
+    const autoAppealReason = "Автоповідомлення: довга генерація (>1 год). Кошти повернено автоматично.";
 
     for (const item of staleItems) {
       try {
@@ -112,7 +112,7 @@ serve(async (req) => {
           if (appealLookupErr) {
             console.error(`Failed to lookup appeal for generation ${item.id}:`, appealLookupErr.message);
           } else if (!existingAppeal) {
-            const adminCommentParts: string[] = ["Auto-timeout 20min."];
+            const adminCommentParts: string[] = ["Auto-timeout 1h."];
             adminCommentParts.push(`Refunded: ${refundAmount}`);
 
             const { error: appealInsertErr } = await supabase
@@ -144,7 +144,7 @@ serve(async (req) => {
           .from("generation_history")
           .update({
             status: "failed",
-            error_message: "Перевищено час очікування (20 хв). Зверніться в підтримку https://t.me/assanatraf",
+            error_message: "Перевищено час очікування (1 год). Зверніться в підтримку https://t.me/assanatraf",
             sale_price: 0, // Reset since refunded
           })
           .eq("id", item.id);
