@@ -1138,6 +1138,7 @@ export const uk = {
       salePrice: "Ціна продажу",
       clientPrompt: "Промпт клієнта (оригінальний)",
       improvedPrompt: "Покращений промпт (AI+)",
+      vipPrompt: "VIP промпт",
       commercialSecret: "Комерційна таємниця",
       error: "Помилка",
       close: "Закрити",
