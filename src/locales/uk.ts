@@ -1274,6 +1274,7 @@ export const uk = {
     downloadComplete: "Готово",
     downloadCompleteDesc: "Завантажено ZIP-архівів",
     cancelledByUser: "Скасовано користувачем",
+    cancelledByAdmin: "Скасовано адміном",
     generationCancelled: "Генерацію скасовано",
     generationCancelledDesc: "була скасована",
     cancelError: "Не вдалося скасувати генерацію",
