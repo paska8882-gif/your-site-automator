@@ -1679,6 +1679,8 @@ export function WebsiteGenerator() {
       for (const siteName of siteNames) {
         const { error } = await supabase.from("generation_history").insert({
           prompt: prompt.trim(),
+          improved_prompt: improvedPromptValue || null,
+          vip_prompt: vipPromptValue || null,
           site_name: siteName,
           language,
           website_type: websiteType,
