@@ -1175,94 +1175,7 @@ export function WebsiteGenerator() {
     }
   };
 
-  // Generate prompt based on selected theme/topic
-  const handleGenerateFromTheme = async () => {
-    if (!selectedTopic) {
-      toast({
-        title: t("common.error"),
-        description: t("genForm.selectTopicRequired"),
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsGeneratingThemePrompt(true);
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData?.session) {
-        toast({
-          title: t("generatorExtra.authError"),
-          description: t("generatorExtra.authErrorDesc"),
-          variant: "destructive",
-        });
-        setIsGeneratingThemePrompt(false);
-        return;
-      }
-
-      // Get effective geo
-      const effectiveGeo = isOtherGeoSelected && customGeo 
-        ? customGeo 
-        : (selectedGeo ? geoOptions.find(g => g.value === selectedGeo)?.label || selectedGeo : undefined);
-      
-      // Get effective language
-      const allLangs = getAllSelectedLanguages();
-      const effectiveLang = allLangs.length > 0 
-        ? languages.find(l => l.value === allLangs[0])?.label || allLangs[0] 
-        : undefined;
-      
-      // Get site name if provided
-      const siteName = siteNames.length > 0 ? siteNames[0] : undefined;
-
-      const { data, error } = await supabase.functions.invoke('generate-theme-prompt', {
-        body: { 
-          topic: selectedTopic,
-          siteName,
-          geo: effectiveGeo,
-          phone: vipPhone || undefined,
-          language: effectiveLang,
-        },
-        headers: {
-          Authorization: `Bearer ${sessionData.session.access_token}`,
-        },
-      });
-
-      if (error) {
-        if (error.message?.includes('401') || error.message?.includes('JWT')) {
-          throw new Error(t("generatorExtra.sessionExpired"));
-        }
-        if (error.message?.includes('402')) {
-          throw new Error(t("generatorExtra.notEnoughCredits"));
-        }
-        throw error;
-      }
-
-      if (data?.error) {
-        throw new Error(data.error);
-      }
-
-      if (data.generatedPrompt) {
-        // Set the generated prompt as the main prompt
-        setPrompt(data.generatedPrompt);
-        // Also set it as improved since it's AI-generated
-        setImprovedPromptValue(data.generatedPrompt);
-        setOriginalPrompt(selectedTopic); // Original is the topic name
-        
-        toast({
-          title: t("genForm.themePromptGenerated"),
-          description: t("genForm.themePromptGeneratedDesc"),
-        });
-      }
-    } catch (error: any) {
-      console.error("Error generating theme prompt:", error);
-      toast({
-        title: t("common.error"),
-        description: error instanceof Error ? error.message : t("genForm.themePromptError"),
-        variant: "destructive",
-      });
-    } finally {
-      setIsGeneratingThemePrompt(false);
-    }
-  };
+  // Note: Theme prompt generation is now integrated into executeGeneration()
 
   const toggleLanguage = (langValue: string) => {
     setSelectedLanguages((prev) => {
@@ -1403,6 +1316,7 @@ export function WebsiteGenerator() {
     const reactPrice = teamPricing?.reactPrice || 9;
     const vipExtra = isVipMode ? (teamPricing?.vipExtraPrice || 2) : 0;
     const bilingualExtra = isBilingualMode ? 3 : 0; // +$3 for bilingual sites
+    const themeExtra = (promptMode === "theme" && selectedTopic) ? 1 : 0; // +$1 for theme-based prompt generation
     
     const websiteTypesToUse = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes : ["html"];
     const imageSourcesToUse = selectedImageSources.length > 0 ? selectedImageSources : ["basic"];
@@ -1413,7 +1327,7 @@ export function WebsiteGenerator() {
     for (const wt of websiteTypesToUse) {
       for (const is of imageSourcesToUse) {
         const basePrice = wt === "react" ? reactPrice : htmlPrice;
-        const pricePerSite = basePrice + (is === "ai" ? 2 : 0) + vipExtra + bilingualExtra;
+        const pricePerSite = basePrice + (is === "ai" ? 2 : 0) + vipExtra + bilingualExtra + themeExtra;
         const count = siteNamesCount * langCount * sitesPerLanguage * styleCount * aiModelCount;
         total += count * pricePerSite;
       }
@@ -1548,7 +1462,17 @@ export function WebsiteGenerator() {
       return;
     }
 
-    if (!prompt.trim()) {
+    // For theme mode, topic selection is required instead of prompt
+    if (promptMode === "theme") {
+      if (!selectedTopic) {
+        toast({
+          title: t("common.error"),
+          description: t("genForm.selectTopicRequired"),
+          variant: "destructive",
+        });
+        return;
+      }
+    } else if (!prompt.trim()) {
       toast({
         title: t("common.error"),
         description: t("genForm.enterDescription"),
@@ -1635,11 +1559,89 @@ export function WebsiteGenerator() {
 
   const executeGeneration = async () => {
     setShowConfirmDialog(false);
+    setIsSubmitting(true);
+
+    // If in theme mode with topic selected, generate theme prompt first (silently)
+    let themeGeneratedPrompt: string | null = null;
+    if (promptMode === "theme" && selectedTopic) {
+      try {
+        setIsGeneratingThemePrompt(true);
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData?.session) {
+          toast({
+            title: t("generatorExtra.authError"),
+            description: t("generatorExtra.authErrorDesc"),
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          setIsGeneratingThemePrompt(false);
+          return;
+        }
+
+        // Get effective geo
+        const effectiveGeo = isOtherGeoSelected && customGeo 
+          ? customGeo 
+          : (selectedGeo ? geoOptions.find(g => g.value === selectedGeo)?.label || selectedGeo : undefined);
+        
+        // Get effective language
+        const allLangs = getAllSelectedLanguages();
+        const effectiveLang = allLangs.length > 0 
+          ? languages.find(l => l.value === allLangs[0])?.label || allLangs[0] 
+          : undefined;
+        
+        // Get site name if provided
+        const siteName = siteNames.length > 0 ? siteNames[0] : undefined;
+
+        const { data, error } = await supabase.functions.invoke('generate-theme-prompt', {
+          body: { 
+            topic: selectedTopic,
+            siteName,
+            geo: effectiveGeo,
+            phone: vipPhone || undefined,
+            language: effectiveLang,
+          },
+          headers: {
+            Authorization: `Bearer ${sessionData.session.access_token}`,
+          },
+        });
+
+        if (error) {
+          if (error.message?.includes('401') || error.message?.includes('JWT')) {
+            throw new Error(t("generatorExtra.sessionExpired"));
+          }
+          if (error.message?.includes('402')) {
+            throw new Error(t("generatorExtra.notEnoughCredits"));
+          }
+          throw error;
+        }
+
+        if (data?.error) {
+          throw new Error(data.error);
+        }
+
+        if (data.generatedPrompt) {
+          themeGeneratedPrompt = data.generatedPrompt;
+        }
+      } catch (error: any) {
+        console.error("Error generating theme prompt:", error);
+        toast({
+          title: t("common.error"),
+          description: error instanceof Error ? error.message : t("genForm.themePromptError"),
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        setIsGeneratingThemePrompt(false);
+        return;
+      } finally {
+        setIsGeneratingThemePrompt(false);
+      }
+    }
 
     // Snapshot current inputs so we can clear the UI immediately without affecting the in-flight generation
-    const promptSnapshot = prompt;
-    const originalPromptSnapshot = originalPrompt;
-    const improvedPromptSnapshot = improvedPromptValue;
+    // For theme mode: use topic as original prompt, generated prompt as improved prompt
+    const promptSnapshot = themeGeneratedPrompt ? selectedTopic : prompt;
+    const originalPromptSnapshot = themeGeneratedPrompt ? selectedTopic : originalPrompt;
+    const improvedPromptSnapshot = themeGeneratedPrompt || improvedPromptValue;
     // For bilingual mode, use the two selected languages
     const langsSnapshot = isBilingualMode 
       ? [`${bilingualLang1}+${bilingualLang2}`] // Pass as combined string for bilingual
@@ -1661,6 +1663,9 @@ export function WebsiteGenerator() {
     setOriginalPrompt(null);
     setImprovedPromptValue(null);
     setVipPromptValue(null);
+    // Clear theme selection
+    setSelectedCategory("");
+    setSelectedTopic("");
     // Keep VIP mode, languages, styles, AI models, website types, and image sources as user selected
     setVipDomain("");
     setVipAddress("");
@@ -2388,30 +2393,16 @@ export function WebsiteGenerator() {
                     </div>
                   </div>
 
-                  {/* Generate from Theme Button */}
-                  <Button
-                    type="button"
-                    variant="default"
-                    size="sm"
-                    onClick={handleGenerateFromTheme}
-                    disabled={isGeneratingThemePrompt || !selectedTopic}
-                    className="w-full"
-                  >
-                    {isGeneratingThemePrompt ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {t("genForm.generatingFromTheme")}
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        {t("genForm.generateFromTheme")}
-                      </>
-                    )}
-                  </Button>
-
+                  {/* Info about theme mode */}
+                  {selectedTopic && (
+                    <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
+                      <Tag className="h-3.5 w-3.5" />
+                      <span>{t("genForm.themeSelected")}: <strong>{selectedTopic}</strong></span>
+                    </div>
+                  )}
+                  
                   <p className="text-xs text-muted-foreground text-center">
-                    {t("genForm.themePromptCost")}
+                    {t("genForm.themePromptCostAuto")}
                   </p>
                 </div>
               )}

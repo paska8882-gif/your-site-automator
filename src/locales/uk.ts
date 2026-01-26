@@ -1475,5 +1475,7 @@ export const uk = {
     themePromptError: "Не вдалося згенерувати опис за тематикою",
     selectTopicRequired: "Оберіть тематику для генерації",
     themePromptCost: "+$1 за AI-генерацію опису",
+    themePromptCostAuto: "Опис буде згенерований автоматично (+$1)",
+    themeSelected: "Обрана тематика",
   },
 } as const;
