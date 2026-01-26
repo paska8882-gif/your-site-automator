@@ -344,11 +344,15 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
               }
             } else if (payload.eventType === "UPDATE" && newRecord) {
               const isActive = newRecord.status === "pending" || newRecord.status === "generating";
+              const isCompleted = newRecord.status === "completed";
+              const isFailed = newRecord.status === "failed";
               
-              // In compactMode, remove items that are no longer active
-              if (compactMode && !isActive) {
+              // In compactMode: keep completed/failed items visible for download
+              // They will be filtered out on next page load, but user can download now
+              if (compactMode && !isActive && !isCompleted && !isFailed) {
+                // Some other status like cancelled - remove immediately
                 removeHistoryItem(newRecord.id as string);
-              } else if (newRecord.status === "completed") {
+              } else if (isCompleted) {
                 // For completed status, fetch full record to get zip_data
                 const { data: fullRecord } = await supabase
                   .from("generation_history")
