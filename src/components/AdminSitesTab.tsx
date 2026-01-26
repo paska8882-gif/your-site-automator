@@ -163,7 +163,7 @@ interface ManualRequestUploadForm {
 const fetchGenerationsData = async () => {
   const { data, error } = await supabase
     .from("generation_history")
-    .select("id, number, prompt, improved_prompt, vip_prompt, language, created_at, completed_at, website_type, site_name, status, error_message, ai_model, user_id, team_id, sale_price, admin_note")
+    .select("id, number, prompt, improved_prompt, vip_prompt, language, created_at, completed_at, website_type, site_name, status, error_message, ai_model, user_id, team_id, sale_price, admin_note, color_scheme, layout_style")
     .order("created_at", { ascending: false })
     .limit(500);
 
@@ -1364,7 +1364,7 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
                             </div>
                           </TableCell>
                           <TableCell className="font-medium">
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 flex-wrap">
                               {item.site_name || `Site ${item.number}`}
                               {item.vip_prompt && (
                                 <Badge variant="outline" className="text-[10px] px-1 py-0 text-amber-500 border-amber-500/50" title="VIP генерація">
@@ -1374,6 +1374,16 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
                               {item.improved_prompt && !item.vip_prompt && (
                                 <Badge variant="outline" className="text-[10px] px-1 py-0 text-primary border-primary/50" title={`Покращений промт: ${item.improved_prompt.substring(0, 200)}...`}>
                                   AI+
+                                </Badge>
+                              )}
+                              {item.color_scheme && (
+                                <Badge variant="outline" className="text-[10px] px-1 py-0 text-emerald-500 border-emerald-500/50" title={`Кольорова схема: ${item.color_scheme}`}>
+                                  🎨 {item.color_scheme}
+                                </Badge>
+                              )}
+                              {item.layout_style && (
+                                <Badge variant="outline" className="text-[10px] px-1 py-0 text-violet-500 border-violet-500/50" title={`Стиль макету: ${item.layout_style}`}>
+                                  📐 {item.layout_style}
                                 </Badge>
                               )}
                             </div>
