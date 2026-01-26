@@ -525,6 +525,71 @@ export function WebsiteGenerator() {
   // Image bundling mode: true = download images to ZIP (slower), false = keep as URLs (faster)
   const [bundleImages, setBundleImages] = useState(true);
   
+  // Theme-based prompt generation state
+  const [promptMode, setPromptMode] = useState<"manual" | "theme">("manual");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedTopic, setSelectedTopic] = useState<string>("");
+  const [isGeneratingThemePrompt, setIsGeneratingThemePrompt] = useState(false);
+  
+  // Topic categories from edge function (loaded on component mount)
+  const TOPIC_CATEGORIES: Record<string, string[]> = {
+    // Финансы (Education)
+    "Фінанси (Освіта)": [
+      "Ведення бюджету", "Інвестування", "Робота з криптовалютами", "Фінансова грамотність",
+      "Побудова бізнесу", "Краудфандинг", "Фінансовий аналітик", "Трейдинг", "Машинне навчання у фінансах"
+    ],
+    "Здоров'я (Освіта)": [
+      "Здоровий спосіб життя", "Правильне харчування", "Гімнастика", "Йога", "Вегетаріанство", "Кросфіт"
+    ],
+    "Краса (Освіта)": ["Манікюр", "Візажист", "Стиліст", "Перукар"],
+    "Вивчення іноземних мов": [
+      "Англійська мова", "Польська мова", "Німецька мова", "Іспанська мова", "Французька мова",
+      "Італійська мова", "Португальська мова", "Арабська мова", "Японська мова"
+    ],
+    "Саморозвиток": [
+      "Підвищення мотивації", "Медитація", "Особистісний ріст", "Психологія", "Коучинг",
+      "Сімейні відносини", "Вивчення релігій", "Побудова командної роботи", "Астрологія", "Дейтинг", "Креативність"
+    ],
+    "Кар'єрний ріст": [
+      "Туроператор", "Маркетолог", "Дизайнер", "Менеджмент", "Журналістика", "Флорист",
+      "Організатор свят", "Акторська майстерність", "Кіберспорт", "Туристичний гід",
+      "Торгівля на маркетплейсах", "Еколог", "Юрист", "Ріелтор", "Соціальний працівник",
+      "Стрімінг", "Нафта", "Газ", "Енергетика"
+    ],
+    "Творчість": ["Письменництво", "Кулінарія", "Малювання", "Фотограф", "Музика", "Танці"],
+    "IT (Освіта)": [
+      "Розробка мобільних ігор", "Програмування", "Відеомонтаж", "Основи блокчейну", "Веб-дизайн",
+      "Системний адміністратор", "SEO-спеціаліст", "Розробник AR/VR ігор", "3D-дизайн для ігор",
+      "ШІ (штучний інтелект)", "Кібербезпека"
+    ],
+    // === ПОСЛУГИ ===
+    "Фінанси (Послуги)": [
+      "Побудова бізнесу", "Управління бюджетом", "Фінансове консультування", "Фінансова підтримка",
+      "Бухгалтерський облік", "Фінансовий аудит", "Автоматизація фінансових процесів",
+      "ШІ-рішення для управління фінансами"
+    ],
+    "Здоров'я (Послуги)": [
+      "Йога", "Гімнастика", "Кросфіт", "Нутриціологія", "Здоров'я людей похилого віку",
+      "Масаж та релаксація", "Антистрес-терапія"
+    ],
+    "Саморозвиток (Послуги)": [
+      "Лайф-коучинг", "Психологія", "Сімейне консультування", "Медитація", "Розвиток лідерства"
+    ],
+    "Краса (Послуги)": ["Манікюр", "Візажист", "Стиліст", "Перукар"],
+    "Професійні послуги": [
+      "Туроператор", "Цифровий маркетинг", "Графічний дизайн", "Проектне управління", "Журналістика",
+      "Флористика", "Івент-менеджмент", "Актор", "Торгівля на маркетплейсах",
+      "Екологічне консультування", "Соціальна робота", "Перекладач", "Таргетована реклама", "Контент-менеджмент"
+    ],
+    "Креативність (Послуги)": ["Копірайтер", "Кулінар", "Художник", "Фотограф", "Музикант"],
+    "IT (Послуги)": [
+      "Розробка мобільних додатків", "Програмування", "Відеомонтаж", "Веб-дизайн", "SEO",
+      "Системне адміністрування", "AR/VR розробка", "3D-дизайн", "ШІ (штучний інтелект)",
+      "Кібербезпека", "Розробка ігор", "Тестування ПЗ", "Блокчейн-розробка",
+      "Розробка чат-ботів", "Управління базами даних"
+    ]
+  };
+  
   const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 });
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [teamPricing, setTeamPricing] = useState<TeamPricing | null>(null);
@@ -1110,6 +1175,94 @@ export function WebsiteGenerator() {
     }
   };
 
+  // Generate prompt based on selected theme/topic
+  const handleGenerateFromTheme = async () => {
+    if (!selectedTopic) {
+      toast({
+        title: t("common.error"),
+        description: t("genForm.selectTopicRequired"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeneratingThemePrompt(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        toast({
+          title: t("generatorExtra.authError"),
+          description: t("generatorExtra.authErrorDesc"),
+          variant: "destructive",
+        });
+        setIsGeneratingThemePrompt(false);
+        return;
+      }
+
+      // Get effective geo
+      const effectiveGeo = isOtherGeoSelected && customGeo 
+        ? customGeo 
+        : (selectedGeo ? geoOptions.find(g => g.value === selectedGeo)?.label || selectedGeo : undefined);
+      
+      // Get effective language
+      const allLangs = getAllSelectedLanguages();
+      const effectiveLang = allLangs.length > 0 
+        ? languages.find(l => l.value === allLangs[0])?.label || allLangs[0] 
+        : undefined;
+      
+      // Get site name if provided
+      const siteName = siteNames.length > 0 ? siteNames[0] : undefined;
+
+      const { data, error } = await supabase.functions.invoke('generate-theme-prompt', {
+        body: { 
+          topic: selectedTopic,
+          siteName,
+          geo: effectiveGeo,
+          phone: vipPhone || undefined,
+          language: effectiveLang,
+        },
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
+      });
+
+      if (error) {
+        if (error.message?.includes('401') || error.message?.includes('JWT')) {
+          throw new Error(t("generatorExtra.sessionExpired"));
+        }
+        if (error.message?.includes('402')) {
+          throw new Error(t("generatorExtra.notEnoughCredits"));
+        }
+        throw error;
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      if (data.generatedPrompt) {
+        // Set the generated prompt as the main prompt
+        setPrompt(data.generatedPrompt);
+        // Also set it as improved since it's AI-generated
+        setImprovedPromptValue(data.generatedPrompt);
+        setOriginalPrompt(selectedTopic); // Original is the topic name
+        
+        toast({
+          title: t("genForm.themePromptGenerated"),
+          description: t("genForm.themePromptGeneratedDesc"),
+        });
+      }
+    } catch (error: any) {
+      console.error("Error generating theme prompt:", error);
+      toast({
+        title: t("common.error"),
+        description: error instanceof Error ? error.message : t("genForm.themePromptError"),
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingThemePrompt(false);
+    }
+  };
 
   const toggleLanguage = (langValue: string) => {
     setSelectedLanguages((prev) => {
@@ -2159,38 +2312,139 @@ export function WebsiteGenerator() {
               </div>
             )}
 
-            {/* Description Field */}
-            <div className="space-y-1">
-              <Label className="text-xs">
-                {t("genForm.siteDescription")} <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                ref={promptTextareaRef}
-                placeholder={t("genForm.siteDescriptionPlaceholder")}
-                value={prompt}
-                onChange={(e) => {
-                  setPrompt(e.target.value);
-                  // Reset improved prompt state when user manually changes prompt
-                  // For regular users, if they edit the original prompt, reset the improved state
-                  if (improvedPromptValue && !isAdmin) {
-                    // User is editing their original prompt, reset improved state
-                    setOriginalPrompt(null);
-                    setImprovedPromptValue(null);
-                  } else if (improvedPromptValue && isAdmin && e.target.value !== improvedPromptValue) {
-                    // Admin is editing, reset if changed from improved prompt
-                    setOriginalPrompt(null);
-                    setImprovedPromptValue(null);
-                  }
-                }}
-                className="min-h-[60px] text-sm overflow-hidden"
-                style={{ resize: 'none' }}
-                disabled={isImproving}
-              />
-              {improvedPromptValue && (
-                <div className="text-xs text-green-600 flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" />
-                  {t("genForm.promptImprovedInternal")}
+            {/* Description Field with Mode Toggle */}
+            <div className="space-y-2">
+              {/* Mode Toggle: Manual vs Theme */}
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">
+                  {t("genForm.siteDescription")} <span className="text-destructive">*</span>
+                </Label>
+                <div className="flex items-center gap-1 p-0.5 rounded-md bg-muted">
+                  <Button
+                    type="button"
+                    variant={promptMode === "manual" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setPromptMode("manual")}
+                    className="h-6 px-2 text-xs"
+                    disabled={isImproving || isGeneratingThemePrompt}
+                  >
+                    ✏️ {t("genForm.promptModeManual")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={promptMode === "theme" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setPromptMode("theme")}
+                    className="h-6 px-2 text-xs"
+                    disabled={isImproving || isGeneratingThemePrompt}
+                  >
+                    🎯 {t("genForm.promptModeTheme")} (+$1)
+                  </Button>
                 </div>
+              </div>
+
+              {/* Theme Selection Mode */}
+              {promptMode === "theme" && (
+                <div className="p-3 border border-primary/30 bg-primary/5 rounded-lg space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Category Select */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">{t("genForm.selectCategory")}</Label>
+                      <Select 
+                        value={selectedCategory} 
+                        onValueChange={(v) => {
+                          setSelectedCategory(v);
+                          setSelectedTopic(""); // Reset topic when category changes
+                        }}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder={t("genForm.selectCategory")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.keys(TOPIC_CATEGORIES).map((category) => (
+                            <SelectItem key={category} value={category}>{category}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Topic Select */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">{t("genForm.selectTopic")}</Label>
+                      <Select 
+                        value={selectedTopic} 
+                        onValueChange={setSelectedTopic}
+                        disabled={!selectedCategory}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder={selectedCategory ? t("genForm.selectTopic") : t("genForm.selectCategoryFirst")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {selectedCategory && TOPIC_CATEGORIES[selectedCategory]?.map((topic) => (
+                            <SelectItem key={topic} value={topic}>{topic}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Generate from Theme Button */}
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    onClick={handleGenerateFromTheme}
+                    disabled={isGeneratingThemePrompt || !selectedTopic}
+                    className="w-full"
+                  >
+                    {isGeneratingThemePrompt ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {t("genForm.generatingFromTheme")}
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        {t("genForm.generateFromTheme")}
+                      </>
+                    )}
+                  </Button>
+
+                  <p className="text-xs text-muted-foreground text-center">
+                    {t("genForm.themePromptCost")}
+                  </p>
+                </div>
+              )}
+
+              {/* Manual Input Mode - Textarea */}
+              {(promptMode === "manual" || prompt.trim()) && (
+                <>
+                  <Textarea
+                    ref={promptTextareaRef}
+                    placeholder={t("genForm.siteDescriptionPlaceholder")}
+                    value={prompt}
+                    onChange={(e) => {
+                      setPrompt(e.target.value);
+                      // Reset improved prompt state when user manually changes prompt
+                      if (improvedPromptValue && !isAdmin) {
+                        setOriginalPrompt(null);
+                        setImprovedPromptValue(null);
+                      } else if (improvedPromptValue && isAdmin && e.target.value !== improvedPromptValue) {
+                        setOriginalPrompt(null);
+                        setImprovedPromptValue(null);
+                      }
+                    }}
+                    className="min-h-[60px] text-sm overflow-hidden"
+                    style={{ resize: 'none' }}
+                    disabled={isImproving || isGeneratingThemePrompt}
+                  />
+                  {improvedPromptValue && (
+                    <div className="text-xs text-green-600 flex items-center gap-1">
+                      <Sparkles className="h-3 w-3" />
+                      {t("genForm.promptImprovedInternal")}
+                    </div>
+                  )}
+                </>
               )}
               <div className="flex items-center justify-between flex-wrap gap-2">
                 {/* Improve prompt button - $1 extra */}
