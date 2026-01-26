@@ -69,16 +69,15 @@ serve(async (req) => {
 
           console.log(`🔄 Auto-retrying generation ${item.id} (attempt ${currentRetries + 1}/${MAX_RETRIES}) via ${functionName}`);
 
-          // Update retry counter in admin_note
+          // Update retry counter in admin_note BEFORE calling generator
+          // Keep status as "generating" - the generator will handle the actual work
           const newAdminNote = item.admin_note 
             ? item.admin_note.replace(/retry:\d+/, `retry:${currentRetries + 1}`)
             : `retry:${currentRetries + 1}`;
           
-          // Reset status to pending for retry
           await supabase
             .from("generation_history")
             .update({
-              status: "pending",
               error_message: null,
               admin_note: newAdminNote.includes("retry:") ? newAdminNote : `${newAdminNote} retry:${currentRetries + 1}`,
             })
@@ -111,12 +110,7 @@ serve(async (req) => {
           } else {
             const errorText = await response.text();
             console.error(`❌ Retry failed for ${item.id}: ${response.status} ${errorText}`);
-            
-            // Revert status back to generating if retry call failed
-            await supabase
-              .from("generation_history")
-              .update({ status: "generating" })
-              .eq("id", item.id);
+            // Status remains "generating" so it will be picked up again on next cleanup run
           }
 
           // Small delay between retries to avoid overwhelming the system
