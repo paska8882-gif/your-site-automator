@@ -8445,6 +8445,10 @@ async function runBackgroundGeneration(
   console.log(`[BG] Starting background generation for history ID: ${historyId}, team: ${teamId}, salePrice: $${salePrice}`);
 
   try {
+    // Increment global active generations counter
+    await supabase.rpc('increment_active_generations');
+    console.log(`[BG] Incremented active generations counter`);
+
     // Balance was already deducted in main handler - just update status to generating
     await supabase
       .from("generation_history")
@@ -8662,6 +8666,14 @@ async function runBackgroundGeneration(
         specific_ai_model: "error_before_model_selection",
       })
       .eq("id", historyId);
+  } finally {
+    // Always decrement the active generations counter
+    try {
+      await supabase.rpc('decrement_active_generations');
+      console.log(`[BG] Decremented active generations counter for ${historyId}`);
+    } catch (decrementError) {
+      console.error(`[BG] Failed to decrement active generations:`, decrementError);
+    }
   }
 }
 
@@ -8898,6 +8910,43 @@ ${promptForGeneration}`;
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // ===== RATE LIMITING CHECKS =====
+    // Check system-wide limit
+    const { data: limits } = await supabase
+      .from('system_limits')
+      .select('active_generations, max_concurrent_generations, max_generations_per_user')
+      .eq('id', 'global')
+      .single();
+    
+    if (limits && limits.active_generations >= limits.max_concurrent_generations) {
+      console.log(`🚫 RATE LIMIT: System at capacity (${limits.active_generations}/${limits.max_concurrent_generations})`);
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: "Система перевантажена. Спробуйте через хвилину." 
+      }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    
+    // Check user-level limit
+    const { data: userActiveCount } = await supabase.rpc('get_user_active_generations', {
+      p_user_id: userId
+    });
+    
+    const maxPerUser = limits?.max_generations_per_user || 3;
+    if (userActiveCount !== null && userActiveCount >= maxPerUser) {
+      console.log(`🚫 RATE LIMIT: User ${userId} at capacity (${userActiveCount}/${maxPerUser})`);
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: `Ви досягли ліміту одночасних генерацій (${maxPerUser}). Дочекайтесь завершення попередніх.` 
+      }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // ===== END RATE LIMITING =====
 
     // IMMEDIATELY determine team and deduct balance BEFORE starting generation
     let teamId: string | null = overrideTeamId || null;
