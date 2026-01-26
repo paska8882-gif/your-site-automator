@@ -243,6 +243,7 @@ export type Database = {
         Row: {
           admin_note: string | null
           ai_model: string | null
+          color_scheme: string | null
           completed_at: string | null
           created_at: string
           error_message: string | null
@@ -253,6 +254,7 @@ export type Database = {
           image_source: string | null
           improved_prompt: string | null
           language: string
+          layout_style: string | null
           number: number
           prompt: string
           retry_count: number | null
@@ -270,6 +272,7 @@ export type Database = {
         Insert: {
           admin_note?: string | null
           ai_model?: string | null
+          color_scheme?: string | null
           completed_at?: string | null
           created_at?: string
           error_message?: string | null
@@ -280,6 +283,7 @@ export type Database = {
           image_source?: string | null
           improved_prompt?: string | null
           language?: string
+          layout_style?: string | null
           number?: number
           prompt: string
           retry_count?: number | null
@@ -297,6 +301,7 @@ export type Database = {
         Update: {
           admin_note?: string | null
           ai_model?: string | null
+          color_scheme?: string | null
           completed_at?: string | null
           created_at?: string
           error_message?: string | null
@@ -307,6 +312,7 @@ export type Database = {
           image_source?: string | null
           improved_prompt?: string | null
           language?: string
+          layout_style?: string | null
           number?: number
           prompt?: string
           retry_count?: number | null

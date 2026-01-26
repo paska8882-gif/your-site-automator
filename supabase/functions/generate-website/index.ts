@@ -6254,18 +6254,46 @@ async function runGeneration({
     const MINIMUM_CSS_LINES = 500; // Minimum lines for quality CSS (increased from 400)
     const MINIMUM_QUALITY_SCORE = 6; // Minimum quality score out of 10 indicators
     
-    // 10 unique color schemes for variety (with RGB values for rgba usage)
+    // 30 unique color schemes for variety (with RGB values for rgba usage)
     const COLOR_SCHEMES = [
+      // Blues & Teals
       { name: 'ocean', primary: '#0d4f8b', primaryRgb: '13, 79, 139', secondary: '#1a365d', accent: '#3182ce', heading: '#1a202c', text: '#4a5568', bgLight: '#ebf8ff', border: '#bee3f8' },
-      { name: 'forest', primary: '#276749', primaryRgb: '39, 103, 73', secondary: '#22543d', accent: '#38a169', heading: '#1a202c', text: '#4a5568', bgLight: '#f0fff4', border: '#9ae6b4' },
-      { name: 'sunset', primary: '#c53030', primaryRgb: '197, 48, 48', secondary: '#9b2c2c', accent: '#e53e3e', heading: '#1a202c', text: '#4a5568', bgLight: '#fff5f5', border: '#feb2b2' },
-      { name: 'royal', primary: '#553c9a', primaryRgb: '85, 60, 154', secondary: '#44337a', accent: '#805ad5', heading: '#1a202c', text: '#4a5568', bgLight: '#faf5ff', border: '#d6bcfa' },
-      { name: 'slate', primary: '#2d3748', primaryRgb: '45, 55, 72', secondary: '#1a202c', accent: '#4a5568', heading: '#1a202c', text: '#4a5568', bgLight: '#f7fafc', border: '#e2e8f0' },
-      { name: 'teal', primary: '#234e52', primaryRgb: '35, 78, 82', secondary: '#1d4044', accent: '#319795', heading: '#1a202c', text: '#4a5568', bgLight: '#e6fffa', border: '#81e6d9' },
-      { name: 'coral', primary: '#c05621', primaryRgb: '192, 86, 33', secondary: '#9c4221', accent: '#dd6b20', heading: '#1a202c', text: '#4a5568', bgLight: '#fffaf0', border: '#fbd38d' },
       { name: 'midnight', primary: '#1a1a2e', primaryRgb: '26, 26, 46', secondary: '#16213e', accent: '#2563eb', heading: '#1a202c', text: '#4a5568', bgLight: '#f7fafc', border: '#e2e8f0' },
-      { name: 'rose', primary: '#97266d', primaryRgb: '151, 38, 109', secondary: '#702459', accent: '#d53f8c', heading: '#1a202c', text: '#4a5568', bgLight: '#fff5f7', border: '#fbb6ce' },
+      { name: 'teal', primary: '#234e52', primaryRgb: '35, 78, 82', secondary: '#1d4044', accent: '#319795', heading: '#1a202c', text: '#4a5568', bgLight: '#e6fffa', border: '#81e6d9' },
+      { name: 'arctic', primary: '#0c4a6e', primaryRgb: '12, 74, 110', secondary: '#075985', accent: '#38bdf8', heading: '#0c4a6e', text: '#475569', bgLight: '#f0f9ff', border: '#bae6fd' },
+      { name: 'navy', primary: '#1e3a5f', primaryRgb: '30, 58, 95', secondary: '#0d2137', accent: '#4a90d9', heading: '#1e3a5f', text: '#475569', bgLight: '#f1f5f9', border: '#cbd5e1' },
+      { name: 'sky', primary: '#0284c7', primaryRgb: '2, 132, 199', secondary: '#0369a1', accent: '#7dd3fc', heading: '#0c4a6e', text: '#475569', bgLight: '#f0f9ff', border: '#bae6fd' },
+      // Greens
+      { name: 'forest', primary: '#276749', primaryRgb: '39, 103, 73', secondary: '#22543d', accent: '#38a169', heading: '#1a202c', text: '#4a5568', bgLight: '#f0fff4', border: '#9ae6b4' },
       { name: 'emerald', primary: '#047857', primaryRgb: '4, 120, 87', secondary: '#065f46', accent: '#10b981', heading: '#1a202c', text: '#4a5568', bgLight: '#ecfdf5', border: '#6ee7b7' },
+      { name: 'sage', primary: '#3f6212', primaryRgb: '63, 98, 18', secondary: '#365314', accent: '#84cc16', heading: '#1a2e05', text: '#4a5568', bgLight: '#f7fee7', border: '#bef264' },
+      { name: 'mint', primary: '#059669', primaryRgb: '5, 150, 105', secondary: '#047857', accent: '#34d399', heading: '#064e3b', text: '#4a5568', bgLight: '#ecfdf5', border: '#a7f3d0' },
+      { name: 'olive', primary: '#4d5527', primaryRgb: '77, 85, 39', secondary: '#3f4720', accent: '#708238', heading: '#1a1c0d', text: '#525252', bgLight: '#fafaf5', border: '#d4d4aa' },
+      // Reds & Oranges
+      { name: 'sunset', primary: '#c53030', primaryRgb: '197, 48, 48', secondary: '#9b2c2c', accent: '#e53e3e', heading: '#1a202c', text: '#4a5568', bgLight: '#fff5f5', border: '#feb2b2' },
+      { name: 'coral', primary: '#c05621', primaryRgb: '192, 86, 33', secondary: '#9c4221', accent: '#dd6b20', heading: '#1a202c', text: '#4a5568', bgLight: '#fffaf0', border: '#fbd38d' },
+      { name: 'crimson', primary: '#991b1b', primaryRgb: '153, 27, 27', secondary: '#7f1d1d', accent: '#dc2626', heading: '#450a0a', text: '#4a5568', bgLight: '#fef2f2', border: '#fecaca' },
+      { name: 'amber', primary: '#b45309', primaryRgb: '180, 83, 9', secondary: '#92400e', accent: '#f59e0b', heading: '#78350f', text: '#4a5568', bgLight: '#fffbeb', border: '#fde68a' },
+      { name: 'flame', primary: '#ea580c', primaryRgb: '234, 88, 12', secondary: '#c2410c', accent: '#fb923c', heading: '#7c2d12', text: '#4a5568', bgLight: '#fff7ed', border: '#fed7aa' },
+      // Purples & Pinks
+      { name: 'royal', primary: '#553c9a', primaryRgb: '85, 60, 154', secondary: '#44337a', accent: '#805ad5', heading: '#1a202c', text: '#4a5568', bgLight: '#faf5ff', border: '#d6bcfa' },
+      { name: 'rose', primary: '#97266d', primaryRgb: '151, 38, 109', secondary: '#702459', accent: '#d53f8c', heading: '#1a202c', text: '#4a5568', bgLight: '#fff5f7', border: '#fbb6ce' },
+      { name: 'lavender', primary: '#7c3aed', primaryRgb: '124, 58, 237', secondary: '#6d28d9', accent: '#a78bfa', heading: '#4c1d95', text: '#4a5568', bgLight: '#f5f3ff', border: '#ddd6fe' },
+      { name: 'fuchsia', primary: '#a21caf', primaryRgb: '162, 28, 175', secondary: '#86198f', accent: '#e879f9', heading: '#701a75', text: '#4a5568', bgLight: '#fdf4ff', border: '#f5d0fe' },
+      { name: 'plum', primary: '#6b21a8', primaryRgb: '107, 33, 168', secondary: '#581c87', accent: '#c084fc', heading: '#3b0764', text: '#4a5568', bgLight: '#faf5ff', border: '#e9d5ff' },
+      { name: 'mauve', primary: '#9d4edd', primaryRgb: '157, 78, 221', secondary: '#7b2cbf', accent: '#c77dff', heading: '#5a189a', text: '#525252', bgLight: '#faf5ff', border: '#e9d5ff' },
+      // Neutrals & Earth Tones
+      { name: 'slate', primary: '#2d3748', primaryRgb: '45, 55, 72', secondary: '#1a202c', accent: '#4a5568', heading: '#1a202c', text: '#4a5568', bgLight: '#f7fafc', border: '#e2e8f0' },
+      { name: 'charcoal', primary: '#1f2937', primaryRgb: '31, 41, 55', secondary: '#111827', accent: '#374151', heading: '#111827', text: '#4b5563', bgLight: '#f9fafb', border: '#d1d5db' },
+      { name: 'bronze', primary: '#92400e', primaryRgb: '146, 64, 14', secondary: '#78350f', accent: '#d97706', heading: '#451a03', text: '#525252', bgLight: '#fffbeb', border: '#fde68a' },
+      { name: 'coffee', primary: '#78350f', primaryRgb: '120, 53, 15', secondary: '#451a03', accent: '#a16207', heading: '#292524', text: '#525252', bgLight: '#fefce8', border: '#fef08a' },
+      { name: 'sand', primary: '#a8a29e', primaryRgb: '168, 162, 158', secondary: '#78716c', accent: '#d6d3d1', heading: '#44403c', text: '#57534e', bgLight: '#fafaf9', border: '#e7e5e4' },
+      { name: 'terracotta', primary: '#9a3412', primaryRgb: '154, 52, 18', secondary: '#7c2d12', accent: '#ea580c', heading: '#431407', text: '#525252', bgLight: '#fff7ed', border: '#fed7aa' },
+      // Special & Unique
+      { name: 'gold', primary: '#b7791f', primaryRgb: '183, 121, 31', secondary: '#975a16', accent: '#ecc94b', heading: '#744210', text: '#4a5568', bgLight: '#fffff0', border: '#faf089' },
+      { name: 'silver', primary: '#64748b', primaryRgb: '100, 116, 139', secondary: '#475569', accent: '#94a3b8', heading: '#334155', text: '#64748b', bgLight: '#f8fafc', border: '#cbd5e1' },
+      { name: 'wine', primary: '#7f1d1d', primaryRgb: '127, 29, 29', secondary: '#450a0a', accent: '#b91c1c', heading: '#450a0a', text: '#525252', bgLight: '#fef2f2', border: '#fecaca' },
+      { name: 'ocean_deep', primary: '#0c4a6e', primaryRgb: '12, 74, 110', secondary: '#082f49', accent: '#0369a1', heading: '#082f49', text: '#475569', bgLight: '#f0f9ff', border: '#bae6fd' },
     ];
     
     // 5 unique border-radius styles
@@ -8621,6 +8649,8 @@ async function runBackgroundGeneration(
           retry_count: retryCount,
           specific_ai_model: result.specificModel || null,
           completed_at: new Date().toISOString(),
+          color_scheme: colorScheme || null,
+          layout_style: layoutStyle || null,
         })
         .eq("id", historyId);
       

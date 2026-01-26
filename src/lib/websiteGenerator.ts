@@ -36,19 +36,47 @@ export const LAYOUT_STYLES = [
   { id: "portfolio", name: "Креативне портфоліо" },
 ];
 
-// Color schemes available for selection (matches Edge Functions)
+// Color schemes available for selection (matches Edge Functions) - 30 schemes
 export const COLOR_SCHEMES_UI = [
   { id: "random", name: "🎲 Випадково", colors: [] },
+  // Blues & Teals
   { id: "ocean", name: "🌊 Океан", colors: ["#0d4f8b", "#1a365d", "#3182ce"] },
-  { id: "forest", name: "🌲 Ліс", colors: ["#276749", "#22543d", "#38a169"] },
-  { id: "sunset", name: "🌅 Захід", colors: ["#c53030", "#9b2c2c", "#e53e3e"] },
-  { id: "royal", name: "👑 Королівський", colors: ["#553c9a", "#44337a", "#805ad5"] },
-  { id: "slate", name: "🌫️ Сланець", colors: ["#2d3748", "#1a202c", "#4a5568"] },
-  { id: "teal", name: "🦢 Чирок", colors: ["#234e52", "#1d4044", "#319795"] },
-  { id: "coral", name: "🪸 Корал", colors: ["#c05621", "#9c4221", "#dd6b20"] },
   { id: "midnight", name: "🌙 Північ", colors: ["#1a1a2e", "#16213e", "#2563eb"] },
-  { id: "rose", name: "🌹 Роза", colors: ["#97266d", "#702459", "#d53f8c"] },
+  { id: "teal", name: "🦢 Чирок", colors: ["#234e52", "#1d4044", "#319795"] },
+  { id: "arctic", name: "❄️ Арктика", colors: ["#0c4a6e", "#075985", "#38bdf8"] },
+  { id: "navy", name: "⚓ Морський", colors: ["#1e3a5f", "#0d2137", "#4a90d9"] },
+  { id: "sky", name: "☁️ Небесний", colors: ["#0284c7", "#0369a1", "#7dd3fc"] },
+  // Greens
+  { id: "forest", name: "🌲 Ліс", colors: ["#276749", "#22543d", "#38a169"] },
   { id: "emerald", name: "💎 Смарагд", colors: ["#047857", "#065f46", "#10b981"] },
+  { id: "sage", name: "🌿 Шавлія", colors: ["#3f6212", "#365314", "#84cc16"] },
+  { id: "mint", name: "🍃 М'ята", colors: ["#059669", "#047857", "#34d399"] },
+  { id: "olive", name: "🫒 Оливка", colors: ["#4d5527", "#3f4720", "#708238"] },
+  // Reds & Oranges
+  { id: "sunset", name: "🌅 Захід", colors: ["#c53030", "#9b2c2c", "#e53e3e"] },
+  { id: "coral", name: "🪸 Корал", colors: ["#c05621", "#9c4221", "#dd6b20"] },
+  { id: "crimson", name: "🔴 Кармін", colors: ["#991b1b", "#7f1d1d", "#dc2626"] },
+  { id: "amber", name: "🔶 Бурштин", colors: ["#b45309", "#92400e", "#f59e0b"] },
+  { id: "flame", name: "🔥 Полум'я", colors: ["#ea580c", "#c2410c", "#fb923c"] },
+  // Purples & Pinks
+  { id: "royal", name: "👑 Королівський", colors: ["#553c9a", "#44337a", "#805ad5"] },
+  { id: "rose", name: "🌹 Роза", colors: ["#97266d", "#702459", "#d53f8c"] },
+  { id: "lavender", name: "💜 Лаванда", colors: ["#7c3aed", "#6d28d9", "#a78bfa"] },
+  { id: "fuchsia", name: "🪻 Фуксія", colors: ["#a21caf", "#86198f", "#e879f9"] },
+  { id: "plum", name: "🍇 Слива", colors: ["#6b21a8", "#581c87", "#c084fc"] },
+  { id: "mauve", name: "🌸 Мальва", colors: ["#9d4edd", "#7b2cbf", "#c77dff"] },
+  // Neutrals & Earth Tones
+  { id: "slate", name: "🌫️ Сланець", colors: ["#2d3748", "#1a202c", "#4a5568"] },
+  { id: "charcoal", name: "🖤 Вугілля", colors: ["#1f2937", "#111827", "#374151"] },
+  { id: "bronze", name: "🥉 Бронза", colors: ["#92400e", "#78350f", "#d97706"] },
+  { id: "coffee", name: "☕ Кава", colors: ["#78350f", "#451a03", "#a16207"] },
+  { id: "sand", name: "🏖️ Пісок", colors: ["#a8a29e", "#78716c", "#d6d3d1"] },
+  { id: "terracotta", name: "🧱 Теракота", colors: ["#9a3412", "#7c2d12", "#ea580c"] },
+  // Special & Unique
+  { id: "gold", name: "🥇 Золото", colors: ["#b7791f", "#975a16", "#ecc94b"] },
+  { id: "silver", name: "🥈 Срібло", colors: ["#64748b", "#475569", "#94a3b8"] },
+  { id: "wine", name: "🍷 Вино", colors: ["#7f1d1d", "#450a0a", "#b91c1c"] },
+  { id: "ocean_deep", name: "🐙 Глибина", colors: ["#0c4a6e", "#082f49", "#0369a1"] },
 ];
 
 export type ColorScheme = typeof COLOR_SCHEMES_UI[number]["id"];
