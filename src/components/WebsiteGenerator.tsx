@@ -521,6 +521,9 @@ export function WebsiteGenerator() {
   const [bilingualLang1, setBilingualLang1] = useState("");
   const [bilingualLang2, setBilingualLang2] = useState("");
   
+  // Image bundling mode: true = download images to ZIP (slower), false = keep as URLs (faster)
+  const [bundleImages, setBundleImages] = useState(true);
+  
   const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 });
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [teamPricing, setTeamPricing] = useState<TeamPricing | null>(null);
@@ -1574,7 +1577,8 @@ export function WebsiteGenerator() {
           geoToUse,
           vipPromptSnapshot || undefined,
           exactPhone || undefined,
-          bilingualLanguagesSnapshot || undefined // Pass bilingual languages if in bilingual mode
+          bilingualLanguagesSnapshot || undefined, // Pass bilingual languages if in bilingual mode
+          bundleImages // Whether to bundle images into ZIP
         );
         setGenerationProgress((prev) => ({ ...prev, completed: prev.completed + 1 }));
         return result;
@@ -3127,6 +3131,26 @@ export function WebsiteGenerator() {
                     </SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Bundle Images Toggle */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Image className="h-3 w-3" />
+                  {t("genForm.imageBundling")}
+                </Label>
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={bundleImages}
+                      onCheckedChange={(checked) => setBundleImages(!!checked)}
+                    />
+                    <span className="text-xs">{t("genForm.bundleImagesLabel")}</span>
+                  </label>
+                  <p className="text-[10px] text-muted-foreground leading-tight">
+                    {bundleImages ? t("genForm.bundleImagesOnDesc") : t("genForm.bundleImagesOffDesc")}
+                  </p>
+                </div>
               </div>
             </div>
 

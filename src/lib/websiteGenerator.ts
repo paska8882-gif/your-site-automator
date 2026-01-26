@@ -140,7 +140,8 @@ export async function startGeneration(
   geo?: string, // Target country/region for the website
   vipPrompt?: string, // VIP detailed prompt (+$2)
   exactPhone?: string, // Optional exact phone to enforce
-  bilingualLanguages?: string[] // Optional array of 2 languages for bilingual site (+$3)
+  bilingualLanguages?: string[], // Optional array of 2 languages for bilingual site (+$3)
+  bundleImages: boolean = true // Whether to bundle images into ZIP (slower) or keep as URLs (faster)
 ): Promise<GenerationResult> {
   // IMPORTANT: seniorMode (codex/reaktiv) only applies to React websites
   // HTML and PHP websites always use their dedicated generation functions
@@ -193,7 +194,8 @@ export async function startGeneration(
           improvedPrompt: improvedPrompt || null,
           vipPrompt: vipPrompt || null,
           language, aiModel, layoutStyle, siteName, seniorMode, imageSource, teamId, geo,
-          bilingualLanguages: bilingualLanguages || null // Pass bilingual languages for bilingual sites
+          bilingualLanguages: bilingualLanguages || null, // Pass bilingual languages for bilingual sites
+          bundleImages // Whether to download images into ZIP
         }),
         signal: controller.signal,
       });
