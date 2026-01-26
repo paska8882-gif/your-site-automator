@@ -36,7 +36,6 @@ interface GenerationWithSpend {
   completed_at: string | null;
   status: string;
   files_data: GeneratedFile[] | null;
-  generation_cost: number | null;
   sale_price: number | null;
   spend_id: string | null;
   spend_amount: number;
@@ -154,7 +153,7 @@ const Spends = () => {
 
     const { data: genData, error: genError } = await supabase
       .from("generation_history")
-      .select("id, number, prompt, improved_prompt, site_name, language, website_type, ai_model, specific_ai_model, created_at, completed_at, status, files_data, generation_cost, sale_price")
+      .select("id, number, prompt, improved_prompt, site_name, language, website_type, ai_model, specific_ai_model, created_at, completed_at, status, files_data, sale_price")
       .eq("user_id", user.id)
       .eq("status", "completed")
       .order("created_at", { ascending: false });
