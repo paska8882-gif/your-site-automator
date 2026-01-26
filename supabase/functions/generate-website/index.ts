@@ -8436,7 +8436,8 @@ async function runBackgroundGeneration(
   salePrice: number = 0,
   siteName?: string,
   geo?: string,
-  bilingualLanguages?: string[] | null
+  bilingualLanguages?: string[] | null,
+  bundleImages: boolean = true // Whether to bundle external images into ZIP
 ) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -8549,12 +8550,22 @@ async function runBackgroundGeneration(
 
       // Bundle external images (Picsum/Pexels) into ZIP as real files under assets/
       // and rewrite HTML/CSS references to those local files.
-      const bundled = await bundleExternalImagesForZip(enforcedFiles);
-      if (bundled.downloadedCount > 0) {
-        console.log(`[ZIP] Bundled ${bundled.downloadedCount} image(s) into ZIP`);
+      // Skip bundling if user chose faster mode (bundleImages = false)
+      let zipTextFiles: Array<{ path: string; content: string }>;
+      let zipBinaryFiles: Array<{ path: string; base64: string }> = [];
+      
+      if (bundleImages) {
+        const bundled = await bundleExternalImagesForZip(enforcedFiles);
+        if (bundled.downloadedCount > 0) {
+          console.log(`[ZIP] Bundled ${bundled.downloadedCount} image(s) into ZIP`);
+        }
+        zipTextFiles = bundled.textFiles;
+        zipBinaryFiles = bundled.binaryFiles;
+      } else {
+        // Skip image bundling - keep external URLs (faster generation)
+        console.log(`[ZIP] Skipping image bundling (user chose faster mode)`);
+        zipTextFiles = enforcedFiles;
       }
-      const zipTextFiles = bundled.textFiles;
-      const zipBinaryFiles = bundled.binaryFiles;
 
       zipTextFiles.forEach((file) => {
         if (/\.ico$/i.test(file.path)) {
@@ -8712,7 +8723,7 @@ serve(async (req) => {
     
     // Read body first to check for retryHistoryId (needed for service key auth bypass)
     const body = await req.json();
-    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, bilingualLanguages, retryHistoryId } = body;
+    const { prompt, originalPrompt, improvedPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, bilingualLanguages, retryHistoryId, bundleImages = true } = body;
 
     // Determine userId - either from JWT or from DB for retry requests
     let userId: string;
@@ -9188,7 +9199,8 @@ ${promptForGeneration}`;
         salePrice,
         siteName,
         geo,
-        bilingualLanguages || null
+        bilingualLanguages || null,
+        bundleImages
       )
     );
 
