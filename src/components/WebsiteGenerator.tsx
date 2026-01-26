@@ -3244,10 +3244,10 @@ export function WebsiteGenerator() {
                     onClick={handleManualRequest}
                     disabled={siteNames.length === 0 || !prompt.trim() || isSubmitting}
                     className="h-9 text-sm border-purple-500/50 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950"
-                    title={t("genForm.manualRequestDesc")}
+                    title={t("generator.manualRequestDesc")}
                   >
                     <Hand className="mr-1 h-3 w-3" />
-                    {t("genForm.manualRequest")}
+                    {t("generator.manualRequest")}
                   </Button>
                 )}
 
