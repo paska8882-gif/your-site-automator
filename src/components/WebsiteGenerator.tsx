@@ -201,14 +201,14 @@ const DRAFT_STORAGE_KEY = "website_generator_draft";
 
 // Random VIP data arrays
 const randomVipTopics = [
-  "Video Games", "Law Services", "Dental Care", "Real Estate",
-  "Pet Grooming", "Auto Repair", "Fitness Training", "Photography",
-  "Home Renovation", "Accounting", "Travel Agency", "Coffee Shop",
-  "Bakery", "Flower Delivery", "IT Consulting", "Wedding Planning",
-  "Restaurant", "Spa & Wellness", "Plumbing Services", "Insurance Agency",
-  "Hair Salon", "Yoga Studio", "Car Dealership", "Cleaning Services",
-  "News Portal", "E-commerce", "Education", "Healthcare", "Fashion",
-  "Sports", "Music", "Art Gallery", "Crypto", "Marketing Agency"
+  "🎮 Video Games", "⚖️ Law Services", "🦷 Dental Care", "🏠 Real Estate",
+  "🐕 Pet Grooming", "🔧 Auto Repair", "💪 Fitness Training", "📷 Photography",
+  "🏗️ Home Renovation", "📊 Accounting", "✈️ Travel Agency", "☕ Coffee Shop",
+  "🥐 Bakery", "💐 Flower Delivery", "💻 IT Consulting", "💒 Wedding Planning",
+  "🍽️ Restaurant", "💆 Spa & Wellness", "🔩 Plumbing Services", "🛡️ Insurance Agency",
+  "💇 Hair Salon", "🧘 Yoga Studio", "🚗 Car Dealership", "🧹 Cleaning Services",
+  "📰 News Portal", "🛒 E-commerce", "📚 Education", "🏥 Healthcare", "👗 Fashion",
+  "⚽ Sports", "🎵 Music", "🎨 Art Gallery", "🪙 Crypto", "📢 Marketing Agency"
 ];
 
 const randomVipAddressesByGeo: Record<string, string[]> = {
