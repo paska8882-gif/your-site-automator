@@ -400,8 +400,10 @@ function SingleHistoryItem({
                 const createdAt = new Date(item.created_at).getTime();
                 const now = Date.now();
                 const tenMinutesMs = 10 * 60 * 1000;
-                const canCancel = now - createdAt >= tenMinutesMs;
-                const remainingMinutes = Math.max(0, Math.ceil((tenMinutesMs - (now - createdAt)) / 60000));
+                const timeElapsed = now - createdAt;
+                const canCancelByTime = timeElapsed >= tenMinutesMs;
+                const canCancel = canCancelByTime || isAdmin;
+                const remainingMinutes = Math.max(0, Math.ceil((tenMinutesMs - timeElapsed) / 60000));
                 
                 return (
                   <TooltipProvider>
@@ -1159,12 +1161,12 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
 
   const handleCancel = async (item: HistoryItem) => {
     try {
-      // Check if generation has been running for at least 10 minutes
+      // Check if generation has been running for at least 10 minutes (admins bypass this)
       const createdAt = new Date(item.created_at).getTime();
       const now = Date.now();
       const tenMinutesMs = 10 * 60 * 1000;
       
-      if (now - createdAt < tenMinutesMs) {
+      if (!isAdmin && now - createdAt < tenMinutesMs) {
         const remainingMinutes = Math.ceil((tenMinutesMs - (now - createdAt)) / 60000);
         toast({
           title: t("historyExtra.cannotCancelYet"),
