@@ -367,6 +367,17 @@ function SingleHistoryItem({
                 }
                 return null;
               })()}
+              {/* Show "Cancelled by admin" badge for failed items */}
+              {item.status === "failed" && item.error_message?.includes("адміном") && (
+                <Badge variant="destructive" className="text-xs px-1.5 py-0 h-5">
+                  {t("historyExtra.cancelledByAdmin")}
+                </Badge>
+              )}
+              {item.status === "failed" && item.error_message?.includes("користувачем") && (
+                <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5">
+                  {t("historyExtra.cancelledByUser")}
+                </Badge>
+              )}
             </div>
             <div className="flex items-center gap-1">
               <Button
@@ -1210,11 +1221,16 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
       }
 
       // Update generation status and reset sale_price to indicate refund
+      // Use different message for admin vs user cancellation
+      const cancelMessage = isAdmin 
+        ? t("historyExtra.cancelledByAdmin")
+        : t("historyExtra.cancelledByUser");
+      
       const { error } = await supabase
         .from("generation_history")
         .update({ 
           status: "failed", 
-          error_message: t("historyExtra.cancelledByUser"),
+          error_message: cancelMessage,
           completed_at: new Date().toISOString(),
           sale_price: 0 // Reset to show as refunded
         })

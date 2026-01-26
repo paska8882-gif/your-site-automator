@@ -1274,6 +1274,7 @@ export const ru = {
     downloadComplete: "Готово",
     downloadCompleteDesc: "Скачано ZIP-архивов",
     cancelledByUser: "Отменено пользователем",
+    cancelledByAdmin: "Отменено админом",
     generationCancelled: "Генерация отменена",
     generationCancelledDesc: "была отменена",
     cancelError: "Не удалось отменить генерацию",
