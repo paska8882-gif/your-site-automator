@@ -9,6 +9,47 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ============ COLOR SCHEME LOOKUP (for branding) ============
+const BRAND_COLOR_MAP: Record<string, { primary: string; accent: string }> = {
+  ocean: { primary: '#0d4f8b', accent: '#3182ce' },
+  midnight: { primary: '#1a1a2e', accent: '#2563eb' },
+  teal: { primary: '#234e52', accent: '#319795' },
+  arctic: { primary: '#0c4a6e', accent: '#38bdf8' },
+  navy: { primary: '#1e3a5f', accent: '#4a90d9' },
+  sky: { primary: '#0284c7', accent: '#7dd3fc' },
+  forest: { primary: '#276749', accent: '#38a169' },
+  emerald: { primary: '#047857', accent: '#10b981' },
+  sage: { primary: '#3f6212', accent: '#84cc16' },
+  mint: { primary: '#059669', accent: '#34d399' },
+  olive: { primary: '#4d5527', accent: '#708238' },
+  sunset: { primary: '#c53030', accent: '#e53e3e' },
+  coral: { primary: '#c05621', accent: '#dd6b20' },
+  crimson: { primary: '#991b1b', accent: '#dc2626' },
+  amber: { primary: '#b45309', accent: '#f59e0b' },
+  flame: { primary: '#ea580c', accent: '#fb923c' },
+  royal: { primary: '#553c9a', accent: '#805ad5' },
+  rose: { primary: '#97266d', accent: '#d53f8c' },
+  lavender: { primary: '#7c3aed', accent: '#a78bfa' },
+  fuchsia: { primary: '#a21caf', accent: '#e879f9' },
+  plum: { primary: '#6b21a8', accent: '#c084fc' },
+  mauve: { primary: '#9d4edd', accent: '#c77dff' },
+  slate: { primary: '#2d3748', accent: '#4a5568' },
+  charcoal: { primary: '#1f2937', accent: '#374151' },
+  bronze: { primary: '#92400e', accent: '#d97706' },
+  coffee: { primary: '#78350f', accent: '#a16207' },
+  sand: { primary: '#a8a29e', accent: '#d6d3d1' },
+  terracotta: { primary: '#9a3412', accent: '#ea580c' },
+  gold: { primary: '#b7791f', accent: '#ecc94b' },
+  silver: { primary: '#64748b', accent: '#94a3b8' },
+  wine: { primary: '#7f1d1d', accent: '#b91c1c' },
+  ocean_deep: { primary: '#0c4a6e', accent: '#0369a1' },
+};
+
+function getBrandColors(schemeName?: string): { primary: string; accent: string } {
+  if (!schemeName) return { primary: '#10b981', accent: '#047857' }; // Default emerald
+  return BRAND_COLOR_MAP[schemeName] || { primary: '#10b981', accent: '#047857' };
+}
+
 // ============ PHONE NUMBER VALIDATION & FIXING ============
 const INVALID_PHONE_PATTERNS = [
   /\b\d{3}[-.\s]?\d{4}\b(?!\d)/g,
@@ -2079,7 +2120,8 @@ function enforceResponsiveImagesInFiles(
 
 function ensureFaviconAndLogoInFiles(
   files: Array<{ path: string; content: string }>,
-  siteNameRaw?: string
+  siteNameRaw?: string,
+  brandColors?: { primary: string; accent: string }
 ): Array<{ path: string; content: string }> {
   const siteName = (siteNameRaw || "Website").trim() || "Website";
   const initials =
@@ -2265,12 +2307,16 @@ function ensureFaviconAndLogoInFiles(
     return toBase64(out);
   };
 
+  // Use color scheme colors if provided, otherwise default to emerald/green
+  const primaryColor = brandColors?.primary || "#10b981";
+  const accentColor = brandColors?.accent || "#047857";
+
   const logoSvg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64" role="img" aria-label="${safeText(siteName)} logo">
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#10b981"/>
-      <stop offset="1" stop-color="#047857"/>
+      <stop offset="0" stop-color="${primaryColor}"/>
+      <stop offset="1" stop-color="${accentColor}"/>
     </linearGradient>
   </defs>
   <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#g)"/>
@@ -2282,8 +2328,8 @@ function ensureFaviconAndLogoInFiles(
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="${safeText(siteName)} favicon">
   <defs>
     <linearGradient id="fg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#10b981"/>
-      <stop offset="1" stop-color="#047857"/>
+      <stop offset="0" stop-color="${primaryColor}"/>
+      <stop offset="1" stop-color="${accentColor}"/>
     </linearGradient>
   </defs>
   <rect x="4" y="4" width="56" height="56" rx="16" fill="url(#fg)"/>
@@ -4657,17 +4703,68 @@ async function runGeneration({
   );
   console.log("Refined prompt:", refinedPrompt.substring(0, 200) + "...");
 
-  // 2. Select layout variation
+  // 2. Select layout variation with stronger enforcement
   let layoutDescription = "";
+  let selectedLayoutName = "";
   if (layoutStyle) {
     const selectedLayout = LAYOUT_VARIATIONS.find(l => l.id === layoutStyle);
     if (selectedLayout) {
-      layoutDescription = `\n\n${selectedLayout.description}`;
+      selectedLayoutName = selectedLayout.name;
+      layoutDescription = `
+⚠️⚠️⚠️ MANDATORY LAYOUT STRUCTURE - NON-NEGOTIABLE! ⚠️⚠️⚠️
+LAYOUT STYLE: "${selectedLayout.name}"
+
+${selectedLayout.description}
+
+⚠️ CRITICAL LAYOUT RULES - YOU MUST FOLLOW EXACTLY:
+- Hero section MUST match the layout description above!
+- Card grids MUST use the specified arrangement!
+- Section layouts MUST follow the style guidelines!
+- IF YOU IGNORE THIS LAYOUT = GENERATION FAILURE!
+`;
     }
   } else {
     // Random layout
     const randomLayout = LAYOUT_VARIATIONS[Math.floor(Math.random() * LAYOUT_VARIATIONS.length)];
-    layoutDescription = `\n\n${randomLayout.description}`;
+    selectedLayoutName = randomLayout.name;
+    layoutDescription = `
+⚠️⚠️⚠️ MANDATORY LAYOUT STRUCTURE - NON-NEGOTIABLE! ⚠️⚠️⚠️
+LAYOUT STYLE: "${randomLayout.name}"
+
+${randomLayout.description}
+
+⚠️ CRITICAL LAYOUT RULES - YOU MUST FOLLOW EXACTLY:
+- Hero section MUST match the layout description above!
+- Card grids MUST use the specified arrangement!
+- Section layouts MUST follow the style guidelines!
+- IF YOU IGNORE THIS LAYOUT = GENERATION FAILURE!
+`;
+  }
+
+  // 2b. Build mandatory color palette section for AI prompt
+  let mandatoryColorSection = "";
+  if (userColorScheme && userColorScheme !== "random") {
+    const schemeColors = getBrandColors(userColorScheme);
+    if (schemeColors) {
+      mandatoryColorSection = `
+⚠️⚠️⚠️ MANDATORY COLOR PALETTE - YOU MUST USE THESE EXACT COLORS! ⚠️⚠️⚠️
+
+Color Scheme: "${userColorScheme}"
+PRIMARY COLOR: ${schemeColors.primary} (main brand color - buttons, links, headers, accents)
+ACCENT COLOR: ${schemeColors.accent} (highlights, CTAs, icons, hover states)
+
+⚠️ CRITICAL COLOR RULES - NON-NEGOTIABLE:
+- Primary buttons MUST use background: ${schemeColors.primary}
+- All links MUST use color: ${schemeColors.primary}
+- Section accents and highlights MUST use ${schemeColors.accent}
+- Header/navbar accent elements MUST use ${schemeColors.primary}
+- CTA buttons MUST use ${schemeColors.accent} or ${schemeColors.primary}
+- DO NOT use green (#10b981) or emerald colors unless that's the selected scheme!
+- DO NOT generate your own random colors - USE THESE EXACT HEX CODES!
+
+`;
+      console.log(`🎨 PHP: Injecting mandatory color scheme "${userColorScheme}" into AI prompt: primary=${schemeColors.primary}, accent=${schemeColors.accent}`);
+    }
   }
 
   // 3. Build image strategy
@@ -4736,7 +4833,7 @@ async function runGeneration({
       ? `\n\nSTRICT OUTPUT FORMAT (MANDATORY):\n- Output ONLY file blocks in this exact format. No commentary, no markdown headings.\n\n--- FILE: includes/config.php ---\n<file contents>\n--- END FILE ---\n\n--- FILE: includes/header.php ---\n<file contents>\n--- END FILE ---\n\n(Repeat for every file.)\n\nIf you cannot comply, output nothing.`
       : "";
 
-    const systemContent = PHP_GENERATION_PROMPT + layoutDescription + "\n\n" + imageStrategy + "\n\n" + IMAGE_CSS;
+    const systemContent = PHP_GENERATION_PROMPT + mandatoryColorSection + layoutDescription + "\n\n" + imageStrategy + "\n\n" + IMAGE_CSS;
     // Simplified user prompt for faster, more reliable generation
     const userContent = `Create a PHP website based on this brief:
 
@@ -5734,6 +5831,8 @@ async function runBackgroundGeneration(
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceEmailInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
+      // Use color scheme for logo/favicon colors
+      // Note: userColorScheme is not passed to runBackgroundGeneration, use default colors
       enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName);
       
       // STEP 4: Ensure all 14 required files exist
@@ -6302,6 +6401,9 @@ ${promptForGeneration}`;
         enforcedFiles = enforceEmailInFiles(enforcedFiles, desiredSiteName);
         enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
         
+        // Ensure branding assets with color scheme
+        const brandColorsForLogo = getBrandColors(colorScheme);
+        enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName, brandColorsForLogo);
         const { files: contactValidatedFiles } = runContactValidation(enforcedFiles, geoToUse, language);
         enforcedFiles = contactValidatedFiles;
 

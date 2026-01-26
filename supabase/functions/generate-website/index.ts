@@ -9,6 +9,48 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ============ COLOR SCHEME LOOKUP (for branding) ============
+// Maps color scheme names to their primary/accent colors for logo/favicon generation
+const BRAND_COLOR_MAP: Record<string, { primary: string; accent: string }> = {
+  ocean: { primary: '#0d4f8b', accent: '#3182ce' },
+  midnight: { primary: '#1a1a2e', accent: '#2563eb' },
+  teal: { primary: '#234e52', accent: '#319795' },
+  arctic: { primary: '#0c4a6e', accent: '#38bdf8' },
+  navy: { primary: '#1e3a5f', accent: '#4a90d9' },
+  sky: { primary: '#0284c7', accent: '#7dd3fc' },
+  forest: { primary: '#276749', accent: '#38a169' },
+  emerald: { primary: '#047857', accent: '#10b981' },
+  sage: { primary: '#3f6212', accent: '#84cc16' },
+  mint: { primary: '#059669', accent: '#34d399' },
+  olive: { primary: '#4d5527', accent: '#708238' },
+  sunset: { primary: '#c53030', accent: '#e53e3e' },
+  coral: { primary: '#c05621', accent: '#dd6b20' },
+  crimson: { primary: '#991b1b', accent: '#dc2626' },
+  amber: { primary: '#b45309', accent: '#f59e0b' },
+  flame: { primary: '#ea580c', accent: '#fb923c' },
+  royal: { primary: '#553c9a', accent: '#805ad5' },
+  rose: { primary: '#97266d', accent: '#d53f8c' },
+  lavender: { primary: '#7c3aed', accent: '#a78bfa' },
+  fuchsia: { primary: '#a21caf', accent: '#e879f9' },
+  plum: { primary: '#6b21a8', accent: '#c084fc' },
+  mauve: { primary: '#9d4edd', accent: '#c77dff' },
+  slate: { primary: '#2d3748', accent: '#4a5568' },
+  charcoal: { primary: '#1f2937', accent: '#374151' },
+  bronze: { primary: '#92400e', accent: '#d97706' },
+  coffee: { primary: '#78350f', accent: '#a16207' },
+  sand: { primary: '#a8a29e', accent: '#d6d3d1' },
+  terracotta: { primary: '#9a3412', accent: '#ea580c' },
+  gold: { primary: '#b7791f', accent: '#ecc94b' },
+  silver: { primary: '#64748b', accent: '#94a3b8' },
+  wine: { primary: '#7f1d1d', accent: '#b91c1c' },
+  ocean_deep: { primary: '#0c4a6e', accent: '#0369a1' },
+};
+
+function getBrandColors(schemeName?: string): { primary: string; accent: string } {
+  if (!schemeName) return { primary: '#10b981', accent: '#047857' }; // Default emerald
+  return BRAND_COLOR_MAP[schemeName] || { primary: '#10b981', accent: '#047857' };
+}
+
 // ============ ZIP ASSET BUNDLING (EXTERNAL IMAGES -> LOCAL FILES) ============
 // When generating HTML websites, we bundle external images (Picsum/Pexels) into the ZIP as real files
 // so the downloaded site works without hotlinking.
@@ -2277,7 +2319,8 @@ function enforceUiUxBaselineInFiles(
 
 function ensureFaviconAndLogoInFiles(
   files: Array<{ path: string; content: string }>,
-  siteNameRaw?: string
+  siteNameRaw?: string,
+  brandColors?: { primary: string; accent: string }
 ): Array<{ path: string; content: string }> {
   const siteName = (siteNameRaw || "Website").trim() || "Website";
   const initials =
@@ -2484,12 +2527,16 @@ function ensureFaviconAndLogoInFiles(
     return toBase64(out);
   };
 
+  // Use color scheme colors if provided, otherwise default to emerald/green
+  const primaryColor = brandColors?.primary || "#10b981";
+  const accentColor = brandColors?.accent || "#047857";
+
   const logoSvg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64" role="img" aria-label="${safeText(siteName)} logo">
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#10b981"/>
-      <stop offset="1" stop-color="#047857"/>
+      <stop offset="0" stop-color="${primaryColor}"/>
+      <stop offset="1" stop-color="${accentColor}"/>
     </linearGradient>
   </defs>
   <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#g)"/>
@@ -2501,8 +2548,8 @@ function ensureFaviconAndLogoInFiles(
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="${safeText(siteName)} favicon">
   <defs>
     <linearGradient id="fg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#10b981"/>
-      <stop offset="1" stop-color="#047857"/>
+      <stop offset="0" stop-color="${primaryColor}"/>
+      <stop offset="1" stop-color="${accentColor}"/>
     </linearGradient>
   </defs>
   <rect x="4" y="4" width="56" height="56" rx="16" fill="url(#fg)"/>
@@ -5663,6 +5710,48 @@ async function runGeneration({
     imageStrategy = buildPexelsImageStrategy(pexelsUrls);
   }
 
+  // Build mandatory color palette section for AI prompt
+  let mandatoryColorSection = "";
+  if (userColorScheme && userColorScheme !== "random") {
+    const schemeColors = getBrandColors(userColorScheme);
+    const fullScheme = BRAND_COLOR_MAP[userColorScheme];
+    if (fullScheme) {
+      mandatoryColorSection = `
+⚠️⚠️⚠️ MANDATORY COLOR PALETTE - YOU MUST USE THESE EXACT COLORS! ⚠️⚠️⚠️
+
+Color Scheme: "${userColorScheme}"
+PRIMARY COLOR: ${schemeColors.primary} (main brand color - buttons, links, headers, accents)
+ACCENT COLOR: ${schemeColors.accent} (highlights, CTAs, icons, hover states)
+
+⚠️ CRITICAL COLOR RULES - NON-NEGOTIABLE:
+- Primary buttons MUST use background: ${schemeColors.primary}
+- All links MUST use color: ${schemeColors.primary}
+- Section accents and highlights MUST use ${schemeColors.accent}
+- Header/navbar accent elements MUST use ${schemeColors.primary}
+- CTA buttons MUST use ${schemeColors.accent} or ${schemeColors.primary}
+- DO NOT use green (#10b981) or emerald colors unless that's the selected scheme!
+- DO NOT generate your own random colors - USE THESE EXACT HEX CODES!
+
+`;
+      console.log(`🎨 Injecting mandatory color scheme "${userColorScheme}" into AI prompt: primary=${schemeColors.primary}, accent=${schemeColors.accent}`);
+    }
+  }
+
+  // Build mandatory layout section with stronger enforcement
+  const mandatoryLayoutSection = `
+⚠️⚠️⚠️ MANDATORY LAYOUT STRUCTURE - NON-NEGOTIABLE! ⚠️⚠️⚠️
+LAYOUT STYLE: "${selectedLayout.name}"
+
+${selectedLayout.description}
+
+⚠️ CRITICAL LAYOUT RULES - YOU MUST FOLLOW EXACTLY:
+- Hero section MUST match the layout description above!
+- Card grids MUST use the specified arrangement!
+- Section layouts MUST follow the style guidelines!
+- IF YOU IGNORE THIS LAYOUT = GENERATION FAILURE!
+- DO NOT use generic boring layouts - make it UNIQUE as specified!
+`;
+
   // Step 2: Static HTML website generation
   const websiteRequestBody: Record<string, unknown> = {
     model: generateModel,
@@ -5674,7 +5763,7 @@ async function runGeneration({
       },
       {
         role: "user",
-        content: `${HTML_GENERATION_PROMPT}\n\n${imageStrategy}\n\n${IMAGE_CSS}\n\n=== MANDATORY LAYOUT STRUCTURE (FOLLOW EXACTLY) ===\n${selectedLayout.description}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n${bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2 ? `=== BILINGUAL REQUIREMENTS (ONE HTML SET + JS) ===\n- Supported languages: ${bilingualLanguages[0]} and ${bilingualLanguages[1]}\n- Generate ONE set of pages: index.html, about.html, services.html, contact.html, etc. (NO suffixes, NO duplicated pages).\n- Add a visible language switcher in the header on every page (labels: ${bilingualLanguages[0].toUpperCase()} | ${bilingualLanguages[1].toUpperCase()}).\n- Implement i18n via JS (NOT separate pages):\n  * Create i18n/translations.js (window.__SITE_TRANSLATIONS__ = {<lang>: {...}})\n  * Create i18n/i18n.js that picks language by priority: ?lang=xx -> localStorage.siteLang -> browser language -> default lang1\n  * Mark all text with data-i18n keys (and data-i18n-placeholder/title/aria where needed) and have i18n.js replace them at runtime.\n- The site MUST be fully translated (no mixed languages).\n` : `=== TARGET WEBSITE LANGUAGE (CRITICAL - MUST FOLLOW EXACTLY) ===\nALL website content MUST be in: ${language === "uk" ? "UKRAINIAN language" : language === "en" ? "ENGLISH language" : language === "de" ? "GERMAN language" : language === "pl" ? "POLISH language" : language === "ru" ? "RUSSIAN language" : language === "fr" ? "FRENCH language" : language === "es" ? "SPANISH language" : language ? language.toUpperCase() + " language" : "ENGLISH language (default)"}\n\nThis includes: navigation, buttons, headings, paragraphs, footer, cookie banner, ALL text content. DO NOT MIX LANGUAGES.\n`}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
+        content: `${HTML_GENERATION_PROMPT}\n\n${mandatoryColorSection}${imageStrategy}\n\n${IMAGE_CSS}\n\n${mandatoryLayoutSection}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n${bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2 ? `=== BILINGUAL REQUIREMENTS (ONE HTML SET + JS) ===\n- Supported languages: ${bilingualLanguages[0]} and ${bilingualLanguages[1]}\n- Generate ONE set of pages: index.html, about.html, services.html, contact.html, etc. (NO suffixes, NO duplicated pages).\n- Add a visible language switcher in the header on every page (labels: ${bilingualLanguages[0].toUpperCase()} | ${bilingualLanguages[1].toUpperCase()}).\n- Implement i18n via JS (NOT separate pages):\n  * Create i18n/translations.js (window.__SITE_TRANSLATIONS__ = {<lang>: {...}})\n  * Create i18n/i18n.js that picks language by priority: ?lang=xx -> localStorage.siteLang -> browser language -> default lang1\n  * Mark all text with data-i18n keys (and data-i18n-placeholder/title/aria where needed) and have i18n.js replace them at runtime.\n- The site MUST be fully translated (no mixed languages).\n` : `=== TARGET WEBSITE LANGUAGE (CRITICAL - MUST FOLLOW EXACTLY) ===\nALL website content MUST be in: ${language === "uk" ? "UKRAINIAN language" : language === "en" ? "ENGLISH language" : language === "de" ? "GERMAN language" : language === "pl" ? "POLISH language" : language === "ru" ? "RUSSIAN language" : language === "fr" ? "FRENCH language" : language === "es" ? "SPANISH language" : language ? language.toUpperCase() + " language" : "ENGLISH language (default)"}\n\nThis includes: navigation, buttons, headings, paragraphs, footer, cookie banner, ALL text content. DO NOT MIX LANGUAGES.\n`}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
       },
     ],
   };
@@ -8552,7 +8641,9 @@ async function runBackgroundGeneration(
        enforcedFiles = ensureBilingualI18nInFiles(enforcedFiles, bilingualLanguages, desiredSiteName);
 
        // Ensure branding assets exist AND are linked in ALL html pages (including 200/404 added above)
-       enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName);
+       // Use selected color scheme for logo/favicon colors
+       const brandColorsForLogo = getBrandColors(colorScheme || undefined);
+       enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName, brandColorsForLogo);
       
        // CRITICAL: Enforce business hours in footer
        
