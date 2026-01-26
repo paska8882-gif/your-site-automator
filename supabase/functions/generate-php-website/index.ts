@@ -6334,6 +6334,13 @@ serve(async (req) => {
     // Priority for retry: vipPrompt > improvedPrompt > prompt (same as startGeneration)
     let promptForGeneration = vipPrompt || improvedPrompt || prompt;
     
+    // Log which prompt source is being used (for admin debugging)
+    const promptSource = vipPrompt ? "VIP" : improvedPrompt ? "AI+" : "original";
+    console.log(`📝 [PHP] Prompt source: ${promptSource}${retryHistoryId ? " (RETRY)" : ""}`);
+    console.log(`   - vipPrompt: ${vipPrompt ? "YES (" + vipPrompt.length + " chars)" : "NO"}`);
+    console.log(`   - improvedPrompt: ${improvedPrompt ? "YES (" + improvedPrompt.length + " chars)" : "NO"}`);
+    console.log(`   - colorScheme: ${colorScheme || "random"}, layoutStyle: ${layoutStyle || "none"}`);
+    
     // Add language instruction FIRST (critical for content generation)
     if (language && language !== "auto") {
       const languageNames: Record<string, string> = {
