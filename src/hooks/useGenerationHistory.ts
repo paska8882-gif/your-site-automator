@@ -21,6 +21,7 @@ export interface HistoryItem {
   sale_price: number | null;
   image_source: string | null;
   geo: string | null;
+  admin_note: string | null;
 }
 
 export interface Appeal {
@@ -89,7 +90,7 @@ interface FetchParams {
 async function fetchGenerationHistory({ userId, compactMode, offset = 0, limit = PAGE_SIZE }: FetchParams): Promise<{ history: HistoryItem[]; appeals: Appeal[]; hasMore: boolean }> {
   let query = supabase
     .from("generation_history")
-    .select("id, number, prompt, language, zip_data, files_data, status, error_message, created_at, completed_at, ai_model, website_type, site_name, sale_price, image_source, geo")
+    .select("id, number, prompt, language, zip_data, files_data, status, error_message, created_at, completed_at, ai_model, website_type, site_name, sale_price, image_source, geo, admin_note")
     .eq("user_id", userId)
     .order("number", { ascending: false })
     .range(offset, offset + limit - 1);
@@ -421,6 +422,7 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
       sale_price: item.sale_price ?? null,
       image_source: item.image_source ?? null,
       geo: item.geo ?? null,
+      admin_note: item.admin_note ?? null,
     };
 
     setAllHistory(prev => {

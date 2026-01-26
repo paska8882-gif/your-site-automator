@@ -148,6 +148,7 @@ interface ExternalUploadForm {
 interface ManualRequestUploadForm {
   generationId: string;
   salePrice: number;
+  adminNote: string;
 }
 
 // Fetch functions for React Query
@@ -240,7 +241,8 @@ export const AdminSitesTab = () => {
   const [manualUploadItem, setManualUploadItem] = useState<GenerationItem | null>(null);
   const [manualUploadForm, setManualUploadForm] = useState<ManualRequestUploadForm>({
     generationId: "",
-    salePrice: 0
+    salePrice: 0,
+    adminNote: ""
   });
   const [manualUploadFile, setManualUploadFile] = useState<File | null>(null);
   const [manualUploading, setManualUploading] = useState(false);
@@ -566,7 +568,8 @@ export const AdminSitesTab = () => {
     setManualUploadItem(item);
     setManualUploadForm({
       generationId: item.id,
-      salePrice: defaultPrice
+      salePrice: defaultPrice,
+      adminNote: ""
     });
     setManualUploadFile(null);
     setManualUploadDialogOpen(true);
@@ -625,6 +628,7 @@ export const AdminSitesTab = () => {
           zip_data: zipBase64,
           completed_at: now,
           sale_price: manualUploadForm.salePrice,
+          admin_note: manualUploadForm.adminNote || null,
           image_source: "manual"
         })
         .eq("id", manualUploadItem.id);
@@ -1645,6 +1649,16 @@ export const AdminSitesTab = () => {
                 type="file"
                 accept=".zip"
                 onChange={(e) => setManualUploadFile(e.target.files?.[0] || null)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t("admin.adminNote")}</Label>
+              <Textarea
+                value={manualUploadForm.adminNote}
+                onChange={(e) => setManualUploadForm(prev => ({ ...prev, adminNote: e.target.value }))}
+                placeholder={t("admin.adminNotePlaceholder")}
+                className="min-h-[80px]"
               />
             </div>
           </div>

@@ -252,6 +252,8 @@ function SingleHistoryItem({
       case "generating": return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
       case "completed": return <CheckCircle2 className="h-4 w-4 text-green-500" />;
       case "failed": return <XCircle className="h-4 w-4 text-destructive" />;
+      case "manual_request": return <Clock className="h-4 w-4 text-purple-500" />;
+      case "manual_in_progress": return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
       default: return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
     }
   };
@@ -265,6 +267,8 @@ function SingleHistoryItem({
       case "generating": return t ? t("history.generating") : "Генерація...";
       case "completed": return t ? t("history.completed") : "Готово";
       case "failed": return t ? t("history.failed") : "Помилка";
+      case "manual_request": return t ? t("history.manualRequest") : "Ручний запит";
+      case "manual_in_progress": return t ? t("history.manualInProgress") : "В роботі";
       default: return status;
     }
   };
@@ -542,6 +546,16 @@ function SingleHistoryItem({
               <span className="text-muted-foreground text-xs">{t("historyExtra.description")}</span>
               <p className="text-sm mt-1 whitespace-pre-wrap">{item.prompt}</p>
             </div>
+            {/* Admin note - visible when manual request is completed */}
+            {item.admin_note && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900">
+                <div className="flex items-center gap-2 mb-1">
+                  <Info className="h-4 w-4 text-blue-500" />
+                  <span className="text-xs font-medium text-blue-700 dark:text-blue-400">{t("history.adminNote")}</span>
+                </div>
+                <p className="text-sm text-blue-900 dark:text-blue-100 whitespace-pre-wrap">{item.admin_note}</p>
+              </div>
+            )}
             {/* Improved prompt is only visible in admin panel Sites tab */}
           </div>
 
