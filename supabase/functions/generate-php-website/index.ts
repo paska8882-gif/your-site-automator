@@ -6478,10 +6478,7 @@ ${promptForGeneration}`;
       // Use HTML price for PHP (same as HTML)
       salePrice = pricing?.html_price || 0;
       
-      if (imageSource === "ai") {
-        salePrice += 2;
-        console.log(`Added $2 for AI photo search. Total salePrice: $${salePrice}`);
-      }
+      // AI photo search is now free (removed +$2 charge)
 
       if (salePrice > 0) {
         const { data: team } = await supabase
