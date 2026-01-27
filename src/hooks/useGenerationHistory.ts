@@ -38,12 +38,14 @@ interface CachedData {
   history: HistoryItem[];
   appeals: Appeal[];
   timestamp: number;
+  version?: number; // Cache version for invalidation
 }
 
 const CACHE_KEY_PREFIX = "generation_history_cache_";
 const CACHE_MAX_ITEMS = 100;
-const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
-const PAGE_SIZE = 10; // Load 100 items per page
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes - reduced to prevent stale status display
+const CACHE_VERSION = 2; // Increment to invalidate old caches
+const PAGE_SIZE = 10; // Load 10 items per page
 
 // Helper to get cache from localStorage
 function getLocalCache(userId: string): CachedData | null {
@@ -53,8 +55,8 @@ function getLocalCache(userId: string): CachedData | null {
     if (!cached) return null;
     
     const data = JSON.parse(cached) as CachedData;
-    // Check if cache is expired
-    if (Date.now() - data.timestamp > CACHE_TTL) {
+    // Check if cache is expired or version mismatch
+    if (Date.now() - data.timestamp > CACHE_TTL || data.version !== CACHE_VERSION) {
       localStorage.removeItem(key);
       return null;
     }
@@ -76,7 +78,8 @@ function setLocalCache(userId: string, history: HistoryItem[], appeals: Appeal[]
     const data: CachedData = {
       history: trimmedHistory,
       appeals,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      version: CACHE_VERSION
     };
     localStorage.setItem(key, JSON.stringify(data));
   } catch (e) {
