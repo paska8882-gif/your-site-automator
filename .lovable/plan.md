@@ -1,101 +1,55 @@
 
 # План виправлення Auto-Retry генерації
 
-## Проблема
-При автоматичному або ручному retry (повторній генерації) сайту втрачаються ключові параметри:
+## ✅ ВИПРАВЛЕНО (27.01.2026)
+
+### Проблема
+При автоматичному або ручному retry сайту втрачались параметри:
 - **colorScheme** (кольорова гама)
 - **layoutStyle** (стиль макету)
 - **improvedPrompt** (покращений промпт)
 - **vipPrompt** (VIP промпт)
 
-Перший запит працює коректно, бо всі параметри передаються з форми. Але retry бере дані з `HistoryItem`, який не містить цих полів, і не передає їх в edge function.
+### Рішення
+Виправлено у всіх 3-х edge functions:
 
----
+1. **generate-website/index.ts**
+   - Розширено `select` для `existingRecord`: додано `color_scheme, layout_style, improved_prompt, vip_prompt`
+   - Оновлено `update` при retry: тепер зберігає/оновлює ці параметри
 
-## Що потрібно виправити
+2. **generate-react-website/index.ts**
+   - Додано `vipPrompt, colorScheme` до body destructuring
+   - Розширено `select` для `existingRecord`
+   - Оновлено `update` при retry
 
-### 1. Оновити інтерфейс HistoryItem
-**Файл:** `src/hooks/useGenerationHistory.ts`
+3. **generate-php-website/index.ts**
+   - Розширено `select` для `existingRecord`
+   - Оновлено `update` при retry
 
-Додати поля до інтерфейсу:
+### Логіка збереження
 ```typescript
-export interface HistoryItem {
-  // ... існуючі поля
-  improved_prompt: string | null;  // ДОДАТИ
-  vip_prompt: string | null;       // ДОДАТИ
-  // color_scheme та layout_style вже є
-}
+color_scheme: colorScheme || existingRecord.color_scheme || null,
+layout_style: layoutStyle || existingRecord.layout_style || null,
+improved_prompt: improvedPrompt || existingRecord.improved_prompt || null,
+vip_prompt: vipPrompt || existingRecord.vip_prompt || null,
 ```
 
-### 2. Оновити SELECT запит
-**Файл:** `src/hooks/useGenerationHistory.ts`
+Пріоритет: параметри з запиту > збережені в БД > null
 
-Включити нові поля в select:
-```sql
-...improved_prompt, vip_prompt...
-```
-
-### 3. Оновити функцію handleRetryGeneration
-**Файл:** `src/components/GenerationHistory.tsx`
-
-Передавати всі необхідні параметри при retry:
+### Фронтенд (вже було коректно)
+`GenerationHistory.tsx` вже передавав всі параметри при retry:
 ```typescript
 body: JSON.stringify({
-  prompt: item.prompt,
-  language: item.language,
-  aiModel: item.ai_model || "senior",
-  siteName: item.site_name,
-  imageSource: item.image_source || "basic",
-  teamId: teamMember?.team_id,
-  geo: item.geo,
-  retryHistoryId: item.id,
-  // ДОДАТИ:
   colorScheme: item.color_scheme,
   layoutStyle: item.layout_style,
-  improvedPrompt: item.improved_prompt,  // НЕ vip_prompt - він вже в prompt
-}),
+  improvedPrompt: item.improved_prompt,
+  vipPrompt: item.vip_prompt,
+  // ...інші параметри
+})
 ```
 
-### 4. Оновити addOptimisticItem (опціонально)
-**Файл:** `src/hooks/useGenerationHistory.ts`
-
-Додати дефолтні значення для нових полів.
-
----
-
-## Технічні деталі
-
-### Структура даних в БД (generation_history)
-Колонки що вже існують:
-- `color_scheme` - text
-- `layout_style` - text  
-- `improved_prompt` - text
-- `vip_prompt` - text
-
-### Edge Function (generate-website/index.ts)
-Вже приймає `colorScheme` та `layoutStyle` з body запиту (лінія 9190):
+`useGenerationHistory.ts` вже вибирав ці поля з БД:
 ```typescript
-const { ..., colorScheme } = body;
+.select("..., color_scheme, layout_style, improved_prompt, vip_prompt")
 ```
 
-І передає їх в `runBackgroundGeneration` (лінія 9668).
-
-### Потік даних при Retry
-```text
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  HistoryItem    │ --> │ handleRetryGen.  │ --> │  Edge Function  │
-│  (з БД)         │     │ (формує body)    │     │  (генерує)      │
-├─────────────────┤     ├──────────────────┤     ├─────────────────┤
-│ color_scheme    │ ==> │ colorScheme      │ ==> │ colorScheme     │
-│ layout_style    │ ==> │ layoutStyle      │ ==> │ layoutStyle     │
-│ improved_prompt │ ==> │ improvedPrompt   │ ==> │ improvedPrompt  │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-```
-
----
-
-## Результат
-Після виправлення retry буде зберігати всі стилістичні налаштування оригінальної генерації:
-- Кольорова гама
-- Стиль макету
-- Покращений/VIP промпт

@@ -10405,7 +10405,7 @@ ${promptForGeneration}`;
       
       const { data: existingRecord, error: fetchError } = await supabase
         .from("generation_history")
-        .select("id, status, user_id")
+        .select("id, status, user_id, color_scheme, layout_style, improved_prompt, vip_prompt")
         .eq("id", retryHistoryId)
         .single();
       
@@ -10438,7 +10438,7 @@ ${promptForGeneration}`;
         });
       }
       
-      // Update existing record to pending status
+      // Update existing record to pending status, preserve/update color_scheme and layout_style
       const { error: updateError } = await supabase
         .from("generation_history")
         .update({
@@ -10448,6 +10448,11 @@ ${promptForGeneration}`;
           zip_data: null,
           completed_at: null,
           sale_price: salePrice,
+          // Preserve or update these style params on retry
+          color_scheme: colorScheme || existingRecord.color_scheme || null,
+          layout_style: layoutStyle || existingRecord.layout_style || null,
+          improved_prompt: improvedPrompt || existingRecord.improved_prompt || null,
+          vip_prompt: vipPrompt || existingRecord.vip_prompt || null,
         })
         .eq("id", retryHistoryId);
       
