@@ -758,117 +758,396 @@ CONTACT:
 - address: <if present>
 `.trim();
 
-// 10 unique layout variations for randomization or manual selection
+// ~30 unique layout variations for randomization or manual selection
+// Each style has UNIQUE structure for: Header/Nav, Hero, Sections, Features, Testimonials, CTA, Footer
 const LAYOUT_VARIATIONS = [
+  // Classic & Corporate
   {
     id: "classic",
     name: "Classic Corporate",
     description: `LAYOUT STYLE: Classic Corporate
-- Hero: Full-width hero with centered content, large background image with dark overlay
-- Sections: Alternating left-right content blocks with images
-- Features: 3-column grid of cards with icons on top
-- Testimonials: Carousel-style slider with large quotes
-- CTA: Full-width banner with gradient background
-- Footer: 4-column layout with newsletter subscription`
+
+HEADER/NAVIGATION:
+- Sticky top navigation with logo LEFT, horizontal menu CENTER, CTA button RIGHT
+- Background: white/light with subtle bottom border
+- Menu items: About, Services, Portfolio, Team, Contact
+
+HERO SECTION:
+- Full-width hero with large background image + dark gradient overlay
+- Centered white text: H1 headline (48-64px), subheadline (18-24px)
+- Two buttons side by side: primary solid + secondary outlined
+
+SECTION STRUCTURE (order matters):
+1. "Why Choose Us" - 3 columns with icons, titles, short descriptions
+2. "Our Services" - alternating left-right blocks (image + text pattern)
+3. "About Us" - full-width with company story and large team photo
+4. "Testimonials" - carousel slider with large quotes and client photos
+5. "Call to Action" - gradient banner with centered text
+6. "Contact" - 2-column: form LEFT, contact info + map RIGHT
+
+FEATURES DISPLAY: 3-column grid with rounded icon containers on top
+
+TESTIMONIALS STYLE: Horizontal carousel/slider with navigation arrows
+
+FOOTER STRUCTURE:
+- 4-column layout: About + logo | Quick Links | Services | Contact Info
+- Newsletter subscription bar above columns
+- Bottom bar: copyright LEFT, social icons RIGHT
+- Colors: dark navy/charcoal background with white text`
   },
   {
     id: "asymmetric",
     name: "Modern Asymmetric",
     description: `LAYOUT STYLE: Modern Asymmetric
-- Hero: Split-screen layout - 60% text left, 40% large image right with overlap effect
-- Sections: Asymmetric grid with varying column widths (2:1, 1:2 ratio)
-- Features: Staggered cards with alternating sizes, some overlapping
-- Testimonials: Large single testimonial with portrait photo offset to corner
-- CTA: Diagonal section divider with angled background
-- Footer: Minimalist 2-column with large logo`
+
+HEADER/NAVIGATION:
+- Off-center logo placement (20% from left)
+- Navigation RIGHT with varied font weights
+- One menu item highlighted with color background
+
+HERO SECTION:
+- Split-screen 60/40 layout with offset grid
+- Large image overlapping into text area by 10%
+- Typography with mixed sizes and weights
+
+SECTION STRUCTURE (order matters):
+1. "Our Approach" - asymmetric 2:1 grid with overlapping elements
+2. "Featured Work" - masonry-style portfolio grid
+3. "Services" - staggered cards with alternating sizes
+4. "About" - large portrait offset with flowing text
+5. "Testimonial" - single large testimonial with artistic layout
+6. "Let's Create" - diagonal CTA section
+
+FEATURES DISPLAY: Staggered cards with alternating sizes, some overlapping
+
+TESTIMONIALS STYLE: Large single testimonial with portrait offset to corner
+
+FOOTER STRUCTURE:
+- Minimalist 2-column asymmetric layout
+- Large logo one side, stacked links other side
+- Bold accent color strip at bottom`
   },
   {
     id: "editorial",
     name: "Editorial Magazine",
     description: `LAYOUT STYLE: Editorial Magazine
-- Hero: Minimal text-only hero with huge typography, small accent image in corner
-- Sections: Newspaper-style multi-column layout with pull quotes
-- Features: Masonry grid with varying heights and widths
-- Testimonials: Inline quotes styled as editorial callouts with decorative quotation marks
-- CTA: Text-heavy with minimal button, focus on copywriting
-- Footer: Single-line footer with horizontal link list`
+
+HEADER/NAVIGATION:
+- Magazine masthead style with publication name centered large
+- Thin top bar with date and category links
+- Navigation below masthead in horizontal list
+
+HERO SECTION:
+- Minimal text-only hero with huge typography (72-120px headline)
+- Small accent image in corner (stamp-size)
+- Large decorative drop cap on first paragraph
+
+SECTION STRUCTURE (order matters):
+1. "Featured Story" - newspaper-style multi-column layout
+2. "Editor's Picks" - masonry grid with varied heights
+3. "In Depth" - long-form content with pull quotes
+4. "The Archive" - thumbnail grid with issue references
+5. "Contributors" - byline-style team listing
+6. "Subscribe" - newsletter signup styled as subscription offer
+
+FEATURES DISPLAY: Masonry grid with varying heights and widths
+
+TESTIMONIALS STYLE: Inline editorial callouts with decorative quotation marks
+
+FOOTER STRUCTURE:
+- Single-line minimalist footer
+- Horizontal link list with decorative separators`
   },
   {
     id: "bold",
     name: "Bold Blocks",
     description: `LAYOUT STYLE: Bold Blocks
-- Hero: Full-viewport hero with video or animated background, text at bottom
-- Sections: Large full-width color blocks alternating between content types
-- Features: Single row horizontal scroll cards on mobile, grid on desktop
-- Testimonials: Full-width color section with centered large text
-- CTA: Sticky bottom bar that appears on scroll
-- Footer: Compact dark footer with social icons prominent`
+
+HEADER/NAVIGATION:
+- Heavy bold navigation with thick font weights
+- Logo as large text block, no icon
+- Menu items in UPPERCASE with bold colors
+
+HERO SECTION:
+- Full-viewport hero with video or animated gradient background
+- Massive headline text (100px+) with text shadow
+- Text positioned at bottom of screen
+
+SECTION STRUCTURE (order matters):
+1. "What We Do" - large full-width color blocks alternating
+2. "Our Work" - horizontal scroll gallery
+3. "Services" - each service is a full-width color section
+4. "The Numbers" - statistics with huge typography
+5. "Testimonials" - full-width color block with centered text
+6. "Contact" - bold form with oversized inputs
+
+FEATURES DISPLAY: Bold color grid on desktop, horizontal scroll on mobile
+
+TESTIMONIALS STYLE: Full-width color section with centered large quote
+
+FOOTER STRUCTURE:
+- Compact dark footer
+- Social icons large and prominent in row
+- Strong color accent border at top`
   },
   {
     id: "minimalist",
     name: "Minimalist Zen",
     description: `LAYOUT STYLE: Minimalist Zen
-- Hero: Lots of whitespace, small centered text with subtle line animations
-- Sections: Single column centered layout with generous margins (max-width: 800px)
-- Features: Vertical stack with large icons and minimal text
-- Testimonials: Simple italic text with em-dash attribution, no photos
-- CTA: Subtle underlined text link instead of button
-- Footer: Ultra-minimal with only essential links`
+
+HEADER/NAVIGATION:
+- Ultra-thin header with maximum whitespace
+- Logo as simple wordmark or single letter
+- Only 3-4 navigation items, widely spaced
+
+HERO SECTION:
+- Vast whitespace with small centered text block
+- Maximum 2 lines of text
+- Subtle animated line or cursor as accent
+- No images, pure typography
+
+SECTION STRUCTURE (order matters):
+1. "Philosophy" - single centered paragraph
+2. "Services" - vertical stack list with numbers
+3. "Work" - minimal thumbnails with lots of space
+4. "About" - brief bio with small portrait
+5. "Contact" - email and phone only, centered
+
+FEATURES DISPLAY: Vertical stack with large icons and minimal text
+
+TESTIMONIALS STYLE: Simple italic text with em-dash attribution
+
+FOOTER STRUCTURE:
+- Ultra-minimal single line
+- Copyright, 2-3 essential links only
+- No background color change`
   },
   {
     id: "showcase",
     name: "Dynamic Showcase",
     description: `LAYOUT STYLE: Dynamic Showcase
-- Hero: Image gallery/slideshow hero with thumbnails below
-- Sections: Card-heavy layout with hover effects revealing more content
-- Features: Hexagonal or circular icon grid with connecting lines
-- Testimonials: Grid of small cards with photos and star ratings
-- CTA: Floating action button that follows scroll
-- Footer: Multi-level footer with expandable sections on mobile`
+
+HEADER/NAVIGATION:
+- Animated header with micro-interactions
+- Logo with subtle animation on hover
+- Navigation with sliding background indicators
+
+HERO SECTION:
+- Image gallery/slideshow with auto-advance
+- Thumbnails below for navigation
+- Dynamic text that changes with slides
+
+SECTION STRUCTURE (order matters):
+1. "Featured" - spotlight cards with reveal on hover
+2. "Showcase" - hexagonal or unique grid layout
+3. "In Action" - video showcase with custom player
+4. "Reviews" - grid of cards with hover flip effects
+5. "Connect" - animated form with success states
+
+FEATURES DISPLAY: Hexagonal or circular grid with connecting lines
+
+TESTIMONIALS STYLE: Grid of small cards with star ratings
+
+FOOTER STRUCTURE:
+- Multi-level footer with expandable sections
+- Animated social icons`
   },
   {
     id: "gradient",
     name: "Gradient Flow",
     description: `LAYOUT STYLE: Gradient Flow
-- Hero: Animated gradient background with floating geometric shapes
-- Sections: Smooth color transitions between sections with wave dividers
-- Features: Glassmorphism cards with blur effects and subtle borders
-- Testimonials: Floating quote bubbles with gradient borders
-- CTA: Pulsing gradient button with glow effect
-- Footer: Dark footer with gradient accent line at top`
+
+HEADER/NAVIGATION:
+- Transparent header over gradient hero
+- Navigation with subtle glass effect
+- Logo with gradient or glass styling
+
+HERO SECTION:
+- Animated gradient background (purple-blue-pink flow)
+- Floating geometric shapes with blur
+- White or light text with shadow
+- Glassmorphism CTA button
+
+SECTION STRUCTURE (order matters):
+1. "Intro" - glassmorphism card on gradient background
+2. "Features" - glass cards with blur effects
+3. "How We Flow" - wave dividers between sections
+4. "Showcase" - images with gradient overlays
+5. "Testimonials" - floating quote bubbles
+6. "Connect" - form with glass styling
+
+FEATURES DISPLAY: Glassmorphism cards with blur effects
+
+TESTIMONIALS STYLE: Floating quote bubbles with gradient borders
+
+FOOTER STRUCTURE:
+- Dark footer with gradient accent line at top
+- Glass-effect social icons`
   },
   {
     id: "brutalist",
     name: "Brutalist Raw",
     description: `LAYOUT STYLE: Brutalist Raw
-- Hero: Bold oversized typography, harsh contrasts, visible grid lines
-- Sections: Exposed structure with visible borders and raw edges
-- Features: Monospace font, numbered lists, stark black/white with one accent
-- Testimonials: Plain text with quotation marks, no styling
-- CTA: Thick bordered button with underline on hover
-- Footer: Minimal with just copyright and essential links`
+
+HEADER/NAVIGATION:
+- Bold oversized navigation text
+- No background - just text and borders
+- Thick underlines on hover
+
+HERO SECTION:
+- Massive typography (120px+ headline)
+- Harsh black/white contrast with one accent color
+- Visible grid structure, raw edges
+- No rounded corners anywhere
+
+SECTION STRUCTURE (order matters):
+1. "001" - numbered sections with raw text
+2. "002" - simple text blocks with harsh borders
+3. "003" - grid with visible structure lines
+4. "004" - minimal image with thick border frame
+5. "005" - plain text testimonial
+6. "006" - form with thick borders, monospace font
+
+FEATURES DISPLAY: Monospace font, numbered lists, stark contrast
+
+TESTIMONIALS STYLE: Plain text with large quotation marks, no styling
+
+FOOTER STRUCTURE:
+- Minimal with just copyright and essential links
+- Thick top border as separator
+- Monospace or bold sans-serif text`
   },
   {
     id: "saas",
     name: "SaaS Product",
     description: `LAYOUT STYLE: SaaS Product
-- Hero: Product screenshot mockup in browser frame, floating UI elements
-- Sections: Feature comparison tables, pricing cards side by side
-- Features: Icon + title + description in 2x3 grid with hover animations
-- Testimonials: Company logos carousel + featured case study card
-- CTA: Free trial button with "No credit card required" text
-- Footer: Multi-column with product links, resources, company info`
+
+HEADER/NAVIGATION:
+- Clean SaaS header with product name + icon logo
+- Navigation: Features, Pricing, Docs, Blog, Login, Sign Up
+- Sign Up button highlighted with color/contrast
+
+HERO SECTION:
+- Product screenshot in browser/device mockup
+- Floating UI elements around mockup
+- Clear value proposition headline
+- Two CTAs: "Start Free Trial" + "Watch Demo"
+
+SECTION STRUCTURE (order matters):
+1. "Trusted By" - logo carousel of customer companies
+2. "Features" - icon + title + description in 2x3 grid
+3. "How It Works" - 3-step numbered process
+4. "Pricing" - 3-tier pricing cards side by side
+5. "Integrations" - app/tool logos grid
+6. "Testimonials" - case study card + company logos
+7. "FAQ" - accordion questions
+8. "Get Started" - final CTA section
+
+FEATURES DISPLAY: 2x3 icon grid with hover animations
+
+TESTIMONIALS STYLE: Featured case study card + customer logo carousel
+
+FOOTER STRUCTURE:
+- Multi-column SaaS footer
+- Columns: Product | Company | Resources | Legal
+- Platform status link`
   },
   {
     id: "portfolio",
     name: "Creative Portfolio",
     description: `LAYOUT STYLE: Creative Portfolio
-- Hero: Full-screen image/video with name overlay and scroll indicator
-- Sections: Case study cards with large thumbnails and project details
-- Features: Skills as animated progress bars or tag clouds
-- Testimonials: Client logos with expandable reviews
-- CTA: "Let's work together" with contact form modal
-- Footer: Social links prominent with simple copyright`
+
+HEADER/NAVIGATION:
+- Personal name as large logo/wordmark
+- Minimal navigation: Work, About, Contact
+- Social links in header (Dribbble, Behance, LinkedIn)
+
+HERO SECTION:
+- Full-screen image/video of best work
+- Name overlay with title/specialty
+- Scroll indicator prominent
+
+SECTION STRUCTURE (order matters):
+1. "Selected Work" - large project thumbnails
+2. "About Me" - personal story with portrait
+3. "Skills" - animated progress bars or tag clouds
+4. "Clients" - logo carousel
+5. "Testimonials" - client reviews with expandable details
+6. "Let's Work Together" - personal contact CTA
+
+FEATURES DISPLAY: Skills as animated progress bars or tag clouds
+
+TESTIMONIALS STYLE: Client logos with expandable review details
+
+FOOTER STRUCTURE:
+- Social links prominent
+- Simple copyright with name
+- "Available for freelance" status indicator
+- Personal email prominent`
+  },
+  // Additional styles for full coverage
+  {
+    id: "corporate",
+    name: "Business Serious",
+    description: `LAYOUT STYLE: Business Serious
+
+HEADER/NAVIGATION:
+- Two-row header: top bar (phone + email), main bar (logo + nav)
+- Navigation: RIGHT aligned with dropdowns
+- Colors: navy blue header with white text
+
+HERO SECTION:
+- Conservative hero with subtle geometric pattern
+- Company logo prominent above headline
+- Strong headline with mission statement
+
+SECTION STRUCTURE (order matters):
+1. "Our Mission" - centered text with decorative underline
+2. "Services Overview" - 4-column grid with formal icons
+3. "Our Process" - numbered timeline horizontal layout
+4. "Case Studies" - 3 featured case cards
+5. "Leadership Team" - professional headshots in grid
+6. "Contact Us" - professional form
+
+FEATURES DISPLAY: 4-column formal grid with square icons
+
+TESTIMONIALS STYLE: Professional quotes with titles and companies
+
+FOOTER STRUCTURE:
+- Comprehensive 5-column footer
+- Certifications and awards row above copyright`
+  },
+  {
+    id: "executive",
+    name: "Elite Executive",
+    description: `LAYOUT STYLE: Elite Executive
+
+HEADER/NAVIGATION:
+- Minimalist thin navigation with premium typography
+- Logo CENTER, menu items split on both sides
+- Gold/silver accent for hover states
+
+HERO SECTION:
+- Luxury full-screen hero with high-end photography
+- Elegant serif headline with generous letter-spacing
+- Minimal copy - one powerful statement
+
+SECTION STRUCTURE (order matters):
+1. "Our Philosophy" - large quote with decorative typography
+2. "Exclusive Services" - minimal grid with luxury imagery
+3. "The Experience" - full-width image with overlay text
+4. "Distinguished Clients" - premium logo gallery
+5. "Testimonials" - single featured testimonial with large portrait
+6. "Private Consultation" - elegant invitation-style CTA
+
+FEATURES DISPLAY: Minimal presentation with large imagery
+
+TESTIMONIALS STYLE: Single testimonial with CEO/executive titles
+
+FOOTER STRUCTURE:
+- Ultra-minimal luxury footer
+- Gold/silver decorative line divider
+- Premium typography throughout`
   }
 ];
 
