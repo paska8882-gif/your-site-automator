@@ -7297,6 +7297,10 @@ ${promptForGeneration}`;
     // Handle retry: update existing record OR create new one
     let historyId: string;
     
+    // Effective params to use for generation (may differ from body params on retry)
+    let effectiveColorScheme = colorScheme || null;
+    let effectiveLayoutStyle = layoutStyle || null;
+    
     if (retryHistoryId) {
       // RETRY MODE: Update existing failed record instead of creating new one
       console.log(`🔄 RETRY MODE: Updating existing PHP record ${retryHistoryId}`);
@@ -7334,6 +7338,14 @@ ${promptForGeneration}`;
         });
       }
       
+      // Compute EFFECTIVE values for retry (prefer body param, fallback to existing record)
+      effectiveColorScheme = colorScheme || existingRecord.color_scheme || null;
+      effectiveLayoutStyle = layoutStyle || existingRecord.layout_style || null;
+      const effectiveImprovedPrompt = improvedPrompt || existingRecord.improved_prompt || null;
+      const effectiveVipPrompt = vipPrompt || existingRecord.vip_prompt || null;
+      
+      console.log(`🎨 RETRY effective params: colorScheme=${effectiveColorScheme}, layoutStyle=${effectiveLayoutStyle}, hasImprovedPrompt=${!!effectiveImprovedPrompt}, hasVipPrompt=${!!effectiveVipPrompt}`);
+      
       const { error: updateError } = await supabase
         .from("generation_history")
         .update({
@@ -7343,11 +7355,10 @@ ${promptForGeneration}`;
           zip_data: null,
           completed_at: null,
           sale_price: salePrice,
-          // Preserve or update these style params on retry
-          color_scheme: colorScheme || existingRecord.color_scheme || null,
-          layout_style: layoutStyle || existingRecord.layout_style || null,
-          improved_prompt: improvedPrompt || existingRecord.improved_prompt || null,
-          vip_prompt: vipPrompt || existingRecord.vip_prompt || null,
+          color_scheme: effectiveColorScheme,
+          layout_style: effectiveLayoutStyle,
+          improved_prompt: effectiveImprovedPrompt,
+          vip_prompt: effectiveVipPrompt,
         })
         .eq("id", retryHistoryId);
       
@@ -7366,7 +7377,7 @@ ${promptForGeneration}`;
       }
       
       historyId = retryHistoryId;
-      console.log(`🔄 Updated existing record for PHP retry: ${retryHistoryId}`);
+      console.log(`🔄 Updated existing record for PHP retry: ${retryHistoryId} with colorScheme=${effectiveColorScheme}, layoutStyle=${effectiveLayoutStyle}`);
     } else {
       const { data: historyEntry, error: insertError } = await supabase
         .from("generation_history")
@@ -7384,8 +7395,8 @@ ${promptForGeneration}`;
           image_source: imageSource || "basic",
           sale_price: salePrice,
           geo: geo || null,
-          color_scheme: colorScheme || null,
-          layout_style: layoutStyle || null,
+          color_scheme: effectiveColorScheme,
+          layout_style: effectiveLayoutStyle,
         })
         .select()
         .single();
@@ -7415,11 +7426,12 @@ ${promptForGeneration}`;
       try {
         console.log("[BG-PHP] Starting async generation for:", historyId);
         
+        // Use effectiveLayoutStyle to ensure retry gets correct params
         const result = await runGeneration({
           prompt: promptForGeneration,
           language,
           aiModel,
-          layoutStyle,
+          layoutStyle: effectiveLayoutStyle,
           imageSource,
           siteName,
         });
