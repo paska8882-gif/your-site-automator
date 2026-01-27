@@ -269,6 +269,7 @@ function SingleHistoryItem({
       case "generating": return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
       case "completed": return <CheckCircle2 className="h-4 w-4 text-green-500" />;
       case "failed": return <XCircle className="h-4 w-4 text-destructive" />;
+      case "cancelled": return <Ban className="h-4 w-4 text-orange-500" />;
       case "manual_request": return <Clock className="h-4 w-4 text-purple-500" />;
       case "manual_in_progress": return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
       default: return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
@@ -284,6 +285,7 @@ function SingleHistoryItem({
       case "generating": return t ? t("history.generating") : "Генерація...";
       case "completed": return t ? t("history.completed") : "Готово";
       case "failed": return t ? t("history.failed") : "Помилка";
+      case "cancelled": return t ? t("history.cancelled") : "Скасовано";
       case "manual_request": return t ? t("history.manualRequest") : "Ручний запит";
       case "manual_in_progress": return t ? t("history.manualInProgress") : "В роботі";
       default: return status;
