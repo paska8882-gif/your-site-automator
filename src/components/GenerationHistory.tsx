@@ -272,7 +272,7 @@ function SingleHistoryItem({
       case "cancelled": return <Ban className="h-4 w-4 text-orange-500" />;
       case "manual_request": return <Clock className="h-4 w-4 text-purple-500" />;
       case "manual_in_progress": return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
-      default: return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
+      default: return <Clock className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
