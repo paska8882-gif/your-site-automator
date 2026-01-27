@@ -10479,6 +10479,7 @@ ${promptForGeneration}`;
         .insert({
           prompt: promptToSave,
           improved_prompt: improvedPromptToSave,
+          vip_prompt: vipPrompt || null,
           language: language || "auto",
           user_id: userId,
           team_id: teamId || null,
@@ -10489,6 +10490,8 @@ ${promptForGeneration}`;
           image_source: imageSource || "basic",
           sale_price: salePrice,
           geo: geo || null,
+          color_scheme: colorScheme || null,
+          layout_style: layoutStyle || null,
         })
         .select()
         .single();
