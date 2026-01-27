@@ -159,13 +159,25 @@ interface ManualRequestUploadForm {
   adminNote: string;
 }
 
+const PAGE_SIZE = 50;
+
 // Fetch functions for React Query
-const fetchGenerationsData = async () => {
+const fetchGenerationsData = async (page: number) => {
+  const from = page * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+  
+  // First get total count
+  const { count: totalCount, error: countError } = await supabase
+    .from("generation_history")
+    .select("*", { count: "exact", head: true });
+  
+  if (countError) throw countError;
+  
   const { data, error } = await supabase
     .from("generation_history")
     .select("id, number, prompt, improved_prompt, vip_prompt, language, created_at, completed_at, website_type, site_name, status, error_message, ai_model, user_id, team_id, sale_price, admin_note, color_scheme, layout_style")
     .order("created_at", { ascending: false })
-    .limit(500);
+    .range(from, to);
 
   if (error) throw error;
   
@@ -201,7 +213,14 @@ const fetchGenerationsData = async () => {
     });
   }
   
-  return { generations, profilesMap, rolesMap, teamsNameMap };
+  return { 
+    generations, 
+    profilesMap, 
+    rolesMap, 
+    teamsNameMap, 
+    totalCount: totalCount || 0,
+    totalPages: Math.ceil((totalCount || 0) / PAGE_SIZE)
+  };
 };
 
 const fetchTeamsData = async () => {
@@ -283,11 +302,14 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
   const [teamFilter, setTeamFilter] = useState<string>("all");
   const [userFilter, setUserFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(0);
 
   // React Query for generations data with 5 minute cache
   const { data: generationsData, isLoading: loading, refetch: refetchGenerations } = useQuery({
-    queryKey: ["admin-generations"],
-    queryFn: fetchGenerationsData,
+    queryKey: ["admin-generations", currentPage],
+    queryFn: () => fetchGenerationsData(currentPage),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes cache
   });
@@ -304,6 +326,8 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
   const profiles = generationsData?.profilesMap || {};
   const userRoles = generationsData?.rolesMap || {};
   const teamsMap = generationsData?.teamsNameMap || {};
+  const totalCount = generationsData?.totalCount || 0;
+  const totalPages = generationsData?.totalPages || 1;
   const teams = teamsData?.teams || [];
   const teamPricings = teamsData?.pricings || [];
 
@@ -1092,7 +1116,7 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
       <div className="flex flex-wrap gap-2">
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
           <span className="text-xs text-muted-foreground">{t("admin.sitesStats.total")}:</span>
-          <span className="text-sm font-bold">{stats.total}</span>
+          <span className="text-sm font-bold">{totalCount}</span>
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
           <span className="text-xs text-muted-foreground">{t("admin.sitesStats.completed")}:</span>
@@ -1521,6 +1545,52 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+          
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 border-t mt-4">
+              <div className="text-sm text-muted-foreground">
+                Показано {currentPage * PAGE_SIZE + 1}-{Math.min((currentPage + 1) * PAGE_SIZE, totalCount)} з {totalCount} записів
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(0)}
+                  disabled={currentPage === 0 || loading}
+                >
+                  ««
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                  disabled={currentPage === 0 || loading}
+                >
+                  «
+                </Button>
+                <span className="text-sm px-2">
+                  Сторінка {currentPage + 1} з {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+                  disabled={currentPage >= totalPages - 1 || loading}
+                >
+                  »
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(totalPages - 1)}
+                  disabled={currentPage >= totalPages - 1 || loading}
+                >
+                  »»
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
