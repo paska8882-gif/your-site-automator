@@ -1321,7 +1321,8 @@ export function WebsiteGenerator() {
     const reactPrice = teamPricing?.reactPrice || 9;
     const vipExtra = isVipMode ? (teamPricing?.vipExtraPrice || 2) : 0;
     const bilingualExtra = isBilingualMode ? 3 : 0; // +$3 for bilingual sites
-    const themeExtra = (promptMode === "theme" && selectedTopic) ? 1 : 0; // +$1 for theme-based prompt generation
+    // Theme-based prompt generation is now free (removed +$1)
+    const themeExtra = 0;
     
     const websiteTypesToUse = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes : ["html"];
     const imageSourcesToUse = selectedImageSources.length > 0 ? selectedImageSources : ["basic"];
@@ -1332,7 +1333,8 @@ export function WebsiteGenerator() {
     for (const wt of websiteTypesToUse) {
       for (const is of imageSourcesToUse) {
         const basePrice = wt === "react" ? reactPrice : htmlPrice;
-        const pricePerSite = basePrice + (is === "ai" ? 2 : 0) + vipExtra + bilingualExtra + themeExtra;
+        // AI photo search is now free (removed +$2)
+        const pricePerSite = basePrice + vipExtra + bilingualExtra + themeExtra;
         const count = siteNamesCount * langCount * sitesPerLanguage * styleCount * aiModelCount;
         total += count * pricePerSite;
       }
@@ -1354,7 +1356,8 @@ export function WebsiteGenerator() {
       for (const is of imageSourcesToUse) {
         for (const ai of aiModelsToUse) {
           const basePrice = wt === "react" ? reactPrice : htmlPrice;
-          const aiPhotoExtra = is === "ai" ? 2 : 0;
+          // AI photo search is now free (removed +$2)
+          const aiPhotoExtra = 0;
           const pricePerSite = basePrice + aiPhotoExtra;
           const count = siteNamesCount * allLanguages.length * sitesPerLanguage * styleCount;
           
@@ -2349,7 +2352,7 @@ export function WebsiteGenerator() {
                     className="h-6 px-2 text-xs"
                     disabled={isImproving || isGeneratingThemePrompt}
                   >
-                    🎯 {t("genForm.promptModeTheme")} (+$1)
+                    🎯 {t("genForm.promptModeTheme")}
                   </Button>
                 </div>
               </div>
@@ -3394,7 +3397,7 @@ export function WebsiteGenerator() {
                     <SelectItem value="ai">
                       <div className="flex items-center gap-2">
                         <Sparkles className="h-4 w-4 text-violet-500" />
-                        <span>{t("genForm.aiSearch")} (+$2)</span>
+                        <span>{t("genForm.aiSearch")}</span>
                       </div>
                     </SelectItem>
                   </SelectContent>

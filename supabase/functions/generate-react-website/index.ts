@@ -2954,11 +2954,7 @@ ${promptForGeneration}`;
 
       salePrice = pricing?.react_price || 0;
       
-      // Add $2 for AI photo search
-      if (imageSource === "ai") {
-        salePrice += 2;
-        console.log(`Added $2 for AI photo search. Total salePrice: $${salePrice}`);
-      }
+      // AI photo search is now free (removed +$2 charge)
 
       if (salePrice > 0) {
         const { data: team } = await supabase
