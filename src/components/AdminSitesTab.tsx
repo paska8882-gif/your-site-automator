@@ -159,12 +159,12 @@ interface ManualRequestUploadForm {
   adminNote: string;
 }
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE_OPTIONS = [50, 100, 500] as const;
 
 // Fetch functions for React Query
-const fetchGenerationsData = async (page: number) => {
-  const from = page * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
+const fetchGenerationsData = async (page: number, pageSize: number) => {
+  const from = page * pageSize;
+  const to = from + pageSize - 1;
   
   // First get total count
   const { count: totalCount, error: countError } = await supabase
@@ -218,8 +218,8 @@ const fetchGenerationsData = async (page: number) => {
     profilesMap, 
     rolesMap, 
     teamsNameMap, 
-    totalCount: totalCount || 0,
-    totalPages: Math.ceil((totalCount || 0) / PAGE_SIZE)
+    totalCount: totalCount || 0
+    // totalPages calculated in component based on dynamic pageSize
   };
 };
 
@@ -305,11 +305,12 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState<number>(50);
 
   // React Query for generations data with 5 minute cache
   const { data: generationsData, isLoading: loading, refetch: refetchGenerations } = useQuery({
-    queryKey: ["admin-generations", currentPage],
-    queryFn: () => fetchGenerationsData(currentPage),
+    queryKey: ["admin-generations", currentPage, pageSize],
+    queryFn: () => fetchGenerationsData(currentPage, pageSize),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes cache
   });
@@ -327,7 +328,7 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
   const userRoles = generationsData?.rolesMap || {};
   const teamsMap = generationsData?.teamsNameMap || {};
   const totalCount = generationsData?.totalCount || 0;
-  const totalPages = generationsData?.totalPages || 1;
+  const totalPages = Math.ceil(totalCount / pageSize) || 1;
   const teams = teamsData?.teams || [];
   const teamPricings = teamsData?.pricings || [];
 
@@ -1551,8 +1552,28 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between pt-4 border-t mt-4">
-              <div className="text-sm text-muted-foreground">
-                Показано {currentPage * PAGE_SIZE + 1}-{Math.min((currentPage + 1) * PAGE_SIZE, totalCount)} з {totalCount} записів
+              <div className="flex items-center gap-3">
+                <div className="text-sm text-muted-foreground">
+                  Показано {currentPage * pageSize + 1}-{Math.min((currentPage + 1) * pageSize, totalCount)} з {totalCount} записів
+                </div>
+                <Select 
+                  value={pageSize.toString()} 
+                  onValueChange={(v) => {
+                    setPageSize(Number(v));
+                    setCurrentPage(0); // Reset to first page when changing page size
+                  }}
+                >
+                  <SelectTrigger className="h-7 w-24 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAGE_SIZE_OPTIONS.map(size => (
+                      <SelectItem key={size} value={size.toString()} className="text-xs">
+                        {size} / стор
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="flex items-center gap-2">
                 <Button
