@@ -32,7 +32,10 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Verify requesting user
+    // Use service role client for all operations (bypasses RLS)
+    const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify requesting user using service role
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -45,15 +48,17 @@ serve(async (req) => {
       );
     }
 
-    // Use service role to check admin status (bypasses RLS)
-    const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    const { data: adminRole } = await serviceSupabase
+    // Check admin status using service role (bypasses RLS)
+    const { data: adminRole, error: roleError } = await serviceSupabase
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
       .in("role", ["admin", "super_admin"])
       .maybeSingle();
+
+    if (roleError) {
+      console.error("Error checking admin role:", roleError);
+    }
 
     if (!adminRole) {
       console.log(`User ${user.id} attempted admin action without admin role`);
