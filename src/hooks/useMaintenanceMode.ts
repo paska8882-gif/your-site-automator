@@ -50,6 +50,11 @@ export function useMaintenanceMode() {
     await fetchMaintenance();
   }, [fetchMaintenance]);
 
+  // Function to optimistically update enabled state
+  const setEnabled = useCallback((enabled: boolean) => {
+    setMaintenance(prev => ({ ...prev, enabled }));
+  }, []);
+
   useEffect(() => {
     const init = async () => {
       await fetchMaintenance();
@@ -87,7 +92,7 @@ export function useMaintenanceMode() {
 
   return { 
     maintenance, 
-    setMaintenance, 
+    setEnabled,
     loading, 
     error, 
     refetch 
