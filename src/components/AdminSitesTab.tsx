@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
+import { getLanguageLabel, LANGUAGES_MAP } from "@/lib/filterConstants";
 import { format, startOfDay, endOfDay, subDays, startOfWeek, startOfMonth, endOfWeek, endOfMonth } from "date-fns";
 import { uk } from "date-fns/locale";
 import JSZip from "jszip";
@@ -1341,12 +1342,14 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
                 <Label className="text-xs">{t("admin.sitesTable.language")}</Label>
                 <Select value={languageFilter} onValueChange={setLanguageFilter}>
                   <SelectTrigger className="h-8">
-                    <SelectValue placeholder={t("admin.sitesFilters.allLanguages")} />
+                    <SelectValue placeholder={t("admin.sitesFilters.allLanguages")}>
+                      {languageFilter !== "all" ? getLanguageLabel(languageFilter) : t("admin.sitesFilters.allLanguages")}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">{t("admin.sitesFilters.allLanguages")}</SelectItem>
                     {uniqueLanguages.map(lang => (
-                      <SelectItem key={lang} value={lang}>{lang}</SelectItem>
+                      <SelectItem key={lang} value={lang}>{getLanguageLabel(lang)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1625,7 +1628,7 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
                             {getRoleBadge(item.user_id)}
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline">{item.language}</Badge>
+                            <Badge variant="outline">{getLanguageLabel(item.language)}</Badge>
                           </TableCell>
                           <TableCell>
                             <Badge variant="secondary">{item.website_type || "html"}</Badge>
@@ -2088,7 +2091,7 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
                 </div>
                 <div>
                   <span className="text-muted-foreground text-xs">{t("admin.sitesDetails.language")}</span>
-                  <p className="font-medium">{detailsItem.language}</p>
+                  <p className="font-medium">{getLanguageLabel(detailsItem.language)}</p>
                 </div>
               </div>
 
