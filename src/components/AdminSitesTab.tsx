@@ -12,11 +12,16 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { EditPreview } from "@/components/EditPreview";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { cn } from "@/lib/utils";
+import { format, startOfDay, endOfDay, subDays, startOfWeek, startOfMonth, endOfWeek, endOfMonth } from "date-fns";
+import { uk } from "date-fns/locale";
 import JSZip from "jszip";
 import { 
   Search, 
@@ -38,7 +43,9 @@ import {
   Upload,
   Plus,
   Hand,
-  Play
+  Play,
+  CalendarIcon,
+  X
 } from "lucide-react";
 
 interface GeneratedFile {
@@ -301,7 +308,13 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
   const [languageFilter, setLanguageFilter] = useState<string>("all");
   const [teamFilter, setTeamFilter] = useState<string>("all");
   const [userFilter, setUserFilter] = useState<string>("all");
-  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Date filters
+  type DatePreset = "all" | "today" | "yesterday" | "week" | "month" | "custom";
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   
   // Pagination state with localStorage persistence
   const [currentPage, setCurrentPage] = useState(0);
@@ -955,23 +968,40 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
     }
     if (userFilter !== "all" && item.user_id !== userFilter) return false;
     
-    // Date filter
-    if (dateFilter !== "all") {
+    // Date filter using presets
+    if (datePreset !== "all") {
       const itemDate = new Date(item.created_at);
       const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       
-      if (dateFilter === "today") {
-        if (itemDate < today) return false;
-      } else if (dateFilter === "week") {
-        const weekAgo = new Date(today);
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        if (itemDate < weekAgo) return false;
-      } else if (dateFilter === "month") {
-        const monthAgo = new Date(today);
-        monthAgo.setMonth(monthAgo.getMonth() - 1);
-        if (itemDate < monthAgo) return false;
+      let from: Date | undefined;
+      let to: Date | undefined;
+      
+      switch (datePreset) {
+        case "today":
+          from = startOfDay(now);
+          to = endOfDay(now);
+          break;
+        case "yesterday":
+          const yesterday = subDays(now, 1);
+          from = startOfDay(yesterday);
+          to = endOfDay(yesterday);
+          break;
+        case "week":
+          from = startOfWeek(now, { weekStartsOn: 1 });
+          to = endOfWeek(now, { weekStartsOn: 1 });
+          break;
+        case "month":
+          from = startOfMonth(now);
+          to = endOfMonth(now);
+          break;
+        case "custom":
+          from = dateFrom;
+          to = dateTo;
+          break;
       }
+      
+      if (from && itemDate < from) return false;
+      if (to && itemDate > to) return false;
     }
     
     if (!searchQuery) return true;
@@ -1167,95 +1197,251 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
         )}
       </div>
 
-      {/* Filters - compact inline */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <div className="relative">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-          <Input
-            placeholder={t("admin.sitesFilters.search")}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-7 h-7 text-xs w-32"
-          />
+      {/* Search and Filters */}
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Search */}
+          <div className="relative w-64">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder={t("admin.sitesFilters.search")}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 h-8"
+            />
+          </div>
+
+          {/* Toggle Filters */}
+          <Button
+            variant={showFilters ? "secondary" : "outline"}
+            size="sm"
+            className="h-8"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter className="h-4 w-4 mr-1" />
+            {t("admin.filters")}
+            {(statusFilter !== "all" || aiModelFilter !== "all" || websiteTypeFilter !== "all" || languageFilter !== "all" || teamFilter !== "all" || userFilter !== "all" || datePreset !== "all") && (
+              <Badge variant="destructive" className="ml-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
+                !
+              </Badge>
+            )}
+          </Button>
+
+          {/* Clear Filters */}
+          {(statusFilter !== "all" || aiModelFilter !== "all" || websiteTypeFilter !== "all" || languageFilter !== "all" || teamFilter !== "all" || userFilter !== "all" || datePreset !== "all") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-destructive hover:text-destructive"
+              onClick={() => {
+                setStatusFilter("all");
+                setAiModelFilter("all");
+                setWebsiteTypeFilter("all");
+                setLanguageFilter("all");
+                setTeamFilter("all");
+                setUserFilter("all");
+                setDatePreset("all");
+                setDateFrom(undefined);
+                setDateTo(undefined);
+              }}
+            >
+              <X className="h-4 w-4 mr-1" />
+              {t("admin.clearFilters")}
+            </Button>
+          )}
         </div>
-        <Select value={teamFilter} onValueChange={setTeamFilter}>
-          <SelectTrigger className="h-7 text-xs w-28">
-            <SelectValue placeholder={t("admin.sitesTable.team")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="text-xs">{t("admin.sitesFilters.allTeams")}</SelectItem>
-            {uniqueTeams.map(team => (
-              <SelectItem key={team} value={team} className="text-xs">{team}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={userFilter} onValueChange={setUserFilter}>
-          <SelectTrigger className="h-7 text-xs w-28">
-            <SelectValue placeholder={t("admin.sitesTable.user")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="text-xs">{t("admin.sitesFilters.allUsers")}</SelectItem>
-            {uniqueUsers.map(userId => (
-              <SelectItem key={userId} value={userId} className="text-xs">{getUserName(userId)}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="h-7 text-xs w-24">
-            <SelectValue placeholder={t("admin.sitesTable.status")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="text-xs">{t("admin.sitesFilters.allStatuses")}</SelectItem>
-            <SelectItem value="completed" className="text-xs">{t("admin.sitesFilters.completed")}</SelectItem>
-            <SelectItem value="generating" className="text-xs">{t("admin.sitesFilters.generating")}</SelectItem>
-            <SelectItem value="pending" className="text-xs">{t("admin.sitesFilters.pending")}</SelectItem>
-            <SelectItem value="failed" className="text-xs">{t("admin.sitesFilters.failed")}</SelectItem>
-            <SelectItem value="manual_request" className="text-xs">{t("admin.manualRequest")}</SelectItem>
-            <SelectItem value="manual_in_progress" className="text-xs">{t("admin.manualRequestInWork")}</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={aiModelFilter} onValueChange={setAiModelFilter}>
-          <SelectTrigger className="h-7 text-xs w-20">
-            <SelectValue placeholder="AI" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="text-xs">{t("admin.sitesFilters.allModels")}</SelectItem>
-            <SelectItem value="junior" className="text-xs">Jr</SelectItem>
-            <SelectItem value="senior" className="text-xs">Sr</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={websiteTypeFilter} onValueChange={setWebsiteTypeFilter}>
-          <SelectTrigger className="h-7 text-xs w-20">
-            <SelectValue placeholder={t("admin.sitesTable.type")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="text-xs">{t("admin.sitesFilters.allTypes")}</SelectItem>
-            <SelectItem value="html" className="text-xs">HTML</SelectItem>
-            <SelectItem value="react" className="text-xs">React</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={languageFilter} onValueChange={setLanguageFilter}>
-          <SelectTrigger className="h-7 text-xs w-24">
-            <SelectValue placeholder={t("admin.sitesTable.language")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="text-xs">{t("admin.sitesFilters.allLanguages")}</SelectItem>
-            {uniqueLanguages.map(lang => (
-              <SelectItem key={lang} value={lang} className="text-xs">{lang}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={dateFilter} onValueChange={setDateFilter}>
-          <SelectTrigger className="h-7 text-xs w-24">
-            <SelectValue placeholder={t("admin.sitesTable.date")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="text-xs">{t("admin.sitesFilters.allTime")}</SelectItem>
-            <SelectItem value="today" className="text-xs">{t("admin.sitesFilters.today")}</SelectItem>
-            <SelectItem value="week" className="text-xs">{t("admin.sitesFilters.week")}</SelectItem>
-            <SelectItem value="month" className="text-xs">{t("admin.sitesFilters.month")}</SelectItem>
-          </SelectContent>
-        </Select>
+
+        {/* Expanded Filters */}
+        {showFilters && (
+          <Card className="p-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+              {/* Team Filter */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("admin.sitesTable.team")}</Label>
+                <Select value={teamFilter} onValueChange={setTeamFilter}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder={t("admin.allTeams")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("admin.allTeams")}</SelectItem>
+                    {uniqueTeams.map(team => (
+                      <SelectItem key={team} value={team}>{team}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* User Filter */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("admin.sitesTable.user")}</Label>
+                <Select value={userFilter} onValueChange={setUserFilter}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder={t("admin.allBuyers")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("admin.allBuyers")}</SelectItem>
+                    {uniqueUsers.map(userId => (
+                      <SelectItem key={userId} value={userId}>{getUserName(userId)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Status Filter */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("admin.sitesTable.status")}</Label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder={t("admin.sitesFilters.allStatuses")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("admin.sitesFilters.allStatuses")}</SelectItem>
+                    <SelectItem value="completed">{t("admin.sitesFilters.completed")}</SelectItem>
+                    <SelectItem value="generating">{t("admin.sitesFilters.generating")}</SelectItem>
+                    <SelectItem value="pending">{t("admin.sitesFilters.pending")}</SelectItem>
+                    <SelectItem value="failed">{t("admin.sitesFilters.failed")}</SelectItem>
+                    <SelectItem value="manual_request">{t("admin.manualRequest")}</SelectItem>
+                    <SelectItem value="manual_in_progress">{t("admin.manualRequestInWork")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* AI Model Filter */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("admin.sitesTable.ai")}</Label>
+                <Select value={aiModelFilter} onValueChange={setAiModelFilter}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder={t("admin.sitesFilters.allModels")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("admin.sitesFilters.allModels")}</SelectItem>
+                    <SelectItem value="junior">Jr</SelectItem>
+                    <SelectItem value="senior">Sr</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Website Type Filter */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("admin.sitesTable.type")}</Label>
+                <Select value={websiteTypeFilter} onValueChange={setWebsiteTypeFilter}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder={t("admin.sitesFilters.allTypes")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("admin.sitesFilters.allTypes")}</SelectItem>
+                    <SelectItem value="html">HTML</SelectItem>
+                    <SelectItem value="react">React</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Language Filter */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("admin.sitesTable.language")}</Label>
+                <Select value={languageFilter} onValueChange={setLanguageFilter}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder={t("admin.sitesFilters.allLanguages")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("admin.sitesFilters.allLanguages")}</SelectItem>
+                    {uniqueLanguages.map(lang => (
+                      <SelectItem key={lang} value={lang}>{lang}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Date Filter */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("admin.dateFilter")}</Label>
+                <Select 
+                  value={datePreset} 
+                  onValueChange={(v) => {
+                    setDatePreset(v as DatePreset);
+                    if (v !== "custom") {
+                      setDateFrom(undefined);
+                      setDateTo(undefined);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder={t("admin.allDates")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("admin.allDates")}</SelectItem>
+                    <SelectItem value="today">{t("admin.dateToday")}</SelectItem>
+                    <SelectItem value="yesterday">{t("admin.dateYesterday")}</SelectItem>
+                    <SelectItem value="week">{t("admin.dateWeek")}</SelectItem>
+                    <SelectItem value="month">{t("admin.dateMonth")}</SelectItem>
+                    <SelectItem value="custom">{t("admin.dateCustom")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Custom Date Range */}
+            {datePreset === "custom" && (
+              <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t("admin.dateFrom")}</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "h-8 w-[180px] justify-start text-left font-normal",
+                          !dateFrom && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateFrom ? format(dateFrom, "dd.MM.yyyy") : t("admin.selectDate")}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateFrom}
+                        onSelect={setDateFrom}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                        locale={uk}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t("admin.dateTo")}</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "h-8 w-[180px] justify-start text-left font-normal",
+                          !dateTo && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateTo ? format(dateTo, "dd.MM.yyyy") : t("admin.selectDate")}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateTo}
+                        onSelect={setDateTo}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                        locale={uk}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            )}
+          </Card>
+        )}
       </div>
 
       {/* Table */}
