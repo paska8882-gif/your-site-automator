@@ -9,6 +9,9 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { UserDataProvider } from "@/contexts/UserDataContext";
 import { RealtimeProvider } from "@/contexts/RealtimeContext";
 import { AdminModeProvider } from "@/contexts/AdminModeContext";
+import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
+import { MaintenanceOverlay } from "@/components/MaintenanceOverlay";
+import { useAdmin } from "@/hooks/useAdmin";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Edit from "./pages/Edit";
@@ -24,6 +27,42 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// Inner component that can use hooks
+function AppContent() {
+  const { maintenance } = useMaintenanceMode();
+  const { isAdmin } = useAdmin();
+
+  // Show maintenance overlay for non-admins when enabled
+  if (maintenance?.enabled && !isAdmin) {
+    return (
+      <MaintenanceOverlay 
+        message={maintenance.message} 
+        supportLink={maintenance.support_link} 
+      />
+    );
+  }
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/edit/:id" element={<Edit />} />
+        <Route path="/admin" element={<Admin />} />
+        <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/admin/team/:teamId" element={<AdminTeamDetails />} />
+        <Route path="/team" element={<Team />} />
+        <Route path="/history" element={<History />} />
+        <Route path="/balance" element={<Balance />} />
+        <Route path="/spends" element={<Spends />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
@@ -33,25 +72,9 @@ const App = () => (
             <RealtimeProvider>
               <AdminModeProvider>
                 <TooltipProvider>
-                <Toaster />
-                <Sonner />
-                <BrowserRouter>
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/edit/:id" element={<Edit />} />
-                    <Route path="/admin" element={<Admin />} />
-                    <Route path="/admin-login" element={<AdminLogin />} />
-                    <Route path="/admin/team/:teamId" element={<AdminTeamDetails />} />
-                    <Route path="/team" element={<Team />} />
-                    <Route path="/history" element={<History />} />
-                    <Route path="/balance" element={<Balance />} />
-                    <Route path="/spends" element={<Spends />} />
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </BrowserRouter>
+                  <Toaster />
+                  <Sonner />
+                  <AppContent />
                 </TooltipProvider>
               </AdminModeProvider>
             </RealtimeProvider>

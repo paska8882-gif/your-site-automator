@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Send, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { PaymentAddressesDisplay } from "@/components/PaymentAddressesDisplay";
 
 interface BalanceRequestFormProps {
   userId: string;
@@ -62,6 +63,11 @@ export function BalanceRequestForm({ userId, teamId, onSuccess }: BalanceRequest
       <div className="flex items-center gap-2 mb-4">
         <Wallet className="h-4 w-4 text-primary" />
         <h3 className="font-medium text-sm">Поповнити баланс</h3>
+      </div>
+
+      {/* Payment Addresses */}
+      <div className="mb-4 pb-4 border-b">
+        <PaymentAddressesDisplay />
       </div>
       
       <form onSubmit={handleSubmit} className="space-y-3">

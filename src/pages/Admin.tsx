@@ -16,6 +16,7 @@ import { AdminPaymentDetailsTab } from "@/components/AdminPaymentDetailsTab";
 import { AdminReferralTab } from "@/components/AdminReferralTab";
 import { AdminTasksTab } from "@/components/AdminTasksTab";
 import { ManualRequestsTab } from "@/components/ManualRequestsTab";
+import { AdminMaintenanceToggle } from "@/components/AdminMaintenanceToggle";
 import { AppLayout } from "@/components/AppLayout";
 
 const Admin = () => {
@@ -85,6 +86,7 @@ const Admin = () => {
   return (
     <AppLayout>
       <div className="p-4">
+        <AdminMaintenanceToggle />
         {renderContent()}
       </div>
     </AppLayout>
