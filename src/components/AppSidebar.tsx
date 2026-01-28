@@ -42,7 +42,10 @@ import {
   ClipboardList,
   Gauge,
   TrendingUp,
-  User
+  User,
+  Wrench,
+  AlertTriangle,
+  Loader2
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -55,6 +58,7 @@ import { NotificationBell } from "./NotificationBell";
 import { SupportChat } from "./SupportChat";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { useAdminMode } from "@/contexts/AdminModeContext";
+import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
 
 const getMainNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.generator"), url: "/", icon: Sparkles },
@@ -81,6 +85,76 @@ const getAdminNavItems = (t: (key: string) => string) => [
 const getSuperAdminNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.paymentDetails"), tab: "payment-details", icon: CreditCard },
 ];
+
+// Compact maintenance toggle for sidebar
+function MaintenanceToggleSidebar() {
+  const { isSuperAdmin } = useSuperAdmin();
+  const { maintenance, loading } = useMaintenanceMode();
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
+  const [updating, setUpdating] = useState(false);
+  const { t } = useLanguage();
+
+  const handleToggle = async (newValue: boolean) => {
+    setUpdating(true);
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { error } = await supabase
+        .from("maintenance_mode")
+        .update({ 
+          enabled: newValue,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", "global");
+
+      if (error) throw error;
+
+      const { toast } = await import("sonner");
+      toast.success(
+        newValue 
+          ? "⚠️ Режим технічних робіт УВІМКНЕНО" 
+          : "✅ Режим технічних робіт вимкнено"
+      );
+    } catch (error) {
+      console.error("Error toggling maintenance mode:", error);
+      const { toast } = await import("sonner");
+      toast.error("Помилка зміни режиму");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  if (!isSuperAdmin || loading || collapsed) {
+    return null;
+  }
+
+  const enabled = maintenance?.enabled ?? false;
+
+  return (
+    <div className={`flex items-center justify-between gap-2 px-2 py-2 mb-2 rounded-md ${enabled ? "bg-amber-500/20" : "bg-sidebar-accent/50"}`}>
+      <div className="flex items-center gap-2">
+        {enabled ? (
+          <AlertTriangle className="h-4 w-4 text-amber-500 animate-pulse" />
+        ) : (
+          <Wrench className="h-4 w-4 text-muted-foreground" />
+        )}
+        <Label htmlFor="maintenance-mode" className={`text-xs font-medium cursor-pointer ${enabled ? "text-amber-500" : ""}`}>
+          {t("sidebar.maintenance") || "Тех. роботи"}
+        </Label>
+      </div>
+      <div className="flex items-center gap-1">
+        {updating && <Loader2 className="h-3 w-3 animate-spin" />}
+        <Switch
+          id="maintenance-mode"
+          checked={enabled}
+          onCheckedChange={handleToggle}
+          disabled={updating}
+          className="scale-75"
+        />
+      </div>
+    </div>
+  );
+}
 
 export function AppSidebar() {
   const navigate = useNavigate();
@@ -256,6 +330,9 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border p-2">
+        {/* Maintenance Mode Toggle - only for super admins */}
+        <MaintenanceToggleSidebar />
+        
         {/* Admin Mode Toggle - only for admins */}
         {isAdmin && !collapsed && (
           <div className="flex items-center justify-between gap-2 px-2 py-2 mb-2 rounded-md bg-sidebar-accent/50">
