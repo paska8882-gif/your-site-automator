@@ -303,9 +303,19 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
   const [userFilter, setUserFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
   
-  // Pagination state
+  // Pagination state with localStorage persistence
   const [currentPage, setCurrentPage] = useState(0);
-  const [pageSize, setPageSize] = useState<number>(50);
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const saved = localStorage.getItem('admin-sites-page-size');
+    return saved ? Number(saved) : 50;
+  });
+  
+  // Save page size to localStorage when it changes
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(0);
+    localStorage.setItem('admin-sites-page-size', newSize.toString());
+  };
 
   // React Query for generations data with 5 minute cache
   const { data: generationsData, isLoading: loading, refetch: refetchGenerations } = useQuery({
@@ -1558,10 +1568,7 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
                 </div>
                 <Select 
                   value={pageSize.toString()} 
-                  onValueChange={(v) => {
-                    setPageSize(Number(v));
-                    setCurrentPage(0); // Reset to first page when changing page size
-                  }}
+                  onValueChange={(v) => handlePageSizeChange(Number(v))}
                 >
                   <SelectTrigger className="h-7 w-24 text-xs">
                     <SelectValue />
