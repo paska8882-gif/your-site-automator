@@ -11,10 +11,15 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { cn } from "@/lib/utils";
+import { format, startOfDay, endOfDay, subDays, startOfWeek, startOfMonth, endOfWeek, endOfMonth } from "date-fns";
+import { uk } from "date-fns/locale";
 import JSZip from "jszip";
 import { 
   Search, 
@@ -30,7 +35,10 @@ import {
   User,
   BarChart3,
   Timer,
-  TrendingUp
+  TrendingUp,
+  CalendarIcon,
+  Filter,
+  X
 } from "lucide-react";
 
 interface GeneratedFile {
@@ -159,6 +167,8 @@ const fetchTeamsData = async () => {
   return { teams: teamsRes.data || [], pricings: pricingsRes.data || [] };
 };
 
+type DatePreset = "all" | "today" | "yesterday" | "week" | "month" | "custom";
+
 export function ManualRequestsTab() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -171,6 +181,15 @@ export function ManualRequestsTab() {
   
   // Search
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Filters
+  const [filterTeam, setFilterTeam] = useState<string>("all");
+  const [filterBuyer, setFilterBuyer] = useState<string>("all");
+  const [filterAdmin, setFilterAdmin] = useState<string>("all");
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [showFilters, setShowFilters] = useState(false);
   
   // Cancel dialog
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -210,25 +229,109 @@ export function ManualRequestsTab() {
   const teams = teamsData?.teams || [];
   const teamPricings = teamsData?.pricings || [];
 
+  // Get unique buyers and admins for filters
+  const uniqueBuyers = useMemo(() => {
+    const buyerIds = [...new Set(requests.map(r => r.user_id).filter(Boolean))] as string[];
+    return buyerIds.map(id => ({
+      id,
+      name: profiles[id]?.display_name || id.slice(0, 8) + "..."
+    }));
+  }, [requests, profiles]);
+
+  const uniqueAdmins = useMemo(() => {
+    const adminIds = [...new Set(requests.map(r => r.assigned_admin_id).filter(Boolean))] as string[];
+    return adminIds.map(id => ({
+      id,
+      name: profiles[id]?.display_name || id.slice(0, 8) + "..."
+    }));
+  }, [requests, profiles]);
+
+  // Date range based on preset
+  const getDateRange = useMemo(() => {
+    const now = new Date();
+    switch (datePreset) {
+      case "today":
+        return { from: startOfDay(now), to: endOfDay(now) };
+      case "yesterday":
+        const yesterday = subDays(now, 1);
+        return { from: startOfDay(yesterday), to: endOfDay(yesterday) };
+      case "week":
+        return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfWeek(now, { weekStartsOn: 1 }) };
+      case "month":
+        return { from: startOfMonth(now), to: endOfMonth(now) };
+      case "custom":
+        return { from: dateFrom, to: dateTo };
+      default:
+        return { from: undefined, to: undefined };
+    }
+  }, [datePreset, dateFrom, dateTo]);
+
+  // Filter function
+  const applyFilters = (items: ManualRequest[]) => {
+    return items.filter(r => {
+      // Search filter
+      if (searchQuery && 
+          !r.site_name?.toLowerCase().includes(searchQuery.toLowerCase()) && 
+          !r.prompt.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+      
+      // Team filter
+      if (filterTeam !== "all" && r.team_id !== filterTeam) {
+        return false;
+      }
+      
+      // Buyer filter
+      if (filterBuyer !== "all" && r.user_id !== filterBuyer) {
+        return false;
+      }
+      
+      // Admin filter
+      if (filterAdmin !== "all" && r.assigned_admin_id !== filterAdmin) {
+        return false;
+      }
+      
+      // Date filter
+      const { from, to } = getDateRange;
+      if (from || to) {
+        const createdDate = new Date(r.created_at);
+        if (from && createdDate < from) return false;
+        if (to && createdDate > to) return false;
+      }
+      
+      return true;
+    });
+  };
+
   // Group requests
   const newRequests = useMemo(() => 
-    requests.filter(r => r.status === "manual_request")
-      .filter(r => !searchQuery || r.site_name?.toLowerCase().includes(searchQuery.toLowerCase()) || r.prompt.toLowerCase().includes(searchQuery.toLowerCase())),
-    [requests, searchQuery]
+    applyFilters(requests.filter(r => r.status === "manual_request")),
+    [requests, searchQuery, filterTeam, filterBuyer, filterAdmin, getDateRange]
   );
 
   const inProgressRequests = useMemo(() => 
-    requests.filter(r => r.status === "manual_in_progress")
-      .filter(r => !searchQuery || r.site_name?.toLowerCase().includes(searchQuery.toLowerCase()) || r.prompt.toLowerCase().includes(searchQuery.toLowerCase())),
-    [requests, searchQuery]
+    applyFilters(requests.filter(r => r.status === "manual_in_progress")),
+    [requests, searchQuery, filterTeam, filterBuyer, filterAdmin, getDateRange]
   );
 
   const completedRequests = useMemo(() => 
-    requests.filter(r => r.status === "completed" || r.status === "cancelled")
-      .filter(r => !searchQuery || r.site_name?.toLowerCase().includes(searchQuery.toLowerCase()) || r.prompt.toLowerCase().includes(searchQuery.toLowerCase()))
+    applyFilters(requests.filter(r => r.status === "completed" || r.status === "cancelled"))
       .slice(0, 100), // Limit to last 100
-    [requests, searchQuery]
+    [requests, searchQuery, filterTeam, filterBuyer, filterAdmin, getDateRange]
   );
+
+  // Check if any filter is active
+  const hasActiveFilters = filterTeam !== "all" || filterBuyer !== "all" || filterAdmin !== "all" || datePreset !== "all";
+
+  // Clear all filters
+  const clearFilters = () => {
+    setFilterTeam("all");
+    setFilterBuyer("all");
+    setFilterAdmin("all");
+    setDatePreset("all");
+    setDateFrom(undefined);
+    setDateTo(undefined);
+  };
 
   // Calculate admin stats
   const adminStats = useMemo(() => {
@@ -712,15 +815,192 @@ export function ManualRequestsTab() {
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-xs">
-        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder={t("admin.sitesFilters.search")}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-8 h-8"
-        />
+      {/* Search and Filters */}
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Search */}
+          <div className="relative w-64">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder={t("admin.sitesFilters.search")}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 h-8"
+            />
+          </div>
+
+          {/* Toggle Filters */}
+          <Button
+            variant={showFilters ? "secondary" : "outline"}
+            size="sm"
+            className="h-8"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter className="h-4 w-4 mr-1" />
+            {t("admin.filters")}
+            {hasActiveFilters && (
+              <Badge variant="destructive" className="ml-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
+                !
+              </Badge>
+            )}
+          </Button>
+
+          {/* Clear Filters */}
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-destructive hover:text-destructive"
+              onClick={clearFilters}
+            >
+              <X className="h-4 w-4 mr-1" />
+              {t("admin.clearFilters")}
+            </Button>
+          )}
+        </div>
+
+        {/* Expanded Filters */}
+        {showFilters && (
+          <Card className="p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Team Filter */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("admin.sitesTable.team")}</Label>
+                <Select value={filterTeam} onValueChange={setFilterTeam}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder={t("admin.allTeams")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("admin.allTeams")}</SelectItem>
+                    {teams.map(team => (
+                      <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Buyer Filter */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("admin.sitesTable.user")}</Label>
+                <Select value={filterBuyer} onValueChange={setFilterBuyer}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder={t("admin.allBuyers")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("admin.allBuyers")}</SelectItem>
+                    {uniqueBuyers.map(buyer => (
+                      <SelectItem key={buyer.id} value={buyer.id}>{buyer.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Admin Filter */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("admin.assignedAdmin")}</Label>
+                <Select value={filterAdmin} onValueChange={setFilterAdmin}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder={t("admin.allAdmins")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("admin.allAdmins")}</SelectItem>
+                    {uniqueAdmins.map(admin => (
+                      <SelectItem key={admin.id} value={admin.id}>{admin.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Date Filter */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("admin.dateFilter")}</Label>
+                <Select 
+                  value={datePreset} 
+                  onValueChange={(v) => {
+                    setDatePreset(v as DatePreset);
+                    if (v !== "custom") {
+                      setDateFrom(undefined);
+                      setDateTo(undefined);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder={t("admin.allDates")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("admin.allDates")}</SelectItem>
+                    <SelectItem value="today">{t("admin.dateToday")}</SelectItem>
+                    <SelectItem value="yesterday">{t("admin.dateYesterday")}</SelectItem>
+                    <SelectItem value="week">{t("admin.dateWeek")}</SelectItem>
+                    <SelectItem value="month">{t("admin.dateMonth")}</SelectItem>
+                    <SelectItem value="custom">{t("admin.dateCustom")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Custom Date Range */}
+            {datePreset === "custom" && (
+              <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t("admin.dateFrom")}</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "h-8 w-[180px] justify-start text-left font-normal",
+                          !dateFrom && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateFrom ? format(dateFrom, "dd.MM.yyyy") : t("admin.selectDate")}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateFrom}
+                        onSelect={setDateFrom}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                        locale={uk}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t("admin.dateTo")}</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "h-8 w-[180px] justify-start text-left font-normal",
+                          !dateTo && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateTo ? format(dateTo, "dd.MM.yyyy") : t("admin.selectDate")}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateTo}
+                        onSelect={setDateTo}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                        locale={uk}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            )}
+          </Card>
+        )}
       </div>
 
       {isLoading ? (
