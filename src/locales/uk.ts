@@ -1314,6 +1314,9 @@ export const uk = {
     errorPrefix: "Помилка",
     previewTab: "Превью",
     codeTab: "Код",
+    cancelManualRequest: "Скасувати ручний запит",
+    manualRequestCancelled: "Ручний запит скасовано",
+    manualRequestCancelledDesc: "Кошти повернено на баланс команди",
   },
 
   genForm: {

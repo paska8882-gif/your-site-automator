@@ -1314,6 +1314,9 @@ export const ru = {
     errorPrefix: "Ошибка",
     previewTab: "Превью",
     codeTab: "Код",
+    cancelManualRequest: "Отменить ручной запрос",
+    manualRequestCancelled: "Ручной запрос отменён",
+    manualRequestCancelledDesc: "Средства возвращены на баланс команды",
   },
 
   genForm: {
