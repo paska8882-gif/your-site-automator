@@ -68,6 +68,8 @@ export const ru = {
     finance: "Финансы",
     admins: "Админы",
     paymentDetails: "Реквизиты",
+    adminMode: "Режим админа",
+    buyerMode: "Режим баера",
   },
 
   auth: {
