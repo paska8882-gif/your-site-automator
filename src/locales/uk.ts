@@ -70,6 +70,7 @@ export const uk = {
     paymentDetails: "Реквізити",
     adminMode: "Режим адміна",
     buyerMode: "Режим баєра",
+    maintenance: "Тех. режим",
   },
 
   auth: {
