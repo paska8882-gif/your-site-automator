@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface MaintenanceMode {
@@ -7,27 +7,58 @@ interface MaintenanceMode {
   support_link: string;
 }
 
-export function useMaintenanceMode() {
-  const [maintenance, setMaintenance] = useState<MaintenanceMode | null>(null);
-  const [loading, setLoading] = useState(true);
+const DEFAULT_MAINTENANCE: MaintenanceMode = {
+  enabled: false,
+  message: "Ведуться технічні роботи. Спробуйте пізніше.",
+  support_link: "https://t.me/support",
+};
 
-  useEffect(() => {
-    const fetchMaintenance = async () => {
-      const { data, error } = await supabase
+export function useMaintenanceMode() {
+  const [maintenance, setMaintenance] = useState<MaintenanceMode>(DEFAULT_MAINTENANCE);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchMaintenance = useCallback(async () => {
+    try {
+      const { data, error: fetchError } = await supabase
         .from("maintenance_mode")
         .select("enabled, message, support_link")
         .eq("id", "global")
         .maybeSingle();
 
-      if (!error && data) {
-        setMaintenance(data);
+      if (fetchError) {
+        console.error("Error fetching maintenance mode:", fetchError);
+        setError(new Error(fetchError.message));
+        return;
       }
+
+      if (data) {
+        setMaintenance({
+          enabled: data.enabled,
+          message: data.message || DEFAULT_MAINTENANCE.message,
+          support_link: data.support_link || DEFAULT_MAINTENANCE.support_link,
+        });
+      }
+      setError(null);
+    } catch (err) {
+      console.error("Error in fetchMaintenance:", err);
+      setError(err instanceof Error ? err : new Error("Unknown error"));
+    }
+  }, []);
+
+  const refetch = useCallback(async () => {
+    await fetchMaintenance();
+  }, [fetchMaintenance]);
+
+  useEffect(() => {
+    const init = async () => {
+      await fetchMaintenance();
       setLoading(false);
     };
 
-    fetchMaintenance();
+    init();
 
-    // Subscribe to realtime updates
+    // Subscribe to realtime updates (bonus, not critical)
     const channel = supabase
       .channel("maintenance_mode_changes")
       .on(
@@ -42,8 +73,8 @@ export function useMaintenanceMode() {
           const newData = payload.new as MaintenanceMode & { id: string };
           setMaintenance({
             enabled: newData.enabled,
-            message: newData.message,
-            support_link: newData.support_link,
+            message: newData.message || DEFAULT_MAINTENANCE.message,
+            support_link: newData.support_link || DEFAULT_MAINTENANCE.support_link,
           });
         }
       )
@@ -52,7 +83,13 @@ export function useMaintenanceMode() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchMaintenance]);
 
-  return { maintenance, loading };
+  return { 
+    maintenance, 
+    setMaintenance, 
+    loading, 
+    error, 
+    refetch 
+  };
 }

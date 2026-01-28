@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { toast } from "sonner";
 import {
   Sidebar,
   SidebarContent,
@@ -47,6 +48,7 @@ import {
   AlertTriangle,
   Loader2
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useSuperAdmin } from "@/hooks/useSuperAdmin";
@@ -89,16 +91,20 @@ const getSuperAdminNavItems = (t: (key: string) => string) => [
 // Compact maintenance toggle for sidebar
 function MaintenanceToggleSidebar() {
   const { isSuperAdmin } = useSuperAdmin();
-  const { maintenance, loading } = useMaintenanceMode();
+  const { maintenance, setMaintenance, loading, refetch } = useMaintenanceMode();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const [updating, setUpdating] = useState(false);
   const { t } = useLanguage();
 
   const handleToggle = async (newValue: boolean) => {
+    const previousValue = maintenance.enabled;
+    
+    // Optimistic update - immediately change UI
+    setMaintenance(prev => ({ ...prev, enabled: newValue }));
     setUpdating(true);
+    
     try {
-      const { supabase } = await import("@/integrations/supabase/client");
       const { error } = await supabase
         .from("maintenance_mode")
         .update({ 
@@ -107,17 +113,26 @@ function MaintenanceToggleSidebar() {
         })
         .eq("id", "global");
 
-      if (error) throw error;
+      if (error) {
+        // Rollback on error
+        setMaintenance(prev => ({ ...prev, enabled: previousValue }));
+        console.error("Error toggling maintenance mode:", error);
+        toast.error("Помилка зміни режиму");
+        return;
+      }
 
-      const { toast } = await import("sonner");
+      // Refetch to ensure sync
+      await refetch();
+      
       toast.success(
         newValue 
           ? "⚠️ Режим технічних робіт УВІМКНЕНО" 
           : "✅ Режим технічних робіт вимкнено"
       );
     } catch (error) {
+      // Rollback on exception
+      setMaintenance(prev => ({ ...prev, enabled: previousValue }));
       console.error("Error toggling maintenance mode:", error);
-      const { toast } = await import("sonner");
       toast.error("Помилка зміни режиму");
     } finally {
       setUpdating(false);
@@ -128,7 +143,7 @@ function MaintenanceToggleSidebar() {
     return null;
   }
 
-  const enabled = maintenance?.enabled ?? false;
+  const enabled = maintenance.enabled;
 
   return (
     <div className={`flex items-center justify-between gap-2 px-2 py-2 mb-2 rounded-md ${enabled ? "bg-amber-500/20" : "bg-sidebar-accent/50"}`}>
