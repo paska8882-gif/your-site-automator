@@ -70,6 +70,7 @@ export const ru = {
     paymentDetails: "Реквизиты",
     adminMode: "Режим админа",
     buyerMode: "Режим баера",
+    maintenance: "Тех. режим",
   },
 
   auth: {
