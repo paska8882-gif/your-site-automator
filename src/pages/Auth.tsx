@@ -10,6 +10,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
+import { MaintenanceOverlay } from "@/components/MaintenanceOverlay";
 import { Loader2, ArrowRight } from "lucide-react";
 
 type TeamRole = "owner" | "team_lead" | "buyer" | "tech_dev";
@@ -27,6 +29,7 @@ export default function Auth() {
   const { user, loading, signIn, signUp } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { t } = useLanguage();
+  const { maintenance, loading: maintenanceLoading } = useMaintenanceMode();
   const isDarkTheme = theme === "dark";
   const [isLogin, setIsLogin] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -317,11 +320,21 @@ export default function Auth() {
     }
   };
 
-  if (loading) {
+  if (loading || maintenanceLoading) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${isDarkTheme ? 'bg-black' : 'bg-white'}`}>
         <Loader2 className={`h-8 w-8 animate-spin ${isDarkTheme ? 'text-white' : 'text-black'}`} />
       </div>
+    );
+  }
+
+  // Show maintenance overlay if maintenance mode is enabled
+  if (maintenance.enabled) {
+    return (
+      <MaintenanceOverlay
+        message={maintenance.message}
+        supportLink={maintenance.support_link}
+      />
     );
   }
 
