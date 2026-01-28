@@ -54,6 +54,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { NotificationBell } from "./NotificationBell";
 import { SupportChat } from "./SupportChat";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { useAdminMode } from "@/contexts/AdminModeContext";
 
 const getMainNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.generator"), url: "/", icon: Sparkles },
@@ -92,10 +93,8 @@ export function AppSidebar() {
   const { theme, toggleTheme } = useTheme();
   const { hasNewTasks, hasProblematic } = useTaskIndicators();
   const { t } = useLanguage();
+  const { isAdminModeEnabled, setIsAdminModeEnabled } = useAdminMode();
   const collapsed = state === "collapsed";
-  
-  // Admin mode toggle - when false, admin sees UI as regular buyer
-  const [isAdminModeEnabled, setIsAdminModeEnabled] = useState(true);
   
   const mainNavItems = getMainNavItems(t);
   const adminNavItems = getAdminNavItems(t);
