@@ -304,7 +304,7 @@ function SingleHistoryItem({
         <CollapsibleTrigger asChild>
           <div
             className={`flex items-center justify-between cursor-pointer hover:bg-muted/50 transition-colors ${compact ? "px-2 py-1 gap-2" : "px-3 py-2 gap-3"}`}
-            onClick={() => item.status === "completed" && onExpand(item)}
+            onClick={() => (item.status === "completed" || item.status === "manual_completed") && onExpand(item)}
           >
             <div className={`flex items-center flex-1 min-w-0 ${compact ? "gap-2" : "gap-2"}`}>
               <div className="flex items-center" title={getStatusText(item.status, item.sale_price)}>
@@ -324,7 +324,7 @@ function SingleHistoryItem({
                 </Badge>
               )}
               {/* Color scheme badge with swatches */}
-              {item.status === "completed" && item.color_scheme && (() => {
+              {(item.status === "completed" || item.status === "manual_completed") && item.color_scheme && (() => {
                 const schemeDisplay = getColorSchemeDisplay(item.color_scheme);
                 if (schemeDisplay) {
                   return (
@@ -351,7 +351,7 @@ function SingleHistoryItem({
                 return null;
               })()}
               {/* Layout style badge */}
-              {item.status === "completed" && item.layout_style && (() => {
+              {(item.status === "completed" || item.status === "manual_completed") && item.layout_style && (() => {
                 const layoutName = getLayoutStyleName(item.layout_style);
                 if (layoutName) {
                   return (
@@ -362,12 +362,13 @@ function SingleHistoryItem({
                 }
                 return null;
               })()}
-              {item.status === "completed" && (() => {
+              {(item.status === "completed" || item.status === "manual_completed") && (() => {
+                const isManual = item.status === "manual_completed";
                 const duration = getGenerationDuration(item.created_at, item.completed_at);
                 if (duration) {
                   return (
-                    <span className={`text-xs ${duration.colorClass}`}>
-                      ⏱{duration.text}
+                    <span className={`text-xs ${isManual ? 'text-purple-500' : duration.colorClass}`}>
+                      {isManual ? '✋' : '⏱'}{duration.text}
                     </span>
                   );
                 }
@@ -553,7 +554,7 @@ function SingleHistoryItem({
                   )}
                 </>
               )}
-              {item.status === "completed" && (
+              {(item.status === "completed" || item.status === "manual_completed") && (
                   <>
                   <Button
                     variant="ghost"
@@ -1142,7 +1143,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
   };
 
   const handleDownloadAll = async (items: HistoryItem[]) => {
-    const completedItems = items.filter(item => item.status === "completed" && item.zip_data);
+    const completedItems = items.filter(item => (item.status === "completed" || item.status === "manual_completed") && item.zip_data);
     
     if (completedItems.length === 0) {
       toast({
@@ -2021,7 +2022,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
               // Render batch group
               const group = entry;
               const isGroupExpanded = expandedGroups.has(group.key);
-              const completedCount = group.items.filter(i => i.status === "completed").length;
+              const completedCount = group.items.filter(i => i.status === "completed" || i.status === "manual_completed").length;
               const pendingCount = group.items.filter(i => i.status === "pending" || i.status === "generating").length;
               const failedCount = group.items.filter(i => i.status === "failed").length;
               const totalCost = group.items.reduce((sum, i) => sum + (i.sale_price || 0), 0);

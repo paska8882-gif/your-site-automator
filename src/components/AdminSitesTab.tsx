@@ -1658,12 +1658,13 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
                             })}
                           </TableCell>
                           <TableCell>
-                            {item.status === "completed" && (() => {
+                            {(item.status === "completed" || item.status === "manual_completed") && (() => {
+                              const isManual = item.status === "manual_completed";
                               const duration = getGenerationDuration(item.created_at, item.completed_at);
                               if (duration) {
                                 return (
-                                  <Badge variant="outline" className={`text-xs ${duration.colorClass}`}>
-                                    ⏱ {duration.text}
+                                  <Badge variant="outline" className={`text-xs ${isManual ? 'text-purple-500' : duration.colorClass}`}>
+                                    {isManual ? '✋' : '⏱'} {duration.text}
                                   </Badge>
                                 );
                               }
@@ -1672,7 +1673,7 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
-                              {item.status === "completed" && (
+                              {(item.status === "completed" || item.status === "manual_completed") && (
                                 <>
                                     <Button
                                       variant="ghost"
