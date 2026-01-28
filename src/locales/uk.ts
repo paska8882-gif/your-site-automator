@@ -238,6 +238,8 @@ export const uk = {
     completedAt: "Завершено",
     manualRequest: "Ручний запит",
     manualInProgress: "В роботі",
+    manualCompleted: "✋ Готово",
+    manualCancelled: "✋ Скасовано",
     adminNote: "Примітка від адміна",
   },
 

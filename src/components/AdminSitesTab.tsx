@@ -583,6 +583,10 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
         return <Hand className="h-4 w-4 text-purple-500" />;
       case "manual_in_progress":
         return <Play className="h-4 w-4 text-blue-500" />;
+      case "manual_completed":
+        return <CheckCircle2 className="h-4 w-4 text-purple-500" />;
+      case "manual_cancelled":
+        return <XCircle className="h-4 w-4 text-purple-400" />;
       case "cancelled":
         return <XCircle className="h-4 w-4 text-gray-500" />;
       default:
@@ -609,6 +613,10 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
         return <Badge variant="secondary" className="bg-purple-500 text-white">{t("admin.manualRequest")}</Badge>;
       case "manual_in_progress":
         return <Badge variant="secondary" className="bg-blue-500 text-white">{t("admin.manualRequestInWork")}</Badge>;
+      case "manual_completed":
+        return <Badge variant="secondary" className="bg-purple-600 text-white">✋ {t("admin.sitesStatus.completed")}</Badge>;
+      case "manual_cancelled":
+        return <Badge variant="secondary" className="bg-purple-400 text-white">✋ {t("admin.cancelled")}</Badge>;
       case "cancelled":
         return <Badge variant="secondary" className="bg-gray-500 text-white">{t("admin.cancelled")}</Badge>;
       default:
@@ -1303,6 +1311,8 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
                     <SelectItem value="failed">{t("admin.sitesFilters.failed")}</SelectItem>
                     <SelectItem value="manual_request">{t("admin.manualRequest")}</SelectItem>
                     <SelectItem value="manual_in_progress">{t("admin.manualRequestInWork")}</SelectItem>
+                    <SelectItem value="manual_completed">✋ Готово (ручний)</SelectItem>
+                    <SelectItem value="manual_cancelled">✋ Скасовано (ручний)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -2077,6 +2087,8 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
                        detailsItem.status === "pending" ? t("admin.sitesDetails.statusPending") :
                        detailsItem.status === "manual_request" ? t("admin.manualRequest") :
                        detailsItem.status === "manual_in_progress" ? t("admin.manualRequestInWork") :
+                       detailsItem.status === "manual_completed" ? `✋ ${t("admin.sitesDetails.statusCompleted")}` :
+                       detailsItem.status === "manual_cancelled" ? `✋ ${t("admin.cancelled")}` :
                        t("admin.sitesDetails.statusFailed")}
                     </span>
                   </div>

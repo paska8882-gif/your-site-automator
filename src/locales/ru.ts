@@ -238,6 +238,8 @@ export const ru = {
     completedAt: "Завершено",
     manualRequest: "Ручной запрос",
     manualInProgress: "В работе",
+    manualCompleted: "✋ Готово",
+    manualCancelled: "✋ Отменено",
     adminNote: "Примечание от админа",
   },
 
