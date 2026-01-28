@@ -113,19 +113,13 @@ const fetchManualRequests = async () => {
   const { data, error } = await supabase
     .from("generation_history")
     .select("id, number, prompt, language, created_at, completed_at, taken_at, website_type, site_name, status, ai_model, user_id, team_id, sale_price, admin_note, assigned_admin_id, vip_prompt")
-    .in("status", ["manual_request", "manual_in_progress", "completed", "cancelled"])
-    .or("status.eq.manual_request,status.eq.manual_in_progress,and(status.in.(completed,cancelled),assigned_admin_id.not.is.null)")
+    .in("status", ["manual_request", "manual_in_progress", "manual_completed", "manual_cancelled"])
     .order("created_at", { ascending: false })
     .limit(500);
 
   if (error) throw error;
   
-  // Filter to only include manual-related items
-  const manualData = (data || []).filter(item => 
-    item.status === "manual_request" || 
-    item.status === "manual_in_progress" || 
-    (item.assigned_admin_id !== null && (item.status === "completed" || item.status === "cancelled"))
-  );
+  const manualData = data || [];
   
   const userIds = [...new Set(manualData.flatMap(item => [item.user_id, item.assigned_admin_id]).filter(Boolean))] as string[];
   const teamIds = [...new Set(manualData.map(item => item.team_id).filter(Boolean))] as string[];
@@ -315,7 +309,7 @@ export function ManualRequestsTab() {
   );
 
   const completedRequests = useMemo(() => 
-    applyFilters(requests.filter(r => r.status === "completed" || r.status === "cancelled"))
+    applyFilters(requests.filter(r => r.status === "manual_completed" || r.status === "manual_cancelled"))
       .slice(0, 100), // Limit to last 100
     [requests, searchQuery, filterTeam, filterBuyer, filterAdmin, getDateRange]
   );
@@ -354,7 +348,7 @@ export function ManualRequestsTab() {
       const stats = statsMap.get(r.assigned_admin_id)!;
       
       // Count completed today
-      if (r.status === "completed" && r.completed_at) {
+      if (r.status === "manual_completed" && r.completed_at) {
         const completedDate = new Date(r.completed_at);
         if (completedDate >= today) {
           stats.completedToday++;
@@ -395,7 +389,7 @@ export function ManualRequestsTab() {
 
   // Global stats
   const globalStats = useMemo(() => {
-    const completedWithTimes = requests.filter(r => r.status === "completed" && r.taken_at && r.completed_at);
+    const completedWithTimes = requests.filter(r => r.status === "manual_completed" && r.taken_at && r.completed_at);
     
     let avgWaitTime = 0;
     let avgCompletionTime = 0;
@@ -467,7 +461,7 @@ export function ManualRequestsTab() {
       const { error } = await supabase
         .from("generation_history")
         .update({ 
-          status: "cancelled",
+          status: "manual_cancelled",
           error_message: cancelReason || null,
           completed_at: new Date().toISOString()
         })
@@ -547,7 +541,7 @@ export function ManualRequestsTab() {
       const { error: updateError } = await supabase
         .from("generation_history")
         .update({
-          status: "completed",
+          status: "manual_completed",
           files_data: filesData.length > 0 ? (filesData as unknown as null) : null,
           zip_data: zipBase64,
           completed_at: now,
