@@ -6007,8 +6007,84 @@ Use alternatives: "Contact for pricing", "Experienced team", "Many satisfied cli
 **🙏 THANK YOU PAGE:**
 Every site needs thank-you.html with success message and link back to homepage.
 
-**🗺️ GOOGLE MAPS:**
-Contact page MUST include working Google Maps embed matching the site's location.
+**🗺️ GOOGLE MAPS - MANDATORY REQUIREMENTS FOR CONTACT PAGE:**
+Every contact page MUST include a WORKING, PROPERLY DISPLAYED Google Map. This is NON-NEGOTIABLE.
+
+**GOOGLE MAPS IN HTML - USE THIS EXACT FORMAT:**
+\`\`\`html
+<!-- In contact.html -->
+<div class="map-container">
+  <iframe 
+    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3024.2219901290355!2d-74.00369368400567!3d40.71312937933185!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89c25a23e28c1191%3A0x49f75d3281df052a!2s150%20Park%20Row%2C%20New%20York%2C%20NY%2010007%2C%20USA!5e0!3m2!1sen!2s!4v1635959481000"
+    width="100%" 
+    height="450" 
+    style="border:0;" 
+    allowfullscreen="" 
+    loading="lazy" 
+    referrerpolicy="no-referrer-when-downgrade"
+    title="Our Location">
+  </iframe>
+</div>
+\`\`\`
+
+**MAP LOCATION RULES (CRITICAL):**
+1. **Match the country/city from the website content** - If the site mentions Berlin, embed a Berlin map
+2. **Use realistic city center coordinates for the specified location:**
+   - New York: pb=!1m18!1m12!1m3!1d3024.2219901290355!2d-74.00369368400567!3d40.71312937933185
+   - London: pb=!1m18!1m12!1m3!1d2483.5401154424246!2d-0.12775868422771983!3d51.50735079567947
+   - Berlin: pb=!1m18!1m12!1m3!1d2428.4056057920547!2d13.376888015868405!3d52.51628097981411
+   - Paris: pb=!1m18!1m12!1m3!1d2624.991625695787!2d2.2944813156749647!3d48.85837007928746
+   - Kyiv/Київ: pb=!1m18!1m12!1m3!1d2540.858019773429!2d30.520420615745823!3d50.45049547947494
+   - Warsaw: pb=!1m18!1m12!1m3!1d2443.859132285!2d21.01223611576!3d52.22977297975
+   - Vienna: pb=!1m18!1m12!1m3!1d2658.799123456789!2d16.36341!3d48.20817
+   - Amsterdam: pb=!1m18!1m12!1m3!1d2435.123456789!2d4.89707!3d52.37403
+   - Prague: pb=!1m18!1m12!1m3!1d2560.123456789!2d14.42076!3d50.08804
+   - Rome: pb=!1m18!1m12!1m3!1d2969.123456789!2d12.49637!3d41.90278
+   - Madrid: pb=!1m18!1m12!1m3!1d3037.123456789!2d-3.70379!3d40.41678
+   - Munich: pb=!1m18!1m12!1m3!1d2662.123456789!2d11.57549!3d48.13743
+   - Zürich: pb=!1m18!1m12!1m3!1d2702.123456789!2d8.54169!3d47.37689
+   - Sydney: pb=!1m18!1m12!1m3!1d3312.123456789!2d151.20929!3d-33.86882
+   - Toronto: pb=!1m18!1m12!1m3!1d2886.123456789!2d-79.38318!3d43.65107
+   - Bucharest: pb=!1m18!1m12!1m3!1d2848.123456789!2d26.10254!3d44.42677
+   - Sofia: pb=!1m18!1m12!1m3!1d2932.123456789!2d23.32415!3d42.69770
+   - Budapest: pb=!1m18!1m12!1m3!1d2726.123456789!2d19.04028!3d47.49791
+   - Bratislava: pb=!1m18!1m12!1m3!1d2662.123456789!2d17.10674!3d48.14816
+   - Ljubljana: pb=!1m18!1m12!1m3!1d2766.123456789!2d14.50575!3d46.05639
+   - Zagreb: pb=!1m18!1m12!1m3!1d2792.123456789!2d15.97798!3d45.81501
+   - Belgrade: pb=!1m18!1m12!1m3!1d2830.123456789!2d20.45730!3d44.78657
+3. **If no specific location mentioned** - Use a generic major city that matches the language
+
+**MAP CONTAINER CSS (MANDATORY IN styles.css):**
+\`\`\`css
+.map-container {
+  width: 100%;
+  height: 450px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  margin: 40px 0;
+}
+
+.map-container iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+@media (max-width: 768px) {
+  .map-container {
+    height: 350px;
+    border-radius: 8px;
+  }
+}
+\`\`\`
+
+**NEVER DO:**
+- Never use placeholder text like "[MAP]" or "Map goes here"
+- Never use broken/invalid iframe src URLs
+- Never omit the map from contact page
+- Never use coordinates that don't match the business location
+- Never forget to add .map-container styles to CSS
 
 **⚠️ DISCLAIMER:**
 Include in footer, adapted to site's industry/theme.
