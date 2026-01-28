@@ -243,6 +243,7 @@ export type Database = {
         Row: {
           admin_note: string | null
           ai_model: string | null
+          assigned_admin_id: string | null
           color_scheme: string | null
           completed_at: string | null
           created_at: string
@@ -262,6 +263,7 @@ export type Database = {
           site_name: string | null
           specific_ai_model: string | null
           status: string
+          taken_at: string | null
           team_id: string | null
           total_generation_cost: number | null
           user_id: string | null
@@ -272,6 +274,7 @@ export type Database = {
         Insert: {
           admin_note?: string | null
           ai_model?: string | null
+          assigned_admin_id?: string | null
           color_scheme?: string | null
           completed_at?: string | null
           created_at?: string
@@ -291,6 +294,7 @@ export type Database = {
           site_name?: string | null
           specific_ai_model?: string | null
           status?: string
+          taken_at?: string | null
           team_id?: string | null
           total_generation_cost?: number | null
           user_id?: string | null
@@ -301,6 +305,7 @@ export type Database = {
         Update: {
           admin_note?: string | null
           ai_model?: string | null
+          assigned_admin_id?: string | null
           color_scheme?: string | null
           completed_at?: string | null
           created_at?: string
@@ -320,6 +325,7 @@ export type Database = {
           site_name?: string | null
           specific_ai_model?: string | null
           status?: string
+          taken_at?: string | null
           team_id?: string | null
           total_generation_cost?: number | null
           user_id?: string | null
