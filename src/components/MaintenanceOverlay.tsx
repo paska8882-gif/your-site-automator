@@ -8,8 +8,11 @@ interface MaintenanceOverlayProps {
 
 export function MaintenanceOverlay({ message, supportLink }: MaintenanceOverlayProps) {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background">
-      <div className="text-center space-y-6 p-8 max-w-md">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      {/* Backdrop: blur + block all interactions */}
+      <div className="absolute inset-0 bg-background/75 backdrop-blur-md" aria-hidden="true" />
+
+      <div className="relative text-center space-y-6 p-8 max-w-md">
         <div className="mx-auto w-24 h-24 rounded-full bg-amber-500/10 flex items-center justify-center animate-pulse">
           <Wrench className="h-12 w-12 text-amber-500" />
         </div>
