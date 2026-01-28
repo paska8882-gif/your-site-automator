@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { UserDataProvider } from "@/contexts/UserDataContext";
@@ -29,11 +29,19 @@ const queryClient = new QueryClient();
 
 // Inner component that can use hooks
 function AppContent() {
-  const { maintenance } = useMaintenanceMode();
-  const { isAdmin } = useAdmin();
+  const { maintenance, loading: maintenanceLoading } = useMaintenanceMode();
+  const { user, loading: authLoading } = useAuth();
+  const { isAdmin, loading: adminLoading } = useAdmin();
 
-  // Show maintenance overlay for non-admins when enabled
-  if (maintenance?.enabled && !isAdmin) {
+  // Determine if we're still checking access
+  // If no user, we don't need to wait for admin check
+  const isCheckingAccess = maintenanceLoading || authLoading || (user && adminLoading);
+
+  // Show maintenance overlay when:
+  // 1. Maintenance is enabled
+  // 2. User is either not logged in, or logged in but not an admin
+  // 3. We've finished loading all necessary data
+  if (!isCheckingAccess && maintenance?.enabled && !isAdmin) {
     return (
       <MaintenanceOverlay 
         message={maintenance.message} 
