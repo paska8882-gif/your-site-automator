@@ -1534,18 +1534,21 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
                                       {t("admin.complete")}
                                     </Button>
                                   )}
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOpenCancelDialog(item);
-                                    }}
-                                    title={t("admin.cancelRequest")}
-                                  >
-                                    <XCircle className="h-3.5 w-3.5" />
-                                  </Button>
+                                  {/* Cancel button only for manual_request (not yet taken in work) */}
+                                  {item.status === "manual_request" && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenCancelDialog(item);
+                                      }}
+                                      title={t("admin.cancelRequest")}
+                                    >
+                                      <XCircle className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
                                 </div>
                               )}
                             </div>
