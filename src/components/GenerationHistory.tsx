@@ -391,6 +391,30 @@ function SingleHistoryItem({
               >
                 <Copy className="h-4 w-4" />
               </Button>
+              {/* Cancel button for manual_request - only if not yet taken in work */}
+              {item.status === "manual_request" && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onCancel(item);
+                        }}
+                        title={t("historyExtra.cancelManualRequest")}
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      {t("historyExtra.cancelManualRequest")}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
               {onUsePrompt && (
                 <Button
                   variant="ghost"
@@ -1174,19 +1198,25 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
 
   const handleCancel = async (item: HistoryItem) => {
     try {
-      // Check if generation has been running for at least 10 minutes (admins bypass this)
-      const createdAt = new Date(item.created_at).getTime();
-      const now = Date.now();
-      const tenMinutesMs = 10 * 60 * 1000;
+      // Manual requests can be cancelled immediately (no 10-min restriction)
+      const isManualRequest = item.status === "manual_request";
       
-      if (!isAdmin && now - createdAt < tenMinutesMs) {
-        const remainingMinutes = Math.ceil((tenMinutesMs - (now - createdAt)) / 60000);
-        toast({
-          title: t("historyExtra.cannotCancelYet"),
-          description: t("historyExtra.cannotCancelYetDesc").replace("{minutes}", String(remainingMinutes)),
-          variant: "destructive",
-        });
-        return;
+      // Check if generation has been running for at least 10 minutes (admins bypass this)
+      // This restriction does NOT apply to manual_request status
+      if (!isManualRequest) {
+        const createdAt = new Date(item.created_at).getTime();
+        const now = Date.now();
+        const tenMinutesMs = 10 * 60 * 1000;
+        
+        if (!isAdmin && now - createdAt < tenMinutesMs) {
+          const remainingMinutes = Math.ceil((tenMinutesMs - (now - createdAt)) / 60000);
+          toast({
+            title: t("historyExtra.cannotCancelYet"),
+            description: t("historyExtra.cannotCancelYetDesc").replace("{minutes}", String(remainingMinutes)),
+            variant: "destructive",
+          });
+          return;
+        }
       }
 
       // First, refund balance if there was a sale_price
@@ -1224,14 +1254,16 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
 
       // Update generation status and reset sale_price to indicate refund
       // Use different message for admin vs user cancellation
-      const cancelMessage = isAdmin 
-        ? t("historyExtra.cancelledByAdmin")
-        : t("historyExtra.cancelledByUser");
+      const cancelMessage = isManualRequest
+        ? t("historyExtra.cancelledByUser")
+        : isAdmin 
+          ? t("historyExtra.cancelledByAdmin")
+          : t("historyExtra.cancelledByUser");
       
       const { error } = await supabase
         .from("generation_history")
         .update({ 
-          status: "failed", 
+          status: "cancelled", 
           error_message: cancelMessage,
           completed_at: new Date().toISOString(),
           sale_price: 0 // Reset to show as refunded
@@ -1240,10 +1272,18 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
 
       if (error) throw error;
 
-      toast({
-        title: t("historyExtra.generationCancelled"),
-        description: `"${item.site_name || `Site ${item.number}`}" ${t("historyExtra.generationCancelledDesc")}`,
-      });
+      // Use different toast message for manual requests
+      if (isManualRequest) {
+        toast({
+          title: t("historyExtra.manualRequestCancelled"),
+          description: t("historyExtra.manualRequestCancelledDesc"),
+        });
+      } else {
+        toast({
+          title: t("historyExtra.generationCancelled"),
+          description: `"${item.site_name || `Site ${item.number}`}" ${t("historyExtra.generationCancelledDesc")}`,
+        });
+      }
     } catch (error) {
       console.error("Cancel error:", error);
       toast({
