@@ -39,6 +39,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
 import { useBalanceSound } from "@/hooks/useBalanceSound";
+import { useAdminMode } from "@/contexts/AdminModeContext";
 
 // News images
 import newsAiNeuralNetwork from "@/assets/news/ai-neural-network.jpg";
@@ -474,9 +475,13 @@ export function WebsiteGenerator() {
   const { toast } = useToast();
   const { t } = useLanguage();
   const { user } = useAuth();
-  const { isAdmin, loading: adminLoading } = useAdmin();
+  const { isAdmin: isAdminRole, loading: adminLoading } = useAdmin();
   const { isTeamOwner } = useTeamOwner();
+  const { isAdminModeEnabled } = useAdminMode();
   const navigate = useNavigate();
+  
+  // Effective isAdmin: only true when user is admin AND admin mode is enabled
+  const isAdmin = isAdminRole && isAdminModeEnabled;
   
   // Load draft on mount
   const draft = useRef(loadDraft()).current;
