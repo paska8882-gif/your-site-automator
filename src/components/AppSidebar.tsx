@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -20,6 +21,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { 
   History, 
   Users, 
@@ -38,7 +41,8 @@ import {
   Gift,
   ClipboardList,
   Gauge,
-  TrendingUp
+  TrendingUp,
+  User
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -89,6 +93,9 @@ export function AppSidebar() {
   const { hasNewTasks, hasProblematic } = useTaskIndicators();
   const { t } = useLanguage();
   const collapsed = state === "collapsed";
+  
+  // Admin mode toggle - when false, admin sees UI as regular buyer
+  const [isAdminModeEnabled, setIsAdminModeEnabled] = useState(true);
   
   const mainNavItems = getMainNavItems(t);
   const adminNavItems = getAdminNavItems(t);
@@ -182,8 +189,8 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Admin Section */}
-        {isAdmin && (
+        {/* Admin Section - only visible when admin mode is enabled */}
+        {isAdmin && isAdminModeEnabled && (
           <SidebarGroup>
           <SidebarGroupLabel className="text-xs text-sidebar-muted px-2">
               <div className="flex items-center gap-1">
@@ -250,6 +257,28 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border p-2">
+        {/* Admin Mode Toggle - only for admins */}
+        {isAdmin && !collapsed && (
+          <div className="flex items-center justify-between gap-2 px-2 py-2 mb-2 rounded-md bg-sidebar-accent/50">
+            <div className="flex items-center gap-2">
+              {isAdminModeEnabled ? (
+                <Shield className="h-4 w-4 text-primary" />
+              ) : (
+                <User className="h-4 w-4 text-muted-foreground" />
+              )}
+              <Label htmlFor="admin-mode" className="text-xs font-medium cursor-pointer">
+                {isAdminModeEnabled ? t("sidebar.adminMode") : t("sidebar.buyerMode")}
+              </Label>
+            </div>
+            <Switch
+              id="admin-mode"
+              checked={isAdminModeEnabled}
+              onCheckedChange={setIsAdminModeEnabled}
+              className="scale-75"
+            />
+          </div>
+        )}
+        
         {/* Notifications & Support */}
         {!collapsed && (
           <div className="flex items-center justify-center gap-1 mb-2 px-2">

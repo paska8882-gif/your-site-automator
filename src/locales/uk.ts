@@ -68,6 +68,8 @@ export const uk = {
     finance: "Фінанси",
     admins: "Адміни",
     paymentDetails: "Реквізити",
+    adminMode: "Режим адміна",
+    buyerMode: "Режим баєра",
   },
 
   auth: {
