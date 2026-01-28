@@ -91,7 +91,7 @@ const getSuperAdminNavItems = (t: (key: string) => string) => [
 // Compact maintenance toggle for sidebar
 function MaintenanceToggleSidebar() {
   const { isSuperAdmin } = useSuperAdmin();
-  const { maintenance, setMaintenance, loading, refetch } = useMaintenanceMode();
+  const { maintenance, setEnabled, loading, refetch } = useMaintenanceMode();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const [updating, setUpdating] = useState(false);
@@ -101,7 +101,7 @@ function MaintenanceToggleSidebar() {
     const previousValue = maintenance.enabled;
     
     // Optimistic update - immediately change UI
-    setMaintenance(prev => ({ ...prev, enabled: newValue }));
+    setEnabled(newValue);
     setUpdating(true);
     
     try {
@@ -115,7 +115,7 @@ function MaintenanceToggleSidebar() {
 
       if (error) {
         // Rollback on error
-        setMaintenance(prev => ({ ...prev, enabled: previousValue }));
+        setEnabled(previousValue);
         console.error("Error toggling maintenance mode:", error);
         toast.error("Помилка зміни режиму");
         return;
@@ -131,7 +131,7 @@ function MaintenanceToggleSidebar() {
       );
     } catch (error) {
       // Rollback on exception
-      setMaintenance(prev => ({ ...prev, enabled: previousValue }));
+      setEnabled(previousValue);
       console.error("Error toggling maintenance mode:", error);
       toast.error("Помилка зміни режиму");
     } finally {
