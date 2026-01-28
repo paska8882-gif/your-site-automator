@@ -14,9 +14,15 @@ const DEFAULT_MAINTENANCE: MaintenanceMode = {
 };
 
 export function useMaintenanceMode() {
-  const [maintenance, setMaintenance] = useState<MaintenanceMode>(DEFAULT_MAINTENANCE);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [state, setState] = useState<{
+    maintenance: MaintenanceMode;
+    loading: boolean;
+    error: Error | null;
+  }>({
+    maintenance: DEFAULT_MAINTENANCE,
+    loading: true,
+    error: null,
+  });
 
   const fetchMaintenance = useCallback(async () => {
     try {
@@ -28,42 +34,49 @@ export function useMaintenanceMode() {
 
       if (fetchError) {
         console.error("Error fetching maintenance mode:", fetchError);
-        setError(new Error(fetchError.message));
+        setState(prev => ({ ...prev, error: new Error(fetchError.message) }));
         return;
       }
 
       if (data) {
-        setMaintenance({
-          enabled: data.enabled,
-          message: data.message || DEFAULT_MAINTENANCE.message,
-          support_link: data.support_link || DEFAULT_MAINTENANCE.support_link,
-        });
+        setState(prev => ({
+          ...prev,
+          maintenance: {
+            enabled: data.enabled,
+            message: data.message || DEFAULT_MAINTENANCE.message,
+            support_link: data.support_link || DEFAULT_MAINTENANCE.support_link,
+          },
+          error: null,
+        }));
       }
-      setError(null);
     } catch (err) {
       console.error("Error in fetchMaintenance:", err);
-      setError(err instanceof Error ? err : new Error("Unknown error"));
+      setState(prev => ({
+        ...prev,
+        error: err instanceof Error ? err : new Error("Unknown error"),
+      }));
     }
+  }, []);
+
+  const setEnabled = useCallback((enabled: boolean) => {
+    setState(prev => ({
+      ...prev,
+      maintenance: { ...prev.maintenance, enabled },
+    }));
   }, []);
 
   const refetch = useCallback(async () => {
     await fetchMaintenance();
   }, [fetchMaintenance]);
 
-  // Function to optimistically update enabled state
-  const setEnabled = useCallback((enabled: boolean) => {
-    setMaintenance(prev => ({ ...prev, enabled }));
-  }, []);
-
   useEffect(() => {
     const init = async () => {
       await fetchMaintenance();
-      setLoading(false);
+      setState(prev => ({ ...prev, loading: false }));
     };
 
     init();
 
-    // Subscribe to realtime updates (bonus, not critical)
     const channel = supabase
       .channel("maintenance_mode_changes")
       .on(
@@ -76,11 +89,14 @@ export function useMaintenanceMode() {
         },
         (payload) => {
           const newData = payload.new as MaintenanceMode & { id: string };
-          setMaintenance({
-            enabled: newData.enabled,
-            message: newData.message || DEFAULT_MAINTENANCE.message,
-            support_link: newData.support_link || DEFAULT_MAINTENANCE.support_link,
-          });
+          setState(prev => ({
+            ...prev,
+            maintenance: {
+              enabled: newData.enabled,
+              message: newData.message || DEFAULT_MAINTENANCE.message,
+              support_link: newData.support_link || DEFAULT_MAINTENANCE.support_link,
+            },
+          }));
         }
       )
       .subscribe();
@@ -90,11 +106,11 @@ export function useMaintenanceMode() {
     };
   }, [fetchMaintenance]);
 
-  return { 
-    maintenance, 
+  return {
+    maintenance: state.maintenance,
+    loading: state.loading,
+    error: state.error,
     setEnabled,
-    loading, 
-    error, 
-    refetch 
+    refetch,
   };
 }
