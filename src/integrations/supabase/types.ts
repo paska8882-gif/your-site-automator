@@ -431,6 +431,33 @@ export type Database = {
           },
         ]
       }
+      maintenance_mode: {
+        Row: {
+          enabled: boolean
+          id: string
+          message: string | null
+          support_link: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          enabled?: boolean
+          id?: string
+          message?: string | null
+          support_link?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          enabled?: boolean
+          id?: string
+          message?: string | null
+          support_link?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
