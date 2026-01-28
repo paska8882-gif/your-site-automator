@@ -15,6 +15,7 @@ import { AdminBalanceRequestsTab } from "@/components/AdminBalanceRequestsTab";
 import { AdminPaymentDetailsTab } from "@/components/AdminPaymentDetailsTab";
 import { AdminReferralTab } from "@/components/AdminReferralTab";
 import { AdminTasksTab } from "@/components/AdminTasksTab";
+import { ManualRequestsTab } from "@/components/ManualRequestsTab";
 import { AppLayout } from "@/components/AppLayout";
 
 const Admin = () => {
@@ -57,7 +58,7 @@ const Admin = () => {
       case "sites":
         return <AdminSitesTab />;
       case "manual-requests":
-        return <AdminSitesTab filterManualOnly />;
+        return <ManualRequestsTab />;
       case "users":
         return <AdminUsersManager />;
       case "appeals":
