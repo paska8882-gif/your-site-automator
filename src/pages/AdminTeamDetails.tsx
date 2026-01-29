@@ -289,7 +289,10 @@ const AdminTeamDetails = () => {
     // Отримуємо генерації по team_id (правильний фільтр)
     const { data: genData } = await supabase
       .from("generation_history")
-      .select("*")
+      // НЕ тягнемо важкі поля типу zip_data/files_data (інакше сторінка може вантажитись вічність)
+      .select(
+        "id, site_name, sale_price, generation_cost, created_at, status, website_type, ai_model, user_id"
+      )
       .eq("team_id", teamId)
       .order("created_at", { ascending: false })
       .limit(100);
@@ -360,7 +363,10 @@ const AdminTeamDetails = () => {
   const fetchAppeals = async () => {
     const { data: appealsData } = await supabase
       .from("appeals")
-      .select("*")
+      // Мінімальний набір полів (уникаємо зайвих JSON-колонок)
+      .select(
+        "id, reason, status, amount_to_refund, created_at, resolved_at, admin_comment, user_id, generation_id, team_id"
+      )
       .eq("team_id", teamId)
       .order("created_at", { ascending: false });
 
