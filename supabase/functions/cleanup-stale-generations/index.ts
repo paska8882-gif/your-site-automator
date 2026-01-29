@@ -290,9 +290,16 @@ serve(async (req) => {
       .from("generation_history")
       .select("id")
       .lt("created_at", twoWeeksAgo)
-      .or("zip_data.neq.null,files_data.neq.null");
+      .not("zip_data", "is", null);
+
+    const { data: oldFilesItems, error: filesFetchError } = await supabase
+      .from("generation_history")
+      .select("id")
+      .lt("created_at", twoWeeksAgo)
+      .not("files_data", "is", null);
 
     let zipsCleared = 0;
+    let filesCleared = 0;
     
     if (zipFetchError) {
       console.error("Error fetching old zip items:", zipFetchError.message);
@@ -301,12 +308,9 @@ serve(async (req) => {
       
       const oldIds = oldZipItems.map(item => item.id);
       
-      const { error: clearZipError, count } = await supabase
+      const { error: clearZipError } = await supabase
         .from("generation_history")
-        .update({ 
-          zip_data: null, 
-          files_data: null 
-        })
+        .update({ zip_data: null })
         .in("id", oldIds);
 
       if (clearZipError) {
@@ -317,7 +321,27 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Cleanup complete: ${processed} processed, ${appealsCreated} pending appeals, ${retriedCount} retried, ${zipsCleared} zips cleared${counterSynced ? `, counter synced ${oldCounter}→${newCounter}` : ""}`);
+    if (filesFetchError) {
+      console.error("Error fetching old files items:", filesFetchError.message);
+    } else if (oldFilesItems && oldFilesItems.length > 0) {
+      console.log(`Found ${oldFilesItems.length} generations with files_data older than 2 weeks`);
+      
+      const oldFileIds = oldFilesItems.map(item => item.id);
+      
+      const { error: clearFilesError } = await supabase
+        .from("generation_history")
+        .update({ files_data: null })
+        .in("id", oldFileIds);
+
+      if (clearFilesError) {
+        console.error("Error clearing old files data:", clearFilesError.message);
+      } else {
+        filesCleared = oldFilesItems.length;
+        console.log(`🗑️ Cleared files_data from ${filesCleared} old generations`);
+      }
+    }
+
+    console.log(`Cleanup complete: ${processed} processed, ${appealsCreated} pending appeals, ${retriedCount} retried, ${zipsCleared} zips cleared, ${filesCleared} files cleared${counterSynced ? `, counter synced ${oldCounter}→${newCounter}` : ""}`);
 
     return new Response(
       JSON.stringify({ 
@@ -326,6 +350,7 @@ serve(async (req) => {
         appealsCreated, 
         retried: retriedCount,
         zipsCleared,
+        filesCleared,
         counterSynced,
         ...(counterSynced && { counterBefore: oldCounter, counterAfter: newCounter })
       }),
