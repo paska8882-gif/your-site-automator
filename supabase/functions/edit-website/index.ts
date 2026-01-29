@@ -425,30 +425,57 @@ function applySearchReplaceBlocks(
       continue;
     }
     
-    // Normalize whitespace for matching (trim lines but preserve structure)
-    const normalizedSearch = block.search.split('\n').map(l => l.trimEnd()).join('\n');
-    const normalizedContent = originalContent.split('\n').map(l => l.trimEnd()).join('\n');
-    
-    if (normalizedContent.includes(normalizedSearch)) {
-      // Apply the replacement
-      const newContent = originalContent.replace(block.search, block.replace);
-      fileMap.set(block.filename, newContent);
-      modifiedPaths.add(block.filename);
-      appliedCount++;
-      console.log(`Applied SEARCH/REPLACE to ${block.filename}`);
-    } else {
-      // Try fuzzy match - maybe extra whitespace
-      const fuzzySearch = block.search.trim();
-      if (originalContent.includes(fuzzySearch)) {
-        const newContent = originalContent.replace(fuzzySearch, block.replace.trim());
-        fileMap.set(block.filename, newContent);
-        modifiedPaths.add(block.filename);
-        appliedCount++;
-        console.log(`Applied fuzzy SEARCH/REPLACE to ${block.filename}`);
+    const searchCandidates: { label: string; search: string; replace: string; applyOnNormalized?: boolean }[] = [
+      // 1) Exact (best-case)
+      { label: "exact", search: block.search, replace: block.replace },
+      // 2) Trim whole block (common)
+      { label: "trim", search: block.search.trim(), replace: block.replace.trim() },
+      // 3) Normalize per-line trailing whitespace (VERY common from LLMs)
+      {
+        label: "trimEndLines",
+        search: block.search.split("\n").map((l) => l.trimEnd()).join("\n"),
+        replace: block.replace.split("\n").map((l) => l.trimEnd()).join("\n"),
+        applyOnNormalized: true,
+      },
+    ];
+
+    let applied = false;
+    for (const cand of searchCandidates) {
+      if (!cand.search) continue;
+
+      if (cand.applyOnNormalized) {
+        const normalizedContent = originalContent
+          .split("\n")
+          .map((l) => l.trimEnd())
+          .join("\n");
+
+        if (normalizedContent.includes(cand.search)) {
+          const newNormalized = normalizedContent.replace(cand.search, cand.replace);
+          fileMap.set(block.filename, newNormalized);
+          modifiedPaths.add(block.filename);
+          appliedCount++;
+          applied = true;
+          console.log(`Applied SEARCH/REPLACE (${cand.label}) to ${block.filename}`);
+          break;
+        }
       } else {
-        console.warn(`SEARCH block not found in ${block.filename}. Search text: "${block.search.substring(0, 100)}..."`);
-        failedBlocks.push(`Not found in ${block.filename}: "${block.search.substring(0, 50)}..."`);
+        if (originalContent.includes(cand.search)) {
+          const newContent = originalContent.replace(cand.search, cand.replace);
+          fileMap.set(block.filename, newContent);
+          modifiedPaths.add(block.filename);
+          appliedCount++;
+          applied = true;
+          console.log(`Applied SEARCH/REPLACE (${cand.label}) to ${block.filename}`);
+          break;
+        }
       }
+    }
+
+    if (!applied) {
+      console.warn(
+        `SEARCH block not found in ${block.filename}. Search text: "${block.search.substring(0, 100)}..."`
+      );
+      failedBlocks.push(`Not found in ${block.filename}: "${block.search.substring(0, 50)}..."`);
     }
   }
   
