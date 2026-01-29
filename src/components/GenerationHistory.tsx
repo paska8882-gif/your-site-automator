@@ -274,7 +274,7 @@ function SingleHistoryItem({
       case "manual_request": return <Clock className="h-4 w-4 text-purple-500" />;
       case "manual_in_progress": return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
       case "manual_completed": return <CheckCircle2 className="h-4 w-4 text-purple-500" />;
-      case "manual_cancelled": return <Ban className="h-4 w-4 text-purple-400" />;
+      case "manual_cancelled": return <Ban className="h-4 w-4 text-red-500" />;
       default: return <Clock className="h-4 w-4 text-muted-foreground" />;
     }
   };

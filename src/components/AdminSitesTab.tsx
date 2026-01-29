@@ -586,7 +586,7 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
       case "manual_completed":
         return <CheckCircle2 className="h-4 w-4 text-purple-500" />;
       case "manual_cancelled":
-        return <XCircle className="h-4 w-4 text-purple-400" />;
+        return <XCircle className="h-4 w-4 text-red-500" />;
       case "cancelled":
         return <XCircle className="h-4 w-4 text-gray-500" />;
       default:
@@ -616,7 +616,7 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
       case "manual_completed":
         return <Badge variant="secondary" className="bg-purple-600 text-white">✋ {t("admin.sitesStatus.completed")}</Badge>;
       case "manual_cancelled":
-        return <Badge variant="secondary" className="bg-purple-400 text-white">✋ {t("admin.cancelled")}</Badge>;
+        return <Badge variant="secondary" className="bg-red-500 text-white">✋ {t("admin.cancelled")}</Badge>;
       case "cancelled":
         return <Badge variant="secondary" className="bg-gray-500 text-white">{t("admin.cancelled")}</Badge>;
       default:
