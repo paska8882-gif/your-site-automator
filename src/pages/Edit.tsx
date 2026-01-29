@@ -1,13 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, Undo2, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditChat } from "@/components/EditChat";
 import { EditPreview } from "@/components/EditPreview";
 import { BlockedUserOverlay } from "@/components/BlockedUserOverlay";
 import { GeneratedFile } from "@/lib/websiteGenerator";
+import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface GenerationData {
   id: string;
@@ -28,9 +35,18 @@ interface SelectedElement {
   selector: string;
 }
 
+interface HistoryEntry {
+  files: GeneratedFile[];
+  timestamp: number;
+  description: string;
+}
+
+const MAX_HISTORY = 10;
+
 const Edit = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { user, loading: authLoading, isBlocked } = useAuth();
   const [generation, setGeneration] = useState<GenerationData | null>(null);
   const [files, setFiles] = useState<GeneratedFile[]>([]);
@@ -39,6 +55,10 @@ const Edit = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedElements, setSelectedElements] = useState<SelectedElement[]>([]);
+  
+  // History state for undo functionality
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [canUndo, setCanUndo] = useState(false);
 
   const handleElementSelected = (element: SelectedElement) => {
     setSelectedElements(prev => {
@@ -107,7 +127,75 @@ const Edit = () => {
     fetchGeneration();
   }, [id, user, navigate]);
 
-  const handleFilesUpdate = (newFiles: GeneratedFile[]) => {
+  // Save current state to history before update
+  const saveToHistory = useCallback((currentFiles: GeneratedFile[], description: string) => {
+    setHistory(prev => {
+      const newEntry: HistoryEntry = {
+        files: currentFiles,
+        timestamp: Date.now(),
+        description,
+      };
+      const updated = [newEntry, ...prev].slice(0, MAX_HISTORY);
+      return updated;
+    });
+    setCanUndo(true);
+  }, []);
+
+  // Undo to previous state
+  const handleUndo = useCallback(async () => {
+    if (history.length === 0) return;
+
+    const [lastState, ...remaining] = history;
+    
+    // Restore files
+    setFiles(lastState.files);
+    
+    // Update selected file
+    if (selectedFile) {
+      const updatedSelected = lastState.files.find(f => f.path === selectedFile.path);
+      if (updatedSelected) {
+        setSelectedFile(updatedSelected);
+      }
+    }
+
+    // Save to database
+    try {
+      const { default: JSZip } = await import("jszip");
+      const zip = new JSZip();
+      lastState.files.forEach((file) => zip.file(file.path, file.content));
+      const zipBase64 = await zip.generateAsync({ type: "base64" });
+
+      await supabase
+        .from("generation_history")
+        .update({
+          files_data: JSON.parse(JSON.stringify(lastState.files)),
+          zip_data: zipBase64,
+        })
+        .eq("id", id);
+
+      toast({
+        title: "Відкат виконано",
+        description: `Повернено до: ${lastState.description}`,
+      });
+    } catch (error) {
+      console.error("Undo save error:", error);
+      toast({
+        title: "Помилка збереження",
+        description: "Стан відновлено локально, але не збережено в базу",
+        variant: "destructive",
+      });
+    }
+
+    setHistory(remaining);
+    setCanUndo(remaining.length > 0);
+  }, [history, selectedFile, id, toast]);
+
+  const handleFilesUpdate = useCallback((newFiles: GeneratedFile[], description?: string) => {
+    // Save current state to history before applying new changes
+    if (files.length > 0) {
+      saveToHistory(files, description || "Попередня версія");
+    }
+    
     setFiles(newFiles);
     // Update selected file if it was modified
     if (selectedFile) {
@@ -116,7 +204,7 @@ const Edit = () => {
         setSelectedFile(updatedSelected);
       }
     }
-  };
+  }, [files, selectedFile, saveToHistory]);
 
   if (authLoading || isLoading) {
     return (
@@ -148,12 +236,71 @@ const Edit = () => {
               {generation.language.toUpperCase()}
             </span>
           </div>
-          {isEditing && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Редагування...
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Undo button with history dropdown */}
+            {history.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    disabled={isEditing || !canUndo}
+                    className="gap-1.5"
+                  >
+                    <Undo2 className="h-4 w-4" />
+                    Відкат
+                    <span className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
+                      {history.length}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[280px]">
+                  {history.map((entry, idx) => (
+                    <DropdownMenuItem
+                      key={entry.timestamp}
+                      onClick={() => {
+                        // Restore to specific history point
+                        if (idx === 0) {
+                          handleUndo();
+                        } else {
+                          // Skip intermediate states
+                          const entriesToSkip = history.slice(0, idx + 1);
+                          const targetEntry = entriesToSkip[entriesToSkip.length - 1];
+                          setFiles(targetEntry.files);
+                          if (selectedFile) {
+                            const updatedSelected = targetEntry.files.find(f => f.path === selectedFile.path);
+                            if (updatedSelected) setSelectedFile(updatedSelected);
+                          }
+                          setHistory(history.slice(idx + 1));
+                          setCanUndo(history.length > idx + 1);
+                          toast({
+                            title: "Відкат виконано",
+                            description: `Повернено до: ${targetEntry.description}`,
+                          });
+                        }
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <History className="h-3.5 w-3.5 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate">{entry.description}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(entry.timestamp).toLocaleTimeString("uk-UA")}
+                        </p>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            
+            {isEditing && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Редагування...
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Main content - split view */}
