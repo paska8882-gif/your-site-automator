@@ -10491,7 +10491,7 @@ ${promptForGeneration}`;
       
       const { data: existingRecord, error: fetchError } = await supabase
         .from("generation_history")
-        .select("id, status, user_id, color_scheme, layout_style, improved_prompt, vip_prompt")
+        .select("id, status, user_id, color_scheme, layout_style, improved_prompt, vip_prompt, sale_price")
         .eq("id", retryHistoryId)
         .single();
       
@@ -10530,7 +10530,12 @@ ${promptForGeneration}`;
       const effectiveImprovedPrompt = improvedPrompt || existingRecord.improved_prompt || null;
       const effectiveVipPrompt = vipPrompt || existingRecord.vip_prompt || null;
       
+      // CRITICAL: Preserve original sale_price on retry - don't overwrite with $0!
+      // If new salePrice was calculated and charged, use it; otherwise keep original
+      const effectiveSalePrice = salePrice > 0 ? salePrice : (existingRecord.sale_price || 0);
+      
       console.log(`🎨 RETRY effective params: colorScheme=${effectiveColorScheme}, layoutStyle=${effectiveLayoutStyle}, hasImprovedPrompt=${!!effectiveImprovedPrompt}, hasVipPrompt=${!!effectiveVipPrompt}`);
+      console.log(`💰 RETRY sale_price: original=${existingRecord.sale_price}, calculated=${salePrice}, effective=${effectiveSalePrice}`);
       
       // Update existing record to pending status with effective params
       const { error: updateError } = await supabase
@@ -10541,7 +10546,7 @@ ${promptForGeneration}`;
           files_data: null,
           zip_data: null,
           completed_at: null,
-          sale_price: salePrice,
+          sale_price: effectiveSalePrice,
           color_scheme: effectiveColorScheme,
           layout_style: effectiveLayoutStyle,
           improved_prompt: effectiveImprovedPrompt,
