@@ -38,7 +38,8 @@ import {
   TrendingUp,
   CalendarIcon,
   Filter,
-  X
+  X,
+  DollarSign
 } from "lucide-react";
 
 interface GeneratedFile {
@@ -312,6 +313,24 @@ export function ManualRequestsTab() {
     applyFilters(requests.filter(r => r.status === "manual_completed" || r.status === "manual_cancelled"))
       .slice(0, 100), // Limit to last 100
     [requests, searchQuery, filterTeam, filterBuyer, filterAdmin, getDateRange]
+  );
+
+  // Calculate totals for each section
+  const newRequestsTotal = useMemo(() => 
+    newRequests.reduce((sum, r) => sum + (r.sale_price || 0), 0),
+    [newRequests]
+  );
+
+  const inProgressTotal = useMemo(() => 
+    inProgressRequests.reduce((sum, r) => sum + (r.sale_price || 0), 0),
+    [inProgressRequests]
+  );
+
+  const completedTotal = useMemo(() => 
+    completedRequests
+      .filter(r => r.status === "manual_completed")
+      .reduce((sum, r) => sum + (r.sale_price || 0), 0),
+    [completedRequests]
   );
 
   // Check if any filter is active
@@ -647,6 +666,9 @@ export function ManualRequestsTab() {
         <TableCell className="max-w-[200px] truncate">{item.site_name || `Site ${item.number}`}</TableCell>
         <TableCell className="text-xs">{getTeamName(item.team_id)}</TableCell>
         <TableCell className="text-xs">{getUserName(item.user_id)}</TableCell>
+        <TableCell className="text-xs font-medium text-green-600">
+          {item.sale_price ? `$${item.sale_price.toFixed(2)}` : "—"}
+        </TableCell>
         {showAdmin && (
           <TableCell className="text-xs font-medium text-blue-600">
             {getUserName(item.assigned_admin_id)}
@@ -674,7 +696,7 @@ export function ManualRequestsTab() {
             </TableCell>
           </>
         )}
-        {(item.status === "completed" || item.status === "cancelled") && (
+        {(item.status === "manual_completed" || item.status === "manual_cancelled") && (
           <>
             <TableCell className="text-xs">{waitTime ? formatDuration(waitTime) : "—"}</TableCell>
             <TableCell className="text-xs">{completionTime ? formatDuration(completionTime) : "—"}</TableCell>
@@ -1015,6 +1037,12 @@ export function ManualRequestsTab() {
                     <Badge variant="secondary" className="bg-purple-500 text-white">
                       {newRequests.length}
                     </Badge>
+                    {newRequestsTotal > 0 && (
+                      <span className="ml-auto text-sm font-medium text-green-600 flex items-center gap-1">
+                        <DollarSign className="h-3.5 w-3.5" />
+                        {newRequestsTotal.toFixed(2)}
+                      </span>
+                    )}
                   </CardTitle>
                 </CardHeader>
               </CollapsibleTrigger>
@@ -1030,6 +1058,7 @@ export function ManualRequestsTab() {
                           <TableHead>{t("admin.sitesTable.siteName")}</TableHead>
                           <TableHead>{t("admin.sitesTable.team")}</TableHead>
                           <TableHead>{t("admin.sitesTable.user")}</TableHead>
+                          <TableHead>{t("admin.sitesTable.price")}</TableHead>
                           <TableHead>{t("admin.sitesTable.date")}</TableHead>
                           <TableHead>{t("admin.waiting")}</TableHead>
                           <TableHead className="w-[120px]">{t("admin.sitesTable.actions")}</TableHead>
@@ -1057,6 +1086,12 @@ export function ManualRequestsTab() {
                     <Badge variant="secondary" className="bg-blue-500 text-white">
                       {inProgressRequests.length}
                     </Badge>
+                    {inProgressTotal > 0 && (
+                      <span className="ml-auto text-sm font-medium text-green-600 flex items-center gap-1">
+                        <DollarSign className="h-3.5 w-3.5" />
+                        {inProgressTotal.toFixed(2)}
+                      </span>
+                    )}
                   </CardTitle>
                 </CardHeader>
               </CollapsibleTrigger>
@@ -1072,6 +1107,7 @@ export function ManualRequestsTab() {
                           <TableHead>{t("admin.sitesTable.siteName")}</TableHead>
                           <TableHead>{t("admin.sitesTable.team")}</TableHead>
                           <TableHead>{t("admin.sitesTable.user")}</TableHead>
+                          <TableHead>{t("admin.sitesTable.price")}</TableHead>
                           <TableHead>{t("admin.assignedAdmin")}</TableHead>
                           <TableHead>{t("admin.sitesTable.date")}</TableHead>
                           <TableHead>{t("admin.waitTime")}</TableHead>
@@ -1101,6 +1137,12 @@ export function ManualRequestsTab() {
                     <Badge variant="secondary" className="bg-green-500 text-white">
                       {completedRequests.length}
                     </Badge>
+                    {completedTotal > 0 && (
+                      <span className="ml-auto text-sm font-medium text-green-600 flex items-center gap-1">
+                        <DollarSign className="h-3.5 w-3.5" />
+                        {completedTotal.toFixed(2)}
+                      </span>
+                    )}
                   </CardTitle>
                 </CardHeader>
               </CollapsibleTrigger>
@@ -1116,6 +1158,7 @@ export function ManualRequestsTab() {
                           <TableHead>{t("admin.sitesTable.siteName")}</TableHead>
                           <TableHead>{t("admin.sitesTable.team")}</TableHead>
                           <TableHead>{t("admin.sitesTable.user")}</TableHead>
+                          <TableHead>{t("admin.sitesTable.price")}</TableHead>
                           <TableHead>{t("admin.assignedAdmin")}</TableHead>
                           <TableHead>{t("admin.sitesTable.date")}</TableHead>
                           <TableHead>{t("admin.waitTime")}</TableHead>
