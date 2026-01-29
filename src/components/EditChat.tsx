@@ -82,6 +82,7 @@ export function EditChat({
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [pendingAnalysis, setPendingAnalysis] = useState<string | null>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const startTimeRef = useRef<number>(0);
@@ -211,6 +212,7 @@ export function EditChat({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setIsDraggingOver(false);
     
     const file = e.dataTransfer.files?.[0];
     if (!file || !file.type.startsWith("image/")) return;
@@ -234,6 +236,23 @@ export function EditChat({
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types.includes("Files")) {
+      setIsDraggingOver(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set to false if leaving the element itself, not a child
+    if (e.currentTarget === e.target) {
+      setIsDraggingOver(false);
+    }
   };
 
   const clearUploadedImage = () => {
@@ -732,14 +751,22 @@ export function EditChat({
             onPaste={handlePaste}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
             placeholder={
-              uploadedImage
-                ? "Опиши проблему..."
-                : selectedElements.length > 0
-                  ? `Що зробити з ${selectedElements.length} ел.?`
-                  : "Зміни / Ctrl+V / перетягни скрін"
+              isDraggingOver
+                ? "📷 Відпусти щоб завантажити"
+                : uploadedImage
+                  ? "Опиши проблему..."
+                  : selectedElements.length > 0
+                    ? `Що зробити з ${selectedElements.length} ел.?`
+                    : "Зміни / Ctrl+V / перетягни скрін"
             }
-            className="min-h-[60px] max-h-[120px] resize-none"
+            className={`min-h-[60px] max-h-[120px] resize-none transition-all duration-200 ${
+              isDraggingOver 
+                ? "border-2 border-dashed border-primary bg-primary/5 ring-2 ring-primary/20" 
+                : ""
+            }`}
             disabled={isEditing || isAnalyzing}
           />
           
