@@ -10,12 +10,22 @@ import { cn } from "@/lib/utils";
 import { emulatePhpPage, getPhpPages, PhpPreviewResult } from "@/lib/phpEmulator";
 import { processHtmlForPreview } from "@/lib/inlineAssets";
 
+interface SelectedElement {
+  tag: string;
+  classes: string[];
+  id: string | null;
+  text: string;
+  selector: string;
+}
+
 interface EditPreviewProps {
   files: GeneratedFile[];
   selectedFile: GeneratedFile | null;
   onSelectFile: (file: GeneratedFile) => void;
   onFilesUpdate?: (files: GeneratedFile[]) => void;
   websiteType?: string;
+  isSelectMode?: boolean;
+  onElementSelected?: (element: SelectedElement) => void;
 }
 
 // Build a standalone HTML that runs the React app in-browser
@@ -363,7 +373,7 @@ const VIEWPORT_SIZES: Record<ViewportSize, { width: string; label: string }> = {
   mobile: { width: "375px", label: "Mobile" },
 };
 
-export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, websiteType }: EditPreviewProps) {
+export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, websiteType, isSelectMode, onElementSelected }: EditPreviewProps) {
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<"preview" | "code" | "edit">("preview");
   const [editedContent, setEditedContent] = useState("");
@@ -555,6 +565,20 @@ export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, 
     return () => window.removeEventListener("message", handleMessage);
   }, [files, isPhp, isReact, onSelectFile]);
 
+  // Listen for element selection messages from iframe
+  useEffect(() => {
+    if (!isSelectMode || !onElementSelected) return;
+
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === "element-selected" && e.data.element) {
+        onElementSelected(e.data.element);
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [isSelectMode, onElementSelected]);
+
   const toggleFolder = (path: string) => {
     setExpandedFolders((prev) => {
       const next = new Set(prev);
@@ -720,6 +744,106 @@ export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, 
       html = html.replace("</body>", navigationScript + "</body>");
     } else {
       html += navigationScript;
+    }
+
+    // Inject element selector script when in select mode
+    if (isSelectMode) {
+      const selectorScript = `
+        <style data-element-selector>
+          .lovable-hover-highlight {
+            outline: 2px solid #3b82f6 !important;
+            outline-offset: 2px !important;
+            cursor: crosshair !important;
+          }
+          .lovable-select-mode * {
+            cursor: crosshair !important;
+          }
+        </style>
+        <script data-element-selector>
+          (function() {
+            document.body.classList.add('lovable-select-mode');
+            var lastHovered = null;
+            
+            function getSelector(el) {
+              if (el.id) return '#' + el.id;
+              var path = [];
+              while (el && el.nodeType === 1) {
+                var selector = el.tagName.toLowerCase();
+                if (el.id) {
+                  selector = '#' + el.id;
+                  path.unshift(selector);
+                  break;
+                }
+                if (el.className && typeof el.className === 'string') {
+                  var classes = el.className.trim().split(/\\s+/).filter(function(c) {
+                    return c && !c.startsWith('lovable-');
+                  });
+                  if (classes.length > 0) {
+                    selector += '.' + classes.slice(0, 2).join('.');
+                  }
+                }
+                var sibling = el;
+                var nth = 1;
+                while (sibling = sibling.previousElementSibling) {
+                  if (sibling.tagName === el.tagName) nth++;
+                }
+                if (nth > 1) selector += ':nth-of-type(' + nth + ')';
+                path.unshift(selector);
+                el = el.parentElement;
+              }
+              return path.join(' > ');
+            }
+            
+            function getCleanText(el) {
+              var text = el.textContent || '';
+              text = text.replace(/\\s+/g, ' ').trim();
+              return text.substring(0, 100);
+            }
+            
+            document.addEventListener('mouseover', function(e) {
+              if (lastHovered) lastHovered.classList.remove('lovable-hover-highlight');
+              e.target.classList.add('lovable-hover-highlight');
+              lastHovered = e.target;
+            }, true);
+            
+            document.addEventListener('mouseout', function(e) {
+              e.target.classList.remove('lovable-hover-highlight');
+            }, true);
+            
+            document.addEventListener('click', function(e) {
+              e.preventDefault();
+              e.stopPropagation();
+              e.stopImmediatePropagation();
+              
+              var el = e.target;
+              var classes = [];
+              if (el.className && typeof el.className === 'string') {
+                classes = el.className.trim().split(/\\s+/).filter(function(c) {
+                  return c && !c.startsWith('lovable-');
+                });
+              }
+              
+              var elementInfo = {
+                tag: el.tagName.toLowerCase(),
+                classes: classes,
+                id: el.id || null,
+                text: getCleanText(el),
+                selector: getSelector(el)
+              };
+              
+              window.parent.postMessage({ type: 'element-selected', element: elementInfo }, '*');
+            }, true);
+            
+            console.log('[ElementSelector] Режим вибору елементів активований');
+          })();
+        </script>
+      `;
+      
+      if (html.includes("</body>")) {
+        html = html.replace("</body>", selectorScript + "</body>");
+      } else {
+        html += selectorScript;
+      }
     }
 
     return html;

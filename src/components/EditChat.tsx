@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Send, Loader2, User, Bot, Crown, Zap, X, Clock } from "lucide-react";
+import { Send, Loader2, User, Bot, Crown, Zap, X, Clock, MousePointer2 } from "lucide-react";
 import { GeneratedFile } from "@/lib/websiteGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +11,14 @@ import { useToast } from "@/hooks/use-toast";
 interface Message {
   role: "user" | "assistant";
   content: string;
+}
+
+interface SelectedElement {
+  tag: string;
+  classes: string[];
+  id: string | null;
+  text: string;
+  selector: string;
 }
 
 interface EditChatProps {
@@ -23,6 +31,10 @@ interface EditChatProps {
   isEditing: boolean;
   setIsEditing: (editing: boolean) => void;
   currentPage?: string;
+  isSelectMode: boolean;
+  setIsSelectMode: (mode: boolean) => void;
+  selectedElement: SelectedElement | null;
+  clearSelectedElement: () => void;
 }
 
 const PROGRESS_STAGES = [
@@ -44,6 +56,10 @@ export function EditChat({
   isEditing,
   setIsEditing,
   currentPage,
+  isSelectMode,
+  setIsSelectMode,
+  selectedElement,
+  clearSelectedElement,
 }: EditChatProps) {
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -128,7 +144,22 @@ export function EditChat({
     if (!input.trim() || isEditing) return;
 
     const userMessage = input.trim();
+    
+    // Build context-enriched message if element is selected
+    let enrichedMessage = userMessage;
+    if (selectedElement) {
+      const elementDescription = [
+        `<${selectedElement.tag}>`,
+        selectedElement.id ? `#${selectedElement.id}` : null,
+        selectedElement.classes.length > 0 ? `.${selectedElement.classes.join(".")}` : null,
+        selectedElement.text ? `"${selectedElement.text.slice(0, 60)}${selectedElement.text.length > 60 ? "..." : ""}"` : null,
+      ].filter(Boolean).join(" ");
+      
+      enrichedMessage = `[Елемент: ${elementDescription}]\n[Селектор: ${selectedElement.selector}]\n\n${userMessage}`;
+    }
+
     setInput("");
+    clearSelectedElement();
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsEditing(true);
 
@@ -162,12 +193,13 @@ export function EditChat({
           },
           body: JSON.stringify({
             generationId,
-            editRequest: userMessage,
+            editRequest: enrichedMessage,
             currentFiles: files,
             aiModel: selectedAiModel,
             websiteType,
             originalPrompt,
             currentPage: currentPage || "index.html",
+            selectedElement: selectedElement || undefined,
           }),
           signal: abortControllerRef.current.signal,
         }
@@ -346,13 +378,52 @@ export function EditChat({
       </ScrollArea>
 
       {/* Input */}
-      <div className="p-4 border-t">
+      <div className="p-4 border-t space-y-3">
+        {/* Selected element indicator */}
+        {selectedElement && (
+          <div className="flex items-center gap-2 p-2 rounded-md bg-primary/10 border border-primary/20">
+            <MousePointer2 className="h-4 w-4 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-primary truncate">
+                &lt;{selectedElement.tag}&gt;
+                {selectedElement.classes.length > 0 && (
+                  <span className="text-muted-foreground ml-1">.{selectedElement.classes.slice(0, 2).join(".")}</span>
+                )}
+              </p>
+              {selectedElement.text && (
+                <p className="text-xs text-muted-foreground truncate">"{selectedElement.text.slice(0, 50)}{selectedElement.text.length > 50 ? "..." : ""}"</p>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 shrink-0"
+              onClick={clearSelectedElement}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
+
         <div className="flex gap-2">
+          <Button
+            variant={isSelectMode ? "default" : "outline"}
+            size="icon"
+            className="h-[60px] w-[44px] shrink-0"
+            onClick={() => setIsSelectMode(!isSelectMode)}
+            disabled={isEditing}
+            title={isSelectMode ? "Вийти з режиму вибору" : "Вибрати елемент на сторінці"}
+          >
+            <MousePointer2 className="h-5 w-5" />
+          </Button>
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Опишіть зміни..."
+            placeholder={selectedElement 
+              ? `Що зробити з <${selectedElement.tag}>?` 
+              : "Опишіть зміни..."
+            }
             className="min-h-[60px] max-h-[120px] resize-none"
             disabled={isEditing}
           />
@@ -369,6 +440,12 @@ export function EditChat({
             )}
           </Button>
         </div>
+
+        {isSelectMode && (
+          <p className="text-xs text-center text-muted-foreground animate-pulse">
+            Клікніть на елемент у превʼю щоб вибрати його
+          </p>
+        )}
       </div>
     </div>
   );
