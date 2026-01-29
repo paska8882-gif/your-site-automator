@@ -22,6 +22,7 @@ interface EditChatProps {
   onFilesUpdate: (files: GeneratedFile[]) => void;
   isEditing: boolean;
   setIsEditing: (editing: boolean) => void;
+  currentPage?: string;
 }
 
 const PROGRESS_STAGES = [
@@ -42,6 +43,7 @@ export function EditChat({
   onFilesUpdate,
   isEditing,
   setIsEditing,
+  currentPage,
 }: EditChatProps) {
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -165,6 +167,7 @@ export function EditChat({
             aiModel: selectedAiModel,
             websiteType,
             originalPrompt,
+            currentPage: currentPage || "index.html",
           }),
           signal: abortControllerRef.current.signal,
         }
