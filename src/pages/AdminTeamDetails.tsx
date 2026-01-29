@@ -153,6 +153,9 @@ const AdminTeamDetails = () => {
   const [referralLimitInput, setReferralLimitInput] = useState("4");
   const [savingReferralLimit, setSavingReferralLimit] = useState(false);
   
+  // All-time stats (separate from limited generations list)
+  const [allTimeStats, setAllTimeStats] = useState({ totalSales: 0, totalCosts: 0, completedCount: 0, failedCount: 0 });
+  
   // Pricing edit state
   const [editingPricing, setEditingPricing] = useState(false);
   const [savingPricing, setSavingPricing] = useState(false);
@@ -224,11 +227,31 @@ const AdminTeamDetails = () => {
       fetchMembers(),
       fetchAdmins(),
       fetchGenerations(),
+      fetchAllTimeStats(),
       fetchTransactions(),
       fetchPricing(),
       fetchAppeals()
     ]);
     setLoading(false);
+  };
+
+  // Окремий запит для статистики за весь час (без limit)
+  const fetchAllTimeStats = async () => {
+    const { data } = await supabase
+      .from("generation_history")
+      .select("status, sale_price, generation_cost")
+      .eq("team_id", teamId);
+
+    if (data) {
+      const completed = data.filter(g => g.status === "completed");
+      const failed = data.filter(g => g.status === "failed");
+      setAllTimeStats({
+        completedCount: completed.length,
+        failedCount: failed.length,
+        totalSales: completed.reduce((sum, g) => sum + (g.sale_price || 0), 0),
+        totalCosts: completed.reduce((sum, g) => sum + (g.generation_cost || 0), 0)
+      });
+    }
   };
 
   const fetchTeam = async () => {
@@ -604,11 +627,8 @@ const AdminTeamDetails = () => {
     }
   };
 
-  // Stats
-  const totalSales = generations.reduce((sum, g) => sum + (g.sale_price || 0), 0);
-  const totalCosts = generations.reduce((sum, g) => sum + (g.generation_cost || 0), 0);
-  const completedCount = generations.filter(g => g.status === "completed").length;
-  const failedCount = generations.filter(g => g.status === "failed").length;
+  // Stats - використовуємо allTimeStats для загальних показників за весь час
+  const { totalSales, totalCosts, completedCount, failedCount } = allTimeStats;
 
   // Members by role
   const membersByRole = members.reduce((acc, m) => {
