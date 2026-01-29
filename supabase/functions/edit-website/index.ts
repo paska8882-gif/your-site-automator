@@ -97,7 +97,8 @@ async function callAIWithTimeout(
           model: model.name,
           messages,
           max_tokens: maxTokens,
-          temperature: 0.7,
+          // Lower temperature = fewer "creative" unintended edits
+          temperature: 0.2,
         }),
         signal: controller.signal,
       });
@@ -115,7 +116,7 @@ async function callAIWithTimeout(
           model: model.name,
           messages,
           max_tokens: maxTokens,
-          temperature: 0.7,
+          temperature: 0.2,
         }),
         signal: controller.signal,
       });
@@ -257,10 +258,11 @@ function selectRelevantFiles(
     });
   }
 
-  // If we selected too few files, include styles.css as a fallback
-  if (selected.length < 2) {
-    const stylesFile = files.find((f) => 
-      f.path.toLowerCase() === "styles.css" || 
+  // If we selected too few files, include styles.css as a fallback ONLY for style requests.
+  // For text-only edits, adding CSS increases context and encourages unintended changes.
+  if (selected.length < 2 && needsStyles) {
+    const stylesFile = files.find((f) =>
+      f.path.toLowerCase() === "styles.css" ||
       f.path.toLowerCase() === "css/styles.css"
     );
     if (stylesFile && !selected.includes(stylesFile)) {
@@ -282,9 +284,10 @@ interface SearchReplaceBlock {
 function cleanAIResponse(content: string): string {
   // Remove wrapping ```html or ```css or ``` blocks
   let cleaned = content
-    .replace(/^```[\w]*\s*\n/gm, '')
-    .replace(/\n```\s*$/gm, '')
-    .replace(/^```\s*$/gm, '')
+    // remove any opening fences like ```html
+    .replace(/```[a-zA-Z0-9_-]*\s*\n/g, "")
+    // remove closing fences
+    .replace(/\n```\s*/g, "\n")
     .trim();
   
   return cleaned;
@@ -321,6 +324,21 @@ function parseSearchReplaceBlocks(content: string): SearchReplaceBlock[] {
       const search = match[2].trim();
       const replace = match[3].trim();
       
+      if (filename && search) {
+        blocks.push({ filename, search, replace });
+      }
+    }
+  }
+
+  // Last-ditch: handle a truncated block where the model forgot/omitted the closing >>>>>>> REPLACE
+  // We treat everything after ======= as the replacement until end of message.
+  if (blocks.length === 0) {
+    const truncatedRegex = /<<<<<<<?[=\s]*SEARCH\s+([^\n]+)\n([\s\S]*?)\n=======[=]*\n([\s\S]*)$/i;
+    const m = cleaned.match(truncatedRegex);
+    if (m) {
+      const filename = m[1].trim();
+      const search = m[2];
+      const replace = m[3];
       if (filename && search) {
         blocks.push({ filename, search, replace });
       }
@@ -522,10 +540,10 @@ ${filesContext}
 USER REQUEST: ${editRequest}
 
 INSTRUCTIONS:
-- Return ONLY the files you need to modify
-- If you only need to change index.html, return only index.html
-- Include complete file content for each modified file
-- Do NOT return files that don't need changes`;
+- Use SEARCH/REPLACE blocks (preferred)
+- Make ONLY the requested change
+- Do NOT touch other sections (cookie banners, CSS resets, etc.) unless explicitly requested
+- Keep the response very short (usually 1 SEARCH/REPLACE block)`;
 
     const messages = [
       { role: "system", content: EDIT_SYSTEM_PROMPT },
