@@ -28,13 +28,20 @@ serve(async (req) => {
     // Build file context for the AI
     const filesList = currentFiles?.map((f: { path: string }) => f.path).join(", ") || "index.html";
 
-    const systemPrompt = `Ти експерт веб-розробки. Проаналізуй скріншот і опиши проблему МАКСИМАЛЬНО КОРОТКО.
+    const userDescription = description?.trim();
+    
+    const systemPrompt = userDescription 
+      ? `Ти експерт веб-розробки. Користувач надіслав скріншот і описав проблему. 
+Проаналізуй СКРІН + ОПИС разом як ОДИН запит. Користувач бачить проблему і пояснює що не так.
 
-Тип: ${websiteType === "react" ? "React" : "HTML"}
-Файли: ${filesList}
+Тип: ${websiteType === "react" ? "React" : "HTML"} | Файли: ${filesList}
 
-ВАЖЛИВО: Відповідь має бути 15-20 слів максимум! Без заголовків, без емодзі. Просто: що не так + як виправити.
-Приклад: "Кнопка виходить за межі контейнера. Додати overflow:hidden або зменшити padding."`;
+ВАЖЛИВО: Відповідь 15-20 слів! Без заголовків, без емодзі. Підтверди проблему + дай рішення.`
+      : `Ти експерт веб-розробки. Проаналізуй скріншот сайту.
+
+Тип: ${websiteType === "react" ? "React" : "HTML"} | Файли: ${filesList}
+
+ВАЖЛИВО: Відповідь 15-20 слів! Без заголовків, без емодзі. Що не так + як виправити.`;
 
     const userContent: any[] = [
       {
@@ -43,19 +50,13 @@ serve(async (req) => {
           url: imageBase64.startsWith("data:") ? imageBase64 : `data:image/png;base64,${imageBase64}`,
         },
       },
+      {
+        type: "text",
+        text: userDescription 
+          ? `Проблема: ${userDescription}`
+          : "Знайди візуальні проблеми на скріншоті.",
+      },
     ];
-
-    if (description) {
-      userContent.push({
-        type: "text",
-        text: `Опис проблеми від користувача: ${description}`,
-      });
-    } else {
-      userContent.push({
-        type: "text",
-        text: "Користувач не надав опис. Проаналізуй скріншот і знайди можливі проблеми.",
-      });
-    }
 
     console.log("Calling Lovable AI for screenshot analysis...");
 
