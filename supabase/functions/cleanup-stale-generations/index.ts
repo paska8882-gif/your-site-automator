@@ -3,7 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-triggered-by, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 // Retry thresholds
@@ -14,7 +15,7 @@ const ZIP_CLEANUP_DAYS = 14; // Delete zip_data after 2 weeks
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
@@ -144,15 +145,16 @@ serve(async (req) => {
     }
 
     // Continue even if no stale items - we still need to cleanup old zip data
-
-    console.log(`Found ${staleItems.length} stale generations (>1h) to cleanup`);
+    const staleCount = staleItems?.length ?? 0;
+    console.log(`Found ${staleCount} stale generations (>1h) to cleanup`);
 
     let processed = 0;
     let appealsCreated = 0;
 
-    const autoAppealReason = "Автоповідомлення: генерація перевищила час очікування (>1 год). Потребує розгляду адміністратором.";
+    const autoAppealReason =
+      "Автоповідомлення: генерація перевищила час очікування (>1 год). Потребує розгляду адміністратором.";
 
-    for (const item of staleItems) {
+    for (const item of staleItems || []) {
       try {
         const refundAmount = typeof item.sale_price === "number" ? item.sale_price : 0;
         let effectiveTeamId: string | null = (item as any).team_id ?? null;
