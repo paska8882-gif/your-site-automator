@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { EditPreview } from "@/components/EditPreview";
+import { SiteEditor } from "@/components/SiteEditor";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -1827,34 +1827,35 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
         </CardContent>
       </Card>
 
-      {/* Preview Dialog */}
+      {/* Preview/Editor Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-[95vw] w-[1400px] h-[90vh] flex flex-col p-0">
-          <DialogHeader className="px-4 py-2 border-b">
-            <DialogTitle className="flex items-center gap-2 text-sm">
-              <Eye className="h-4 w-4" />
-              {t("admin.sitesPreview.title")}: {previewItem?.site_name || `Site ${previewItem?.number}`}
-              <Button
-                variant="outline"
-                size="sm"
-                className="ml-auto h-7 text-xs"
-                onClick={() => {
-                  setPreviewOpen(false);
-                  if (previewItem) handleEdit(previewItem);
-                }}
-              >
-                <Pencil className="h-3 w-3 mr-1" />
-                {t("admin.sitesPreview.edit")}
-              </Button>
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-[95vw] w-[1600px] h-[90vh] flex flex-col p-0">
           <div className="flex-1 overflow-hidden">
-            {previewFiles.length > 0 && selectedPreviewFile && (
-              <EditPreview
-                files={previewFiles}
-                selectedFile={selectedPreviewFile}
-                onSelectFile={setSelectedPreviewFile}
-                websiteType={previewItem?.website_type || "html"}
+            {previewFiles.length > 0 && previewItem && (
+              <SiteEditor
+                generationId={previewItem.id}
+                initialFiles={previewFiles}
+                aiModel={(previewItem.ai_model as "junior" | "senior") || "senior"}
+                websiteType={(previewItem.website_type as "html" | "react") || "html"}
+                originalPrompt={previewItem.prompt}
+                onFilesChange={(newFiles) => {
+                  setPreviewFiles(newFiles);
+                }}
+                header={
+                  <div className="px-4 py-2 border-b flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Eye className="h-4 w-4" />
+                      {previewItem?.site_name || `Site ${previewItem?.number}`}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPreviewOpen(false)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                }
               />
             )}
           </div>
