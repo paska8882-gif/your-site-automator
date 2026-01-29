@@ -2,19 +2,13 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, ArrowLeft, Undo2, History } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditChat } from "@/components/EditChat";
 import { EditPreview } from "@/components/EditPreview";
 import { BlockedUserOverlay } from "@/components/BlockedUserOverlay";
 import { GeneratedFile } from "@/lib/websiteGenerator";
 import { useToast } from "@/hooks/use-toast";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface GenerationData {
   id: string;
@@ -237,63 +231,6 @@ const Edit = () => {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {/* Undo button with history dropdown */}
-            {history.length > 0 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    disabled={isEditing || !canUndo}
-                    className="gap-1.5"
-                  >
-                    <Undo2 className="h-4 w-4" />
-                    Відкат
-                    <span className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded-full">
-                      {history.length}
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-[280px]">
-                  {history.map((entry, idx) => (
-                    <DropdownMenuItem
-                      key={entry.timestamp}
-                      onClick={() => {
-                        // Restore to specific history point
-                        if (idx === 0) {
-                          handleUndo();
-                        } else {
-                          // Skip intermediate states
-                          const entriesToSkip = history.slice(0, idx + 1);
-                          const targetEntry = entriesToSkip[entriesToSkip.length - 1];
-                          setFiles(targetEntry.files);
-                          if (selectedFile) {
-                            const updatedSelected = targetEntry.files.find(f => f.path === selectedFile.path);
-                            if (updatedSelected) setSelectedFile(updatedSelected);
-                          }
-                          setHistory(history.slice(idx + 1));
-                          setCanUndo(history.length > idx + 1);
-                          toast({
-                            title: "Відкат виконано",
-                            description: `Повернено до: ${targetEntry.description}`,
-                          });
-                        }
-                      }}
-                      className="flex items-center gap-2"
-                    >
-                      <History className="h-3.5 w-3.5 text-muted-foreground" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm truncate">{entry.description}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(entry.timestamp).toLocaleTimeString("uk-UA")}
-                        </p>
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            
             {isEditing && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -322,6 +259,8 @@ const Edit = () => {
               selectedElements={selectedElements}
               clearSelectedElements={clearSelectedElements}
               removeSelectedElement={removeSelectedElement}
+              canUndo={canUndo}
+              onUndo={handleUndo}
             />
           </div>
 
