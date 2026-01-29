@@ -26,6 +26,7 @@ interface EditPreviewProps {
   websiteType?: string;
   isSelectMode?: boolean;
   onElementSelected?: (element: SelectedElement) => void;
+  selectedElements?: SelectedElement[];
 }
 
 // Build a standalone HTML that runs the React app in-browser
@@ -373,7 +374,7 @@ const VIEWPORT_SIZES: Record<ViewportSize, { width: string; label: string }> = {
   mobile: { width: "375px", label: "Mobile" },
 };
 
-export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, websiteType, isSelectMode, onElementSelected }: EditPreviewProps) {
+export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, websiteType, isSelectMode, onElementSelected, selectedElements = [] }: EditPreviewProps) {
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<"preview" | "code" | "edit">("preview");
   const [editedContent, setEditedContent] = useState("");
@@ -748,6 +749,7 @@ export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, 
 
     // Inject element selector script when in select mode
     if (isSelectMode) {
+      const selectedSelectors = selectedElements.map(el => el.selector);
       const selectorScript = `
         <style data-element-selector>
           .lovable-hover-highlight {
@@ -755,12 +757,19 @@ export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, 
             outline-offset: 2px !important;
             cursor: crosshair !important;
           }
+          .lovable-selected-element {
+            outline: 2px solid #22c55e !important;
+            outline-offset: 2px !important;
+            background-color: rgba(34, 197, 94, 0.1) !important;
+          }
           .lovable-select-mode * {
             cursor: crosshair !important;
           }
         </style>
         <script data-element-selector>
           (function() {
+            var selectedSelectors = ${JSON.stringify(selectedSelectors)};
+            
             document.body.classList.add('lovable-select-mode');
             var lastHovered = null;
             
@@ -800,14 +809,41 @@ export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, 
               return text.substring(0, 100);
             }
             
+            // Highlight already selected elements
+            function highlightSelected() {
+              // Remove old highlights first
+              document.querySelectorAll('.lovable-selected-element').forEach(function(el) {
+                el.classList.remove('lovable-selected-element');
+              });
+              
+              selectedSelectors.forEach(function(selector) {
+                try {
+                  var el = document.querySelector(selector);
+                  if (el) {
+                    el.classList.add('lovable-selected-element');
+                  }
+                } catch(e) {
+                  console.warn('[ElementSelector] Invalid selector:', selector);
+                }
+              });
+            }
+            
+            highlightSelected();
+            
             document.addEventListener('mouseover', function(e) {
-              if (lastHovered) lastHovered.classList.remove('lovable-hover-highlight');
-              e.target.classList.add('lovable-hover-highlight');
+              if (lastHovered && !lastHovered.classList.contains('lovable-selected-element')) {
+                lastHovered.classList.remove('lovable-hover-highlight');
+              }
+              if (!e.target.classList.contains('lovable-selected-element')) {
+                e.target.classList.add('lovable-hover-highlight');
+              }
               lastHovered = e.target;
             }, true);
             
             document.addEventListener('mouseout', function(e) {
-              e.target.classList.remove('lovable-hover-highlight');
+              if (!e.target.classList.contains('lovable-selected-element')) {
+                e.target.classList.remove('lovable-hover-highlight');
+              }
             }, true);
             
             document.addEventListener('click', function(e) {
@@ -834,7 +870,7 @@ export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, 
               window.parent.postMessage({ type: 'element-selected', element: elementInfo }, '*');
             }, true);
             
-            console.log('[ElementSelector] Режим вибору елементів активований');
+            console.log('[ElementSelector] Режим вибору елементів активований, вибрано:', selectedSelectors.length);
           })();
         </script>
       `;
