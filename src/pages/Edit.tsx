@@ -184,6 +184,7 @@ const Edit = () => {
               websiteType={generation.website_type || undefined}
               isSelectMode={isSelectMode}
               onElementSelected={handleElementSelected}
+              selectedElements={selectedElements}
             />
           </div>
         </div>
