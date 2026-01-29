@@ -2104,7 +2104,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
 
       {/* Edit Dialog - using unified SiteEditor */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-[95vw] w-[1400px] h-[90vh] flex flex-col p-0 gap-0">
+        <DialogContent className="w-[90vw] max-w-[90vw] h-[90vh] flex flex-col p-0 gap-0">
           {editItem && editItem.files_data && (
             <SiteEditor
               generationId={editItem.id}
