@@ -278,15 +278,31 @@ interface SearchReplaceBlock {
   replace: string;
 }
 
+// Clean AI response from markdown code blocks
+function cleanAIResponse(content: string): string {
+  // Remove wrapping ```html or ```css or ``` blocks
+  let cleaned = content
+    .replace(/^```[\w]*\s*\n/gm, '')
+    .replace(/\n```\s*$/gm, '')
+    .replace(/^```\s*$/gm, '')
+    .trim();
+  
+  return cleaned;
+}
+
 // Parse SEARCH/REPLACE blocks from AI response
 function parseSearchReplaceBlocks(content: string): SearchReplaceBlock[] {
   const blocks: SearchReplaceBlock[] = [];
   
+  // Clean markdown code blocks first
+  const cleaned = cleanAIResponse(content);
+  
   // Match: <<<<<<< SEARCH filename.ext ... ======= ... >>>>>>> REPLACE
-  const blockRegex = /<<<<<<< SEARCH\s+([^\n]+)\n([\s\S]*?)\n=======\n([\s\S]*?)\n>>>>>>> REPLACE/gi;
+  // More flexible regex to handle various whitespace
+  const blockRegex = /<<<<<<<?[=\s]*SEARCH\s+([^\n]+)\n([\s\S]*?)\n=======[=]*\n([\s\S]*?)\n>>>>>>>[>]*\s*REPLACE/gi;
   
   let match;
-  while ((match = blockRegex.exec(content)) !== null) {
+  while ((match = blockRegex.exec(cleaned)) !== null) {
     const filename = match[1].trim();
     const search = match[2];
     const replace = match[3];
@@ -296,13 +312,30 @@ function parseSearchReplaceBlocks(content: string): SearchReplaceBlock[] {
     }
   }
   
+  // Try alternative format if no blocks found
+  if (blocks.length === 0) {
+    // Try simpler format: SEARCH filename ... REPLACE
+    const altRegex = /SEARCH\s+([^\n]+)\n([\s\S]*?)\nREPLACE\n([\s\S]*?)(?=\nSEARCH|\n<<<|$)/gi;
+    while ((match = altRegex.exec(cleaned)) !== null) {
+      const filename = match[1].trim();
+      const search = match[2].trim();
+      const replace = match[3].trim();
+      
+      if (filename && search) {
+        blocks.push({ filename, search, replace });
+      }
+    }
+  }
+  
   return blocks;
 }
 
 // Parse full file replacements (legacy format)
 function parseFullFileReplacements(content: string): GeneratedFile[] {
-  const fileMatches = content.matchAll(
-    /<!--\s*FILE:\s*([^\s->]+)\s*-->([\s\S]*?)(?=<!--\s*FILE:|<<<<<<< SEARCH|$)/gi
+  const cleaned = cleanAIResponse(content);
+  
+  const fileMatches = cleaned.matchAll(
+    /<!--\s*FILE:\s*([^\s->]+)\s*-->([\s\S]*?)(?=<!--\s*FILE:|<<<<<<|SEARCH\s|$)/gi
   );
   const parsedFiles: GeneratedFile[] = [];
 
@@ -322,6 +355,35 @@ function parseFullFileReplacements(content: string): GeneratedFile[] {
   }
 
   return parsedFiles;
+}
+
+// Last resort: try to extract any HTML/CSS file content
+function parseAnyFileContent(content: string, currentFiles: GeneratedFile[]): GeneratedFile[] {
+  const cleaned = cleanAIResponse(content);
+  
+  // If response contains substantial HTML, try to figure out which file it belongs to
+  if (cleaned.includes('<!DOCTYPE') || cleaned.includes('<html') || cleaned.includes('<head')) {
+    // Looks like full HTML - probably index.html
+    const htmlContent = cleaned.replace(/^[\s\S]*?(<!DOCTYPE|<html)/i, '$1').trim();
+    if (htmlContent.length > 500) {
+      return [{ path: 'index.html', content: htmlContent }];
+    }
+  }
+  
+  // Check if it looks like CSS
+  if (cleaned.includes('{') && cleaned.includes('}') && 
+      (cleaned.includes('.') || cleaned.includes('#') || cleaned.includes('@media'))) {
+    const hasHtml = cleaned.includes('<') && cleaned.includes('>');
+    if (!hasHtml && cleaned.length > 200) {
+      // Find the CSS file in current files
+      const cssFile = currentFiles.find(f => f.path.endsWith('.css'));
+      if (cssFile) {
+        return [{ path: cssFile.path, content: cleaned }];
+      }
+    }
+  }
+  
+  return [];
 }
 
 // Apply search/replace blocks to original files
@@ -509,11 +571,21 @@ INSTRUCTIONS:
       }
     }
     
+    // Last resort: try to parse any recognizable file content
+    if (modifiedFiles.length === 0) {
+      const anyFiles = parseAnyFileContent(content, currentFiles);
+      if (anyFiles.length > 0) {
+        modifiedFiles = anyFiles;
+        editMethod = `FALLBACK_PARSE (${anyFiles.length} files)`;
+        console.log(`Using fallback parsing for: ${anyFiles.map(f => f.path).join(", ")}`);
+      }
+    }
+    
     console.log(`Edit method: ${editMethod}, Modified files: ${modifiedFiles.map(f => f.path).join(", ")}`);
 
     if (modifiedFiles.length === 0) {
-      console.error("No files parsed from response. Content preview:", content.substring(0, 500));
-      throw new Error("Failed to parse edited files from AI response");
+      console.error("No files parsed from response. Content preview:", content.substring(0, 1000));
+      throw new Error("AI не повернув змін у правильному форматі. Спробуйте ще раз або сформулюйте запит інакше.");
     }
 
     // Merge with original files
