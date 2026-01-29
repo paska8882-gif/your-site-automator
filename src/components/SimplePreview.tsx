@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
-import { inlineLocalImages } from "@/lib/inlineAssets";
+import { useState, useMemo, useEffect, useCallback, useRef, memo } from "react";
+import { processHtmlForPreview } from "@/lib/inlineAssets";
 
 interface GeneratedFile {
   path: string;
@@ -10,6 +10,8 @@ interface SimplePreviewProps {
   files: GeneratedFile[];
   websiteType?: string;
 }
+
+// ========== REACT PREVIEW BUILDER ==========
 
 function buildReactPreviewHtml(files: GeneratedFile[]): string {
   const globalCss = files.find(f => f.path.includes("global.css") || f.path.includes("index.css"));
@@ -213,70 +215,108 @@ function buildReactPreviewHtml(files: GeneratedFile[]): string {
 </html>`;
 }
 
+// ========== HTML PREVIEW BUILDER ==========
+
 function buildHtmlPreview(files: GeneratedFile[], currentPage: string): string {
+  // Find the requested page or fallback to index.html
   const htmlFile = files.find(f => f.path === currentPage) || 
-                   files.find(f => f.path.endsWith(".html") || f.path === "index.html");
-  const cssFile = files.find(f => f.path.endsWith(".css") || f.path === "styles.css");
-  const jsFiles = files.filter(f => f.path.endsWith(".js") && !f.path.includes("cookie-banner"));
-  const cookieBannerFile = files.find(f => f.path === "cookie-banner.js");
+                   files.find(f => f.path === "index.html") ||
+                   files.find(f => f.path.endsWith(".html"));
   
   if (!htmlFile) return "";
   
-  let html = htmlFile.content;
-  
-  // Inline CSS
-  if (cssFile) {
-    const styleTag = `<style>${cssFile.content}</style>`;
-    if (html.includes("</head>")) {
-      html = html.replace("</head>", `${styleTag}</head>`);
-    } else if (html.includes("<body")) {
-      html = html.replace("<body", `${styleTag}<body`);
-    } else {
-      html = styleTag + html;
-    }
-  }
-
-  // Inline JS files
-  for (const jsFile of jsFiles) {
-    if (html.includes(`src="${jsFile.path}"`)) {
-      html = html.replace(
-        new RegExp(`<script\\s+src="${jsFile.path.replace('.', '\\.')}"[^>]*><\\/script>`, 'gi'),
-        `<script>${jsFile.content}</script>`
-      );
-    }
-  }
-
-  // Inline cookie banner
-  if (cookieBannerFile) {
-    html = html.replace(
-      /<script\s+src="cookie-banner\.js"[^>]*><\/script>/gi,
-      `<script>${cookieBannerFile.content}</script>`
-    );
-  }
-
-  // Fix local SVGs (icons) referenced from HTML
-  html = inlineLocalImages(html, files);
+  // Process HTML with full pipeline
+  let html = processHtmlForPreview(htmlFile.content, files);
 
   // Add navigation handler script to intercept link clicks
   const navigationScript = `
-    <script>
-      document.addEventListener('click', function(e) {
-        var target = e.target;
-        while (target && target.tagName !== 'A') {
-          target = target.parentElement;
-        }
-        if (target && target.href) {
-          var href = target.getAttribute('href');
-          if (href && href.endsWith('.html') && !href.startsWith('http') && !href.startsWith('//')) {
-            e.preventDefault();
-            var cleanHref = href.replace('./', '').replace(/^\\//, '');
-            window.parent.postMessage({ type: 'html-navigate', href: cleanHref }, '*');
+    <script data-preview-nav>
+      (function() {
+        // Intercept all link clicks
+        document.addEventListener('click', function(e) {
+          var target = e.target;
+          
+          // Walk up to find anchor tag
+          while (target && target.tagName !== 'A') {
+            target = target.parentElement;
           }
-        }
-      });
+          
+          if (!target || !target.href) return;
+          
+          var href = target.getAttribute('href');
+          if (!href) return;
+          
+          // Skip external links, anchors, tel, mailto
+          if (href.startsWith('http://') || 
+              href.startsWith('https://') || 
+              href.startsWith('//') ||
+              href.startsWith('#') ||
+              href.startsWith('tel:') ||
+              href.startsWith('mailto:') ||
+              href.startsWith('javascript:')) {
+            return;
+          }
+          
+          // Handle internal .html links
+          if (href.endsWith('.html') || href.endsWith('.htm')) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Normalize the path
+            var cleanHref = href
+              .replace(/^\\.\\//g, '')  // Remove ./
+              .replace(/^\\//, '')       // Remove leading /
+              .replace(/\\?.*$/, '')     // Remove query string
+              .replace(/#.*$/, '');      // Remove hash
+            
+            window.parent.postMessage({ 
+              type: 'html-navigate', 
+              href: cleanHref 
+            }, '*');
+            return;
+          }
+          
+          // Handle links without extension (assume .html)
+          if (!href.includes('.') && !href.startsWith('#')) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            var targetHref = href.replace(/^\\.\\//g, '').replace(/^\\//, '');
+            if (!targetHref.endsWith('.html')) {
+              targetHref = targetHref + '.html';
+            }
+            
+            window.parent.postMessage({ 
+              type: 'html-navigate', 
+              href: targetHref 
+            }, '*');
+          }
+        }, true);
+        
+        // Handle form submissions (prevent default)
+        document.addEventListener('submit', function(e) {
+          e.preventDefault();
+          console.log('[Preview] Form submission prevented');
+        }, true);
+        
+        // Fix broken images with placeholder
+        document.querySelectorAll('img').forEach(function(img, i) {
+          img.onerror = function() {
+            if (!this.dataset.fixed) {
+              this.dataset.fixed = 'true';
+              this.src = 'https://picsum.photos/seed/preview' + i + '/800/600';
+            }
+          };
+          // Trigger check for already broken images
+          if (img.complete && img.naturalHeight === 0) {
+            img.onerror();
+          }
+        });
+      })();
     </script>
   `;
 
+  // Inject before </body> or at the end
   if (html.includes("</body>")) {
     html = html.replace("</body>", navigationScript + "</body>");
   } else {
@@ -286,9 +326,20 @@ function buildHtmlPreview(files: GeneratedFile[], currentPage: string): string {
   return html;
 }
 
-export function SimplePreview({ files, websiteType }: SimplePreviewProps) {
+// ========== MAIN COMPONENT ==========
+
+function SimplePreviewInner({ files, websiteType }: SimplePreviewProps) {
   const isReact = websiteType === "react";
   const [currentPage, setCurrentPage] = useState("index.html");
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const blobUrlRef = useRef<string | null>(null);
+
+  // Build list of HTML pages for navigation validation
+  const htmlPages = useMemo(() => {
+    return files
+      .filter(f => f.path.endsWith('.html'))
+      .map(f => f.path);
+  }, [files]);
 
   // Reset to index when files change
   useEffect(() => {
@@ -300,32 +351,84 @@ export function SimplePreview({ files, websiteType }: SimplePreviewProps) {
     const handleMessage = (e: MessageEvent) => {
       if (e.data?.type === "html-navigate" && e.data.href) {
         const targetPage = e.data.href;
-        // Check if the page exists in files
-        const pageExists = files.some(f => f.path === targetPage);
-        if (pageExists) {
+        
+        // Validate the page exists
+        if (htmlPages.includes(targetPage)) {
           setCurrentPage(targetPage);
+        } else {
+          // Try common variations
+          const variations = [
+            targetPage,
+            targetPage.toLowerCase(),
+            targetPage.replace(/^pages\//, ''),
+            `pages/${targetPage}`,
+          ];
+          
+          const found = variations.find(v => htmlPages.includes(v));
+          if (found) {
+            setCurrentPage(found);
+          } else {
+            console.warn(`[SimplePreview] Page not found: ${targetPage}. Available: ${htmlPages.join(', ')}`);
+          }
         }
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [files]);
+  }, [htmlPages]);
 
-  const getPreviewContent = useMemo(() => {
+  // Generate preview content with memoization
+  const previewContent = useMemo(() => {
     if (isReact) {
       return buildReactPreviewHtml(files);
     }
-    
     return buildHtmlPreview(files, currentPage);
   }, [files, isReact, currentPage]);
 
+  // Use Blob URL for better performance with large content
+  useEffect(() => {
+    // Clean up previous blob URL
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = null;
+    }
+
+    if (!previewContent) return;
+
+    // For large content (>50KB), use Blob URL for better performance
+    if (previewContent.length > 50000) {
+      const blob = new Blob([previewContent], { type: 'text/html;charset=utf-8' });
+      blobUrlRef.current = URL.createObjectURL(blob);
+      
+      if (iframeRef.current) {
+        iframeRef.current.src = blobUrlRef.current;
+      }
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
+  }, [previewContent]);
+
+  // For smaller content, use srcDoc (faster initial load)
+  const useBlobUrl = previewContent.length > 50000;
+
   return (
     <iframe
-      srcDoc={getPreviewContent}
+      ref={iframeRef}
+      srcDoc={useBlobUrl ? undefined : previewContent}
       className="w-full h-full border-0 bg-white"
       title="Website preview"
-      sandbox="allow-scripts allow-same-origin"
+      sandbox="allow-scripts allow-same-origin allow-forms"
+      loading="lazy"
     />
   );
 }
+
+// Memoize to prevent unnecessary re-renders
+export const SimplePreview = memo(SimplePreviewInner);

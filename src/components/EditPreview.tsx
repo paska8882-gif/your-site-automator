@@ -1,10 +1,11 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Eye, Code, FileCode, FileText, File, ChevronRight, ChevronDown, Folder, FolderOpen, Maximize2, Minimize2, Home, ChevronLeft, ChevronRightIcon, Monitor, Tablet, Smartphone } from "lucide-react";
 import { GeneratedFile } from "@/lib/websiteGenerator";
 import { cn } from "@/lib/utils";
 import { emulatePhpPage, getPhpPages, PhpPreviewResult } from "@/lib/phpEmulator";
+import { processHtmlForPreview } from "@/lib/inlineAssets";
 
 interface EditPreviewProps {
   files: GeneratedFile[];
@@ -441,6 +442,33 @@ export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: 
     return () => window.removeEventListener("message", handleMessage);
   }, [isPhp, navigateToPhpPage]);
 
+  // Listen for HTML navigation messages from iframe
+  useEffect(() => {
+    if (isPhp || isReact) return;
+
+    const htmlPages = files.filter(f => f.path.endsWith('.html')).map(f => f.path);
+
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === "html-navigate" && e.data.href) {
+        const targetPage = e.data.href;
+        
+        // Find the file and select it
+        const targetFile = files.find(f => f.path === targetPage) ||
+                          files.find(f => f.path.endsWith('/' + targetPage)) ||
+                          files.find(f => f.path === targetPage.toLowerCase());
+        
+        if (targetFile) {
+          onSelectFile(targetFile);
+        } else {
+          console.warn(`[EditPreview] Page not found: ${targetPage}`);
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [files, isPhp, isReact, onSelectFile]);
+
   const toggleFolder = (path: string) => {
     setExpandedFolders((prev) => {
       const next = new Set(prev);
@@ -502,18 +530,44 @@ export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: 
     if (!selectedFile) return "";
     if (!selectedFile.path.endsWith(".html")) return selectedFile.content;
 
-    let html = selectedFile.content;
-    const cssFile = getCssFile();
+    // Use full processing pipeline for HTML
+    let html = processHtmlForPreview(selectedFile.content, files);
+    
+    // Add navigation handler for HTML links
+    const navigationScript = `
+      <script data-preview-nav>
+        document.addEventListener('click', function(e) {
+          var target = e.target;
+          while (target && target.tagName !== 'A') {
+            target = target.parentElement;
+          }
+          if (target && target.href) {
+            var href = target.getAttribute('href');
+            if (href && (href.endsWith('.html') || href.endsWith('.htm')) && 
+                !href.startsWith('http') && !href.startsWith('//') && !href.startsWith('#')) {
+              e.preventDefault();
+              var cleanHref = href.replace(/^\\.\\//g, '').replace(/^\\//, '');
+              window.parent.postMessage({ type: 'html-navigate', href: cleanHref }, '*');
+            }
+          }
+        }, true);
+        
+        // Fix broken images
+        document.querySelectorAll('img').forEach(function(img, i) {
+          img.onerror = function() {
+            if (!this.dataset.fixed) {
+              this.dataset.fixed = 'true';
+              this.src = 'https://picsum.photos/seed/edit' + i + '/800/600';
+            }
+          };
+        });
+      </script>
+    `;
 
-    if (cssFile) {
-      const styleTag = `<style>${cssFile.content}</style>`;
-      if (html.includes("</head>")) {
-        html = html.replace("</head>", `${styleTag}</head>`);
-      } else if (html.includes("<body")) {
-        html = html.replace("<body", `${styleTag}<body`);
-      } else {
-        html = styleTag + html;
-      }
+    if (html.includes("</body>")) {
+      html = html.replace("</body>", navigationScript + "</body>");
+    } else {
+      html += navigationScript;
     }
 
     return html;
