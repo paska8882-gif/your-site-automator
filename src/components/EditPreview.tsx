@@ -1,7 +1,10 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Eye, Code, FileCode, FileText, File, ChevronRight, ChevronDown, Folder, FolderOpen, Maximize2, Minimize2, Home, ChevronLeft, ChevronRightIcon, Monitor, Tablet, Smartphone } from "lucide-react";
+import { Eye, Code, FileCode, FileText, File, ChevronRight, ChevronDown, Folder, FolderOpen, Maximize2, Minimize2, Home, ChevronLeft, ChevronRightIcon, Monitor, Tablet, Smartphone, Pencil, Save, X } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { GeneratedFile } from "@/lib/websiteGenerator";
 import { cn } from "@/lib/utils";
 import { emulatePhpPage, getPhpPages, PhpPreviewResult } from "@/lib/phpEmulator";
@@ -11,6 +14,7 @@ interface EditPreviewProps {
   files: GeneratedFile[];
   selectedFile: GeneratedFile | null;
   onSelectFile: (file: GeneratedFile) => void;
+  onFilesUpdate?: (files: GeneratedFile[]) => void;
   websiteType?: string;
 }
 
@@ -359,8 +363,12 @@ const VIEWPORT_SIZES: Record<ViewportSize, { width: string; label: string }> = {
   mobile: { width: "375px", label: "Mobile" },
 };
 
-export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: EditPreviewProps) {
-  const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
+export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, websiteType }: EditPreviewProps) {
+  const { toast } = useToast();
+  const [viewMode, setViewMode] = useState<"preview" | "code" | "edit">("preview");
+  const [editedContent, setEditedContent] = useState("");
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => {
     const folders = new Set<string>();
@@ -401,6 +409,70 @@ export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: 
       setPhpHistoryIndex(0);
     }
   }, [isPhp]);
+
+  // Sync edited content when selected file changes
+  useEffect(() => {
+    if (selectedFile) {
+      setEditedContent(selectedFile.content);
+      setHasUnsavedChanges(false);
+    }
+  }, [selectedFile]);
+
+  const handleContentChange = (newContent: string) => {
+    setEditedContent(newContent);
+    setHasUnsavedChanges(newContent !== selectedFile?.content);
+  };
+
+  const handleSaveChanges = async () => {
+    if (!selectedFile || !onFilesUpdate) return;
+    
+    setIsSaving(true);
+    try {
+      const updatedFiles = files.map(f => 
+        f.path === selectedFile.path 
+          ? { ...f, content: editedContent }
+          : f
+      );
+      
+      // Get generation ID from URL
+      const pathParts = window.location.pathname.split('/');
+      const generationId = pathParts[pathParts.length - 1];
+      
+      if (generationId && generationId !== 'edit') {
+        // Save to database
+        const { error } = await supabase
+          .from('generation_history')
+          .update({ files_data: JSON.parse(JSON.stringify(updatedFiles)) })
+          .eq('id', generationId);
+        
+        if (error) throw error;
+      }
+      
+      onFilesUpdate(updatedFiles);
+      setHasUnsavedChanges(false);
+      
+      toast({
+        title: "Збережено",
+        description: `Файл ${selectedFile.path} оновлено`,
+      });
+    } catch (error) {
+      console.error("Save error:", error);
+      toast({
+        title: "Помилка",
+        description: "Не вдалося зберегти зміни",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDiscardChanges = () => {
+    if (selectedFile) {
+      setEditedContent(selectedFile.content);
+      setHasUnsavedChanges(false);
+    }
+  };
 
   const navigateToPhpPage = useCallback((path: string) => {
     const normalizedPath = path.replace(/^\.\//, "").replace(/^\//, "");
@@ -895,7 +967,29 @@ export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: 
                   : (selectedFile?.path || "No file selected")}
             </span>
           </div>
-          <div className="flex gap-1">
+          <div className="flex items-center gap-1">
+            {hasUnsavedChanges && viewMode === "edit" && (
+              <div className="flex items-center gap-1 mr-2">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleSaveChanges}
+                  disabled={isSaving}
+                >
+                  <Save className="h-4 w-4 mr-1" />
+                  {isSaving ? "Збереження..." : "Зберегти"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDiscardChanges}
+                  disabled={isSaving}
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Скасувати
+                </Button>
+              </div>
+            )}
             {canPreview && viewMode === "preview" && (
               <Button variant="ghost" size="sm" onClick={() => setIsFullscreen(true)}>
                 <Maximize2 className="h-4 w-4" />
@@ -918,6 +1012,16 @@ export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: 
               <Code className="h-4 w-4 mr-1" />
               Код
             </Button>
+            {onFilesUpdate && (
+              <Button
+                variant={viewMode === "edit" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("edit")}
+              >
+                <Pencil className="h-4 w-4 mr-1" />
+                Редагувати
+              </Button>
+            )}
           </div>
         </div>
 
@@ -952,6 +1056,21 @@ export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: 
                 sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
               />
             )
+          ) : viewMode === "edit" ? (
+            <div className="h-full flex flex-col">
+              <Textarea
+                value={editedContent}
+                onChange={(e) => handleContentChange(e.target.value)}
+                className="flex-1 font-mono text-sm rounded-none border-0 resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                placeholder="Виберіть файл для редагування..."
+                spellCheck={false}
+              />
+              {hasUnsavedChanges && (
+                <div className="px-4 py-2 bg-amber-500/10 border-t border-amber-500/20 flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
+                  <span>● Є незбережені зміни</span>
+                </div>
+              )}
+            </div>
           ) : (
             <ScrollArea className="h-full">
               <pre className="p-4 text-sm font-mono whitespace-pre-wrap break-words">
