@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Download, History, RefreshCw, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, Eye, Code, Pencil, Search, ChevronRight, RotateCcw, Files, FileCode, FileText, File, AlertTriangle, Upload, X, Layers, Filter, CalendarDays, MonitorPlay, Ban, Send, User, Bot, Crown, Zap, Maximize2, Minimize2, Folder, FolderOpen, Copy, Play, StopCircle, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -852,6 +853,11 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
   const [appealScreenshots, setAppealScreenshots] = useState<File[]>([]);
   const [appealScreenshotPreviews, setAppealScreenshotPreviews] = useState<string[]>([]);
   const [submittingAppeal, setSubmittingAppeal] = useState(false);
+  
+  // Cancel manual request dialog
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelItem, setCancelItem] = useState<HistoryItem | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   // PHP Preview dialog
   const [phpPreviewOpen, setPhpPreviewOpen] = useState(false);
@@ -1201,7 +1207,22 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
     });
   };
 
-  const handleCancel = async (item: HistoryItem) => {
+  const handleCancel = (item: HistoryItem) => {
+    const isManualRequest = item.status === "manual_request";
+    
+    // For manual requests, show confirmation dialog
+    if (isManualRequest) {
+      setCancelItem(item);
+      setCancelDialogOpen(true);
+      return;
+    }
+    
+    // For regular generations, proceed with cancellation logic
+    performCancel(item);
+  };
+  
+  const performCancel = async (item: HistoryItem) => {
+    setCancelling(true);
     try {
       // Manual requests can be cancelled immediately (no 10-min restriction)
       const isManualRequest = item.status === "manual_request";
@@ -1259,6 +1280,8 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
 
       // Update generation status and reset sale_price to indicate refund
       // Use different message for admin vs user cancellation
+      // For manual requests use manual_cancelled status
+      const newStatus = isManualRequest ? "manual_cancelled" : "cancelled";
       const cancelMessage = isManualRequest
         ? t("historyExtra.cancelledByUser")
         : isAdmin 
@@ -1268,7 +1291,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
       const { error } = await supabase
         .from("generation_history")
         .update({ 
-          status: "cancelled", 
+          status: newStatus, 
           error_message: cancelMessage,
           completed_at: new Date().toISOString(),
           sale_price: 0 // Reset to show as refunded
@@ -1283,6 +1306,8 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
           title: t("historyExtra.manualRequestCancelled"),
           description: t("historyExtra.manualRequestCancelledDesc"),
         });
+        setCancelDialogOpen(false);
+        setCancelItem(null);
       } else {
         toast({
           title: t("historyExtra.generationCancelled"),
@@ -1296,6 +1321,8 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
         description: t("historyExtra.cancelError"),
         variant: "destructive",
       });
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -2486,6 +2513,45 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Cancel Manual Request Confirmation Dialog */}
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("historyExtra.cancelManualRequestTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("historyExtra.cancelManualRequestConfirm")}
+              {cancelItem?.sale_price && cancelItem.sale_price > 0 && (
+                <span className="block mt-2 font-medium text-green-600">
+                  {t("historyExtra.refundAmount")}: ${cancelItem.sale_price.toFixed(2)}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelling}>
+              {t("common.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => cancelItem && performCancel(cancelItem)}
+              disabled={cancelling}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {cancelling ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {t("common.loading")}
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-4 w-4 mr-2" />
+                  {t("historyExtra.confirmCancelRequest")}
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
