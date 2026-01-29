@@ -2,9 +2,14 @@ import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { ShoppingCart, Calendar, FileCode2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { uk } from "date-fns/locale";
 
 interface TeamMember {
   id: string;
@@ -19,15 +24,21 @@ interface BuyerGenerationsAnalyticsProps {
   teamId: string;
 }
 
-type PeriodOption = "7" | "14" | "30" | "90" | "all";
+type PeriodOption = "7" | "14" | "30" | "90" | "all" | "custom";
 
 const periodLabels: Record<PeriodOption, string> = {
   "7": "7 днів",
   "14": "14 днів",
   "30": "30 днів",
   "90": "90 днів",
-  "all": "Весь час"
+  "all": "Весь час",
+  "custom": "Свій період"
 };
+
+interface DateRange {
+  from: Date | undefined;
+  to: Date | undefined;
+}
 
 interface GenerationStat {
   user_id: string;
@@ -38,6 +49,8 @@ interface GenerationStat {
 
 export function BuyerGenerationsAnalytics({ members, teamId }: BuyerGenerationsAnalyticsProps) {
   const [period, setPeriod] = useState<PeriodOption>("30");
+  const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [generations, setGenerations] = useState<GenerationStat[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -58,7 +71,17 @@ export function BuyerGenerationsAnalytics({ members, teamId }: BuyerGenerationsA
         .eq("team_id", teamId);
 
       // Фільтрація по періоду
-      if (period !== "all") {
+      if (period === "custom" && dateRange.from) {
+        const startDate = new Date(dateRange.from);
+        startDate.setHours(0, 0, 0, 0);
+        query = query.gte("created_at", startDate.toISOString());
+        
+        if (dateRange.to) {
+          const endDate = new Date(dateRange.to);
+          endDate.setHours(23, 59, 59, 999);
+          query = query.lte("created_at", endDate.toISOString());
+        }
+      } else if (period !== "all" && period !== "custom") {
         const days = parseInt(period);
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - days);
@@ -71,12 +94,44 @@ export function BuyerGenerationsAnalytics({ members, teamId }: BuyerGenerationsA
       setLoading(false);
     };
 
+    // Для custom періоду потрібна хоча б початкова дата
+    if (period === "custom" && !dateRange.from) {
+      setLoading(false);
+      return;
+    }
+
     if (teamId && buyers.length > 0) {
       fetchGenerations();
     } else {
       setLoading(false);
     }
-  }, [teamId, period, buyers.length]);
+  }, [teamId, period, buyers.length, dateRange.from, dateRange.to]);
+
+  const handlePeriodChange = (value: PeriodOption) => {
+    setPeriod(value);
+    if (value === "custom") {
+      setCalendarOpen(true);
+    }
+  };
+
+  const handleDateSelect = (range: DateRange | undefined) => {
+    if (range) {
+      setDateRange(range);
+      if (range.from && range.to) {
+        setCalendarOpen(false);
+      }
+    }
+  };
+
+  const getDisplayLabel = () => {
+    if (period === "custom" && dateRange.from) {
+      if (dateRange.to) {
+        return `${format(dateRange.from, "dd.MM")} - ${format(dateRange.to, "dd.MM")}`;
+      }
+      return `з ${format(dateRange.from, "dd.MM.yy")}`;
+    }
+    return periodLabels[period];
+  };
 
   // Calculate stats per buyer
   const buyerStats = useMemo(() => {
@@ -157,22 +212,43 @@ export function BuyerGenerationsAnalytics({ members, teamId }: BuyerGenerationsA
   return (
     <Card>
       <CardHeader className="py-3 px-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <ShoppingCart className="h-4 w-4" />
             Генерації по баєрах
           </CardTitle>
-          <Select value={period} onValueChange={(v: PeriodOption) => setPeriod(v)}>
-            <SelectTrigger className="w-[120px] h-8 text-xs">
-              <Calendar className="h-3 w-3 mr-1" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(periodLabels) as PeriodOption[]).map(p => (
-                <SelectItem key={p} value={p}>{periodLabels[p]}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-1">
+            <Select value={period} onValueChange={handlePeriodChange}>
+              <SelectTrigger className="w-[130px] h-8 text-xs">
+                <Calendar className="h-3 w-3 mr-1 flex-shrink-0" />
+                <span className="truncate">{getDisplayLabel()}</span>
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(periodLabels) as PeriodOption[]).map(p => (
+                  <SelectItem key={p} value={p}>{periodLabels[p]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            {period === "custom" && (
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 px-2">
+                    <Calendar className="h-3.5 w-3.5" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <CalendarComponent
+                    mode="range"
+                    selected={dateRange}
+                    onSelect={handleDateSelect}
+                    locale={uk}
+                    numberOfMonths={1}
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-4 space-y-4">
