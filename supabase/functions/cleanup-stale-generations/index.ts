@@ -10,6 +10,7 @@ const corsHeaders = {
 const RETRY_AFTER_MINUTES = 10; // Retry if stuck for 10+ minutes
 const MAX_RETRIES = 2; // Maximum retry attempts
 const FAIL_AFTER_MINUTES = 60; // Mark as failed after 1 hour
+const ZIP_CLEANUP_DAYS = 14; // Delete zip_data after 2 weeks
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -32,6 +33,7 @@ serve(async (req) => {
     const now = Date.now();
     const tenMinutesAgo = new Date(now - RETRY_AFTER_MINUTES * 60 * 1000).toISOString();
     const oneHourAgo = new Date(now - FAIL_AFTER_MINUTES * 60 * 1000).toISOString();
+    const twoWeeksAgo = new Date(now - ZIP_CLEANUP_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
     // ==========================================
     // STEP 1: Auto-retry stuck generations (10-60 min)
@@ -281,7 +283,41 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Cleanup complete: ${processed} processed, ${appealsCreated} pending appeals, ${retriedCount} retried${counterSynced ? `, counter synced ${oldCounter}→${newCounter}` : ""}`);
+    // ==========================================
+    // STEP 4: Cleanup old zip_data (>2 weeks)
+    // ==========================================
+    const { data: oldZipItems, error: zipFetchError } = await supabase
+      .from("generation_history")
+      .select("id")
+      .lt("created_at", twoWeeksAgo)
+      .or("zip_data.neq.null,files_data.neq.null");
+
+    let zipsCleared = 0;
+    
+    if (zipFetchError) {
+      console.error("Error fetching old zip items:", zipFetchError.message);
+    } else if (oldZipItems && oldZipItems.length > 0) {
+      console.log(`Found ${oldZipItems.length} generations with zip_data older than 2 weeks`);
+      
+      const oldIds = oldZipItems.map(item => item.id);
+      
+      const { error: clearZipError, count } = await supabase
+        .from("generation_history")
+        .update({ 
+          zip_data: null, 
+          files_data: null 
+        })
+        .in("id", oldIds);
+
+      if (clearZipError) {
+        console.error("Error clearing old zip data:", clearZipError.message);
+      } else {
+        zipsCleared = oldZipItems.length;
+        console.log(`🗑️ Cleared zip_data from ${zipsCleared} old generations`);
+      }
+    }
+
+    console.log(`Cleanup complete: ${processed} processed, ${appealsCreated} pending appeals, ${retriedCount} retried, ${zipsCleared} zips cleared${counterSynced ? `, counter synced ${oldCounter}→${newCounter}` : ""}`);
 
     return new Response(
       JSON.stringify({ 
@@ -289,6 +325,7 @@ serve(async (req) => {
         processed, 
         appealsCreated, 
         retried: retriedCount,
+        zipsCleared,
         counterSynced,
         ...(counterSynced && { counterBefore: oldCounter, counterAfter: newCounter })
       }),
