@@ -1,65 +1,71 @@
 
-## Що зараз ламається (діагностика по коду)
-### 1) Перемикач в сайдбарі “ніфіга не працює” через керований стан
-У `AppSidebar.tsx` компонент `MaintenanceToggleSidebar` рендерить `<Switch checked={enabled} ... />`, де `enabled` береться з `useMaintenanceMode()`:
 
-- Коли ти клікаєш — робиться `UPDATE maintenance_mode ...` (і він реально проходить, в мережевих логах був `204`).
-- Але **локально `enabled` не змінюється** (нема `setEnabled(newValue)` як у старому `AdminMaintenanceToggle`).
-- Тобто свіч залишається у старому стані, доки не прийде realtime-івент або не відбудеться повторний fetch. Якщо realtime не приходить/затримується — виглядає як “не працює”.
+## План виправлення бага з підрахунком генерацій команди
 
-### 2) Оверлей для користувачів залежить від того, чи maintenance стан взагалі оновився у клієнта
-`App.tsx` показує `MaintenanceOverlay`, якщо:
-- maintenance увімкнено
-- і користувач **не адмін**
-- і завершились лоадери
+### Суть проблеми
+В `AdminTeamDetails.tsx` функція `fetchGenerations()` шукає генерації **по user_id членів команди**, а не **по team_id генерації**. Це призводить до того, що генерації членів з інших команд (наприклад, Black з KARMA) показуються в статистиці Zavod Lidov.
 
-Якщо maintenance стан у клієнта не оновлюється (через пункт 1), то користувачі можуть не бачити блокування.
+**Результат:** UI показує 72 генерації замість правильних 49.
 
-## Цільова поведінка (як ти описав)
-- Перемикач має **надійно** вмикати/вимикати техрежим.
-- При увімкненні: **всім користувачам**, крім адміна/суперадміна, **заборонити будь-які дії**, блюрнути інтерфейс і показати “ведуться технічні роботи, напишіть в підтримку”.
-- Адміни/суперадміни повинні мати доступ, щоб все перевіряти/керувати.
+### Технічне рішення
 
-## План виправлення
-### A) Зробити перемикач “моментально” працюючим (не чекати realtime)
-1) Оновити `useMaintenanceMode` так, щоб він повертав не тільки `{ maintenance, loading }`, а ще:
-   - `setMaintenance` (або `refetchMaintenance`)
-   - опціонально `error` (щоб бачити, якщо fetch впав)
+**Файл:** `src/pages/AdminTeamDetails.tsx`
 
-2) У `MaintenanceToggleSidebar.handleToggle()`:
-   - зробити **optimistic update**: одразу оновити локальний стан `maintenance.enabled = newValue`
-   - якщо `UPDATE` повернув помилку — відкотити значення назад і показати toast
-   - після успіху додатково викликати `refetchMaintenance()` (або invalidate через react-query, якщо переведемо hook на react-query)
+Змінити функцію `fetchGenerations()` (рядки 288-320):
 
-Результат: свіч одразу переключається в UI і не “стрибає назад”.
+**Було (неправильно):**
+```typescript
+const fetchGenerations = async () => {
+  const { data: membersData } = await supabase
+    .from("team_members")
+    .select("user_id")
+    .eq("team_id", teamId)
+    .eq("status", "approved");
 
-### B) Зробити відображення оверлею максимально надійним
-3) У `useMaintenanceMode` додати fallback, якщо рядок не знайдено:
-   - встановлювати `maintenance` хоча б у дефолт `{ enabled:false, message:'...', support_link:'...' }`
-   - щоб `maintenance?.enabled` не лишалося `undefined/null` через edge-case
+  const userIds = membersData.map(m => m.user_id);
 
-4) У `App.tsx` залишити поточну логіку “крім адмінів”, але:
-   - гарантувати, що під час loading ми нічого не “проморгуємо”
-   - (опціонально) додати маленький “splash/loader” поки йде `isCheckingAccess`, щоб не було миготіння
+  const { data: genData } = await supabase
+    .from("generation_history")
+    .select("*")
+    .in("user_id", userIds)  // ❌ Фільтр по user_id
+    .order("created_at", { ascending: false })
+    .limit(100);
+};
+```
 
-### C) Переконатися, що realtime — бонус, а не залежність
-5) Realtime підписка лишається, але **не є критичною** для UX:
-   - Якщо realtime працює — інші вкладки/вікна підхоплять зміну миттєво
-   - Якщо realtime не працює — все одно UI буде правильний завдяки optimistic update + refetch
+**Буде (правильно):**
+```typescript
+const fetchGenerations = async () => {
+  // Отримуємо генерації по team_id
+  const { data: genData } = await supabase
+    .from("generation_history")
+    .select("*")
+    .eq("team_id", teamId)  // ✅ Фільтр по team_id
+    .order("created_at", { ascending: false })
+    .limit(100);
 
-### D) Перевірка end-to-end (обов’язково)
-6) Тест-кейси:
-   - Як super admin: клікнути свіч → він має одразу змінити стан і показати toast.
-   - Відкрити сайт в інкогніто/іншому браузері (не адмін) → має з’явитися оверлей і блок дій.
-   - Вимкнути техрежим → у не-адміна має зникнути оверлей і все знову працює.
-   - Перевірити, що адміни/суперадміни не блокуються.
+  // Отримуємо імена користувачів
+  if (genData && genData.length > 0) {
+    const userIds = [...new Set(genData.map(g => g.user_id).filter(Boolean))];
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("user_id, display_name")
+      .in("user_id", userIds);
 
-## Мінімальні файли, які потрібно буде змінити
-- `src/hooks/useMaintenanceMode.ts` (додати refetch/сеттери/фолбек)
-- `src/components/AppSidebar.tsx` (optimistic update + rollback + refetch після toggle)
-- (опціонально) `src/App.tsx` (легкі правки для UX/надійності, якщо треба)
+    const profileMap = new Map(profiles?.map(p => [p.user_id, p.display_name]) || []);
 
-## Ризики / примітки
-- Зараз у сайдбарі використовується `await import("@/integrations/supabase/client")` та `await import("sonner")` всередині handler’а. Це не причина бага, але ускладнює дебаг. Можна спростити на звичайні імпорти (рекомендовано).
-- Якщо ти тестиш як адмін і очікуєш блокування — його не буде навмисно. Для перевірки блокування потрібен не-адмін або інкогніто без логіну.
+    setGenerations(genData.map(g => ({
+      ...g,
+      user_name: profileMap.get(g.user_id || "") || "Невідомий"
+    })));
+  } else {
+    setGenerations([]);
+  }
+};
+```
+
+### Очікуваний результат
+- Zavod Lidov буде показувати правильні **49 генерацій** замість 72
+- Генерації Black з KARMA (23 шт) більше не будуть включатись
+- Фінансова статистика буде коректною
 
