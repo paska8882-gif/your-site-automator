@@ -133,6 +133,7 @@ const Edit = () => {
               onFilesUpdate={handleFilesUpdate}
               isEditing={isEditing}
               setIsEditing={setIsEditing}
+              currentPage={selectedFile?.path || "index.html"}
             />
           </div>
 

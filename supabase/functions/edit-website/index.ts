@@ -63,12 +63,12 @@ IMPORTANT:
 // Model configurations with timeouts
 const MODELS = {
   senior: [
+    { name: "google/gemini-2.5-pro", timeout: 120000, gateway: "lovable" },
     { name: "google/gemini-2.5-flash", timeout: 90000, gateway: "lovable" },
-    { name: "google/gemini-2.5-flash-lite", timeout: 60000, gateway: "lovable" },
   ],
   junior: [
-    { name: "gpt-4o", timeout: 90000, gateway: "openai" },
-    { name: "gpt-4o-mini", timeout: 60000, gateway: "openai" },
+    { name: "google/gemini-2.5-flash", timeout: 90000, gateway: "lovable" },
+    { name: "google/gemini-2.5-flash-lite", timeout: 60000, gateway: "lovable" },
   ],
 };
 
@@ -538,8 +538,8 @@ serve(async (req) => {
       });
     }
 
-    const body = await req.json();
-    const { generationId, editRequest, currentFiles, aiModel, websiteType } = body;
+const body = await req.json();
+    const { generationId, editRequest, currentFiles, aiModel, websiteType, currentPage } = body;
 
     if (!generationId || !editRequest || !currentFiles || currentFiles.length === 0) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -549,7 +549,7 @@ serve(async (req) => {
     }
 
     console.log(`Edit request for generation ${generationId}: ${editRequest}`);
-    console.log(`AI Model: ${aiModel}, Website Type: ${websiteType}`);
+    console.log(`AI Model: ${aiModel}, Website Type: ${websiteType}, Current Page: ${currentPage || "index.html"}`);
     console.log(`Total files: ${currentFiles.length}`);
 
     // Select only relevant files
@@ -561,16 +561,24 @@ serve(async (req) => {
       .map((f: GeneratedFile) => `<!-- FILE: ${f.path} -->\n${f.content}`)
       .join("\n\n");
 
+    // Determine which page is active
+    const activePage = currentPage || "index.html";
+    
     const editPrompt = `WEBSITE FILES (${relevantFiles.length} relevant files):
 ${filesContext}
 
+USER IS CURRENTLY VIEWING: ${activePage}
 USER REQUEST: ${editRequest}
 
-INSTRUCTIONS:
-- Use SEARCH/REPLACE blocks (preferred)
-- Make ONLY the requested change
-- Do NOT touch other sections (cookie banners, CSS resets, etc.) unless explicitly requested
-- Keep the response very short (usually 1 SEARCH/REPLACE block)`;
+CRITICAL INSTRUCTIONS:
+1. The user is looking at "${activePage}" - make changes TO THIS FILE primarily unless the request is about styles/scripts
+2. Make REAL, VISIBLE changes that the user will see immediately
+3. Use SEARCH/REPLACE blocks with EXACT text from the file
+4. If changing text - find the exact text in the file and replace it
+5. If changing colors/styles - edit the CSS file (styles.css)
+6. Do NOT return empty or no-op changes
+7. Include enough context (3-10 lines) in SEARCH to uniquely identify the location
+8. The SEARCH text must match EXACTLY what's in the file (copy-paste accuracy)`;
 
     const messages = [
       { role: "system", content: EDIT_SYSTEM_PROMPT },
