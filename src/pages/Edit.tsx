@@ -100,7 +100,7 @@ const Edit = () => {
         {/* Header */}
         <div className="border-b px-4 py-3 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+            <Button variant="ghost" size="sm" type="button" onClick={() => navigate(-1)}>
               <ArrowLeft className="h-4 w-4 mr-1" />
               Назад
             </Button>
