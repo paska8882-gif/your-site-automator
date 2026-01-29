@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Send, Loader2, User, Bot, Crown, Zap, X, Clock, MousePointer2 } from "lucide-react";
+import { Send, Loader2, User, Bot, Crown, Zap, X, Clock, MousePointer2, Undo2 } from "lucide-react";
 import { GeneratedFile } from "@/lib/websiteGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +36,8 @@ interface EditChatProps {
   selectedElements: SelectedElement[];
   clearSelectedElements: () => void;
   removeSelectedElement: (index: number) => void;
+  canUndo: boolean;
+  onUndo: () => void;
 }
 
 const PROGRESS_STAGES = [
@@ -62,6 +64,8 @@ export function EditChat({
   selectedElements,
   clearSelectedElements,
   removeSelectedElement,
+  canUndo,
+  onUndo,
 }: EditChatProps) {
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -427,16 +431,28 @@ export function EditChat({
         )}
 
         <div className="flex gap-2">
-          <Button
-            variant={isSelectMode ? "default" : "outline"}
-            size="icon"
-            className="h-[60px] w-[44px] shrink-0"
-            onClick={() => setIsSelectMode(!isSelectMode)}
-            disabled={isEditing}
-            title={isSelectMode ? "Вийти з режиму вибору" : "Вибрати елемент на сторінці"}
-          >
-            <MousePointer2 className="h-5 w-5" />
-          </Button>
+          <div className="flex flex-col gap-1 shrink-0">
+            <Button
+              variant={isSelectMode ? "default" : "outline"}
+              size="icon"
+              className="h-[29px] w-[44px]"
+              onClick={() => setIsSelectMode(!isSelectMode)}
+              disabled={isEditing}
+              title={isSelectMode ? "Вийти з режиму вибору" : "Вибрати елемент на сторінці"}
+            >
+              <MousePointer2 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-[29px] w-[44px]"
+              onClick={onUndo}
+              disabled={isEditing || !canUndo}
+              title="Відкат до попередньої версії"
+            >
+              <Undo2 className="h-4 w-4" />
+            </Button>
+          </div>
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
