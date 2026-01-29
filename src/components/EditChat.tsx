@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Send, Loader2, User, Bot, Crown, Zap, X, Clock, MousePointer2, Undo2 } from "lucide-react";
+import { Send, Loader2, User, Bot, Crown, Zap, X, Clock, MousePointer2, Undo2, ImagePlus, Check, RefreshCw } from "lucide-react";
 import { GeneratedFile } from "@/lib/websiteGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +11,12 @@ import { useToast } from "@/hooks/use-toast";
 interface Message {
   role: "user" | "assistant";
   content: string;
+  imageUrl?: string;
+  isAnalysis?: boolean;
+  analysisActions?: {
+    onImplement: () => void;
+    onRegenerate: () => void;
+  };
 }
 
 interface SelectedElement {
@@ -73,10 +79,14 @@ export function EditChat({
   const [selectedAiModel, setSelectedAiModel] = useState<"junior" | "senior">(initialAiModel);
   const [progressText, setProgressText] = useState("");
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [pendingAnalysis, setPendingAnalysis] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const startTimeRef = useRef<number>(0);
   const timerRef = useRef<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load messages from localStorage
   useEffect(() => {
@@ -140,9 +150,139 @@ export function EditChat({
       abortControllerRef.current = null;
     }
     setIsEditing(false);
+    setIsAnalyzing(false);
     setMessages((prev) => [
       ...prev,
       { role: "assistant", content: "Запит скасовано." },
+    ]);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Файл занадто великий",
+        description: "Максимальний розмір 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setUploadedImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearUploadedImage = () => {
+    setUploadedImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleAnalyzeScreenshot = async () => {
+    if (!uploadedImage) return;
+
+    setIsAnalyzing(true);
+    const userDescription = input.trim();
+    
+    // Add user message with image
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        content: userDescription || "Проаналізуй цей скріншот",
+        imageUrl: uploadedImage,
+      },
+    ]);
+    setInput("");
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Не авторизовано");
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-screenshot`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            imageBase64: uploadedImage,
+            description: userDescription,
+            currentFiles: files,
+            websiteType,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(errText || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.analysis) {
+        setPendingAnalysis(data.analysis);
+        
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: data.analysis,
+            isAnalysis: true,
+          },
+        ]);
+      } else {
+        throw new Error(data.error || "Не вдалося проаналізувати");
+      }
+    } catch (error) {
+      console.error("Analysis error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Невідома помилка";
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: `Помилка аналізу: ${errorMessage}` },
+      ]);
+      toast({
+        title: "Помилка",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsAnalyzing(false);
+      clearUploadedImage();
+    }
+  };
+
+  const handleImplementAnalysis = async () => {
+    if (!pendingAnalysis) return;
+    
+    // Use the analysis as the edit request
+    setInput(`На основі аналізу скріншоту, виправ наступні проблеми:\n${pendingAnalysis}`);
+    setPendingAnalysis(null);
+    
+    // Trigger send after state update
+    setTimeout(() => {
+      const sendButton = document.querySelector('[data-send-button]') as HTMLButtonElement;
+      sendButton?.click();
+    }, 100);
+  };
+
+  const handleRegenerateAnalysis = () => {
+    setPendingAnalysis(null);
+    setMessages((prev) => [
+      ...prev,
+      { role: "assistant", content: "Завантажте новий скріншот для повторного аналізу." },
     ]);
   };
 
@@ -349,7 +489,38 @@ export function EditChat({
                     : "bg-muted"
                 }`}
               >
+                {/* Show image if present */}
+                {msg.imageUrl && (
+                  <img
+                    src={msg.imageUrl}
+                    alt="Скріншот"
+                    className="max-w-full max-h-[200px] rounded-md mb-2 object-contain"
+                  />
+                )}
                 <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                
+                {/* Action buttons for analysis messages */}
+                {msg.isAnalysis && pendingAnalysis && idx === messages.length - 1 && (
+                  <div className="flex gap-2 mt-3 pt-3 border-t border-border/50">
+                    <Button
+                      size="sm"
+                      onClick={handleImplementAnalysis}
+                      className="flex-1"
+                    >
+                      <Check className="h-4 w-4 mr-1" />
+                      Впровадити
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleRegenerateAnalysis}
+                      className="flex-1"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Новий аналіз
+                    </Button>
+                  </div>
+                )}
               </div>
               {msg.role === "user" && (
                 <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
@@ -358,7 +529,7 @@ export function EditChat({
               )}
             </div>
           ))}
-          {isEditing && (
+          {(isEditing || isAnalyzing) && (
             <div className="flex gap-3">
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                 <Bot className="h-4 w-4 text-primary" />
@@ -366,12 +537,16 @@ export function EditChat({
               <div className="bg-muted rounded-lg px-4 py-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm">{progressText || "Редагую сайт..."}</span>
+                  <span className="text-sm">
+                    {isAnalyzing ? "Аналізую скріншот..." : (progressText || "Редагую сайт...")}
+                  </span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  <span>{formatTime(elapsedTime)}</span>
-                </div>
+                {!isAnalyzing && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    <span>{formatTime(elapsedTime)}</span>
+                  </div>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -430,6 +605,25 @@ export function EditChat({
           </div>
         )}
 
+        {/* Uploaded image preview */}
+        {uploadedImage && (
+          <div className="relative inline-block">
+            <img
+              src={uploadedImage}
+              alt="Скріншот для аналізу"
+              className="max-h-[100px] rounded-md border"
+            />
+            <Button
+              variant="destructive"
+              size="icon"
+              className="absolute -top-2 -right-2 h-5 w-5 rounded-full"
+              onClick={clearUploadedImage}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
+
         <div className="flex gap-2">
           <div className="flex flex-col gap-1 shrink-0">
             <Button
@@ -437,7 +631,7 @@ export function EditChat({
               size="icon"
               className="h-[29px] w-[44px]"
               onClick={() => setIsSelectMode(!isSelectMode)}
-              disabled={isEditing}
+              disabled={isEditing || isAnalyzing}
               title={isSelectMode ? "Вийти з режиму вибору" : "Вибрати елемент на сторінці"}
             >
               <MousePointer2 className="h-4 w-4" />
@@ -447,35 +641,79 @@ export function EditChat({
               size="icon"
               className="h-[29px] w-[44px]"
               onClick={onUndo}
-              disabled={isEditing || !canUndo}
+              disabled={isEditing || isAnalyzing || !canUndo}
               title="Відкат до попередньої версії"
             >
               <Undo2 className="h-4 w-4" />
             </Button>
           </div>
+          
+          {/* Image upload button */}
+          <div className="flex flex-col gap-1 shrink-0">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageUpload}
+            />
+            <Button
+              variant={uploadedImage ? "default" : "outline"}
+              size="icon"
+              className="h-[60px] w-[44px]"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isEditing || isAnalyzing}
+              title="Завантажити скріншот для аналізу"
+            >
+              <ImagePlus className="h-4 w-4" />
+            </Button>
+          </div>
+
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={selectedElements.length > 0
-              ? `Що зробити з ${selectedElements.length} елементами?` 
-              : "Опишіть зміни..."
+            placeholder={
+              uploadedImage
+                ? "Опишіть проблему на скріншоті..."
+                : selectedElements.length > 0
+                  ? `Що зробити з ${selectedElements.length} елементами?`
+                  : "Опишіть зміни..."
             }
             className="min-h-[60px] max-h-[120px] resize-none"
-            disabled={isEditing}
+            disabled={isEditing || isAnalyzing}
           />
-          <Button
-            onClick={handleSend}
-            disabled={!input.trim() || isEditing}
-            size="icon"
-            className="h-[60px] w-[60px]"
-          >
-            {isEditing ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Send className="h-5 w-5" />
-            )}
-          </Button>
+          
+          {/* Send or Analyze button */}
+          {uploadedImage ? (
+            <Button
+              onClick={handleAnalyzeScreenshot}
+              disabled={isAnalyzing}
+              size="icon"
+              className="h-[60px] w-[60px] bg-amber-500 hover:bg-amber-600"
+              title="Проаналізувати скріншот"
+            >
+              {isAnalyzing ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <ImagePlus className="h-5 w-5" />
+              )}
+            </Button>
+          ) : (
+            <Button
+              data-send-button
+              onClick={handleSend}
+              disabled={!input.trim() || isEditing}
+              size="icon"
+              className="h-[60px] w-[60px]"
+            >
+              {isEditing ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Send className="h-5 w-5" />
+              )}
+            </Button>
+          )}
         </div>
 
         {isSelectMode && (
