@@ -12,6 +12,61 @@ interface GeneratedFile {
   content: string;
 }
 
+interface FileWithCookie extends GeneratedFile {
+  _cookieBanner?: string | null;
+}
+
+// Regex to match the cookie banner block injected by the generator
+const COOKIE_BLOCK_REGEX = /<!--\s*Cookie Banner with Settings\s*-->[\s\S]*?<!--\s*End Cookie Banner\s*-->/i;
+
+/**
+ * Extract cookie banner from HTML to protect it from AI editing
+ */
+function extractCookieBanner(html: string): { cleanHtml: string; cookieBanner: string | null } {
+  const match = html.match(COOKIE_BLOCK_REGEX);
+  if (match) {
+    return {
+      cleanHtml: html.replace(COOKIE_BLOCK_REGEX, '<!-- COOKIE_PLACEHOLDER -->'),
+      cookieBanner: match[0]
+    };
+  }
+  return { cleanHtml: html, cookieBanner: null };
+}
+
+/**
+ * Restore cookie banner to HTML after AI editing
+ */
+function restoreCookieBanner(html: string, cookieBanner: string | null): string {
+  if (!cookieBanner) return html;
+  
+  // If placeholder exists, replace it
+  if (html.includes('<!-- COOKIE_PLACEHOLDER -->')) {
+    return html.replace('<!-- COOKIE_PLACEHOLDER -->', cookieBanner);
+  }
+  
+  // If banner was somehow removed, insert before </body>
+  if (!html.includes('lovable-cookie-banner')) {
+    if (html.includes('</body>')) {
+      return html.replace('</body>', '\n' + cookieBanner + '\n</body>');
+    }
+    // Fallback: append at end
+    return html + '\n' + cookieBanner;
+  }
+  
+  return html;
+}
+
+/**
+ * Validate cookie banner integrity
+ */
+function validateCookieBanner(html: string): boolean {
+  const hasBanner = html.includes('id="lovable-cookie-banner"');
+  const hasModal = html.includes('id="lovable-cookie-modal"');
+  const hasScript = html.includes('cookiePreferences');
+  const hasEndComment = html.includes('<!-- End Cookie Banner -->');
+  return hasBanner && hasModal && hasScript && hasEndComment;
+}
+
 // STRICT prompt - AI MUST return ONLY SEARCH/REPLACE blocks, NO explanations
 const EDIT_SYSTEM_PROMPT = `You are a website code editor. You receive files and a change request. You output ONLY code changes.
 
@@ -679,9 +734,21 @@ serve(async (req) => {
     const relevantFiles = selectRelevantFiles(currentFiles, editRequest, activePage);
     console.log(`Selected ${relevantFiles.length} relevant files: ${relevantFiles.map((f: GeneratedFile) => f.path).join(", ")}`);
 
-    // Build optimized context
-    const filesContext = relevantFiles
-      .map((f: GeneratedFile) => `<!-- FILE: ${f.path} -->\n${f.content}`)
+    // PROTECT COOKIE BANNER: Strip from HTML files before AI processing
+    const filesWithCookieInfo: FileWithCookie[] = relevantFiles.map((f: GeneratedFile) => {
+      if (f.path.toLowerCase().endsWith('.html') || f.path.toLowerCase().endsWith('.php')) {
+        const { cleanHtml, cookieBanner } = extractCookieBanner(f.content);
+        if (cookieBanner) {
+          console.log(`[Cookie Protection] Extracted cookie banner from ${f.path} (${cookieBanner.length} chars)`);
+        }
+        return { ...f, content: cleanHtml, _cookieBanner: cookieBanner };
+      }
+      return { ...f, _cookieBanner: null };
+    });
+
+    // Build optimized context (with cookie banners stripped)
+    const filesContext = filesWithCookieInfo
+      .map((f: FileWithCookie) => `<!-- FILE: ${f.path} -->\n${f.content}`)
       .join("\n\n");
 
     const editPrompt = `FILES:
@@ -807,6 +874,24 @@ Return EXACTLY ONE valid SEARCH/REPLACE block for ${activePage}.`,
     }
     
     console.log(`Edit method: ${editMethod}, Modified files: ${modifiedFiles.map(f => f.path).join(", ")}`);
+
+    // RESTORE COOKIE BANNERS: Put them back after AI modifications
+    modifiedFiles = modifiedFiles.map((f) => {
+      const originalWithCookie = filesWithCookieInfo.find((o) => o.path.toLowerCase() === f.path.toLowerCase());
+      if (originalWithCookie?._cookieBanner) {
+        const restoredContent = restoreCookieBanner(f.content, originalWithCookie._cookieBanner);
+        
+        // Validate the restored banner
+        if (validateCookieBanner(restoredContent)) {
+          console.log(`[Cookie Protection] Restored cookie banner to ${f.path}`);
+        } else {
+          console.warn(`[Cookie Protection] Cookie banner validation failed for ${f.path}, forcing restore`);
+        }
+        
+        return { ...f, content: restoredContent };
+      }
+      return f;
+    });
 
     if (modifiedFiles.length === 0) {
       console.error("No files parsed from response. Content preview:", content.substring(0, 1000));
