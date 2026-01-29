@@ -215,6 +215,42 @@ export type Database = {
           },
         ]
       }
+      cleanup_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          files_cleared: number
+          id: string
+          processed: number
+          retried: number
+          success: boolean
+          triggered_by: string | null
+          zips_cleared: number
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          files_cleared?: number
+          id?: string
+          processed?: number
+          retried?: number
+          success?: boolean
+          triggered_by?: string | null
+          zips_cleared?: number
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          files_cleared?: number
+          id?: string
+          processed?: number
+          retried?: number
+          success?: boolean
+          triggered_by?: string | null
+          zips_cleared?: number
+        }
+        Relationships: []
+      }
       feedback: {
         Row: {
           created_at: string

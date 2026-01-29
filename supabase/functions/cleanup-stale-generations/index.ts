@@ -343,6 +343,28 @@ serve(async (req) => {
 
     console.log(`Cleanup complete: ${processed} processed, ${appealsCreated} pending appeals, ${retriedCount} retried, ${zipsCleared} zips cleared, ${filesCleared} files cleared${counterSynced ? `, counter synced ${oldCounter}→${newCounter}` : ""}`);
 
+    // ==========================================
+    // STEP 5: Log cleanup results
+    // ==========================================
+    const triggeredBy = req.headers.get("x-triggered-by") || "cron";
+    
+    const { error: logError } = await supabase
+      .from("cleanup_logs")
+      .insert({
+        zips_cleared: zipsCleared,
+        files_cleared: filesCleared,
+        processed: processed,
+        retried: retriedCount,
+        success: true,
+        triggered_by: triggeredBy,
+      });
+
+    if (logError) {
+      console.error("Error logging cleanup result:", logError.message);
+    } else {
+      console.log("📝 Cleanup result logged successfully");
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
@@ -359,6 +381,23 @@ serve(async (req) => {
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : "Unknown error";
     console.error("Cleanup error:", errMsg);
+    
+    // Log failed cleanup attempt
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (supabaseUrl && supabaseKey) {
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        await supabase.from("cleanup_logs").insert({
+          success: false,
+          error_message: errMsg,
+          triggered_by: req.headers.get("x-triggered-by") || "cron",
+        });
+      }
+    } catch (logErr) {
+      console.error("Failed to log error:", logErr);
+    }
+    
     const isRetryable = errMsg.includes("timeout") || errMsg.includes("521") || errMsg.includes("server") || errMsg.includes("connection");
     return new Response(
       JSON.stringify({ success: false, error: errMsg, retryable: isRetryable }),

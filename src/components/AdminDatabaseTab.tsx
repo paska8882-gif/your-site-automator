@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Database, Trash2, HardDrive, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Loader2, Database, Trash2, HardDrive, RefreshCw, CheckCircle2, History, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface DatabaseStats {
   totalGenerations: number;
@@ -25,11 +26,46 @@ interface CleanupResult {
   timestamp: Date;
 }
 
+interface CleanupLog {
+  id: string;
+  created_at: string;
+  zips_cleared: number;
+  files_cleared: number;
+  processed: number;
+  retried: number;
+  success: boolean;
+  error_message: string | null;
+  triggered_by: string;
+}
+
 export function AdminDatabaseTab() {
   const [stats, setStats] = useState<DatabaseStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [cleaning, setCleaning] = useState(false);
   const [lastCleanup, setLastCleanup] = useState<CleanupResult | null>(null);
+  const [cleanupLogs, setCleanupLogs] = useState<CleanupLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(true);
+
+  const fetchCleanupLogs = async () => {
+    setLogsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("cleanup_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (error) {
+        console.error("Error fetching cleanup logs:", error);
+      } else {
+        setCleanupLogs(data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching cleanup logs:", error);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
 
   const fetchStats = async () => {
     setLoading(true);
@@ -92,12 +128,15 @@ export function AdminDatabaseTab() {
 
   useEffect(() => {
     fetchStats();
+    fetchCleanupLogs();
   }, []);
 
   const runCleanup = async () => {
     setCleaning(true);
     try {
-      const { data, error } = await supabase.functions.invoke("cleanup-stale-generations");
+      const { data, error } = await supabase.functions.invoke("cleanup-stale-generations", {
+        headers: { "x-triggered-by": "manual" }
+      });
       
       if (error) {
         throw error;
@@ -117,8 +156,8 @@ export function AdminDatabaseTab() {
       if (result.success) {
         const clearedTotal = (result.zipsCleared || 0) + (result.filesCleared || 0);
         toast.success(`Очищено ${clearedTotal} zip-файлів`);
-        // Refresh stats
-        await fetchStats();
+        // Refresh stats and logs
+        await Promise.all([fetchStats(), fetchCleanupLogs()]);
       } else {
         toast.error("Помилка очищення");
       }
@@ -303,6 +342,87 @@ export function AdminDatabaseTab() {
           </CardContent>
         </Card>
       )}
+
+      {/* Cleanup History */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <History className="h-5 w-5" />
+            Історія очищень
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {logsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : cleanupLogs.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              Немає записів про очищення
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Дата</TableHead>
+                    <TableHead>Час</TableHead>
+                    <TableHead>Тип</TableHead>
+                    <TableHead className="text-center">ZIP</TableHead>
+                    <TableHead className="text-center">Files</TableHead>
+                    <TableHead className="text-center">Оброблено</TableHead>
+                    <TableHead className="text-center">Повтор</TableHead>
+                    <TableHead>Статус</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {cleanupLogs.map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="whitespace-nowrap">
+                        {format(new Date(log.created_at), "dd.MM.yyyy")}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {format(new Date(log.created_at), "HH:mm:ss")}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          {log.triggered_by === "manual" ? "Ручний" : "Cron"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center font-medium text-green-600">
+                        {log.zips_cleared}
+                      </TableCell>
+                      <TableCell className="text-center font-medium text-green-600">
+                        {log.files_cleared}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {log.processed}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {log.retried}
+                      </TableCell>
+                      <TableCell>
+                        {log.success ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <XCircle className="h-4 w-4 text-red-600" />
+                            {log.error_message && (
+                              <span className="text-xs text-red-600 truncate max-w-[100px]" title={log.error_message}>
+                                {log.error_message}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
