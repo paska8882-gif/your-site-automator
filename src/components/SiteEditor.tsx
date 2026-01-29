@@ -152,7 +152,7 @@ export function SiteEditor({
     setCanUndo(remaining.length > 0);
   }, [history, selectedFile, generationId, toast, onFilesChange]);
 
-  const handleFilesUpdate = useCallback((newFiles: GeneratedFile[], description?: string) => {
+  const handleFilesUpdate = useCallback(async (newFiles: GeneratedFile[], description?: string) => {
     // Save current state to history before applying new changes
     if (files.length > 0) {
       saveToHistory(files, description || "Попередня версія");
@@ -168,7 +168,34 @@ export function SiteEditor({
         setSelectedFile(updatedSelected);
       }
     }
-  }, [files, selectedFile, saveToHistory, onFilesChange]);
+
+    // Save to database
+    try {
+      const { default: JSZip } = await import("jszip");
+      const zip = new JSZip();
+      newFiles.forEach((file) => zip.file(file.path, file.content));
+      const zipBase64 = await zip.generateAsync({ type: "base64" });
+
+      const { error } = await supabase
+        .from("generation_history")
+        .update({
+          files_data: JSON.parse(JSON.stringify(newFiles)),
+          zip_data: zipBase64,
+        })
+        .eq("id", generationId);
+
+      if (error) {
+        console.error("Save error:", error);
+        toast({
+          title: "Помилка збереження",
+          description: "Зміни застосовано локально, але не збережено в базу",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Save error:", error);
+    }
+  }, [files, selectedFile, saveToHistory, onFilesChange, generationId, toast]);
 
   if (initialFiles.length === 0) {
     return (
