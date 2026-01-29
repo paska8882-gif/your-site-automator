@@ -779,10 +779,10 @@ const AdminTeamDetails = () => {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-                <TrendingDown className="h-4 w-4" />
-                Витрати AI
+                <FileText className="h-4 w-4" />
+                Сайтів
               </div>
-              <div className="text-2xl font-bold text-orange-500">${totalCosts.toFixed(2)}</div>
+              <div className="text-2xl font-bold">{completedCount}</div>
             </CardContent>
           </Card>
           <Card>
@@ -833,12 +833,12 @@ const AdminTeamDetails = () => {
             </CardContent>
           </Card>
 
-          {/* Sales & Costs Over Time */}
+          {/* Sales Over Time */}
           <Card>
             <CardHeader className="py-3 px-4">
               <CardTitle className="text-sm flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
-                Продажі та витрати
+                Продажі
               </CardTitle>
             </CardHeader>
             <CardContent className="px-2 pb-4">
@@ -867,14 +867,6 @@ const AdminTeamDetails = () => {
                       name="Продажі" 
                       stroke="hsl(var(--chart-2))" 
                       fill="hsl(var(--chart-2))" 
-                      fillOpacity={0.3} 
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="costs" 
-                      name="Витрати" 
-                      stroke="hsl(var(--chart-4))" 
-                      fill="hsl(var(--chart-4))" 
                       fillOpacity={0.3} 
                     />
                   </AreaChart>
