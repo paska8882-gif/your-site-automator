@@ -295,6 +295,7 @@ export function injectExternalResources(html: string): string {
 
 /**
  * Add base styles for consistent rendering in preview
+ * NOTE: Cookie banner styles are NOT included here - the cookie system has its own inline styles
  */
 export function injectBaseStyles(html: string): string {
   if (!html) return html;
@@ -312,12 +313,6 @@ body {
 }
 img { max-width: 100%; height: auto; }
 a { text-decoration: none; }
-
-/* Ensure cookie banner is visible */
-.cookie-banner, .cookie-consent, [class*="cookie"] {
-  position: fixed !important;
-  z-index: 9999 !important;
-}
 
 /* Fix common layout issues */
 .container { max-width: 1200px; margin: 0 auto; padding: 0 15px; }
