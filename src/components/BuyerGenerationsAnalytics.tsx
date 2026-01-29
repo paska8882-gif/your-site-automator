@@ -183,7 +183,7 @@ export function BuyerGenerationsAnalytics({ members, teamId }: BuyerGenerationsA
         ) : (
           <>
             {/* Summary Stats */}
-            <div className="grid grid-cols-4 gap-2 text-center">
+            <div className="grid grid-cols-3 gap-2 text-center">
               <div className="p-2 bg-muted/50 rounded">
                 <div className="text-lg font-bold">{totals.completed}</div>
                 <div className="text-[10px] text-muted-foreground">Успішних</div>
@@ -195,10 +195,6 @@ export function BuyerGenerationsAnalytics({ members, teamId }: BuyerGenerationsA
               <div className="p-2 bg-muted/50 rounded">
                 <div className="text-lg font-bold text-green-600">${totals.revenue.toFixed(0)}</div>
                 <div className="text-[10px] text-muted-foreground">Дохід</div>
-              </div>
-              <div className="p-2 bg-muted/50 rounded">
-                <div className="text-lg font-bold text-orange-500">${totals.costs.toFixed(2)}</div>
-                <div className="text-[10px] text-muted-foreground">Витрати AI</div>
               </div>
             </div>
 
@@ -250,10 +246,8 @@ export function BuyerGenerationsAnalytics({ members, teamId }: BuyerGenerationsA
                     </div>
                     <div>
                       <div className="font-medium text-sm">{buyer.name}</div>
-                      <div className="flex gap-1.5 text-[10px] text-muted-foreground">
-                        <span className="text-green-600">${buyer.revenue.toFixed(0)}</span>
-                        <span>•</span>
-                        <span className="text-orange-500">${buyer.costs.toFixed(2)}</span>
+                      <div className="text-[10px] text-muted-foreground">
+                        <span className="text-green-600">${buyer.revenue.toFixed(0)} дохід</span>
                       </div>
                     </div>
                   </div>
