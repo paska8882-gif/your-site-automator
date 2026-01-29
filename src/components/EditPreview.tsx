@@ -446,16 +446,12 @@ export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: 
   useEffect(() => {
     if (isPhp || isReact) return;
 
-    const htmlPages = files.filter(f => f.path.endsWith('.html')).map(f => f.path);
-
     const handleMessage = (e: MessageEvent) => {
-      if (e.data?.type === "html-navigate" && e.data.href) {
-        const targetPage = e.data.href;
+      if (e.data?.type === "preview-navigate" && e.data.page) {
+        const targetPage = e.data.page;
         
         // Find the file and select it
-        const targetFile = files.find(f => f.path === targetPage) ||
-                          files.find(f => f.path.endsWith('/' + targetPage)) ||
-                          files.find(f => f.path === targetPage.toLowerCase());
+        const targetFile = files.find(f => f.path === targetPage);
         
         if (targetFile) {
           onSelectFile(targetFile);
@@ -533,34 +529,100 @@ export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: 
     // Use full processing pipeline for HTML
     let html = processHtmlForPreview(selectedFile.content, files);
     
+    // Build list of available HTML pages
+    const availablePages = files
+      .filter(f => f.path.endsWith('.html'))
+      .map(f => f.path.replace(/^\.\//, '').replace(/^\//, ''));
+
     // Add navigation handler for HTML links
     const navigationScript = `
       <script data-preview-nav>
-        document.addEventListener('click', function(e) {
-          var target = e.target;
-          while (target && target.tagName !== 'A') {
-            target = target.parentElement;
+        (function() {
+          var availablePages = ${JSON.stringify(availablePages)};
+          
+          function normalizePath(href) {
+            if (!href) return '';
+            return href
+              .replace(/^\\.\\//g, '')
+              .replace(/^\\//, '')
+              .replace(/\\?.*$/, '')
+              .replace(/#.*$/, '')
+              .toLowerCase();
           }
-          if (target && target.href) {
+          
+          function findPage(href) {
+            var normalized = normalizePath(href);
+            
+            for (var i = 0; i < availablePages.length; i++) {
+              if (availablePages[i].toLowerCase() === normalized) {
+                return availablePages[i];
+              }
+            }
+            
+            if (!normalized.endsWith('.html') && !normalized.endsWith('.htm')) {
+              var withHtml = normalized + '.html';
+              for (var i = 0; i < availablePages.length; i++) {
+                if (availablePages[i].toLowerCase() === withHtml) {
+                  return availablePages[i];
+                }
+              }
+            }
+            
+            var fileName = normalized.split('/').pop();
+            for (var i = 0; i < availablePages.length; i++) {
+              var pageName = availablePages[i].split('/').pop().toLowerCase();
+              if (pageName === fileName || pageName === fileName + '.html') {
+                return availablePages[i];
+              }
+            }
+            
+            return null;
+          }
+          
+          document.addEventListener('click', function(e) {
+            var target = e.target;
+            while (target && target.tagName !== 'A') {
+              target = target.parentElement;
+            }
+            
+            if (!target) return;
+            
             var href = target.getAttribute('href');
-            if (href && (href.endsWith('.html') || href.endsWith('.htm')) && 
-                !href.startsWith('http') && !href.startsWith('//') && !href.startsWith('#')) {
+            if (!href) return;
+            
+            if (href.startsWith('http://') || 
+                href.startsWith('https://') || 
+                href.startsWith('//') ||
+                href.startsWith('#') ||
+                href.startsWith('tel:') ||
+                href.startsWith('mailto:') ||
+                href.startsWith('javascript:')) {
+              return;
+            }
+            
+            var page = findPage(href);
+            
+            if (page) {
               e.preventDefault();
-              var cleanHref = href.replace(/^\\.\\//g, '').replace(/^\\//, '');
-              window.parent.postMessage({ type: 'html-navigate', href: cleanHref }, '*');
+              e.stopPropagation();
+              e.stopImmediatePropagation();
+              
+              console.log('[EditPreview Nav] Navigating to:', page);
+              window.parent.postMessage({ type: 'preview-navigate', page: page }, '*');
             }
-          }
-        }, true);
-        
-        // Fix broken images
-        document.querySelectorAll('img').forEach(function(img, i) {
-          img.onerror = function() {
-            if (!this.dataset.fixed) {
-              this.dataset.fixed = 'true';
-              this.src = 'https://picsum.photos/seed/edit' + i + '/800/600';
-            }
-          };
-        });
+          }, true);
+          
+          document.querySelectorAll('img').forEach(function(img, i) {
+            img.onerror = function() {
+              if (!this.dataset.fixed) {
+                this.dataset.fixed = 'true';
+                this.src = 'https://picsum.photos/seed/edit' + i + '/800/600';
+              }
+            };
+          });
+          
+          console.log('[EditPreview Nav] Initialized with pages:', availablePages);
+        })();
       </script>
     `;
 

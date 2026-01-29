@@ -228,11 +228,60 @@ function buildHtmlPreview(files: GeneratedFile[], currentPage: string): string {
   // Process HTML with full pipeline
   let html = processHtmlForPreview(htmlFile.content, files);
 
+  // Build list of available pages for validation
+  const availablePages = files
+    .filter(f => f.path.endsWith('.html'))
+    .map(f => f.path.replace(/^\.\//, '').replace(/^\//, ''));
+
   // Add navigation handler script to intercept link clicks
   const navigationScript = `
     <script data-preview-nav>
       (function() {
-        // Intercept all link clicks
+        var availablePages = ${JSON.stringify(availablePages)};
+        
+        function normalizePath(href) {
+          if (!href) return '';
+          return href
+            .replace(/^\\.\\//g, '')
+            .replace(/^\\//, '')
+            .replace(/\\?.*$/, '')
+            .replace(/#.*$/, '')
+            .toLowerCase();
+        }
+        
+        function findPage(href) {
+          var normalized = normalizePath(href);
+          
+          // Direct match
+          for (var i = 0; i < availablePages.length; i++) {
+            if (availablePages[i].toLowerCase() === normalized) {
+              return availablePages[i];
+            }
+          }
+          
+          // Try adding .html
+          if (!normalized.endsWith('.html') && !normalized.endsWith('.htm')) {
+            var withHtml = normalized + '.html';
+            for (var i = 0; i < availablePages.length; i++) {
+              if (availablePages[i].toLowerCase() === withHtml) {
+                return availablePages[i];
+              }
+            }
+          }
+          
+          // Try filename only match
+          var fileName = normalized.split('/').pop();
+          for (var i = 0; i < availablePages.length; i++) {
+            var pageName = availablePages[i].split('/').pop().toLowerCase();
+            if (pageName === fileName || pageName === fileName + '.html') {
+              return availablePages[i];
+            }
+          }
+          
+          return null;
+        }
+        
+        // Intercept all clicks
         document.addEventListener('click', function(e) {
           var target = e.target;
           
@@ -241,12 +290,12 @@ function buildHtmlPreview(files: GeneratedFile[], currentPage: string): string {
             target = target.parentElement;
           }
           
-          if (!target || !target.href) return;
+          if (!target) return;
           
           var href = target.getAttribute('href');
           if (!href) return;
           
-          // Skip external links, anchors, tel, mailto
+          // Skip external, anchors, special protocols
           if (href.startsWith('http://') || 
               href.startsWith('https://') || 
               href.startsWith('//') ||
@@ -257,61 +306,43 @@ function buildHtmlPreview(files: GeneratedFile[], currentPage: string): string {
             return;
           }
           
-          // Handle internal .html links
-          if (href.endsWith('.html') || href.endsWith('.htm')) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Normalize the path
-            var cleanHref = href
-              .replace(/^\\.\\//g, '')  // Remove ./
-              .replace(/^\\//, '')       // Remove leading /
-              .replace(/\\?.*$/, '')     // Remove query string
-              .replace(/#.*$/, '');      // Remove hash
-            
-            window.parent.postMessage({ 
-              type: 'html-navigate', 
-              href: cleanHref 
-            }, '*');
-            return;
-          }
+          // Try to find the page
+          var page = findPage(href);
           
-          // Handle links without extension (assume .html)
-          if (!href.includes('.') && !href.startsWith('#')) {
+          if (page) {
             e.preventDefault();
             e.stopPropagation();
+            e.stopImmediatePropagation();
             
-            var targetHref = href.replace(/^\\.\\//g, '').replace(/^\\//, '');
-            if (!targetHref.endsWith('.html')) {
-              targetHref = targetHref + '.html';
-            }
+            console.log('[Preview Nav] Navigating to:', page);
             
             window.parent.postMessage({ 
-              type: 'html-navigate', 
-              href: targetHref 
+              type: 'preview-navigate', 
+              page: page 
             }, '*');
           }
         }, true);
         
-        // Handle form submissions (prevent default)
+        // Handle form submissions
         document.addEventListener('submit', function(e) {
           e.preventDefault();
           console.log('[Preview] Form submission prevented');
         }, true);
         
-        // Fix broken images with placeholder
+        // Fix broken images
         document.querySelectorAll('img').forEach(function(img, i) {
           img.onerror = function() {
             if (!this.dataset.fixed) {
               this.dataset.fixed = 'true';
-              this.src = 'https://picsum.photos/seed/preview' + i + '/800/600';
+              this.src = 'https://picsum.photos/seed/img' + i + '/800/600';
             }
           };
-          // Trigger check for already broken images
           if (img.complete && img.naturalHeight === 0) {
             img.onerror();
           }
         });
+        
+        console.log('[Preview Nav] Initialized with pages:', availablePages);
       })();
     </script>
   `;
@@ -349,27 +380,15 @@ function SimplePreviewInner({ files, websiteType }: SimplePreviewProps) {
   // Listen for navigation messages from iframe
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
-      if (e.data?.type === "html-navigate" && e.data.href) {
-        const targetPage = e.data.href;
+      if (e.data?.type === "preview-navigate" && e.data.page) {
+        const targetPage = e.data.page;
+        console.log('[SimplePreview] Navigation request:', targetPage);
         
         // Validate the page exists
         if (htmlPages.includes(targetPage)) {
           setCurrentPage(targetPage);
         } else {
-          // Try common variations
-          const variations = [
-            targetPage,
-            targetPage.toLowerCase(),
-            targetPage.replace(/^pages\//, ''),
-            `pages/${targetPage}`,
-          ];
-          
-          const found = variations.find(v => htmlPages.includes(v));
-          if (found) {
-            setCurrentPage(found);
-          } else {
-            console.warn(`[SimplePreview] Page not found: ${targetPage}. Available: ${htmlPages.join(', ')}`);
-          }
+          console.warn(`[SimplePreview] Page not found: ${targetPage}. Available: ${htmlPages.join(', ')}`);
         }
       }
     };
