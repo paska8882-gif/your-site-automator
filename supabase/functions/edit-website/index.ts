@@ -63,6 +63,29 @@ replacement text
 
 NO OTHER TEXT ALLOWED. Just the blocks.`;
 
+// Ultra-strict prompt for malformed diff retries (e.g. missing =======)
+const ULTRA_RETRY_SYSTEM_PROMPT = `You are a website code editor.
+
+YOU MUST output valid SEARCH/REPLACE blocks. If you cannot, output NOTHING (empty).
+
+MANDATORY TEMPLATE (copy exactly):
+<<<<<<< SEARCH filename.ext
+[EXACT text from file, 3-10 lines]
+=======
+[replacement text]
+>>>>>>> REPLACE
+
+ABSOLUTE RULES:
+- Response MUST contain the line "=======".
+- Response MUST end each block with ">>>>>>> REPLACE".
+- No markdown, no explanations, no extra text.`;
+
+function isMalformedSearchReplaceLike(content: string): boolean {
+  const cleaned = cleanAIResponse(content);
+  // Common failure mode: it starts a SEARCH block but never outputs the separator.
+  return cleaned.includes("<<<<<<<") && cleaned.toLowerCase().includes("search") && !cleaned.includes("=======");
+}
+
 // Model configurations with timeouts
 const MODELS = {
   senior: [
@@ -686,8 +709,11 @@ START with: <<<<<<< SEARCH`;
     let searchReplaceBlocks = parseSearchReplaceBlocks(content);
     console.log(`Found ${searchReplaceBlocks.length} SEARCH/REPLACE blocks (first attempt)`);
 
-    // RETRY: If no valid blocks found, retry with stricter prompt
-    if (searchReplaceBlocks.length === 0 && !hasValidSearchReplaceFormat(content)) {
+    // RETRY: If no valid blocks found OR response looks like a malformed SEARCH block, retry with stricter prompt
+    if (
+      (searchReplaceBlocks.length === 0 && !hasValidSearchReplaceFormat(content)) ||
+      (searchReplaceBlocks.length === 0 && isMalformedSearchReplaceLike(content))
+    ) {
       console.warn("First attempt failed - AI returned text instead of code. Retrying with stricter prompt...");
       console.log("AI text response preview:", content.substring(0, 300));
 
@@ -703,7 +729,7 @@ Output SEARCH/REPLACE block. START with: <<<<<<< SEARCH ${activePage}` },
 
       try {
         // Use MORE tokens on retry to ensure complete output
-        const retryResult = await callAIWithFallback(modelToUse, retryMessages, 6000, 0.05);
+        const retryResult = await callAIWithFallback(modelToUse, retryMessages, 8000, 0.05);
         console.log(`Retry response from ${retryResult.modelUsed}, length: ${retryResult.content.length}`);
         
         const retryBlocks = parseSearchReplaceBlocks(retryResult.content);
@@ -712,6 +738,33 @@ Output SEARCH/REPLACE block. START with: <<<<<<< SEARCH ${activePage}` },
           content = retryResult.content;
           modelUsed = retryResult.modelUsed + " (retry)";
           console.log(`Retry successful: found ${retryBlocks.length} blocks`);
+        } else if (isMalformedSearchReplaceLike(retryResult.content)) {
+          // ULTRA RETRY: handle the specific failure mode we see in logs (missing =======)
+          console.warn("Retry returned malformed SEARCH/REPLACE (missing =======). Retrying with ULTRA strict prompt...");
+          const ultraRetryMessages = [
+            { role: "system", content: ULTRA_RETRY_SYSTEM_PROMPT },
+            {
+              role: "user",
+              content: `TARGET FILE: ${activePage}
+
+FILE CONTENT (copy from here for SEARCH part):
+${relevantFiles.find((f) => f.path === activePage)?.content || filesContext}
+
+REQUEST: ${editRequest}
+
+Return EXACTLY ONE valid SEARCH/REPLACE block for ${activePage}.`,
+            },
+          ];
+
+          const ultraResult = await callAIWithFallback(modelToUse, ultraRetryMessages, 9000, 0.0);
+          console.log(`Ultra-retry response length: ${ultraResult.content.length}`);
+          const ultraBlocks = parseSearchReplaceBlocks(ultraResult.content);
+          if (ultraBlocks.length > 0) {
+            searchReplaceBlocks = ultraBlocks;
+            content = ultraResult.content;
+            modelUsed = ultraResult.modelUsed + " (ultra-retry)";
+            console.log(`Ultra-retry successful: found ${ultraBlocks.length} blocks`);
+          }
         }
       } catch (retryError) {
         console.error("Retry also failed:", retryError);
