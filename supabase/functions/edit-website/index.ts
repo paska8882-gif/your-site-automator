@@ -12,27 +12,53 @@ interface GeneratedFile {
   content: string;
 }
 
-// Optimized prompt - AI returns ONLY changed files
-const EDIT_SYSTEM_PROMPT = `You are an expert website editor. Your job is to modify existing website files based on user requests.
+// Optimized prompt - AI returns ONLY specific changes as search/replace blocks
+const EDIT_SYSTEM_PROMPT = `You are an expert website editor. Your job is to make PRECISE, TARGETED edits to existing website files.
 
-CRITICAL RULES:
-1. Make ONLY the specific change requested - NOTHING ELSE
-2. DO NOT modify anything that wasn't explicitly asked to change
-3. Keep ALL other content, styles, images, and structure EXACTLY as they are
-4. Return ONLY the files you actually modified - NOT all files
-5. If you need to change 1 file, return only that 1 file
-6. DO NOT change images unless specifically asked
-7. DO NOT change layout unless specifically asked
+CRITICAL: Use SEARCH/REPLACE blocks for efficiency - do NOT return entire files!
 
 OUTPUT FORMAT (MANDATORY):
-<!-- FILE: filename.ext -->
-<complete file content here>
+<<<<<<< SEARCH filename.ext
+exact text to find (3-10 lines of context)
+=======
+replacement text
+>>>>>>> REPLACE
+
+RULES:
+1. Make ONLY the specific change requested - NOTHING ELSE
+2. Use SEARCH/REPLACE blocks - this is faster than returning full files
+3. Include enough context in SEARCH to uniquely identify the location (usually 3-10 lines)
+4. The SEARCH text must match EXACTLY what's in the file
+5. You can have multiple SEARCH/REPLACE blocks for one file
+6. If you need to add new content, use nearby existing lines as context
+7. DO NOT change images, layout, or styles unless specifically asked
+
+EXAMPLE - Changing a button color:
+<<<<<<< SEARCH styles.css
+.btn-primary {
+  background-color: #3498db;
+  color: white;
+}
+=======
+.btn-primary {
+  background-color: #e74c3c;
+  color: white;
+}
+>>>>>>> REPLACE
+
+EXAMPLE - Changing text:
+<<<<<<< SEARCH index.html
+<h1 class="hero-title">Welcome to Our Site</h1>
+<p class="hero-subtitle">We build amazing things</p>
+=======
+<h1 class="hero-title">Welcome to My Portfolio</h1>
+<p class="hero-subtitle">I create beautiful websites</p>
+>>>>>>> REPLACE
 
 IMPORTANT:
-- Return COMPLETE file contents for files you modify
-- Do not use markdown code blocks
-- Use ONLY the <!-- FILE: --> markers
-- Only include files that have actual changes`;
+- Use SEARCH/REPLACE for small changes (1-20 lines)
+- If changing 50%+ of a file, use <!-- FILE: filename.ext --> format with full content instead
+- Be precise - wrong SEARCH text will fail to match`;
 
 // Model configurations with timeouts
 const MODELS = {
@@ -246,9 +272,37 @@ function selectRelevantFiles(
   return selected.slice(0, 8);
 }
 
-function parseFilesFromResponse(content: string): GeneratedFile[] {
+interface SearchReplaceBlock {
+  filename: string;
+  search: string;
+  replace: string;
+}
+
+// Parse SEARCH/REPLACE blocks from AI response
+function parseSearchReplaceBlocks(content: string): SearchReplaceBlock[] {
+  const blocks: SearchReplaceBlock[] = [];
+  
+  // Match: <<<<<<< SEARCH filename.ext ... ======= ... >>>>>>> REPLACE
+  const blockRegex = /<<<<<<< SEARCH\s+([^\n]+)\n([\s\S]*?)\n=======\n([\s\S]*?)\n>>>>>>> REPLACE/gi;
+  
+  let match;
+  while ((match = blockRegex.exec(content)) !== null) {
+    const filename = match[1].trim();
+    const search = match[2];
+    const replace = match[3];
+    
+    if (filename && search !== undefined) {
+      blocks.push({ filename, search, replace });
+    }
+  }
+  
+  return blocks;
+}
+
+// Parse full file replacements (legacy format)
+function parseFullFileReplacements(content: string): GeneratedFile[] {
   const fileMatches = content.matchAll(
-    /<!--\s*FILE:\s*([^\s->]+)\s*-->([\s\S]*?)(?=<!--\s*FILE:|$)/gi
+    /<!--\s*FILE:\s*([^\s->]+)\s*-->([\s\S]*?)(?=<!--\s*FILE:|<<<<<<< SEARCH|$)/gi
   );
   const parsedFiles: GeneratedFile[] = [];
 
@@ -268,6 +322,63 @@ function parseFilesFromResponse(content: string): GeneratedFile[] {
   }
 
   return parsedFiles;
+}
+
+// Apply search/replace blocks to original files
+function applySearchReplaceBlocks(
+  originalFiles: GeneratedFile[],
+  blocks: SearchReplaceBlock[]
+): { modifiedFiles: GeneratedFile[]; appliedCount: number; failedBlocks: string[] } {
+  const fileMap = new Map<string, string>();
+  originalFiles.forEach(f => fileMap.set(f.path, f.content));
+  
+  let appliedCount = 0;
+  const failedBlocks: string[] = [];
+  const modifiedPaths = new Set<string>();
+  
+  for (const block of blocks) {
+    const originalContent = fileMap.get(block.filename);
+    
+    if (originalContent === undefined) {
+      console.warn(`File not found for SEARCH/REPLACE: ${block.filename}`);
+      failedBlocks.push(`File not found: ${block.filename}`);
+      continue;
+    }
+    
+    // Normalize whitespace for matching (trim lines but preserve structure)
+    const normalizedSearch = block.search.split('\n').map(l => l.trimEnd()).join('\n');
+    const normalizedContent = originalContent.split('\n').map(l => l.trimEnd()).join('\n');
+    
+    if (normalizedContent.includes(normalizedSearch)) {
+      // Apply the replacement
+      const newContent = originalContent.replace(block.search, block.replace);
+      fileMap.set(block.filename, newContent);
+      modifiedPaths.add(block.filename);
+      appliedCount++;
+      console.log(`Applied SEARCH/REPLACE to ${block.filename}`);
+    } else {
+      // Try fuzzy match - maybe extra whitespace
+      const fuzzySearch = block.search.trim();
+      if (originalContent.includes(fuzzySearch)) {
+        const newContent = originalContent.replace(fuzzySearch, block.replace.trim());
+        fileMap.set(block.filename, newContent);
+        modifiedPaths.add(block.filename);
+        appliedCount++;
+        console.log(`Applied fuzzy SEARCH/REPLACE to ${block.filename}`);
+      } else {
+        console.warn(`SEARCH block not found in ${block.filename}. Search text: "${block.search.substring(0, 100)}..."`);
+        failedBlocks.push(`Not found in ${block.filename}: "${block.search.substring(0, 50)}..."`);
+      }
+    }
+  }
+  
+  // Return only modified files
+  const modifiedFiles: GeneratedFile[] = [];
+  modifiedPaths.forEach(path => {
+    modifiedFiles.push({ path, content: fileMap.get(path)! });
+  });
+  
+  return { modifiedFiles, appliedCount, failedBlocks };
 }
 
 function mergeFiles(
@@ -359,8 +470,8 @@ INSTRUCTIONS:
       { role: "user", content: editPrompt },
     ];
 
-    // Use max_tokens based on context size
-    const maxTokens = relevantFiles.length <= 3 ? 8000 : 16000;
+    // Use smaller max_tokens since we're using SEARCH/REPLACE
+    const maxTokens = relevantFiles.length <= 3 ? 4000 : 8000;
 
     // Call AI with fallback
     const modelToUse = aiModel === "senior" ? "senior" : "junior";
@@ -368,9 +479,37 @@ INSTRUCTIONS:
 
     console.log(`AI response from ${modelUsed}, length: ${content.length}`);
 
-    // Parse modified files
-    const modifiedFiles = parseFilesFromResponse(content);
-    console.log(`Parsed ${modifiedFiles.length} modified files: ${modifiedFiles.map((f) => f.path).join(", ")}`);
+    // First try to parse SEARCH/REPLACE blocks (new optimized format)
+    const searchReplaceBlocks = parseSearchReplaceBlocks(content);
+    console.log(`Found ${searchReplaceBlocks.length} SEARCH/REPLACE blocks`);
+    
+    let modifiedFiles: GeneratedFile[] = [];
+    let editMethod = "unknown";
+    
+    if (searchReplaceBlocks.length > 0) {
+      // Apply SEARCH/REPLACE blocks - fast and efficient!
+      const { modifiedFiles: patchedFiles, appliedCount, failedBlocks } = 
+        applySearchReplaceBlocks(currentFiles, searchReplaceBlocks);
+      
+      modifiedFiles = patchedFiles;
+      editMethod = `SEARCH/REPLACE (${appliedCount} applied, ${failedBlocks.length} failed)`;
+      
+      if (failedBlocks.length > 0) {
+        console.warn("Failed blocks:", failedBlocks);
+      }
+    }
+    
+    // Fallback: parse full file replacements (legacy format)
+    if (modifiedFiles.length === 0) {
+      const fullFileReplacements = parseFullFileReplacements(content);
+      if (fullFileReplacements.length > 0) {
+        modifiedFiles = fullFileReplacements;
+        editMethod = `FULL_FILE (${fullFileReplacements.length} files)`;
+        console.log(`Using full file replacement for: ${fullFileReplacements.map(f => f.path).join(", ")}`);
+      }
+    }
+    
+    console.log(`Edit method: ${editMethod}, Modified files: ${modifiedFiles.map(f => f.path).join(", ")}`);
 
     if (modifiedFiles.length === 0) {
       console.error("No files parsed from response. Content preview:", content.substring(0, 500));
