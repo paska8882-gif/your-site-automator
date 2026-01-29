@@ -27,7 +27,7 @@ interface EditChatProps {
   aiModel: "junior" | "senior";
   websiteType: "html" | "react";
   originalPrompt: string;
-  onFilesUpdate: (files: GeneratedFile[]) => void;
+  onFilesUpdate: (files: GeneratedFile[], description?: string) => void;
   isEditing: boolean;
   setIsEditing: (editing: boolean) => void;
   currentPage?: string;
@@ -220,7 +220,8 @@ export function EditChat({
       const data = await response.json();
 
       if (data.success && data.files) {
-        onFilesUpdate(data.files);
+        // Pass the user message as description for history
+        onFilesUpdate(data.files, userMessage.slice(0, 50) + (userMessage.length > 50 ? "..." : ""));
         
         const timeSpent = Math.round((Date.now() - startTimeRef.current) / 1000);
         
