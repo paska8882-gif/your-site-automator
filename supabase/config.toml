@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.create-notification]
 verify_jwt = false
+
+[functions.analyze-screenshot]
+verify_jwt = false
