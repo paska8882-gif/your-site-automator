@@ -1,66 +1,142 @@
 
 
-## Виправлення системи редагування сайтів
+# 🔧 Проблема з Cookie-банером в редакторі сайтів
 
-Виявлено дві критичні проблеми, через які редагування не працює:
+## 📋 Що відбувається
 
-### Знайдені проблеми
+Ти описав **дві** пов'язані проблеми:
 
-**1. Активна сторінка не включається у контекст**
-Функція `selectRelevantFiles()` завжди включає `index.html`, але **ігнорує** `currentPage` (сторінку, яку користувач переглядає). Коли ви відкриваєте `thank-you.html`, AI бачить лише `index.html` і не може редагувати потрібну сторінку.
+### Проблема 1: Cookie-налаштування погано відображаються в превʼю
 
-**2. AI "думає вголос" замість повертати код**
-Google Gemini 2.5 Pro іноді повертає текстовий план дій замість SEARCH/REPLACE блоків. Це трапляється коли запит незрозумілий або модель "захоплюється" плануванням.
+Система генерації інжектить складний cookie-банер з модальним вікном (~120 рядків HTML/CSS/JS) **перед закриваючим `</body>`**. Проблеми виникають тому що:
 
-### План виправлення
+- Cookie-банер має **унікальні ID** (`lovable-cookie-banner`, `lovable-cookie-modal`) зі стилями
+- Стилі примусово ховають будь-які інші cookie-банери: `#cookie-banner,.cookie-banner{display:none!important}`
+- Скрипт читає `localStorage.cookiePreferences` - але в превʼю iframe це може працювати некоректно
 
-**Крок 1: Виправити вибір файлів**
-- Змінити `selectRelevantFiles()` щоб приймати `currentPage` як аргумент
-- Завжди включати активну сторінку **першою** у списку
-- Включати `index.html` як fallback лише якщо активна сторінка ≠ index.html
+### Проблема 2: Cookie-налаштування ламаються після редагування
 
-**Крок 2: Посилити системний промпт**
-- Додати чіткі інструкції що AI ОБОВ'ЯЗКОВО повинен повернути SEARCH/REPLACE блоки
-- Заборонити текстові пояснення перед кодом
-- Зменшити температуру ще більше (0.1)
+Коли ШІ робить редагування файлу, відбувається наступне:
 
-**Крок 3: Валідація відповіді AI**
-- Якщо AI повертає текст без SEARCH/REPLACE блоків → повторити запит з більш жорстким промптом
-- Додати повторну спробу (retry) з fallback моделлю
-
-### Технічні зміни
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                       edit-website/index.ts                      │
-├─────────────────────────────────────────────────────────────────┤
-│ 1. selectRelevantFiles(files, request, currentPage)             │
-│    - FIRST: Include currentPage if it exists in files           │
-│    - SECOND: Include index.html only if different from current  │
-│    - THIRD: Apply keyword-based selection                       │
-├─────────────────────────────────────────────────────────────────┤
-│ 2. EDIT_SYSTEM_PROMPT                                           │
-│    - Add: "DO NOT explain what you will do - just do it"        │
-│    - Add: "NEVER output plain text before SEARCH/REPLACE"       │
-│    - Add: "If request is unclear, make a reasonable assumption" │
-├─────────────────────────────────────────────────────────────────┤
-│ 3. Temperature: 0.2 → 0.1                                       │
-├─────────────────────────────────────────────────────────────────┤
-│ 4. Add retry logic if no SEARCH/REPLACE blocks found            │
-│    - Retry with more explicit prompt once before giving up      │
-└─────────────────────────────────────────────────────────────────┘
+```
+SEARCH/REPLACE стратегія → фрагмент cookie-банера збігається → частково перезаписується → HTML ламається
 ```
 
-### Файли для зміни
+**Приклад поломки:**
+- ШІ знаходить рядок `</body>` або `</div>` в cookie-блоці
+- Замінює його, ненавмисно вбиваючи частину cookie-системи
+- Результат: незакриті теги, зламаний JavaScript, сторінка не рендериться
+
+---
+
+## 🛠️ План виправлення
+
+### 1. Захистити cookie-банер від AI-редагування
+
+**Файл:** `supabase/functions/edit-website/index.ts`
+
+Стратегія: перед тим як давати AI код сторінки, **вирізати cookie-блок** і після застосування змін **вставити його назад**.
+
+```
+До AI:
+  HTML без cookie-блоку
+
+Після AI:
+  Застосувати зміни → Вставити cookie-блок назад
+```
+
+Технічно:
+- Додати функцію `extractCookieBanner(html)` → повертає `{ cleanHtml, cookieBanner }`
+- Додати функцію `restoreCookieBanner(html, cookieBanner)` → вставляє назад перед `</body>`
+
+### 2. Виправити відображення cookie в превʼю
+
+**Файл:** `src/lib/inlineAssets.ts`
+
+Проблема в тому що базові стилі (`injectBaseStyles`) конфліктують з cookie-стилями.
+
+Виправлення:
+- Видалити дублюючі правила для `.cookie-banner` з `injectBaseStyles()`
+- Cookie-банер вже має `position: fixed` і `z-index: 9999` в своїх інлайн-стилях
+
+### 3. Додати перевірку цілісності cookie-банера
+
+**Файл:** `supabase/functions/edit-website/index.ts`
+
+Після застосування SEARCH/REPLACE блоків, перевіряти чи cookie-банер все ще валідний:
+
+```typescript
+function validateCookieBanner(html: string): boolean {
+  const hasOpenTag = html.includes('id="lovable-cookie-banner"');
+  const hasCloseTag = html.includes('<!-- End Cookie Banner -->');
+  const hasScript = html.includes('cookiePreferences');
+  return hasOpenTag && hasCloseTag && hasScript;
+}
+```
+
+Якщо банер пошкоджено - відновити його з оригінального файлу.
+
+---
+
+## 📁 Файли для редагування
 
 | Файл | Зміни |
 |------|-------|
-| `supabase/functions/edit-website/index.ts` | Виправити `selectRelevantFiles`, посилити промпт, додати retry |
+| `supabase/functions/edit-website/index.ts` | Додати захист cookie-блоку |
+| `src/lib/inlineAssets.ts` | Видалити конфліктні стилі |
 
-### Очікуваний результат
+---
 
-Після змін:
-- Коли ви переглядаєте `thank-you.html` і просите "зміни заголовок" → AI редагує саме `thank-you.html`
-- AI повертає код, а не пояснення
-- Надійність редагування зростає з ~50% до 90%+
+## 🔒 Технічні деталі
+
+### Структура cookie-блоку для захисту
+
+```html
+<!-- Cookie Banner with Settings -->
+<style>
+  ...~70 рядків CSS...
+</style>
+<div id="lovable-cookie-banner">...</div>
+<div id="lovable-cookie-modal">...</div>
+<script>
+  ...~30 рядків JS...
+</script>
+<!-- End Cookie Banner -->
+```
+
+### Regex для вирізання
+
+```typescript
+const COOKIE_BLOCK_REGEX = /<!--\s*Cookie Banner with Settings\s*-->[\s\S]*?<!--\s*End Cookie Banner\s*-->/i;
+```
+
+### Логіка в edit-website
+
+```typescript
+// Перед відправкою в AI
+const relevantFilesClean = relevantFiles.map(f => {
+  if (f.path.endsWith('.html')) {
+    const match = f.content.match(COOKIE_BLOCK_REGEX);
+    return {
+      ...f,
+      content: f.content.replace(COOKIE_BLOCK_REGEX, ''),
+      _cookieBanner: match ? match[0] : null
+    };
+  }
+  return f;
+});
+
+// Після застосування змін AI
+const restoredFiles = modifiedFiles.map(f => {
+  const original = relevantFilesClean.find(o => o.path === f.path);
+  if (original?._cookieBanner && !f.content.includes('lovable-cookie-banner')) {
+    // Вставити назад перед </body>
+    return {
+      ...f,
+      content: f.content.replace('</body>', original._cookieBanner + '\n</body>')
+    };
+  }
+  return f;
+});
+```
 
