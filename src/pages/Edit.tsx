@@ -38,15 +38,28 @@ const Edit = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSelectMode, setIsSelectMode] = useState(false);
-  const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
+  const [selectedElements, setSelectedElements] = useState<SelectedElement[]>([]);
 
   const handleElementSelected = (element: SelectedElement) => {
-    setSelectedElement(element);
-    setIsSelectMode(false);
+    setSelectedElements(prev => {
+      // Check if element already selected (by selector)
+      const existingIndex = prev.findIndex(el => el.selector === element.selector);
+      if (existingIndex >= 0) {
+        // Remove if already selected
+        return prev.filter((_, i) => i !== existingIndex);
+      }
+      // Add new element
+      return [...prev, element];
+    });
+    // Don't exit select mode - allow multi-selection
   };
 
-  const clearSelectedElement = () => {
-    setSelectedElement(null);
+  const clearSelectedElements = () => {
+    setSelectedElements([]);
+  };
+
+  const removeSelectedElement = (index: number) => {
+    setSelectedElements(prev => prev.filter((_, i) => i !== index));
   };
 
   useEffect(() => {
@@ -155,8 +168,9 @@ const Edit = () => {
               currentPage={selectedFile?.path || "index.html"}
               isSelectMode={isSelectMode}
               setIsSelectMode={setIsSelectMode}
-              selectedElement={selectedElement}
-              clearSelectedElement={clearSelectedElement}
+              selectedElements={selectedElements}
+              clearSelectedElements={clearSelectedElements}
+              removeSelectedElement={removeSelectedElement}
             />
           </div>
 

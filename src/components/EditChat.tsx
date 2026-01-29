@@ -33,8 +33,9 @@ interface EditChatProps {
   currentPage?: string;
   isSelectMode: boolean;
   setIsSelectMode: (mode: boolean) => void;
-  selectedElement: SelectedElement | null;
-  clearSelectedElement: () => void;
+  selectedElements: SelectedElement[];
+  clearSelectedElements: () => void;
+  removeSelectedElement: (index: number) => void;
 }
 
 const PROGRESS_STAGES = [
@@ -58,8 +59,9 @@ export function EditChat({
   currentPage,
   isSelectMode,
   setIsSelectMode,
-  selectedElement,
-  clearSelectedElement,
+  selectedElements,
+  clearSelectedElements,
+  removeSelectedElement,
 }: EditChatProps) {
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -145,21 +147,24 @@ export function EditChat({
 
     const userMessage = input.trim();
     
-    // Build context-enriched message if element is selected
+    // Build context-enriched message if elements are selected
     let enrichedMessage = userMessage;
-    if (selectedElement) {
-      const elementDescription = [
-        `<${selectedElement.tag}>`,
-        selectedElement.id ? `#${selectedElement.id}` : null,
-        selectedElement.classes.length > 0 ? `.${selectedElement.classes.join(".")}` : null,
-        selectedElement.text ? `"${selectedElement.text.slice(0, 60)}${selectedElement.text.length > 60 ? "..." : ""}"` : null,
-      ].filter(Boolean).join(" ");
+    if (selectedElements.length > 0) {
+      const elementsDescription = selectedElements.map((el, i) => {
+        const desc = [
+          `<${el.tag}>`,
+          el.id ? `#${el.id}` : null,
+          el.classes.length > 0 ? `.${el.classes.slice(0, 2).join(".")}` : null,
+          el.text ? `"${el.text.slice(0, 40)}${el.text.length > 40 ? "..." : ""}"` : null,
+        ].filter(Boolean).join(" ");
+        return `${i + 1}. ${desc} [${el.selector}]`;
+      }).join("\n");
       
-      enrichedMessage = `[Елемент: ${elementDescription}]\n[Селектор: ${selectedElement.selector}]\n\n${userMessage}`;
+      enrichedMessage = `[Вибрані елементи (${selectedElements.length}):\n${elementsDescription}]\n\n${userMessage}`;
     }
 
     setInput("");
-    clearSelectedElement();
+    clearSelectedElements();
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsEditing(true);
 
@@ -199,7 +204,7 @@ export function EditChat({
             websiteType,
             originalPrompt,
             currentPage: currentPage || "index.html",
-            selectedElement: selectedElement || undefined,
+            selectedElements: selectedElements.length > 0 ? selectedElements : undefined,
           }),
           signal: abortControllerRef.current.signal,
         }
@@ -379,29 +384,44 @@ export function EditChat({
 
       {/* Input */}
       <div className="p-4 border-t space-y-3">
-        {/* Selected element indicator */}
-        {selectedElement && (
-          <div className="flex items-center gap-2 p-2 rounded-md bg-primary/10 border border-primary/20">
-            <MousePointer2 className="h-4 w-4 text-primary shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-primary truncate">
-                &lt;{selectedElement.tag}&gt;
-                {selectedElement.classes.length > 0 && (
-                  <span className="text-muted-foreground ml-1">.{selectedElement.classes.slice(0, 2).join(".")}</span>
-                )}
-              </p>
-              {selectedElement.text && (
-                <p className="text-xs text-muted-foreground truncate">"{selectedElement.text.slice(0, 50)}{selectedElement.text.length > 50 ? "..." : ""}"</p>
-              )}
+        {/* Selected elements indicator */}
+        {selectedElements.length > 0 && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-primary flex items-center gap-1">
+                <MousePointer2 className="h-3 w-3" />
+                Вибрано: {selectedElements.length}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 text-xs px-1.5"
+                onClick={clearSelectedElements}
+              >
+                Очистити все
+              </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 shrink-0"
-              onClick={clearSelectedElement}
-            >
-              <X className="h-3 w-3" />
-            </Button>
+            <div className="flex flex-wrap gap-1.5 max-h-[80px] overflow-y-auto">
+              {selectedElements.map((el, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 border border-primary/20 text-xs"
+                >
+                  <span className="font-mono text-primary">&lt;{el.tag}&gt;</span>
+                  {el.text && (
+                    <span className="text-muted-foreground truncate max-w-[100px]">
+                      "{el.text.slice(0, 20)}{el.text.length > 20 ? "..." : ""}"
+                    </span>
+                  )}
+                  <button
+                    onClick={() => removeSelectedElement(idx)}
+                    className="ml-0.5 hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -420,8 +440,8 @@ export function EditChat({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={selectedElement 
-              ? `Що зробити з <${selectedElement.tag}>?` 
+            placeholder={selectedElements.length > 0
+              ? `Що зробити з ${selectedElements.length} елементами?` 
               : "Опишіть зміни..."
             }
             className="min-h-[60px] max-h-[120px] resize-none"
