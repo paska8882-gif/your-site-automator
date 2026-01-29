@@ -20,6 +20,14 @@ interface GenerationData {
   status: string;
 }
 
+interface SelectedElement {
+  tag: string;
+  classes: string[];
+  id: string | null;
+  text: string;
+  selector: string;
+}
+
 const Edit = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -29,6 +37,17 @@ const Edit = () => {
   const [selectedFile, setSelectedFile] = useState<GeneratedFile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
+
+  const handleElementSelected = (element: SelectedElement) => {
+    setSelectedElement(element);
+    setIsSelectMode(false);
+  };
+
+  const clearSelectedElement = () => {
+    setSelectedElement(null);
+  };
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -134,6 +153,10 @@ const Edit = () => {
               isEditing={isEditing}
               setIsEditing={setIsEditing}
               currentPage={selectedFile?.path || "index.html"}
+              isSelectMode={isSelectMode}
+              setIsSelectMode={setIsSelectMode}
+              selectedElement={selectedElement}
+              clearSelectedElement={clearSelectedElement}
             />
           </div>
 
@@ -145,6 +168,8 @@ const Edit = () => {
               onSelectFile={setSelectedFile}
               onFilesUpdate={handleFilesUpdate}
               websiteType={generation.website_type || undefined}
+              isSelectMode={isSelectMode}
+              onElementSelected={handleElementSelected}
             />
           </div>
         </div>
