@@ -101,6 +101,7 @@ interface TeamPricing {
   generation_cost_junior: number;
   generation_cost_senior: number;
   external_price: number | null;
+  manual_price: number | null;
 }
 
 interface Appeal {
@@ -160,7 +161,8 @@ const AdminTeamDetails = () => {
     react_price: "0",
     generation_cost_junior: "0.10",
     generation_cost_senior: "0.25",
-    external_price: "7"
+    external_price: "7",
+    manual_price: "0"
   });
 
   // External upload state
@@ -355,7 +357,8 @@ const AdminTeamDetails = () => {
         react_price: data.react_price.toString(),
         generation_cost_junior: data.generation_cost_junior.toString(),
         generation_cost_senior: data.generation_cost_senior.toString(),
-        external_price: data.external_price?.toString() || "7"
+        external_price: data.external_price?.toString() || "7",
+        manual_price: data.manual_price?.toString() || "0"
       });
     }
   };
@@ -398,7 +401,8 @@ const AdminTeamDetails = () => {
       react_price: parseFloat(pricingForm.react_price) || 0,
       generation_cost_junior: parseFloat(pricingForm.generation_cost_junior) || 0.10,
       generation_cost_senior: parseFloat(pricingForm.generation_cost_senior) || 0.25,
-      external_price: parseFloat(pricingForm.external_price) || 7
+      external_price: parseFloat(pricingForm.external_price) || 7,
+      manual_price: parseFloat(pricingForm.manual_price) || 0
     };
 
     let error;
@@ -1360,6 +1364,16 @@ const AdminTeamDetails = () => {
                         className="h-9"
                       />
                     </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">Ручна генерація ($)</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={pricingForm.manual_price}
+                        onChange={(e) => setPricingForm(p => ({ ...p, manual_price: e.target.value }))}
+                        className="h-9"
+                      />
+                    </div>
                   </div>
                 ) : pricing ? (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -1382,6 +1396,10 @@ const AdminTeamDetails = () => {
                     <div className="p-3 rounded border bg-muted/30">
                       <div className="text-xs text-muted-foreground mb-1">Витрати Senior AI</div>
                       <div className="text-lg font-bold">${pricing.generation_cost_senior.toFixed(2)}</div>
+                    </div>
+                    <div className="p-3 rounded border bg-muted/30">
+                      <div className="text-xs text-muted-foreground mb-1">Ручна генерація</div>
+                      <div className="text-lg font-bold">${pricing.manual_price?.toFixed(2) || "0.00"}</div>
                     </div>
                   </div>
                 ) : (
