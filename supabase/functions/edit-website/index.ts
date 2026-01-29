@@ -339,6 +339,43 @@ function parseSearchReplaceBlocks(content: string): SearchReplaceBlock[] {
       }
     }
   }
+
+  // Handle severely truncated block (missing ======= entirely)
+  // Try to find a logical split if AI wrote SEARCH content that looks like HTML being replaced
+  if (blocks.length === 0) {
+    const severelyTruncatedRegex = /<<<<<<<?[=\s]*SEARCH\s+([^\n]+)\n([\s\S]+)$/i;
+    const sm = cleaned.match(severelyTruncatedRegex);
+    if (sm) {
+      const filename = sm[1].trim();
+      const rawContent = sm[2];
+      
+      // Look for patterns that might indicate where search ends and replace begins
+      // Common patterns: duplicate structure, "new" vs "old" markers, or just take first half
+      const lines = rawContent.split('\n');
+      
+      // Strategy 1: Look for a repeated tag pattern (opening tag appears twice)
+      for (let i = 1; i < lines.length - 1; i++) {
+        const line = lines[i].trim();
+        // If we find the same opening tag again, split there
+        if (line.match(/^<[a-z][a-z0-9]*[\s>]/i) && lines[0].trim().startsWith(line.substring(0, 5))) {
+          const search = lines.slice(0, i).join('\n');
+          const replace = lines.slice(i).join('\n');
+          if (search.length > 10 && replace.length > 10) {
+            blocks.push({ filename, search, replace });
+            console.log(`Recovered truncated block using tag-repeat strategy`);
+            break;
+          }
+        }
+      }
+      
+      // Strategy 2: If no pattern found but content is reasonable, assume it's just search text
+      // This means we can't apply the change, but we log it better
+      if (blocks.length === 0 && rawContent.length > 50) {
+        console.warn(`Truncated SEARCH block detected for ${filename}, content length: ${rawContent.length}`);
+        console.warn(`AI did not provide complete SEARCH/REPLACE format (missing =======)`);
+      }
+    }
+  }
   
   return blocks;
 }
@@ -665,7 +702,8 @@ Output SEARCH/REPLACE block. START with: <<<<<<< SEARCH ${activePage}` },
       ];
 
       try {
-        const retryResult = await callAIWithFallback(modelToUse, retryMessages, 4000, 0.05);
+        // Use MORE tokens on retry to ensure complete output
+        const retryResult = await callAIWithFallback(modelToUse, retryMessages, 6000, 0.05);
         console.log(`Retry response from ${retryResult.modelUsed}, length: ${retryResult.content.length}`);
         
         const retryBlocks = parseSearchReplaceBlocks(retryResult.content);
@@ -719,7 +757,14 @@ Output SEARCH/REPLACE block. START with: <<<<<<< SEARCH ${activePage}` },
 
     if (modifiedFiles.length === 0) {
       console.error("No files parsed from response. Content preview:", content.substring(0, 1000));
-      throw new Error("AI не повернув змін у правильному форматі. Спробуйте ще раз або сформулюйте запит інакше.");
+      
+      // Check if AI provided truncated output
+      const hasTruncatedBlock = content.includes("<<<<<<") && !content.includes("=======");
+      if (hasTruncatedBlock) {
+        throw new Error("AI не завершив відповідь. Спробуйте простіший запит (менше змін).");
+      }
+      
+      throw new Error("AI не повернув змін у правильному форматі. Спробуйте сформулювати запит конкретніше.");
     }
 
     // Merge with original files
