@@ -49,18 +49,19 @@ serve(async (req) => {
     }
 
     // Check admin status using service role (bypasses RLS)
-    const { data: adminRole, error: roleError } = await serviceSupabase
+    // Use .limit(1) instead of .maybeSingle() to handle users with multiple roles
+    const { data: adminRoles, error: roleError } = await serviceSupabase
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
       .in("role", ["admin", "super_admin"])
-      .maybeSingle();
+      .limit(1);
 
     if (roleError) {
       console.error("Error checking admin role:", roleError);
     }
 
-    if (!adminRole) {
+    if (!adminRoles || adminRoles.length === 0) {
       console.log(`User ${user.id} attempted admin action without admin role`);
       return new Response(
         JSON.stringify({ error: "Forbidden - Admin access required" }),
