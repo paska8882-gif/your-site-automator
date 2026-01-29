@@ -443,7 +443,7 @@ function SimplePreviewInner({ files, websiteType }: SimplePreviewProps) {
       srcDoc={useBlobUrl ? undefined : previewContent}
       className="w-full h-full border-0 bg-white"
       title="Website preview"
-      sandbox="allow-scripts allow-same-origin allow-forms"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
       loading="lazy"
     />
   );

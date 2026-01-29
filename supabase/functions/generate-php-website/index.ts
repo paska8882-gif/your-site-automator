@@ -3693,6 +3693,44 @@ EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
 
 ⚠️ IF NO PHONE/EMAIL/HOURS IN OUTPUT = SITE IS BROKEN! ALWAYS INCLUDE THEM!
 
+🗺️🗺️🗺️ GOOGLE MAPS - MANDATORY FOR CONTACT PAGE! 🗺️🗺️🗺️
+**EVERY contact.php MUST include a WORKING, PROPERLY DISPLAYED Google Map!**
+
+**USE THIS EXACT WORKING FORMAT (100% reliable):**
+\`\`\`html
+<div class="map-container">
+  <iframe 
+    src="https://maps.google.com/maps?q=Berlin+Germany&t=&z=13&ie=UTF8&iwloc=&output=embed"
+    width="100%" 
+    height="450" 
+    style="border:0;" 
+    allowfullscreen="" 
+    loading="lazy" 
+    referrerpolicy="no-referrer-when-downgrade"
+    title="Our Location">
+  </iframe>
+</div>
+\`\`\`
+
+**MAP URL FORMAT - USE q= PARAMETER (ALWAYS WORKS):**
+https://maps.google.com/maps?q=CITY+COUNTRY&t=&z=13&ie=UTF8&iwloc=&output=embed
+
+**EXAMPLES BY COUNTRY (use exact format!):**
+- Germany: https://maps.google.com/maps?q=Berlin+Germany&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Poland: https://maps.google.com/maps?q=Warsaw+Poland&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Spain: https://maps.google.com/maps?q=Madrid+Spain&t=&z=13&ie=UTF8&iwloc=&output=embed
+- UK: https://maps.google.com/maps?q=London+UK&t=&z=13&ie=UTF8&iwloc=&output=embed
+- France: https://maps.google.com/maps?q=Paris+France&t=&z=13&ie=UTF8&iwloc=&output=embed
+
+**CRITICAL RULES:**
+1. Match the city from the website GEO!
+2. ALWAYS wrap in <div class="map-container">
+3. Use width="100%" and height="450" attributes
+4. Include allowfullscreen="" and loading="lazy"
+5. NEVER use API keys or embed codes that require registration
+
+⚠️ IF CONTACT PAGE HAS NO WORKING MAP = WEBSITE IS BROKEN!
+
 **🎨 DESIGN PHILOSOPHY - THIS IS NON-NEGOTIABLE:**
 You are creating a PREMIUM, AGENCY-QUALITY website that looks like it cost $5,000+ to build.
 The design must be EXCEPTIONAL - think award-winning agency work, not template garbage.
@@ -3704,7 +3742,7 @@ REQUIRED PAGES (ALL MANDATORY):
 1. index.php - Homepage with hero, features, about preview, services preview, testimonials, CTA
 2. about.php - About Us page with company history, mission, vision, team section, values
 3. services.php - Services/Products page with detailed service descriptions, benefits, process
-4. contact.php - Contact page with WORKING form, map placeholder, contact info, working hours
+4. contact.php - Contact page with WORKING form, WORKING Google Map, contact info, working hours
 5. thank-you.php - Thank you page after form submission
 6. privacy.php - Privacy policy page with 10+ sections (see Privacy Policy requirements below)
 7. terms.php - Terms of Service page with 14 sections (see Terms of Service requirements below)
@@ -4783,6 +4821,33 @@ footer {
 .submit-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px var(--primary-glow);
+}
+
+/* ===== GOOGLE MAPS CONTAINER ===== */
+.map-container {
+  width: 100%;
+  min-height: 350px;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-xl);
+  margin: var(--space-xl) 0;
+}
+
+.map-container iframe {
+  width: 100%;
+  height: 100%;
+  min-height: 350px;
+  border: none;
+  display: block;
+}
+
+.contact-map {
+  margin-top: var(--space-3xl);
+}
+
+.contact-map h3 {
+  margin-bottom: var(--space-lg);
+  text-align: center;
 }
 
 /* ===== LEGAL PAGES ===== */

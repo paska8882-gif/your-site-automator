@@ -418,7 +418,7 @@ export function FilePreview({ file, cssFile, allFiles, websiteType, viewMode }: 
             srcDoc={getPreviewContent()}
             className="w-full h-full"
             title={`Preview of ${file.path}`}
-            sandbox="allow-scripts allow-same-origin"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
           />
         </div>
       </CardContent>
