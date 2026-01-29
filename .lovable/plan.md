@@ -1,29 +1,66 @@
-# План оптимізації відображення Google Maps
 
-## ✅ ВИКОНАНО
 
-### Зміни
+## Виправлення системи редагування сайтів
 
-1. **Оновлено iframe sandbox атрибути** - додано `allow-popups allow-popups-to-escape-sandbox`:
-   - `SimplePreview.tsx`
-   - `EditPreview.tsx` (4 місця)
-   - `FilePreview.tsx`
-   - `PhpPreviewDialog.tsx`
-   - `GenerationHistory.tsx`
+Виявлено дві критичні проблеми, через які редагування не працює:
 
-2. **Додано функцію `optimizeGoogleMaps`** в `inlineAssets.ts`:
-   - Додає `loading="lazy"`, `allowfullscreen`, `title`, `referrerpolicy`
-   - Забезпечує правильні атрибути для всіх Google Maps iframe
+### Знайдені проблеми
 
-3. **Додано CSS стилі для map-container** в `injectBaseStyles`:
-   - `.map-container`, `.map-wrapper`, `.google-map`
-   - Fallback стилі для Google Maps iframe без контейнера
+**1. Активна сторінка не включається у контекст**
+Функція `selectRelevantFiles()` завжди включає `index.html`, але **ігнорує** `currentPage` (сторінку, яку користувач переглядає). Коли ви відкриваєте `thank-you.html`, AI бачить лише `index.html` і не може редагувати потрібну сторінку.
 
-4. **Оновлено `processHtmlForPreview`** - додано виклик `optimizeGoogleMaps`
+**2. AI "думає вголос" замість повертати код**
+Google Gemini 2.5 Pro іноді повертає текстовий план дій замість SEARCH/REPLACE блоків. Це трапляється коли запит незрозумілий або модель "захоплюється" плануванням.
 
-5. **Додано Google Maps інструкції до PHP генератора**:
-   - Мандаторні вимоги для contact.php
-   - Приклади робочих URL для різних країн
-   - CSS стилі для map-container
+### План виправлення
 
-6. **Edge function задеплоєно**
+**Крок 1: Виправити вибір файлів**
+- Змінити `selectRelevantFiles()` щоб приймати `currentPage` як аргумент
+- Завжди включати активну сторінку **першою** у списку
+- Включати `index.html` як fallback лише якщо активна сторінка ≠ index.html
+
+**Крок 2: Посилити системний промпт**
+- Додати чіткі інструкції що AI ОБОВ'ЯЗКОВО повинен повернути SEARCH/REPLACE блоки
+- Заборонити текстові пояснення перед кодом
+- Зменшити температуру ще більше (0.1)
+
+**Крок 3: Валідація відповіді AI**
+- Якщо AI повертає текст без SEARCH/REPLACE блоків → повторити запит з більш жорстким промптом
+- Додати повторну спробу (retry) з fallback моделлю
+
+### Технічні зміни
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                       edit-website/index.ts                      │
+├─────────────────────────────────────────────────────────────────┤
+│ 1. selectRelevantFiles(files, request, currentPage)             │
+│    - FIRST: Include currentPage if it exists in files           │
+│    - SECOND: Include index.html only if different from current  │
+│    - THIRD: Apply keyword-based selection                       │
+├─────────────────────────────────────────────────────────────────┤
+│ 2. EDIT_SYSTEM_PROMPT                                           │
+│    - Add: "DO NOT explain what you will do - just do it"        │
+│    - Add: "NEVER output plain text before SEARCH/REPLACE"       │
+│    - Add: "If request is unclear, make a reasonable assumption" │
+├─────────────────────────────────────────────────────────────────┤
+│ 3. Temperature: 0.2 → 0.1                                       │
+├─────────────────────────────────────────────────────────────────┤
+│ 4. Add retry logic if no SEARCH/REPLACE blocks found            │
+│    - Retry with more explicit prompt once before giving up      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Файли для зміни
+
+| Файл | Зміни |
+|------|-------|
+| `supabase/functions/edit-website/index.ts` | Виправити `selectRelevantFiles`, посилити промпт, додати retry |
+
+### Очікуваний результат
+
+Після змін:
+- Коли ви переглядаєте `thank-you.html` і просите "зміни заголовок" → AI редагує саме `thank-you.html`
+- AI повертає код, а не пояснення
+- Надійність редагування зростає з ~50% до 90%+
+
