@@ -286,37 +286,31 @@ const AdminTeamDetails = () => {
   };
 
   const fetchGenerations = async () => {
-    const { data: membersData } = await supabase
-      .from("team_members")
-      .select("user_id")
-      .eq("team_id", teamId)
-      .eq("status", "approved");
-
-    if (!membersData || membersData.length === 0) {
-      setGenerations([]);
-      return;
-    }
-
-    const userIds = membersData.map(m => m.user_id);
-
+    // Отримуємо генерації по team_id (правильний фільтр)
     const { data: genData } = await supabase
       .from("generation_history")
       .select("*")
-      .in("user_id", userIds)
+      .eq("team_id", teamId)
       .order("created_at", { ascending: false })
       .limit(100);
 
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("user_id, display_name")
-      .in("user_id", userIds);
+    if (genData && genData.length > 0) {
+      // Отримуємо імена користувачів
+      const userIds = [...new Set(genData.map(g => g.user_id).filter(Boolean))] as string[];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, display_name")
+        .in("user_id", userIds);
 
-    const profileMap = new Map(profiles?.map(p => [p.user_id, p.display_name]) || []);
+      const profileMap = new Map(profiles?.map(p => [p.user_id, p.display_name]) || []);
 
-    setGenerations((genData || []).map(g => ({
-      ...g,
-      user_name: profileMap.get(g.user_id || "") || "Невідомий"
-    })));
+      setGenerations(genData.map(g => ({
+        ...g,
+        user_name: profileMap.get(g.user_id || "") || "Невідомий"
+      })));
+    } else {
+      setGenerations([]);
+    }
   };
 
   const fetchTransactions = async () => {
