@@ -176,63 +176,94 @@ export const AdminTeamsManager = () => {
       return;
     }
 
-    // Get admin profiles for assigned admins
-    const adminIds = (teamsData || []).map(t => t.assigned_admin_id).filter(Boolean);
-    let adminProfilesMap = new Map<string, string>();
-    
-    if (adminIds.length > 0) {
-      const { data: adminProfiles } = await supabase
-        .from("profiles")
-        .select("user_id, display_name")
-        .in("user_id", adminIds);
-      
-      adminProfiles?.forEach(p => adminProfilesMap.set(p.user_id, p.display_name || "Без імені"));
+    if (!teamsData || teamsData.length === 0) {
+      setTeams([]);
+      setLoading(false);
+      return;
     }
 
-    const teamsWithDetails = await Promise.all((teamsData || []).map(async (team) => {
-      const { data: codeData } = await supabase
-        .from("invite_codes")
-        .select("code")
-        .eq("team_id", team.id)
+    const teamIds = teamsData.map(t => t.id);
+    const adminIds = teamsData.map(t => t.assigned_admin_id).filter(Boolean) as string[];
+
+    // Batch fetch all data in parallel
+    const [
+      adminProfilesResult,
+      inviteCodesResult,
+      teamMembersResult
+    ] = await Promise.all([
+      // Admin profiles
+      adminIds.length > 0 
+        ? supabase.from("profiles").select("user_id, display_name").in("user_id", adminIds)
+        : Promise.resolve({ data: [] }),
+      // Invite codes for all teams
+      supabase.from("invite_codes")
+        .select("team_id, code")
+        .in("team_id", teamIds)
         .eq("assigned_role", "owner")
         .is("used_by", null)
-        .eq("is_active", true)
-        .maybeSingle();
-
-      const { count } = await supabase
-        .from("team_members")
-        .select("*", { count: "exact", head: true })
-        .eq("team_id", team.id)
-        .eq("status", "approved");
-
-      // Check if team has an owner
-      const { data: ownerData } = await supabase
-        .from("team_members")
-        .select("user_id")
-        .eq("team_id", team.id)
-        .eq("role", "owner")
+        .eq("is_active", true),
+      // All team members with their profiles
+      supabase.from("team_members")
+        .select("team_id, user_id, role")
+        .in("team_id", teamIds)
         .eq("status", "approved")
-        .limit(1);
-      
-      let ownerName = null;
-      if (ownerData && ownerData.length > 0) {
-        const { data: ownerProfile } = await supabase
-          .from("profiles")
-          .select("display_name")
-          .eq("user_id", ownerData[0].user_id)
-          .maybeSingle();
-        ownerName = ownerProfile?.display_name || t("admin.teamsNoName");
-      }
+    ]);
 
+    // Build maps
+    const adminProfilesMap = new Map<string, string>();
+    (adminProfilesResult.data || []).forEach(p => 
+      adminProfilesMap.set(p.user_id, p.display_name || "Без імені")
+    );
+
+    const inviteCodesMap = new Map<string, string>();
+    (inviteCodesResult.data || []).forEach(c => {
+      if (c.team_id && !inviteCodesMap.has(c.team_id)) {
+        inviteCodesMap.set(c.team_id, c.code);
+      }
+    });
+
+    // Group members by team
+    const membersByTeam = new Map<string, { user_id: string; role: string }[]>();
+    (teamMembersResult.data || []).forEach(m => {
+      const existing = membersByTeam.get(m.team_id) || [];
+      existing.push({ user_id: m.user_id, role: m.role });
+      membersByTeam.set(m.team_id, existing);
+    });
+
+    // Get owner profiles
+    const ownerUserIds = [...membersByTeam.values()]
+      .flat()
+      .filter(m => m.role === "owner")
+      .map(m => m.user_id);
+
+    let ownerProfilesMap = new Map<string, string>();
+    if (ownerUserIds.length > 0) {
+      const { data: ownerProfiles } = await supabase
+        .from("profiles")
+        .select("user_id, display_name")
+        .in("user_id", ownerUserIds);
+      
+      (ownerProfiles || []).forEach(p => 
+        ownerProfilesMap.set(p.user_id, p.display_name || t("admin.teamsNoName"))
+      );
+    }
+
+    // Build final teams array
+    const teamsWithDetails = teamsData.map(team => {
+      const members = membersByTeam.get(team.id) || [];
+      const owner = members.find(m => m.role === "owner");
+      
       return {
         ...team,
-        owner_code: codeData?.code,
-        members_count: count || 0,
-        assigned_admin_name: team.assigned_admin_id ? adminProfilesMap.get(team.assigned_admin_id) : null,
-        owner_name: ownerName,
-        has_owner: !!(ownerData && ownerData.length > 0)
+        owner_code: inviteCodesMap.get(team.id),
+        members_count: members.length,
+        assigned_admin_name: team.assigned_admin_id 
+          ? adminProfilesMap.get(team.assigned_admin_id) 
+          : null,
+        owner_name: owner ? ownerProfilesMap.get(owner.user_id) : null,
+        has_owner: !!owner
       };
-    }));
+    });
 
     setTeams(teamsWithDetails);
     setLoading(false);
@@ -701,8 +732,18 @@ export const AdminTeamsManager = () => {
                     <span className="text-muted-foreground">{t("admin.teamsCreditLimit")}:</span>
                     <Input
                       type="number"
-                      value={team.credit_limit || 0}
-                      onChange={(e) => handleUpdateCreditLimit(team.id, parseFloat(e.target.value) || 0)}
+                      defaultValue={team.credit_limit || 0}
+                      onBlur={(e) => {
+                        const newValue = parseFloat(e.target.value) || 0;
+                        if (newValue !== team.credit_limit) {
+                          handleUpdateCreditLimit(team.id, newValue);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          (e.target as HTMLInputElement).blur();
+                        }
+                      }}
                       className="h-6 w-20 text-[10px]"
                       min={0}
                       step={10}
