@@ -207,6 +207,35 @@ export function EditChat({
     }
   };
 
+  // Handle drag-and-drop for images
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Файл занадто великий",
+        description: "Максимум 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setUploadedImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   const clearUploadedImage = () => {
     setUploadedImage(null);
     if (fileInputRef.current) {
@@ -701,12 +730,14 @@ export function EditChat({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
             placeholder={
               uploadedImage
                 ? "Опиши проблему..."
                 : selectedElements.length > 0
                   ? `Що зробити з ${selectedElements.length} ел.?`
-                  : "Опиши зміни... (Ctrl+V для скріна)"
+                  : "Зміни / Ctrl+V / перетягни скрін"
             }
             className="min-h-[60px] max-h-[120px] resize-none"
             disabled={isEditing || isAnalyzing}
