@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { GeneratedFile } from "@/lib/websiteGenerator";
-import { inlineLocalImages } from "@/lib/inlineAssets";
+import { processHtmlForPreview } from "@/lib/inlineAssets";
 import { useState, useEffect, useRef, useId } from "react";
 import { ImageIcon, Check } from "lucide-react";
 
@@ -323,10 +323,13 @@ export function FilePreview({ file, cssFile, allFiles, websiteType, viewMode }: 
     
     if (!isHtml) return file.content;
 
-    let html = file.content;
+    // Use full processing pipeline
+    let html = allFiles && allFiles.length > 0 
+      ? processHtmlForPreview(file.content, allFiles)
+      : file.content;
     
-    // Inject CSS if available
-    if (cssFile) {
+    // Fallback: inject CSS if available and not already processed
+    if (cssFile && !html.includes('data-source=')) {
       const styleTag = `<style>${cssFile.content}</style>`;
       if (html.includes("</head>")) {
         html = html.replace("</head>", `${styleTag}</head>`);
@@ -336,17 +339,26 @@ export function FilePreview({ file, cssFile, allFiles, websiteType, viewMode }: 
         html = styleTag + html;
       }
     }
-
-    // Fix local SVGs (icons) referenced from HTML
-    if (allFiles && allFiles.length > 0) {
-      html = inlineLocalImages(html, allFiles);
-    }
+    
+    // Add broken image fallback script
+    const brokenImageScript = `
+      <script>
+        document.querySelectorAll('img').forEach(function(img, i) {
+          img.onerror = function() {
+            if (!this.dataset.fixed) {
+              this.dataset.fixed = 'true';
+              this.src = 'https://picsum.photos/seed/file' + i + '/800/600';
+            }
+          };
+        });
+      </script>
+    `;
     
     // Inject tracking script before </body>
     if (html.includes("</body>")) {
-      html = html.replace("</body>", trackingScript + "</body>");
+      html = html.replace("</body>", brokenImageScript + trackingScript + "</body>");
     } else {
-      html = html + trackingScript;
+      html = html + brokenImageScript + trackingScript;
     }
 
     return html;
