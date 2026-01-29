@@ -771,7 +771,7 @@ export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: 
                     srcDoc={getPreviewContent()}
                     className="w-full h-full border-0"
                     title={`Fullscreen PHP preview: ${currentPhpPage}`}
-                    sandbox="allow-scripts allow-same-origin"
+                    sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
                   />
                 </div>
               </div>
@@ -780,7 +780,7 @@ export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: 
                 srcDoc={getPreviewContent()}
                 className="w-full h-full border-0 bg-white"
                 title={`Fullscreen preview of ${selectedFile?.path}`}
-                sandbox="allow-scripts allow-same-origin"
+                sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
               />
             )}
           </div>
@@ -940,7 +940,7 @@ export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: 
                     srcDoc={getPreviewContent()}
                     className="w-full h-full border-0"
                     title={`PHP Preview: ${currentPhpPage}`}
-                    sandbox="allow-scripts allow-same-origin"
+                    sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
                   />
                 </div>
               </div>
@@ -949,7 +949,7 @@ export function EditPreview({ files, selectedFile, onSelectFile, websiteType }: 
                 srcDoc={getPreviewContent()}
                 className="w-full h-full border-0 bg-white"
                 title={`Preview of ${selectedFile?.path}`}
-                sandbox="allow-scripts allow-same-origin"
+                sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
               />
             )
           ) : (

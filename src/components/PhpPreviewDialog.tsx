@@ -449,7 +449,7 @@ export function PhpPreviewDialog({ open, onOpenChange, files, siteName }: PhpPre
                           srcDoc={getIframeContent()}
                           className="w-full h-full"
                           title={`PHP Preview: ${currentPage}`}
-                          sandbox="allow-scripts allow-same-origin"
+                          sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
                         />
                       </div>
                     )}

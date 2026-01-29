@@ -322,6 +322,31 @@ a { text-decoration: none; }
 /* Fix common layout issues */
 .container { max-width: 1200px; margin: 0 auto; padding: 0 15px; }
 section { overflow: hidden; }
+
+/* Google Maps container - responsive and styled */
+.map-container, .map-wrapper, .google-map, [class*="map-section"] {
+  width: 100%;
+  min-height: 350px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  margin: 20px 0;
+}
+.map-container iframe, .map-wrapper iframe, .google-map iframe, [class*="map-section"] iframe {
+  width: 100%;
+  height: 100%;
+  min-height: 350px;
+  border: none;
+  display: block;
+}
+/* Fallback for Google Maps iframes without container */
+iframe[src*="google.com/maps"], iframe[src*="maps.google"] {
+  width: 100%;
+  min-height: 350px;
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
 </style>
 `;
 
@@ -334,6 +359,60 @@ section { overflow: hidden; }
 
   // Fallback: prepend to HTML
   return baseStyles + html;
+}
+
+/**
+ * Optimize Google Maps iframes for proper display
+ * - Ensures proper attributes for embedding
+ * - Adds loading="lazy" and allowfullscreen
+ * - Wraps in container if needed
+ */
+export function optimizeGoogleMaps(html: string): string {
+  if (!html) return html;
+
+  // Match Google Maps iframes
+  const iframeRegex = /(<iframe[^>]*(?:src\s*=\s*["'][^"']*(?:google\.com\/maps|maps\.google)[^"']*["'])[^>]*)(\/?>)/gi;
+
+  let result = html.replace(iframeRegex, (match, iframeStart: string, iframeEnd: string) => {
+    let iframe = iframeStart;
+
+    // Add loading="lazy" if not present
+    if (!/loading\s*=/i.test(iframe)) {
+      iframe += ' loading="lazy"';
+    }
+
+    // Add allowfullscreen if not present
+    if (!/allowfullscreen/i.test(iframe)) {
+      iframe += ' allowfullscreen=""';
+    }
+
+    // Add title if not present
+    if (!/title\s*=/i.test(iframe)) {
+      iframe += ' title="Google Maps"';
+    }
+
+    // Add referrerpolicy for security
+    if (!/referrerpolicy/i.test(iframe)) {
+      iframe += ' referrerpolicy="no-referrer-when-downgrade"';
+    }
+
+    // Ensure width and height
+    if (!/width\s*=/i.test(iframe)) {
+      iframe += ' width="100%"';
+    }
+    if (!/height\s*=/i.test(iframe)) {
+      iframe += ' height="450"';
+    }
+
+    // Ensure style has border:0
+    if (!/style\s*=/i.test(iframe)) {
+      iframe += ' style="border:0;"';
+    }
+
+    return iframe + iframeEnd;
+  });
+
+  return result;
 }
 
 /**
@@ -353,8 +432,11 @@ export function processHtmlForPreview(html: string, files: GeneratedFile[]): str
   // 3. Inject external resources (fonts, icons)
   result = injectExternalResources(result);
 
-  // 4. Add base preview styles
+  // 4. Add base preview styles (includes Google Maps container styles)
   result = injectBaseStyles(result);
+
+  // 5. Optimize Google Maps iframes
+  result = optimizeGoogleMaps(result);
 
   return result;
 }

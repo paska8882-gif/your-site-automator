@@ -2507,7 +2507,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
                       srcDoc={buildEditPreviewHtml()}
                       className="w-full h-full border-0 bg-white"
                       title="Preview"
-                      sandbox="allow-scripts allow-same-origin"
+                      sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
                     />
                   ) : (
                     <ScrollArea className="h-full">
