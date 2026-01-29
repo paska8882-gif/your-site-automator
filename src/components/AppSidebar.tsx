@@ -56,6 +56,7 @@ import { useSuperAdmin } from "@/hooks/useSuperAdmin";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
 import { useTheme } from "@/hooks/useTheme";
 import { useTaskIndicators } from "@/hooks/useTaskIndicators";
+import { usePendingAppeals } from "@/hooks/usePendingAppeals";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { NotificationBell } from "./NotificationBell";
 import { SupportChat } from "./SupportChat";
@@ -183,6 +184,7 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const { theme, toggleTheme } = useTheme();
   const { hasNewTasks, hasProblematic } = useTaskIndicators();
+  const { hasPendingAppeals } = usePendingAppeals();
   const { t } = useLanguage();
   const { isAdminModeEnabled, setIsAdminModeEnabled } = useAdminMode();
   const collapsed = state === "collapsed";
@@ -292,26 +294,34 @@ export function AppSidebar() {
               <SidebarMenu>
                 {adminNavItems.map((item) => {
                   const isTasksItem = item.tab === "tasks";
+                  const isAppealsItem = item.tab === "appeals";
                   const isPurpleItem = (item as any).highlight === "purple";
-                  const hasIndicator = isTasksItem && (hasProblematic || hasNewTasks);
+                  const hasTaskIndicator = isTasksItem && (hasProblematic || hasNewTasks);
+                  const hasAppealsIndicator = isAppealsItem && hasPendingAppeals;
+                  
                   const indicatorBgClass = isTasksItem 
                     ? hasProblematic 
                       ? "bg-red-500/20 hover:bg-red-500/30" 
                       : hasNewTasks 
                         ? "bg-amber-500/20 hover:bg-amber-500/30" 
                         : ""
-                    : isPurpleItem
-                      ? "bg-purple-500/20 hover:bg-purple-500/30"
-                      : "";
+                    : isAppealsItem && hasPendingAppeals
+                      ? "bg-red-500/20 hover:bg-red-500/30"
+                      : isPurpleItem
+                        ? "bg-purple-500/20 hover:bg-purple-500/30"
+                        : "";
+                  
                   const indicatorTextClass = isTasksItem
                     ? hasProblematic
                       ? "text-red-500 animate-pulse font-semibold"
                       : hasNewTasks
                         ? "text-amber-500 animate-pulse font-semibold"
                         : ""
-                    : isPurpleItem
-                      ? "text-purple-500 font-semibold"
-                      : "";
+                    : isAppealsItem && hasPendingAppeals
+                      ? "text-red-500 animate-pulse font-semibold"
+                      : isPurpleItem
+                        ? "text-purple-500 font-semibold"
+                        : "";
                   
                   return (
                     <SidebarMenuItem key={item.tab}>
@@ -321,7 +331,7 @@ export function AppSidebar() {
                         tooltip={item.title}
                         className={`transition-colors ${indicatorBgClass}`}
                       >
-                        <item.icon className={`h-4 w-4 ${isPurpleItem || hasIndicator ? indicatorTextClass : ""}`} />
+                        <item.icon className={`h-4 w-4 ${isPurpleItem || hasTaskIndicator || hasAppealsIndicator ? indicatorTextClass : ""}`} />
                         <span className={indicatorTextClass}>{item.title}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
