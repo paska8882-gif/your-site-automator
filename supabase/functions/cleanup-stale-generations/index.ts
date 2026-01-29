@@ -143,11 +143,7 @@ serve(async (req) => {
       );
     }
 
-    if (!staleItems || staleItems.length === 0) {
-      return new Response(JSON.stringify({ success: true, processed: 0, retried: retriedCount }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Continue even if no stale items - we still need to cleanup old zip data
 
     console.log(`Found ${staleItems.length} stale generations (>1h) to cleanup`);
 
