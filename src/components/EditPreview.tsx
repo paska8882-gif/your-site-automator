@@ -883,27 +883,6 @@ export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, 
 
   return (
     <div className="flex h-full">
-      <div className="w-56 border-r bg-muted/30 flex flex-col shrink-0">
-        <div className="p-3 border-b">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Files</span>
-        </div>
-        <ScrollArea className="flex-1">
-          <div className="py-2">
-            {fileTree.map((node) => (
-              <FileTreeNode
-                key={node.path}
-                node={node}
-                depth={0}
-                selectedPath={selectedFile?.path || null}
-                expandedFolders={expandedFolders}
-                onToggleFolder={toggleFolder}
-                onSelectFile={onSelectFile}
-              />
-            ))}
-          </div>
-        </ScrollArea>
-      </div>
-
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* PHP Toolbar with navigation */}
         {isPhp && viewMode === "preview" && (
@@ -1106,6 +1085,28 @@ export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, 
             </ScrollArea>
           )}
         </div>
+      </div>
+
+      {/* Files panel - now on the right side */}
+      <div className="w-56 border-l bg-muted/30 flex flex-col shrink-0">
+        <div className="p-3 border-b">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Files</span>
+        </div>
+        <ScrollArea className="flex-1">
+          <div className="py-2">
+            {fileTree.map((node) => (
+              <FileTreeNode
+                key={node.path}
+                node={node}
+                depth={0}
+                selectedPath={selectedFile?.path || null}
+                expandedFolders={expandedFolders}
+                onToggleFolder={toggleFolder}
+                onSelectFile={onSelectFile}
+              />
+            ))}
+          </div>
+        </ScrollArea>
       </div>
     </div>
   );
