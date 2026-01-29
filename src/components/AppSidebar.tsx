@@ -58,6 +58,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useTaskIndicators } from "@/hooks/useTaskIndicators";
 import { usePendingAppeals } from "@/hooks/usePendingAppeals";
 import { usePendingUsers } from "@/hooks/usePendingUsers";
+import { usePendingManualRequests } from "@/hooks/usePendingManualRequests";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { NotificationBell } from "./NotificationBell";
 import { SupportChat } from "./SupportChat";
@@ -187,6 +188,7 @@ export function AppSidebar() {
   const { hasNewTasks, hasProblematic } = useTaskIndicators();
   const { hasPendingAppeals } = usePendingAppeals();
   const { hasPendingUsers } = usePendingUsers();
+  const { hasPendingManualRequests } = usePendingManualRequests();
   const { t } = useLanguage();
   const { isAdminModeEnabled, setIsAdminModeEnabled } = useAdminMode();
   const collapsed = state === "collapsed";
@@ -298,10 +300,12 @@ export function AppSidebar() {
                   const isTasksItem = item.tab === "tasks";
                   const isAppealsItem = item.tab === "appeals";
                   const isUsersItem = item.tab === "users";
+                  const isManualRequestsItem = item.tab === "manual-requests";
                   const isPurpleItem = (item as any).highlight === "purple";
                   const hasTaskIndicator = isTasksItem && (hasProblematic || hasNewTasks);
                   const hasAppealsIndicator = isAppealsItem && hasPendingAppeals;
                   const hasUsersIndicator = isUsersItem && hasPendingUsers;
+                  const hasManualRequestsIndicator = isManualRequestsItem && hasPendingManualRequests;
                   
                   const indicatorBgClass = isTasksItem 
                     ? hasProblematic 
@@ -313,7 +317,7 @@ export function AppSidebar() {
                       ? "bg-red-500/20 hover:bg-red-500/30"
                       : isUsersItem && hasPendingUsers
                         ? "bg-green-500/20 hover:bg-green-500/30"
-                        : isPurpleItem
+                        : (isPurpleItem || hasManualRequestsIndicator)
                           ? "bg-purple-500/20 hover:bg-purple-500/30"
                           : "";
                   
@@ -327,9 +331,11 @@ export function AppSidebar() {
                       ? "text-red-500 animate-pulse font-semibold"
                       : isUsersItem && hasPendingUsers
                         ? "text-green-500 animate-pulse font-semibold"
-                        : isPurpleItem
-                          ? "text-purple-500 font-semibold"
-                          : "";
+                        : hasManualRequestsIndicator
+                          ? "text-purple-500 animate-pulse font-semibold"
+                          : isPurpleItem
+                            ? "text-purple-500 font-semibold"
+                            : "";
                   
                   return (
                     <SidebarMenuItem key={item.tab}>
@@ -339,7 +345,7 @@ export function AppSidebar() {
                         tooltip={item.title}
                         className={`transition-colors ${indicatorBgClass}`}
                       >
-                        <item.icon className={`h-4 w-4 ${isPurpleItem || hasTaskIndicator || hasAppealsIndicator || hasUsersIndicator ? indicatorTextClass : ""}`} />
+                        <item.icon className={`h-4 w-4 ${isPurpleItem || hasTaskIndicator || hasAppealsIndicator || hasUsersIndicator || hasManualRequestsIndicator ? indicatorTextClass : ""}`} />
                         <span className={indicatorTextClass}>{item.title}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
