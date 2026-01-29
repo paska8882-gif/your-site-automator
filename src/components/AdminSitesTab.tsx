@@ -1829,7 +1829,7 @@ export const AdminSitesTab = ({ filterManualOnly = false }: AdminSitesTabProps) 
 
       {/* Preview/Editor Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-[95vw] w-[1600px] h-[90vh] flex flex-col p-0">
+        <DialogContent className="w-[90vw] max-w-[90vw] h-[90vh] flex flex-col p-0">
           <div className="flex-1 overflow-hidden">
             {previewFiles.length > 0 && previewItem && (
               <SiteEditor
