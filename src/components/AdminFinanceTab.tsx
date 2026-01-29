@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
@@ -24,11 +25,11 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Loader2, Save, DollarSign, TrendingUp, TrendingDown, Settings, Wallet, Plus, Eye, BarChart3, Receipt, ExternalLink, CalendarIcon, X } from "lucide-react";
+import { Loader2, Save, DollarSign, TrendingUp, TrendingDown, Settings, Wallet, Plus, Eye, BarChart3, Receipt, ExternalLink, CalendarIcon, X, Filter } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import { format, subDays, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { uk } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -104,6 +105,11 @@ export function AdminFinanceTab() {
   const [selectedUserFilter, setSelectedUserFilter] = useState<string>("all");
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>("all");
   const [selectedAiFilter, setSelectedAiFilter] = useState<string>("all");
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Date filter with presets
+  type DatePreset = "all" | "today" | "yesterday" | "week" | "month" | "custom";
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
   const [dateFromFilter, setDateFromFilter] = useState<Date | undefined>(undefined);
   const [dateToFilter, setDateToFilter] = useState<Date | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
@@ -415,22 +421,51 @@ export function AdminFinanceTab() {
       if (selectedUserFilter !== "all" && g.profile?.display_name !== selectedUserFilter) return false;
       if (selectedTypeFilter !== "all" && g.website_type !== selectedTypeFilter) return false;
       if (selectedAiFilter !== "all" && g.ai_model !== selectedAiFilter) return false;
-      if (dateFromFilter) {
+      
+      // Date filter using presets
+      if (datePreset !== "all") {
         const genDate = new Date(g.created_at);
-        if (genDate < startOfDay(dateFromFilter)) return false;
+        const now = new Date();
+        
+        let from: Date | undefined;
+        let to: Date | undefined;
+        
+        switch (datePreset) {
+          case "today":
+            from = startOfDay(now);
+            to = endOfDay(now);
+            break;
+          case "yesterday":
+            const yesterday = subDays(now, 1);
+            from = startOfDay(yesterday);
+            to = endOfDay(yesterday);
+            break;
+          case "week":
+            from = startOfWeek(now, { weekStartsOn: 1 });
+            to = endOfWeek(now, { weekStartsOn: 1 });
+            break;
+          case "month":
+            from = startOfMonth(now);
+            to = endOfMonth(now);
+            break;
+          case "custom":
+            from = dateFromFilter ? startOfDay(dateFromFilter) : undefined;
+            to = dateToFilter ? endOfDay(dateToFilter) : undefined;
+            break;
+        }
+        
+        if (from && genDate < from) return false;
+        if (to && genDate > to) return false;
       }
-      if (dateToFilter) {
-        const genDate = new Date(g.created_at);
-        if (genDate > endOfDay(dateToFilter)) return false;
-      }
+      
       return true;
     });
-  }, [generations, selectedTeamFilter, selectedUserFilter, selectedTypeFilter, selectedAiFilter, dateFromFilter, dateToFilter]);
+  }, [generations, selectedTeamFilter, selectedUserFilter, selectedTypeFilter, selectedAiFilter, datePreset, dateFromFilter, dateToFilter]);
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedTeamFilter, selectedUserFilter, selectedTypeFilter, selectedAiFilter, dateFromFilter, dateToFilter]);
+  }, [selectedTeamFilter, selectedUserFilter, selectedTypeFilter, selectedAiFilter, datePreset, dateFromFilter, dateToFilter]);
 
   const totalPages = Math.ceil(filteredGenerations.length / itemsPerPage);
   const paginatedGenerations = filteredGenerations.slice(
@@ -866,110 +901,202 @@ export function AdminFinanceTab() {
             </Badge>
           </div>
           
-          {/* Filters Row */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Select value={selectedTeamFilter} onValueChange={setSelectedTeamFilter}>
-              <SelectTrigger className="w-24 h-6 text-[11px]">
-                <SelectValue placeholder="Команда" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-[11px]">{t("admin.financeAllTeams")}</SelectItem>
-                {[...new Set(generations.map(g => g.team_name).filter(Boolean))].map((teamName) => (
-                  <SelectItem key={teamName} value={teamName!} className="text-[11px]">{teamName}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            <Select value={selectedUserFilter} onValueChange={setSelectedUserFilter}>
-              <SelectTrigger className="w-24 h-6 text-[11px]">
-                <SelectValue placeholder="Юзер" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-[11px]">{t("admin.financeAllUsers")}</SelectItem>
-                {uniqueUsers.map((userName) => (
-                  <SelectItem key={userName} value={userName} className="text-[11px]">{userName}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            <Select value={selectedTypeFilter} onValueChange={setSelectedTypeFilter}>
-              <SelectTrigger className="w-16 h-6 text-[11px]">
-                <SelectValue placeholder="Тип" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-[11px]">{t("admin.financeAllTypes")}</SelectItem>
-                <SelectItem value="html" className="text-[11px]">HTML</SelectItem>
-                <SelectItem value="react" className="text-[11px]">React</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select value={selectedAiFilter} onValueChange={setSelectedAiFilter}>
-              <SelectTrigger className="w-16 h-6 text-[11px]">
-                <SelectValue placeholder="AI" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-[11px]">{t("admin.financeAllTypes")}</SelectItem>
-                <SelectItem value="junior" className="text-[11px]">Jr</SelectItem>
-                <SelectItem value="senior" className="text-[11px]">Sr</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className={cn("h-6 text-[11px] px-2 justify-start", !dateFromFilter && "text-muted-foreground")}>
-                  <CalendarIcon className="h-3 w-3 mr-1" />
-                  {dateFromFilter ? format(dateFromFilter, "dd.MM.yy") : t("admin.financeFrom")}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={dateFromFilter}
-                  onSelect={setDateFromFilter}
-                  initialFocus
-                  className="pointer-events-auto"
-                  locale={uk}
-                />
-              </PopoverContent>
-            </Popover>
-            
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className={cn("h-6 text-[11px] px-2 justify-start", !dateToFilter && "text-muted-foreground")}>
-                  <CalendarIcon className="h-3 w-3 mr-1" />
-                  {dateToFilter ? format(dateToFilter, "dd.MM.yy") : t("admin.financeTo")}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={dateToFilter}
-                  onSelect={setDateToFilter}
-                  initialFocus
-                  className="pointer-events-auto"
-                  locale={uk}
-                />
-              </PopoverContent>
-            </Popover>
-            
-            {(selectedTeamFilter !== "all" || selectedUserFilter !== "all" || selectedTypeFilter !== "all" || selectedAiFilter !== "all" || dateFromFilter || dateToFilter) && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-6 text-[11px] px-1.5"
+          {/* Filter Toggle Row */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Toggle Filters */}
+            <Button
+              variant={showFilters ? "secondary" : "outline"}
+              size="sm"
+              className="h-8"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter className="h-4 w-4 mr-1" />
+              {t("admin.filters")}
+              {(selectedTeamFilter !== "all" || selectedUserFilter !== "all" || selectedTypeFilter !== "all" || selectedAiFilter !== "all" || datePreset !== "all") && (
+                <Badge variant="destructive" className="ml-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
+                  !
+                </Badge>
+              )}
+            </Button>
+
+            {/* Clear Filters */}
+            {(selectedTeamFilter !== "all" || selectedUserFilter !== "all" || selectedTypeFilter !== "all" || selectedAiFilter !== "all" || datePreset !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-destructive hover:text-destructive"
                 onClick={() => {
                   setSelectedTeamFilter("all");
                   setSelectedUserFilter("all");
                   setSelectedTypeFilter("all");
                   setSelectedAiFilter("all");
+                  setDatePreset("all");
                   setDateFromFilter(undefined);
                   setDateToFilter(undefined);
                 }}
               >
-                <X className="h-3 w-3" />
+                <X className="h-4 w-4 mr-1" />
+                {t("admin.clearFilters")}
               </Button>
             )}
           </div>
+
+          {/* Expanded Filters */}
+          {showFilters && (
+            <Card className="p-4 mt-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                {/* Team Filter */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t("admin.financeTeam")}</Label>
+                  <Select value={selectedTeamFilter} onValueChange={setSelectedTeamFilter}>
+                    <SelectTrigger className="h-8">
+                      <SelectValue placeholder={t("admin.financeAllTeams")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("admin.financeAllTeams")}</SelectItem>
+                      {[...new Set(generations.map(g => g.team_name).filter(Boolean))].map((teamName) => (
+                        <SelectItem key={teamName} value={teamName!}>{teamName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* User Filter */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t("admin.financeUser")}</Label>
+                  <Select value={selectedUserFilter} onValueChange={setSelectedUserFilter}>
+                    <SelectTrigger className="h-8">
+                      <SelectValue placeholder={t("admin.financeAllUsers")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("admin.financeAllUsers")}</SelectItem>
+                      {uniqueUsers.map((userName) => (
+                        <SelectItem key={userName} value={userName}>{userName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Type Filter */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t("admin.financeType")}</Label>
+                  <Select value={selectedTypeFilter} onValueChange={setSelectedTypeFilter}>
+                    <SelectTrigger className="h-8">
+                      <SelectValue placeholder={t("admin.financeAllTypes")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("admin.financeAllTypes")}</SelectItem>
+                      <SelectItem value="html">HTML</SelectItem>
+                      <SelectItem value="react">React</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* AI Model Filter */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">AI</Label>
+                  <Select value={selectedAiFilter} onValueChange={setSelectedAiFilter}>
+                    <SelectTrigger className="h-8">
+                      <SelectValue placeholder={t("admin.financeAllTypes")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("admin.financeAllTypes")}</SelectItem>
+                      <SelectItem value="junior">Jr</SelectItem>
+                      <SelectItem value="senior">Sr</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Date Filter */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t("admin.dateFilter")}</Label>
+                  <Select 
+                    value={datePreset} 
+                    onValueChange={(v) => {
+                      setDatePreset(v as DatePreset);
+                      if (v !== "custom") {
+                        setDateFromFilter(undefined);
+                        setDateToFilter(undefined);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-8">
+                      <SelectValue placeholder={t("admin.allDates")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("admin.allDates")}</SelectItem>
+                      <SelectItem value="today">{t("admin.dateToday")}</SelectItem>
+                      <SelectItem value="yesterday">{t("admin.dateYesterday")}</SelectItem>
+                      <SelectItem value="week">{t("admin.dateWeek")}</SelectItem>
+                      <SelectItem value="month">{t("admin.dateMonth")}</SelectItem>
+                      <SelectItem value="custom">{t("admin.dateCustom")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Custom Date Range */}
+              {datePreset === "custom" && (
+                <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{t("admin.dateFrom")}</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "h-8 w-[180px] justify-start text-left font-normal",
+                            !dateFromFilter && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dateFromFilter ? format(dateFromFilter, "dd.MM.yyyy") : t("admin.selectDate")}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={dateFromFilter}
+                          onSelect={setDateFromFilter}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                          locale={uk}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{t("admin.dateTo")}</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "h-8 w-[180px] justify-start text-left font-normal",
+                            !dateToFilter && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dateToFilter ? format(dateToFilter, "dd.MM.yyyy") : t("admin.selectDate")}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={dateToFilter}
+                          onSelect={setDateToFilter}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                          locale={uk}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+              )}
+            </Card>
+          )}
         </CardHeader>
         <CardContent className="px-3 pb-3">
           <Table>
