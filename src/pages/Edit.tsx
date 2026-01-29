@@ -48,6 +48,10 @@ const Edit = () => {
         // Remove if already selected
         return prev.filter((_, i) => i !== existingIndex);
       }
+      // Limit to 5 elements max
+      if (prev.length >= 5) {
+        return prev;
+      }
       // Add new element
       return [...prev, element];
     });
