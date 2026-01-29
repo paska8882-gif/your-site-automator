@@ -1300,6 +1300,15 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
 
       if (error) throw error;
 
+      // Immediately update local state to show the cancelled status
+      updateHistoryItem({
+        ...item,
+        status: newStatus,
+        error_message: cancelMessage,
+        completed_at: new Date().toISOString(),
+        sale_price: 0
+      });
+
       // Use different toast message for manual requests
       if (isManualRequest) {
         toast({
