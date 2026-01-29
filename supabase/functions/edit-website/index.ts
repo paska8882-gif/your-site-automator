@@ -12,53 +12,56 @@ interface GeneratedFile {
   content: string;
 }
 
-// Optimized prompt - AI returns ONLY specific changes as search/replace blocks
-const EDIT_SYSTEM_PROMPT = `You are an expert website editor. Your job is to make PRECISE, TARGETED edits to existing website files.
+// STRICT prompt - AI MUST return ONLY SEARCH/REPLACE blocks, NO explanations
+const EDIT_SYSTEM_PROMPT = `You are a website code editor. You receive files and a change request. You output ONLY code changes.
 
-CRITICAL: Use SEARCH/REPLACE blocks for efficiency - do NOT return entire files!
+CRITICAL RULES:
+1. Output ONLY SEARCH/REPLACE blocks - NOTHING ELSE
+2. DO NOT explain what you will do
+3. DO NOT write "I will..." or "Here are the changes..."
+4. DO NOT output any text before or after the SEARCH/REPLACE blocks
+5. If the request is unclear, make a reasonable assumption and proceed
+6. START your response with <<<<<<< SEARCH - no intro text
 
 OUTPUT FORMAT (MANDATORY):
 <<<<<<< SEARCH filename.ext
-exact text to find (3-10 lines of context)
+exact text to find (3-10 lines)
 =======
 replacement text
 >>>>>>> REPLACE
 
-RULES:
-1. Make ONLY the specific change requested - NOTHING ELSE
-2. Use SEARCH/REPLACE blocks - this is faster than returning full files
-3. Include enough context in SEARCH to uniquely identify the location (usually 3-10 lines)
-4. The SEARCH text must match EXACTLY what's in the file
-5. You can have multiple SEARCH/REPLACE blocks for one file
-6. If you need to add new content, use nearby existing lines as context
-7. DO NOT change images, layout, or styles unless specifically asked
+MATCHING RULES:
+- The SEARCH text must match EXACTLY what's in the file (copy-paste)
+- Include 3-10 lines of context to uniquely identify the location
+- You can have multiple SEARCH/REPLACE blocks
 
-EXAMPLE - Changing a button color:
-<<<<<<< SEARCH styles.css
-.btn-primary {
-  background-color: #3498db;
-  color: white;
-}
-=======
-.btn-primary {
-  background-color: #e74c3c;
-  color: white;
-}
->>>>>>> REPLACE
-
-EXAMPLE - Changing text:
+EXAMPLE (correct):
 <<<<<<< SEARCH index.html
-<h1 class="hero-title">Welcome to Our Site</h1>
-<p class="hero-subtitle">We build amazing things</p>
+<h1 class="title">Old Title</h1>
+<p class="subtitle">Old subtitle text</p>
 =======
-<h1 class="hero-title">Welcome to My Portfolio</h1>
-<p class="hero-subtitle">I create beautiful websites</p>
+<h1 class="title">New Title</h1>
+<p class="subtitle">New subtitle text</p>
 >>>>>>> REPLACE
 
-IMPORTANT:
-- Use SEARCH/REPLACE for small changes (1-20 lines)
-- If changing 50%+ of a file, use <!-- FILE: filename.ext --> format with full content instead
-- Be precise - wrong SEARCH text will fail to match`;
+WRONG (never do this):
+"I will change the title..."
+"Here are the modifications..."
+Any text that is not a SEARCH/REPLACE block`;
+
+// Even stricter prompt for retry attempts
+const RETRY_SYSTEM_PROMPT = `You are a code editor. Output ONLY SEARCH/REPLACE blocks.
+
+START YOUR RESPONSE WITH: <<<<<<< SEARCH
+
+FORMAT:
+<<<<<<< SEARCH filename.ext
+text to find
+=======
+replacement text
+>>>>>>> REPLACE
+
+NO OTHER TEXT ALLOWED. Just the blocks.`;
 
 // Model configurations with timeouts
 const MODELS = {
@@ -75,7 +78,8 @@ const MODELS = {
 async function callAIWithTimeout(
   model: { name: string; timeout: number; gateway: string },
   messages: { role: string; content: string }[],
-  maxTokens: number
+  maxTokens: number,
+  temperature: number = 0.1
 ): Promise<{ content: string; modelUsed: string } | null> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), model.timeout);
@@ -97,8 +101,7 @@ async function callAIWithTimeout(
           model: model.name,
           messages,
           max_tokens: maxTokens,
-          // Lower temperature = fewer "creative" unintended edits
-          temperature: 0.2,
+          temperature,
         }),
         signal: controller.signal,
       });
@@ -116,7 +119,7 @@ async function callAIWithTimeout(
           model: model.name,
           messages,
           max_tokens: maxTokens,
-          temperature: 0.2,
+          temperature,
         }),
         signal: controller.signal,
       });
@@ -154,13 +157,14 @@ async function callAIWithTimeout(
 async function callAIWithFallback(
   aiModel: "junior" | "senior",
   messages: { role: string; content: string }[],
-  maxTokens: number
+  maxTokens: number,
+  temperature: number = 0.1
 ): Promise<{ content: string; modelUsed: string }> {
   const models = MODELS[aiModel];
 
   for (const model of models) {
     console.log(`Trying model: ${model.name}`);
-    const result = await callAIWithTimeout(model, messages, maxTokens);
+    const result = await callAIWithTimeout(model, messages, maxTokens, temperature);
     if (result) {
       console.log(`Success with model: ${model.name}`);
       return result;
@@ -170,20 +174,39 @@ async function callAIWithFallback(
   throw new Error("All AI models failed or timed out");
 }
 
-// Determine which files are likely relevant based on the edit request
+// FIXED: Determine which files are relevant - currentPage is ALWAYS first
 function selectRelevantFiles(
   files: GeneratedFile[],
-  editRequest: string
+  editRequest: string,
+  currentPage: string
 ): GeneratedFile[] {
   const request = editRequest.toLowerCase();
   const selected: GeneratedFile[] = [];
-  const filesByPath = new Map(files.map((f) => [f.path.toLowerCase(), f]));
+  const addedPaths = new Set<string>();
 
-  // Always include index.html - it's the main file
-  const indexHtml = files.find((f) => f.path.toLowerCase() === "index.html");
-  if (indexHtml) selected.push(indexHtml);
+  // Helper to add file if it exists and not already added
+  const addFile = (file: GeneratedFile | undefined) => {
+    if (file && !addedPaths.has(file.path.toLowerCase())) {
+      selected.push(file);
+      addedPaths.add(file.path.toLowerCase());
+    }
+  };
 
-  // Check for style-related keywords
+  // STEP 1: ALWAYS include currentPage FIRST - this is what user is looking at
+  const currentPageFile = files.find(
+    (f) => f.path.toLowerCase() === currentPage.toLowerCase()
+  );
+  addFile(currentPageFile);
+  console.log(`[selectRelevantFiles] Primary file: ${currentPage}`);
+
+  // STEP 2: Include index.html as secondary (for shared components like header/footer)
+  // But ONLY if it's different from currentPage
+  if (currentPage.toLowerCase() !== "index.html") {
+    const indexHtml = files.find((f) => f.path.toLowerCase() === "index.html");
+    addFile(indexHtml);
+  }
+
+  // STEP 3: Check for style-related keywords → include CSS
   const styleKeywords = ["color", "колір", "стиль", "style", "css", "шрифт", "font", "background", "фон", "border", "margin", "padding", "розмір", "size"];
   const needsStyles = styleKeywords.some((kw) => request.includes(kw));
   if (needsStyles) {
@@ -191,12 +214,10 @@ function selectRelevantFiles(
       f.path.toLowerCase().includes("style") || 
       f.path.toLowerCase().endsWith(".css")
     );
-    cssFiles.forEach((f) => {
-      if (!selected.includes(f)) selected.push(f);
-    });
+    cssFiles.forEach(addFile);
   }
 
-  // Check for script/JS keywords
+  // STEP 4: Check for script/JS keywords
   const jsKeywords = ["script", "js", "javascript", "функці", "function", "click", "клік", "button", "кнопк", "form", "форм", "slider", "carousel", "animation", "анімац"];
   const needsJs = jsKeywords.some((kw) => request.includes(kw));
   if (needsJs) {
@@ -204,12 +225,10 @@ function selectRelevantFiles(
       f.path.toLowerCase().endsWith(".js") ||
       f.path.toLowerCase().includes("script")
     );
-    jsFiles.forEach((f) => {
-      if (!selected.includes(f)) selected.push(f);
-    });
+    jsFiles.forEach(addFile);
   }
 
-  // Check for page-specific keywords
+  // STEP 5: Check for page-specific keywords
   const pageKeywords: Record<string, string[]> = {
     "about": ["about", "про нас", "о нас"],
     "contact": ["contact", "контакт", "зв'язок", "связь"],
@@ -218,6 +237,7 @@ function selectRelevantFiles(
     "blog": ["blog", "блог", "news", "новин"],
     "faq": ["faq", "питан", "вопрос"],
     "terms": ["terms", "умови", "условия", "privacy", "приватн"],
+    "thank": ["thank", "дякую", "спасибо", "success"],
   };
 
   for (const [pageName, keywords] of Object.entries(pageKeywords)) {
@@ -225,50 +245,32 @@ function selectRelevantFiles(
       const pageFile = files.find((f) => 
         f.path.toLowerCase().includes(pageName)
       );
-      if (pageFile && !selected.includes(pageFile)) {
-        selected.push(pageFile);
-      }
+      addFile(pageFile);
     }
   }
 
-  // If translation/i18n is mentioned
-  const i18nKeywords = ["переклад", "перевод", "translation", "мов", "язык", "language", "i18n"];
-  if (i18nKeywords.some((kw) => request.includes(kw))) {
-    const i18nFiles = files.filter((f) => 
-      f.path.toLowerCase().includes("i18n") || 
-      f.path.toLowerCase().includes("translation")
-    );
-    i18nFiles.forEach((f) => {
-      if (!selected.includes(f)) selected.push(f);
-    });
-  }
-
-  // If header/footer/nav mentioned
+  // STEP 6: Header/footer/nav - usually in main HTML, but may have separate files
   const layoutKeywords = ["header", "шапк", "footer", "підвал", "nav", "меню", "menu", "logo", "лого"];
   if (layoutKeywords.some((kw) => request.includes(kw))) {
-    // For HTML sites, header/footer are usually in index.html (already included)
-    // For component sites, might have separate files
     const layoutFiles = files.filter((f) => 
       f.path.toLowerCase().includes("header") || 
       f.path.toLowerCase().includes("footer") ||
       f.path.toLowerCase().includes("nav")
     );
-    layoutFiles.forEach((f) => {
-      if (!selected.includes(f)) selected.push(f);
-    });
+    layoutFiles.forEach(addFile);
   }
 
-  // If we selected too few files, include styles.css as a fallback ONLY for style requests.
-  // For text-only edits, adding CSS increases context and encourages unintended changes.
-  if (selected.length < 2 && needsStyles) {
+  // STEP 7: If we ONLY have currentPage and need styles, add CSS
+  if (selected.length === 1 && needsStyles) {
     const stylesFile = files.find((f) =>
       f.path.toLowerCase() === "styles.css" ||
-      f.path.toLowerCase() === "css/styles.css"
+      f.path.toLowerCase() === "css/styles.css" ||
+      f.path.toLowerCase() === "style.css"
     );
-    if (stylesFile && !selected.includes(stylesFile)) {
-      selected.push(stylesFile);
-    }
+    addFile(stylesFile);
   }
+
+  console.log(`[selectRelevantFiles] Selected ${selected.length} files: ${selected.map(f => f.path).join(", ")}`);
 
   // Limit to 8 files max to keep context manageable
   return selected.slice(0, 8);
@@ -282,11 +284,8 @@ interface SearchReplaceBlock {
 
 // Clean AI response from markdown code blocks
 function cleanAIResponse(content: string): string {
-  // Remove wrapping ```html or ```css or ``` blocks
   let cleaned = content
-    // remove any opening fences like ```html
     .replace(/```[a-zA-Z0-9_-]*\s*\n/g, "")
-    // remove closing fences
     .replace(/\n```\s*/g, "\n")
     .trim();
   
@@ -297,11 +296,9 @@ function cleanAIResponse(content: string): string {
 function parseSearchReplaceBlocks(content: string): SearchReplaceBlock[] {
   const blocks: SearchReplaceBlock[] = [];
   
-  // Clean markdown code blocks first
   const cleaned = cleanAIResponse(content);
   
   // Match: <<<<<<< SEARCH filename.ext ... ======= ... >>>>>>> REPLACE
-  // More flexible regex to handle various whitespace
   const blockRegex = /<<<<<<<?[=\s]*SEARCH\s+([^\n]+)\n([\s\S]*?)\n=======[=]*\n([\s\S]*?)\n>>>>>>>[>]*\s*REPLACE/gi;
   
   let match;
@@ -317,7 +314,6 @@ function parseSearchReplaceBlocks(content: string): SearchReplaceBlock[] {
   
   // Try alternative format if no blocks found
   if (blocks.length === 0) {
-    // Try simpler format: SEARCH filename ... REPLACE
     const altRegex = /SEARCH\s+([^\n]+)\n([\s\S]*?)\nREPLACE\n([\s\S]*?)(?=\nSEARCH|\n<<<|$)/gi;
     while ((match = altRegex.exec(cleaned)) !== null) {
       const filename = match[1].trim();
@@ -330,8 +326,7 @@ function parseSearchReplaceBlocks(content: string): SearchReplaceBlock[] {
     }
   }
 
-  // Last-ditch: handle a truncated block where the model forgot/omitted the closing >>>>>>> REPLACE
-  // We treat everything after ======= as the replacement until end of message.
+  // Handle truncated block (missing closing >>>>>>> REPLACE)
   if (blocks.length === 0) {
     const truncatedRegex = /<<<<<<<?[=\s]*SEARCH\s+([^\n]+)\n([\s\S]*?)\n=======[=]*\n([\s\S]*)$/i;
     const m = cleaned.match(truncatedRegex);
@@ -361,7 +356,6 @@ function parseFullFileReplacements(content: string): GeneratedFile[] {
     const path = match[1].trim();
     let fileContent = match[2].trim();
 
-    // Clean up content
     fileContent = fileContent
       .replace(/^```[\w]*\n?/gm, "")
       .replace(/\n?```$/gm, "")
@@ -379,21 +373,17 @@ function parseFullFileReplacements(content: string): GeneratedFile[] {
 function parseAnyFileContent(content: string, currentFiles: GeneratedFile[]): GeneratedFile[] {
   const cleaned = cleanAIResponse(content);
   
-  // If response contains substantial HTML, try to figure out which file it belongs to
   if (cleaned.includes('<!DOCTYPE') || cleaned.includes('<html') || cleaned.includes('<head')) {
-    // Looks like full HTML - probably index.html
     const htmlContent = cleaned.replace(/^[\s\S]*?(<!DOCTYPE|<html)/i, '$1').trim();
     if (htmlContent.length > 500) {
       return [{ path: 'index.html', content: htmlContent }];
     }
   }
   
-  // Check if it looks like CSS
   if (cleaned.includes('{') && cleaned.includes('}') && 
       (cleaned.includes('.') || cleaned.includes('#') || cleaned.includes('@media'))) {
     const hasHtml = cleaned.includes('<') && cleaned.includes('>');
     if (!hasHtml && cleaned.length > 200) {
-      // Find the CSS file in current files
       const cssFile = currentFiles.find(f => f.path.endsWith('.css'));
       if (cssFile) {
         return [{ path: cssFile.path, content: cleaned }];
@@ -426,11 +416,8 @@ function applySearchReplaceBlocks(
     }
     
     const searchCandidates: { label: string; search: string; replace: string; applyOnNormalized?: boolean }[] = [
-      // 1) Exact (best-case)
       { label: "exact", search: block.search, replace: block.replace },
-      // 2) Trim whole block (common)
       { label: "trim", search: block.search.trim(), replace: block.replace.trim() },
-      // 3) Normalize per-line trailing whitespace (VERY common from LLMs)
       {
         label: "trimEndLines",
         search: block.search.split("\n").map((l) => l.trimEnd()).join("\n"),
@@ -479,7 +466,6 @@ function applySearchReplaceBlocks(
     }
   }
   
-  // Return only modified files
   const modifiedFiles: GeneratedFile[] = [];
   modifiedPaths.forEach(path => {
     modifiedFiles.push({ path, content: fileMap.get(path)! });
@@ -494,17 +480,22 @@ function mergeFiles(
 ): GeneratedFile[] {
   const result = new Map<string, GeneratedFile>();
 
-  // Start with all original files
   for (const file of originalFiles) {
     result.set(file.path, file);
   }
 
-  // Overlay modified files
   for (const file of modifiedFiles) {
     result.set(file.path, file);
   }
 
   return Array.from(result.values());
+}
+
+// Check if AI response contains valid SEARCH/REPLACE blocks
+function hasValidSearchReplaceFormat(content: string): boolean {
+  const cleaned = cleanAIResponse(content);
+  return cleaned.includes("<<<<<<") && cleaned.includes("=======") && 
+         (cleaned.includes("SEARCH") || cleaned.includes("REPLACE"));
 }
 
 serve(async (req) => {
@@ -538,7 +529,7 @@ serve(async (req) => {
       });
     }
 
-const body = await req.json();
+    const body = await req.json();
     const { generationId, editRequest, currentFiles, aiModel, websiteType, currentPage } = body;
 
     if (!generationId || !editRequest || !currentFiles || currentFiles.length === 0) {
@@ -548,12 +539,15 @@ const body = await req.json();
       });
     }
 
+    // Determine active page - default to index.html
+    const activePage = currentPage || "index.html";
+
     console.log(`Edit request for generation ${generationId}: ${editRequest}`);
-    console.log(`AI Model: ${aiModel}, Website Type: ${websiteType}, Current Page: ${currentPage || "index.html"}`);
+    console.log(`AI Model: ${aiModel}, Website Type: ${websiteType}, Active Page: ${activePage}`);
     console.log(`Total files: ${currentFiles.length}`);
 
-    // Select only relevant files
-    const relevantFiles = selectRelevantFiles(currentFiles, editRequest);
+    // Select relevant files with currentPage as PRIMARY
+    const relevantFiles = selectRelevantFiles(currentFiles, editRequest, activePage);
     console.log(`Selected ${relevantFiles.length} relevant files: ${relevantFiles.map((f: GeneratedFile) => f.path).join(", ")}`);
 
     // Build optimized context
@@ -561,48 +555,66 @@ const body = await req.json();
       .map((f: GeneratedFile) => `<!-- FILE: ${f.path} -->\n${f.content}`)
       .join("\n\n");
 
-    // Determine which page is active
-    const activePage = currentPage || "index.html";
-    
-    const editPrompt = `WEBSITE FILES (${relevantFiles.length} relevant files):
+    const editPrompt = `FILES:
 ${filesContext}
 
-USER IS CURRENTLY VIEWING: ${activePage}
-USER REQUEST: ${editRequest}
+ACTIVE PAGE: ${activePage}
+REQUEST: ${editRequest}
 
-CRITICAL INSTRUCTIONS:
-1. The user is looking at "${activePage}" - make changes TO THIS FILE primarily unless the request is about styles/scripts
-2. Make REAL, VISIBLE changes that the user will see immediately
-3. Use SEARCH/REPLACE blocks with EXACT text from the file
-4. If changing text - find the exact text in the file and replace it
-5. If changing colors/styles - edit the CSS file (styles.css)
-6. Do NOT return empty or no-op changes
-7. Include enough context (3-10 lines) in SEARCH to uniquely identify the location
-8. The SEARCH text must match EXACTLY what's in the file (copy-paste accuracy)`;
+Output ONLY SEARCH/REPLACE blocks. Target "${activePage}" unless request is about styles/scripts.
+START with: <<<<<<< SEARCH`;
 
     const messages = [
       { role: "system", content: EDIT_SYSTEM_PROMPT },
       { role: "user", content: editPrompt },
     ];
 
-    // Use smaller max_tokens since we're using SEARCH/REPLACE
     const maxTokens = relevantFiles.length <= 3 ? 4000 : 8000;
-
-    // Call AI with fallback
     const modelToUse = aiModel === "senior" ? "senior" : "junior";
-    const { content, modelUsed } = await callAIWithFallback(modelToUse, messages, maxTokens);
-
+    
+    // First attempt with temperature 0.1
+    let { content, modelUsed } = await callAIWithFallback(modelToUse, messages, maxTokens, 0.1);
     console.log(`AI response from ${modelUsed}, length: ${content.length}`);
 
-    // First try to parse SEARCH/REPLACE blocks (new optimized format)
-    const searchReplaceBlocks = parseSearchReplaceBlocks(content);
-    console.log(`Found ${searchReplaceBlocks.length} SEARCH/REPLACE blocks`);
+    // Check if response has valid format
+    let searchReplaceBlocks = parseSearchReplaceBlocks(content);
+    console.log(`Found ${searchReplaceBlocks.length} SEARCH/REPLACE blocks (first attempt)`);
+
+    // RETRY: If no valid blocks found, retry with stricter prompt
+    if (searchReplaceBlocks.length === 0 && !hasValidSearchReplaceFormat(content)) {
+      console.warn("First attempt failed - AI returned text instead of code. Retrying with stricter prompt...");
+      console.log("AI text response preview:", content.substring(0, 300));
+
+      const retryMessages = [
+        { role: "system", content: RETRY_SYSTEM_PROMPT },
+        { role: "user", content: `FILE: ${activePage}
+${relevantFiles.find(f => f.path === activePage)?.content || filesContext}
+
+REQUEST: ${editRequest}
+
+Output SEARCH/REPLACE block. START with: <<<<<<< SEARCH ${activePage}` },
+      ];
+
+      try {
+        const retryResult = await callAIWithFallback(modelToUse, retryMessages, 4000, 0.05);
+        console.log(`Retry response from ${retryResult.modelUsed}, length: ${retryResult.content.length}`);
+        
+        const retryBlocks = parseSearchReplaceBlocks(retryResult.content);
+        if (retryBlocks.length > 0) {
+          searchReplaceBlocks = retryBlocks;
+          content = retryResult.content;
+          modelUsed = retryResult.modelUsed + " (retry)";
+          console.log(`Retry successful: found ${retryBlocks.length} blocks`);
+        }
+      } catch (retryError) {
+        console.error("Retry also failed:", retryError);
+      }
+    }
     
     let modifiedFiles: GeneratedFile[] = [];
     let editMethod = "unknown";
     
     if (searchReplaceBlocks.length > 0) {
-      // Apply SEARCH/REPLACE blocks - fast and efficient!
       const { modifiedFiles: patchedFiles, appliedCount, failedBlocks } = 
         applySearchReplaceBlocks(currentFiles, searchReplaceBlocks);
       
@@ -614,7 +626,7 @@ CRITICAL INSTRUCTIONS:
       }
     }
     
-    // Fallback: parse full file replacements (legacy format)
+    // Fallback: parse full file replacements
     if (modifiedFiles.length === 0) {
       const fullFileReplacements = parseFullFileReplacements(content);
       if (fullFileReplacements.length > 0) {
