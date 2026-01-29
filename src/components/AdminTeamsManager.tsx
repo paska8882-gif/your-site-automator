@@ -342,8 +342,8 @@ export const AdminTeamsManager = () => {
   };
 
   const handleViewTeam = (team: Team) => {
-    setSelectedTeam(team);
-    fetchTeamTransactions(team.id);
+    // Одразу переходимо на сторінку деталей команди без проміжного діалогу
+    navigate(`/admin/team/${team.id}`);
   };
 
   const handleCreateTeam = async () => {
