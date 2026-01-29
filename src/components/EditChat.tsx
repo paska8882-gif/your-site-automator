@@ -177,6 +177,36 @@ export function EditChat({
     reader.readAsDataURL(file);
   };
 
+  // Handle Ctrl+V paste for images
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of items) {
+      if (item.type.startsWith("image/")) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) continue;
+
+        if (file.size > 5 * 1024 * 1024) {
+          toast({
+            title: "Файл занадто великий",
+            description: "Максимум 5MB",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          setUploadedImage(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+        break;
+      }
+    }
+  };
+
   const clearUploadedImage = () => {
     setUploadedImage(null);
     if (fileInputRef.current) {
@@ -414,7 +444,7 @@ export function EditChat({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -466,10 +496,7 @@ export function EditChat({
           {messages.length === 0 && (
             <div className="text-center text-muted-foreground py-8">
               <Bot className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p className="text-sm">Опишіть які зміни потрібно внести в сайт</p>
-              <p className="text-xs mt-1">
-                Наприклад: "Зміни колір кнопок на синій", "Додай секцію FAQ"
-              </p>
+              <p className="text-sm">Опиши зміни або Ctrl+V скрін</p>
             </div>
           )}
           {messages.map((msg, idx) => (
@@ -673,12 +700,13 @@ export function EditChat({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder={
               uploadedImage
-                ? "Опишіть проблему на скріншоті..."
+                ? "Опиши проблему..."
                 : selectedElements.length > 0
-                  ? `Що зробити з ${selectedElements.length} елементами?`
-                  : "Опишіть зміни..."
+                  ? `Що зробити з ${selectedElements.length} ел.?`
+                  : "Опиши зміни... (Ctrl+V для скріна)"
             }
             className="min-h-[60px] max-h-[120px] resize-none"
             disabled={isEditing || isAnalyzing}
