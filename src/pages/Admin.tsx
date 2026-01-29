@@ -15,6 +15,7 @@ import { AdminBalanceRequestsTab } from "@/components/AdminBalanceRequestsTab";
 import { AdminPaymentDetailsTab } from "@/components/AdminPaymentDetailsTab";
 import { AdminReferralTab } from "@/components/AdminReferralTab";
 import { AdminTasksTab } from "@/components/AdminTasksTab";
+import { AdminDatabaseTab } from "@/components/AdminDatabaseTab";
 import { ManualRequestsTab } from "@/components/ManualRequestsTab";
 import { AdminMaintenanceToggle } from "@/components/AdminMaintenanceToggle";
 import { AppLayout } from "@/components/AppLayout";
@@ -76,6 +77,8 @@ const Admin = () => {
         return <AdminReferralTab />;
       case "payment-details":
         return isSuperAdmin ? <AdminPaymentDetailsTab /> : <AdminTeamsTab />;
+      case "database":
+        return isSuperAdmin ? <AdminDatabaseTab /> : <AdminTeamsTab />;
       case "tasks":
         return <AdminTasksTab />;
       default:

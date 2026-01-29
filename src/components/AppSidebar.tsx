@@ -46,7 +46,8 @@ import {
   User,
   Wrench,
   AlertTriangle,
-  Loader2
+  Loader2,
+  Database
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -86,6 +87,7 @@ const getAdminNavItems = (t: (key: string) => string) => [
 
 const getSuperAdminNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.paymentDetails"), tab: "payment-details", icon: CreditCard },
+  { title: "База даних", tab: "database", icon: Database },
 ];
 
 // Compact maintenance toggle for sidebar
