@@ -41,7 +41,7 @@ export function BackendStatusBanner({
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
           <div className="flex flex-col gap-1">
             <span className="text-sm font-medium text-foreground">
-              Сервіс тимчасово недоступний
+              Ваше інтернет з'єднання не стабільне
             </span>
             <span className="text-xs text-muted-foreground">
               {downSince && `Недоступний ${downSince}`}
