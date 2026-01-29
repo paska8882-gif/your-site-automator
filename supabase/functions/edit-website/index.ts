@@ -394,7 +394,97 @@ function parseAnyFileContent(content: string, currentFiles: GeneratedFile[]): Ge
   return [];
 }
 
-// Apply search/replace blocks to original files
+// Normalize whitespace for fuzzy matching
+function normalizeWhitespace(text: string): string {
+  return text
+    .split('\n')
+    .map(line => line.trim())
+    .join('\n')
+    .replace(/\n{2,}/g, '\n\n')
+    .trim();
+}
+
+// Find fuzzy match position in content
+function findFuzzyMatch(content: string, search: string): { start: number; end: number } | null {
+  // Strategy 1: Exact match
+  const exactIdx = content.indexOf(search);
+  if (exactIdx !== -1) {
+    return { start: exactIdx, end: exactIdx + search.length };
+  }
+  
+  // Strategy 2: Trimmed match
+  const trimmedSearch = search.trim();
+  const trimmedIdx = content.indexOf(trimmedSearch);
+  if (trimmedIdx !== -1) {
+    return { start: trimmedIdx, end: trimmedIdx + trimmedSearch.length };
+  }
+  
+  // Strategy 3: Line-trimmed match (trim end of each line)
+  const lineTrimmedSearch = search.split('\n').map(l => l.trimEnd()).join('\n');
+  const lineTrimmedContent = content.split('\n').map(l => l.trimEnd()).join('\n');
+  const lineTrimmedIdx = lineTrimmedContent.indexOf(lineTrimmedSearch);
+  if (lineTrimmedIdx !== -1) {
+    // Find corresponding position in original content
+    const lines = content.split('\n');
+    let pos = 0;
+    let normalizedPos = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (normalizedPos <= lineTrimmedIdx && normalizedPos + lines[i].trimEnd().length >= lineTrimmedIdx) {
+        const offset = lineTrimmedIdx - normalizedPos;
+        const start = pos + offset;
+        // Estimate end based on search length
+        return { start, end: start + search.length };
+      }
+      pos += lines[i].length + 1;
+      normalizedPos += lines[i].trimEnd().length + 1;
+    }
+  }
+  
+  // Strategy 4: First/last line anchor match
+  const searchLines = search.trim().split('\n');
+  if (searchLines.length >= 2) {
+    const firstLine = searchLines[0].trim();
+    const lastLine = searchLines[searchLines.length - 1].trim();
+    
+    if (firstLine.length > 10 && lastLine.length > 5) {
+      const contentLines = content.split('\n');
+      
+      for (let i = 0; i < contentLines.length; i++) {
+        if (contentLines[i].trim() === firstLine) {
+          // Found first line, look for last line within reasonable range
+          for (let j = i + 1; j < Math.min(i + searchLines.length + 5, contentLines.length); j++) {
+            if (contentLines[j].trim() === lastLine) {
+              // Found matching block
+              const startPos = content.split('\n').slice(0, i).join('\n').length + (i > 0 ? 1 : 0);
+              const endPos = content.split('\n').slice(0, j + 1).join('\n').length;
+              return { start: startPos, end: endPos };
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // Strategy 5: Whitespace-normalized match
+  const normalizedSearch = normalizeWhitespace(search);
+  const normalizedContent = normalizeWhitespace(content);
+  const normalizedIdx = normalizedContent.indexOf(normalizedSearch);
+  if (normalizedIdx !== -1) {
+    // This is a match but we need to map back to original positions
+    // Use first distinctive line to anchor
+    const firstDistinctiveLine = searchLines.find(l => l.trim().length > 15);
+    if (firstDistinctiveLine) {
+      const lineIdx = content.indexOf(firstDistinctiveLine.trim());
+      if (lineIdx !== -1) {
+        return { start: lineIdx, end: lineIdx + search.length };
+      }
+    }
+  }
+  
+  return null;
+}
+
+// Apply search/replace blocks to original files with enhanced fuzzy matching
 function applySearchReplaceBlocks(
   originalFiles: GeneratedFile[],
   blocks: SearchReplaceBlock[]
@@ -410,57 +500,36 @@ function applySearchReplaceBlocks(
     const originalContent = fileMap.get(block.filename);
     
     if (originalContent === undefined) {
-      console.warn(`File not found for SEARCH/REPLACE: ${block.filename}`);
-      failedBlocks.push(`File not found: ${block.filename}`);
-      continue;
-    }
-    
-    const searchCandidates: { label: string; search: string; replace: string; applyOnNormalized?: boolean }[] = [
-      { label: "exact", search: block.search, replace: block.replace },
-      { label: "trim", search: block.search.trim(), replace: block.replace.trim() },
-      {
-        label: "trimEndLines",
-        search: block.search.split("\n").map((l) => l.trimEnd()).join("\n"),
-        replace: block.replace.split("\n").map((l) => l.trimEnd()).join("\n"),
-        applyOnNormalized: true,
-      },
-    ];
-
-    let applied = false;
-    for (const cand of searchCandidates) {
-      if (!cand.search) continue;
-
-      if (cand.applyOnNormalized) {
-        const normalizedContent = originalContent
-          .split("\n")
-          .map((l) => l.trimEnd())
-          .join("\n");
-
-        if (normalizedContent.includes(cand.search)) {
-          const newNormalized = normalizedContent.replace(cand.search, cand.replace);
-          fileMap.set(block.filename, newNormalized);
-          modifiedPaths.add(block.filename);
-          appliedCount++;
-          applied = true;
-          console.log(`Applied SEARCH/REPLACE (${cand.label}) to ${block.filename}`);
-          break;
-        }
+      // Try case-insensitive match
+      const found = Array.from(fileMap.keys()).find(
+        k => k.toLowerCase() === block.filename.toLowerCase()
+      );
+      if (found) {
+        console.log(`Matched filename case-insensitively: ${block.filename} -> ${found}`);
+        block.filename = found;
       } else {
-        if (originalContent.includes(cand.search)) {
-          const newContent = originalContent.replace(cand.search, cand.replace);
-          fileMap.set(block.filename, newContent);
-          modifiedPaths.add(block.filename);
-          appliedCount++;
-          applied = true;
-          console.log(`Applied SEARCH/REPLACE (${cand.label}) to ${block.filename}`);
-          break;
-        }
+        console.warn(`File not found for SEARCH/REPLACE: ${block.filename}`);
+        failedBlocks.push(`File not found: ${block.filename}`);
+        continue;
       }
     }
-
-    if (!applied) {
+    
+    const content = fileMap.get(block.filename)!;
+    const match = findFuzzyMatch(content, block.search);
+    
+    if (match) {
+      // Apply the replacement
+      const before = content.substring(0, match.start);
+      const after = content.substring(match.end);
+      const newContent = before + block.replace + after;
+      
+      fileMap.set(block.filename, newContent);
+      modifiedPaths.add(block.filename);
+      appliedCount++;
+      console.log(`Applied SEARCH/REPLACE (fuzzy) to ${block.filename}`);
+    } else {
       console.warn(
-        `SEARCH block not found in ${block.filename}. Search text: "${block.search.substring(0, 100)}..."`
+        `SEARCH block not found in ${block.filename}. Search text (first 100 chars): "${block.search.substring(0, 100)}..."`
       );
       failedBlocks.push(`Not found in ${block.filename}: "${block.search.substring(0, 50)}..."`);
     }
