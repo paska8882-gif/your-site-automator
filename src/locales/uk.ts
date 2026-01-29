@@ -1146,6 +1146,7 @@ export const uk = {
       date: "Дата",
       duration: "Час",
       actions: "Дії",
+      price: "Ціна вказана адміном",
     },
     sitesUpload: {
       title: "Завантажити зовнішню генерацію",
