@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DatabaseGenerationsTable } from "./admin/DatabaseGenerationsTable";
 
 interface DatabaseStats {
   totalGenerations: number;
@@ -298,6 +299,12 @@ export function AdminDatabaseTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Generations Table with Filters */}
+      <DatabaseGenerationsTable onCleanupComplete={() => {
+        fetchStats();
+        fetchCleanupLogs();
+      }} />
 
       {/* Last Cleanup Result */}
       {lastCleanup && (
