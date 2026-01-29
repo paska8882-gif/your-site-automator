@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Trash2, FileArchive, Calendar, Users, ChevronLeft, ChevronRight } from "lucide-react";
@@ -41,7 +40,6 @@ export function DatabaseGenerationsTable({ onCleanupComplete }: Props) {
   // Filters
   const [teamFilter, setTeamFilter] = useState<string>("all");
   const [periodFilter, setPeriodFilter] = useState<string>("all");
-  const [dataFilter, setDataFilter] = useState<string>("with_data");
   
   // Pagination
   const [page, setPage] = useState(0);
@@ -56,54 +54,41 @@ export function DatabaseGenerationsTable({ onCleanupComplete }: Props) {
   const fetchGenerations = useCallback(async () => {
     setLoading(true);
     try {
-      let query = supabase
+      // Спочатку отримуємо ID записів що мають zip_data або files_data
+      let baseQuery = supabase
         .from("generation_history")
         .select("id, number, created_at, site_name, status, team_id, zip_data, files_data", { count: "exact" });
 
-      // Apply filters
+      // Filter: must have data
+      baseQuery = baseQuery.not("zip_data", "is", null);
+
+      // Apply team filter
       if (teamFilter !== "all") {
-        query = query.eq("team_id", teamFilter);
+        baseQuery = baseQuery.eq("team_id", teamFilter);
       }
 
+      // Apply period filter
       if (periodFilter !== "all") {
         const now = new Date();
-        let dateFrom: Date;
         
-        switch (periodFilter) {
-          case "today":
-            dateFrom = new Date(now.setHours(0, 0, 0, 0));
-            break;
-          case "week":
-            dateFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            break;
-          case "month":
-            dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            break;
-          case "old":
-            query = query.lt("created_at", new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString());
-            break;
-          default:
-            dateFrom = new Date(0);
-        }
-        
-        if (periodFilter !== "old" && dateFrom!) {
-          query = query.gte("created_at", dateFrom.toISOString());
+        if (periodFilter === "old") {
+          const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
+          baseQuery = baseQuery.lt("created_at", twoWeeksAgo);
+        } else if (periodFilter === "week") {
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          baseQuery = baseQuery.gte("created_at", weekAgo);
+        } else if (periodFilter === "month") {
+          const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+          baseQuery = baseQuery.gte("created_at", monthAgo);
         }
       }
 
-      if (dataFilter === "with_data") {
-        query = query.or("zip_data.neq.null,files_data.neq.null");
-      } else if (dataFilter === "zip_only") {
-        query = query.not("zip_data", "is", null);
-      } else if (dataFilter === "files_only") {
-        query = query.not("files_data", "is", null);
-      }
-
-      query = query
+      // Apply pagination and ordering
+      baseQuery = baseQuery
         .order("created_at", { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
-      const { data, count, error } = await query;
+      const { data, count, error } = await baseQuery;
 
       if (error) {
         console.error("Error fetching generations:", error);
@@ -124,10 +109,13 @@ export function DatabaseGenerationsTable({ onCleanupComplete }: Props) {
 
       setGenerations(mapped);
       setTotalCount(count || 0);
+    } catch (err) {
+      console.error("Error:", err);
+      toast.error("Помилка завантаження");
     } finally {
       setLoading(false);
     }
-  }, [teamFilter, periodFilter, dataFilter, page]);
+  }, [teamFilter, periodFilter, page]);
 
   useEffect(() => {
     fetchTeams();
@@ -140,7 +128,7 @@ export function DatabaseGenerationsTable({ onCleanupComplete }: Props) {
   useEffect(() => {
     setPage(0);
     setSelectedIds(new Set());
-  }, [teamFilter, periodFilter, dataFilter]);
+  }, [teamFilter, periodFilter]);
 
   const toggleSelect = (id: string) => {
     const newSet = new Set(selectedIds);
@@ -191,12 +179,23 @@ export function DatabaseGenerationsTable({ onCleanupComplete }: Props) {
     }
   };
 
-  const clearByFilter = async () => {
+  const clearAllByFilter = async () => {
+    if (totalCount === 0) {
+      toast.info("Немає записів для очищення");
+      return;
+    }
+
+    const confirmed = window.confirm(`Очистити ${totalCount} записів за поточним фільтром?`);
+    if (!confirmed) return;
+
     setCleaning(true);
     try {
-      let query = supabase.from("generation_history").select("id");
+      // Build the same query without pagination
+      let query = supabase
+        .from("generation_history")
+        .select("id")
+        .not("zip_data", "is", null);
 
-      // Apply same filters
       if (teamFilter !== "all") {
         query = query.eq("team_id", teamFilter);
       }
@@ -204,65 +203,37 @@ export function DatabaseGenerationsTable({ onCleanupComplete }: Props) {
       if (periodFilter === "old") {
         const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
         query = query.lt("created_at", twoWeeksAgo);
-      } else if (periodFilter !== "all") {
-        const now = new Date();
-        let dateFrom: Date;
-        
-        switch (periodFilter) {
-          case "today":
-            dateFrom = new Date(now.setHours(0, 0, 0, 0));
-            break;
-          case "week":
-            dateFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            break;
-          case "month":
-            dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            break;
-          default:
-            dateFrom = new Date(0);
-        }
-        
-        if (dateFrom!) {
-          query = query.gte("created_at", dateFrom.toISOString());
-        }
+      } else if (periodFilter === "week") {
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        query = query.gte("created_at", weekAgo);
+      } else if (periodFilter === "month") {
+        const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        query = query.gte("created_at", monthAgo);
       }
 
-      if (dataFilter === "with_data") {
-        query = query.or("zip_data.neq.null,files_data.neq.null");
-      } else if (dataFilter === "zip_only") {
-        query = query.not("zip_data", "is", null);
-      } else if (dataFilter === "files_only") {
-        query = query.not("files_data", "is", null);
-      }
+      const { data: idsData, error: fetchErr } = await query;
 
-      const { data: idsToUpdate, error: fetchErr } = await query;
-
-      if (fetchErr) {
-        throw fetchErr;
-      }
-
-      if (!idsToUpdate || idsToUpdate.length === 0) {
+      if (fetchErr) throw fetchErr;
+      if (!idsData || idsData.length === 0) {
         toast.info("Немає записів для очищення");
         return;
       }
 
-      const ids = idsToUpdate.map(r => r.id);
+      const ids = idsData.map(r => r.id);
 
       const { error } = await supabase
         .from("generation_history")
         .update({ zip_data: null, files_data: null })
         .in("id", ids);
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
-      toast.success(`Очищено ${ids.length} записів за фільтром`);
+      toast.success(`Очищено ${ids.length} записів`);
       setSelectedIds(new Set());
       await fetchGenerations();
       onCleanupComplete();
     } catch (error) {
-      console.error("Error clearing by filter:", error);
+      console.error("Error:", error);
       toast.error("Помилка масового очищення");
     } finally {
       setCleaning(false);
@@ -276,7 +247,7 @@ export function DatabaseGenerationsTable({ onCleanupComplete }: Props) {
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
           <FileArchive className="h-5 w-5" />
-          Генерації з даними ({totalCount})
+          Генерації з ZIP-даними ({totalCount})
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -305,25 +276,9 @@ export function DatabaseGenerationsTable({ onCleanupComplete }: Props) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Весь час</SelectItem>
-                <SelectItem value="today">Сьогодні</SelectItem>
                 <SelectItem value="week">Останній тиждень</SelectItem>
                 <SelectItem value="month">Останній місяць</SelectItem>
                 <SelectItem value="old">Старше 2 тижнів</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <FileArchive className="h-4 w-4 text-muted-foreground" />
-            <Select value={dataFilter} onValueChange={setDataFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Дані" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="with_data">З даними</SelectItem>
-                <SelectItem value="zip_only">Тільки ZIP</SelectItem>
-                <SelectItem value="files_only">Тільки Files</SelectItem>
-                <SelectItem value="any">Будь-які</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -348,12 +303,12 @@ export function DatabaseGenerationsTable({ onCleanupComplete }: Props) {
           <Button
             variant="outline"
             size="sm"
-            onClick={clearByFilter}
-            disabled={cleaning}
+            onClick={clearAllByFilter}
+            disabled={cleaning || totalCount === 0}
             className="border-destructive text-destructive hover:bg-destructive/10"
           >
             <Trash2 className="h-4 w-4 mr-2" />
-            Очистити все за фільтром
+            Очистити все за фільтром ({totalCount})
           </Button>
         </div>
 
@@ -364,7 +319,7 @@ export function DatabaseGenerationsTable({ onCleanupComplete }: Props) {
           </div>
         ) : generations.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">
-            Немає записів за обраними фільтрами
+            Немає записів з ZIP-даними за обраними фільтрами
           </p>
         ) : (
           <>
@@ -434,32 +389,34 @@ export function DatabaseGenerationsTable({ onCleanupComplete }: Props) {
             </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Показано {page * pageSize + 1}–{Math.min((page + 1) * pageSize, totalCount)} з {totalCount}
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(p => Math.max(0, p - 1))}
-                  disabled={page === 0}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-sm">
-                  {page + 1} / {totalPages || 1}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(p => p + 1)}
-                  disabled={page >= totalPages - 1}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Показано {page * pageSize + 1}–{Math.min((page + 1) * pageSize, totalCount)} з {totalCount}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm">
+                    {page + 1} / {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => p + 1)}
+                    disabled={page >= totalPages - 1}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
           </>
         )}
       </CardContent>
