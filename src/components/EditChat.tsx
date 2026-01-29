@@ -186,13 +186,12 @@ export function EditChat({
         onFilesUpdate(data.files);
         
         const timeSpent = Math.round((Date.now() - startTimeRef.current) / 1000);
-        const modelInfo = data.modelUsed ? ` (${data.modelUsed})` : "";
         
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
-            content: `${data.message || "Готово! Зміни застосовано."}\n⏱️ Час: ${timeSpent}с${modelInfo}`,
+            content: `${data.message || "Готово! Зміни застосовано."}\n⏱️ Час: ${timeSpent}с`,
           },
         ]);
 
