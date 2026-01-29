@@ -932,7 +932,7 @@ const AdminTeamDetails = () => {
           </Card>
 
           {/* Buyer Analytics */}
-          <BuyerGenerationsAnalytics members={members} generations={generations} />
+          <BuyerGenerationsAnalytics members={members} teamId={teamId!} />
 
           {/* Pie Charts */}
           <Card>
