@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Eye, Code, FileCode, FileText, File, ChevronRight, ChevronDown, Folder, FolderOpen, Maximize2, Minimize2, Home, ChevronLeft, ChevronRightIcon, Monitor, Tablet, Smartphone, Pencil, Save, X } from "lucide-react";
+import { Eye, Code, FileCode, FileText, File, ChevronRight, ChevronDown, Folder, FolderOpen, Maximize2, Minimize2, Home, ChevronLeft, ChevronRightIcon, Monitor, Tablet, Smartphone, Pencil, Save, X, RefreshCw } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -387,6 +387,24 @@ export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, 
   const [phpHistory, setPhpHistory] = useState<string[]>(["index.php"]);
   const [phpHistoryIndex, setPhpHistoryIndex] = useState(0);
   const [viewport, setViewport] = useState<ViewportSize>("desktop");
+  const [previewKey, setPreviewKey] = useState(0);
+
+  // Force preview refresh when files change
+  const filesHash = useMemo(() => {
+    return files.map(f => `${f.path}:${f.content.length}`).join('|');
+  }, [files]);
+
+  useEffect(() => {
+    setPreviewKey(prev => prev + 1);
+  }, [filesHash]);
+
+  const refreshPreview = () => {
+    setPreviewKey(prev => prev + 1);
+    toast({
+      title: "Оновлено",
+      description: "Превью перезавантажено",
+    });
+  };
 
   const fileTree = useMemo(() => buildFileTree(files), [files]);
   const isReact = websiteType === "react";
@@ -840,6 +858,7 @@ export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, 
                   }}
                 >
                   <iframe
+                    key={`fs-php-${previewKey}`}
                     srcDoc={getPreviewContent()}
                     className="w-full h-full border-0"
                     title={`Fullscreen PHP preview: ${currentPhpPage}`}
@@ -849,6 +868,7 @@ export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, 
               </div>
             ) : (
               <iframe
+                key={`fs-html-${previewKey}`}
                 srcDoc={getPreviewContent()}
                 className="w-full h-full border-0 bg-white"
                 title={`Fullscreen preview of ${selectedFile?.path}`}
@@ -991,9 +1011,14 @@ export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, 
               </div>
             )}
             {canPreview && viewMode === "preview" && (
-              <Button variant="ghost" size="sm" onClick={() => setIsFullscreen(true)}>
-                <Maximize2 className="h-4 w-4" />
-              </Button>
+              <>
+                <Button variant="ghost" size="sm" onClick={refreshPreview} title="Оновити превью">
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setIsFullscreen(true)}>
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
+              </>
             )}
             <Button
               variant={viewMode === "preview" ? "default" : "ghost"}
@@ -1041,6 +1066,7 @@ export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, 
                   }}
                 >
                   <iframe
+                    key={`php-${previewKey}`}
                     srcDoc={getPreviewContent()}
                     className="w-full h-full border-0"
                     title={`PHP Preview: ${currentPhpPage}`}
@@ -1050,6 +1076,7 @@ export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, 
               </div>
             ) : (
               <iframe
+                key={`html-${previewKey}`}
                 srcDoc={getPreviewContent()}
                 className="w-full h-full border-0 bg-white"
                 title={`Preview of ${selectedFile?.path}`}
