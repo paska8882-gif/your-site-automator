@@ -495,7 +495,11 @@ export function EditChat({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      if (uploadedImage) {
+        handleAnalyzeScreenshot();
+      } else {
+        handleSend();
+      }
     }
   };
 
