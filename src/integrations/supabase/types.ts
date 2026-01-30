@@ -303,6 +303,7 @@ export type Database = {
           team_id: string | null
           total_generation_cost: number | null
           user_id: string | null
+          vip_images: Json | null
           vip_prompt: string | null
           website_type: string | null
           zip_data: string | null
@@ -334,6 +335,7 @@ export type Database = {
           team_id?: string | null
           total_generation_cost?: number | null
           user_id?: string | null
+          vip_images?: Json | null
           vip_prompt?: string | null
           website_type?: string | null
           zip_data?: string | null
@@ -365,6 +367,7 @@ export type Database = {
           team_id?: string | null
           total_generation_cost?: number | null
           user_id?: string | null
+          vip_images?: Json | null
           vip_prompt?: string | null
           website_type?: string | null
           zip_data?: string | null

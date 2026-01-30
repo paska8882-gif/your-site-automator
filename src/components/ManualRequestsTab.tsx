@@ -39,7 +39,9 @@ import {
   CalendarIcon,
   Filter,
   X,
-  DollarSign
+  DollarSign,
+  ImageIcon,
+  Crown
 } from "lucide-react";
 
 interface GeneratedFile {
@@ -65,6 +67,7 @@ interface ManualRequest {
   admin_note: string | null;
   assigned_admin_id: string | null;
   vip_prompt: string | null;
+  vip_images: unknown; // JSON field from DB
 }
 
 interface UserProfile {
@@ -113,7 +116,7 @@ function formatDuration(ms: number): string {
 const fetchManualRequests = async () => {
   const { data, error } = await supabase
     .from("generation_history")
-    .select("id, number, prompt, language, created_at, completed_at, taken_at, website_type, site_name, status, ai_model, user_id, team_id, sale_price, admin_note, assigned_admin_id, vip_prompt")
+    .select("id, number, prompt, language, created_at, completed_at, taken_at, website_type, site_name, status, ai_model, user_id, team_id, sale_price, admin_note, assigned_admin_id, vip_prompt, vip_images")
     .in("status", ["manual_request", "manual_in_progress", "manual_completed", "manual_cancelled"])
     .order("created_at", { ascending: false })
     .limit(500);
@@ -663,7 +666,16 @@ export function ManualRequestsTab() {
         }}
       >
         <TableCell className="font-mono text-xs">{item.number}</TableCell>
-        <TableCell className="max-w-[200px] truncate">{item.site_name || `Site ${item.number}`}</TableCell>
+        <TableCell className="max-w-[200px] truncate">
+          <span className="flex items-center gap-1">
+            {item.site_name || `Site ${item.number}`}
+            {item.vip_images && Array.isArray(item.vip_images) && (item.vip_images as string[]).length > 0 && (
+              <span title={`${(item.vip_images as string[]).length} зображень`}>
+                <Crown className="h-3 w-3 text-purple-500 shrink-0" />
+              </span>
+            )}
+          </span>
+        </TableCell>
         <TableCell className="text-xs">{getTeamName(item.team_id)}</TableCell>
         <TableCell className="text-xs">{getUserName(item.user_id)}</TableCell>
         <TableCell className="text-xs font-medium text-green-600">
@@ -1222,6 +1234,44 @@ export function ManualRequestsTab() {
                   <Label className="text-xs text-muted-foreground">{t("admin.sitesDetails.vipPrompt")}</Label>
                   <div className="p-3 bg-purple-50 dark:bg-purple-950 rounded-md text-sm whitespace-pre-wrap border border-purple-200 dark:border-purple-800">
                     {detailsItem.vip_prompt}
+                  </div>
+                </div>
+              )}
+
+              {/* VIP Note from buyer */}
+              {detailsItem.admin_note && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    📝 {t("admin.sitesDetails.buyerNote") || "Примітка від баєра"}
+                  </Label>
+                  <div className="p-3 bg-yellow-50 dark:bg-yellow-950 rounded-md text-sm whitespace-pre-wrap border border-yellow-200 dark:border-yellow-800">
+                    {detailsItem.admin_note}
+                  </div>
+                </div>
+              )}
+
+              {/* VIP Images */}
+              {detailsItem.vip_images && Array.isArray(detailsItem.vip_images) && detailsItem.vip_images.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    🖼️ {t("admin.sitesDetails.vipImages") || "Зображення для сайту"} ({(detailsItem.vip_images as string[]).length})
+                  </Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(detailsItem.vip_images as string[]).map((url, idx) => (
+                      <a 
+                        key={idx} 
+                        href={url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="block aspect-square rounded-lg overflow-hidden border hover:border-primary transition-colors"
+                      >
+                        <img 
+                          src={url} 
+                          alt={`VIP image ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </a>
+                    ))}
                   </div>
                 </div>
               )}

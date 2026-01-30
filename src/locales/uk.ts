@@ -192,6 +192,22 @@ export const uk = {
     manualRequestDesc: "Надіслати запит на ручну генерацію адміністратору",
     manualRequestSent: "Запит надіслано",
     manualRequestSentDesc: "Адміністратор отримав ваш запит і незабаром виконає генерацію",
+    vipManualRequest: "VIP Ручний",
+  },
+
+  vipRequest: {
+    title: "VIP Ручний запит",
+    description: "Додайте примітку та зображення для сайту",
+    note: "Примітка до ТЗ",
+    notePlaceholder: "Додаткові вимоги, побажання...",
+    images: "Зображення для сайту",
+    imageHint: "Додайте фото логотипу, референсу або контенту для сайту",
+    send: "Відправити запит",
+    sending: "Відправка...",
+    uploading: "Завантаження...",
+    onlyImages: "Тільки зображення дозволені",
+    fileTooLarge: "Файл занадто великий (макс. 5MB)",
+    maxImages: "Максимум 5 зображень",
   },
 
   history: {
@@ -1194,6 +1210,9 @@ export const uk = {
       error: "Помилка",
       close: "Закрити",
       preview: "Превью",
+      buyerNote: "Примітка від баєра",
+      vipImages: "Зображення для сайту",
+      prompt: "Опис сайту",
     },
     sitesPreview: {
       title: "Превью",

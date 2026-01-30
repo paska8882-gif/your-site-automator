@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Hash, Palette, ChevronDown, AlertTriangle, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp, Filter, Newspaper, MapPin, X, Plus, Star, Phone, Building2, Tag, Shuffle, Hand } from "lucide-react";
+import { VipManualRequestDialog } from "./VipManualRequestDialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -601,6 +602,7 @@ export function WebsiteGenerator() {
   
   const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 });
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showVipManualDialog, setShowVipManualDialog] = useState(false);
   const [teamPricing, setTeamPricing] = useState<TeamPricing | null>(null);
   
   // Admin team selection - persist in localStorage
@@ -1813,8 +1815,8 @@ export function WebsiteGenerator() {
     }
   };
 
-  // Handle manual request (user sends request to admin)
-  const handleManualRequest = async () => {
+  // Handle manual request - opens VIP dialog
+  const handleManualRequest = () => {
     const siteNames = getAllSiteNames();
     if (siteNames.length === 0) {
       toast({
@@ -1844,6 +1846,18 @@ export function WebsiteGenerator() {
       return;
     }
 
+    // Open VIP manual request dialog
+    setShowVipManualDialog(true);
+  };
+
+  // Submit VIP manual request with note and images
+  const handleVipManualSubmit = async (note: string, imageUrls: string[]) => {
+    const siteNames = getAllSiteNames();
+    
+    if (!teamPricing) {
+      throw new Error(t("genForm.noTeam"));
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -1865,7 +1879,9 @@ export function WebsiteGenerator() {
           status: "manual_request",
           team_id: teamPricing.teamId,
           user_id: user?.id,
-          image_source: "manual"
+          image_source: "manual",
+          admin_note: note || null,
+          vip_images: imageUrls.length > 0 ? imageUrls : null
         });
 
         if (error) throw error;
@@ -1884,11 +1900,7 @@ export function WebsiteGenerator() {
       
     } catch (error) {
       console.error("Manual request error:", error);
-      toast({
-        title: t("common.error"),
-        description: error instanceof Error ? error.message : t("common.error"),
-        variant: "destructive",
-      });
+      throw error;
     } finally {
       setIsSubmitting(false);
     }
@@ -3553,7 +3565,7 @@ export function WebsiteGenerator() {
                   )}
                 </Button>
 
-                {/* Manual Request Button - only for non-admins */}
+                {/* VIP Manual Request Button - only for non-admins */}
                 {!isAdmin && (
                   <Button
                     variant="outline"
@@ -3562,8 +3574,8 @@ export function WebsiteGenerator() {
                     className="h-9 text-sm border-purple-500/50 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950"
                     title={t("generator.manualRequestDesc")}
                   >
-                    <Hand className="mr-1 h-3 w-3" />
-                    {t("generator.manualRequest")}
+                    <Crown className="mr-1 h-3 w-3" />
+                    {t("generator.vipManualRequest") || "VIP Ручний"}
                   </Button>
                 )}
 
@@ -3809,6 +3821,15 @@ export function WebsiteGenerator() {
           balance={teamPricing.balance}
         />
       )}
+
+      {/* VIP Manual Request Dialog */}
+      <VipManualRequestDialog
+        open={showVipManualDialog}
+        onOpenChange={setShowVipManualDialog}
+        onSubmit={handleVipManualSubmit}
+        siteNames={getAllSiteNames()}
+        prompt={prompt}
+      />
     </div>
   );
 }
