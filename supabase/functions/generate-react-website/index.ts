@@ -668,55 +668,37 @@ function ensureReactFaviconAndLogoInFiles(
   <text x="32" y="42" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="26" font-weight="900" fill="#ffffff">${safeText(initials)}</text>
 </svg>`;
 
-  const hasPublicLogo = files.some((f) => f.path.toLowerCase() === "public/logo.svg");
-  const hasPublicFavicon = files.some((f) => {
+  // CDN-based React: files are in root, not public/
+  const hasLogo = files.some((f) => f.path.toLowerCase() === "logo.svg" || f.path.toLowerCase() === "public/logo.svg");
+  const hasFavicon = files.some((f) => {
     const p = f.path.toLowerCase();
-    return p === "public/favicon.svg" || p === "public/favicon.ico";
+    return p === "favicon.svg" || p === "favicon.ico" || p === "public/favicon.svg" || p === "public/favicon.ico";
   });
 
-  const hasPublicFaviconIco = files.some((f) => f.path.toLowerCase() === "public/favicon.ico");
+  const hasFaviconIco = files.some((f) => {
+    const p = f.path.toLowerCase();
+    return p === "favicon.ico" || p === "public/favicon.ico";
+  });
 
   let next = [...files];
-  if (!hasPublicLogo) next.push({ path: "public/logo.svg", content: logoSvg });
-  if (!hasPublicFavicon) next.push({ path: "public/favicon.svg", content: faviconSvg });
-  if (!hasPublicFaviconIco) next.push({ path: "public/favicon.ico", content: createIcoBase64(initials) });
+  // Add to root (not public/ - CDN-based React uses root)
+  if (!hasLogo) next.push({ path: "logo.svg", content: logoSvg });
+  if (!hasFavicon) next.push({ path: "favicon.svg", content: faviconSvg });
+  if (!hasFaviconIco) next.push({ path: "favicon.ico", content: createIcoBase64(initials) });
 
-  // Ensure Vite index.html references favicon
+  // Ensure all HTML files reference favicon (CDN-based: relative paths)
   next = next.map((f) => {
-    if (f.path.toLowerCase() !== "index.html") return f;
+    if (!f.path.toLowerCase().endsWith('.html')) return f;
     let content = f.content;
     if (!/rel=["']icon["']/i.test(content)) {
-      const link = `\n<link rel="icon" href="/favicon.ico" type="image/x-icon">\n<link rel="icon" href="/favicon.svg" type="image/svg+xml">\n`;
+      const link = `\n<link rel="icon" href="favicon.ico" type="image/x-icon">\n<link rel="icon" href="favicon.svg" type="image/svg+xml">\n`;
       content = /<\/head>/i.test(content) ? content.replace(/<\/head>/i, `${link}</head>`) : `${link}${content}`;
-    } else if (!/href=["']\/favicon\.ico["']/i.test(content)) {
-      const link = `\n<link rel="icon" href="/favicon.ico" type="image/x-icon">\n`;
+    } else if (!/href=["']\.?\/?(favicon\.ico|favicon\.svg)["']/i.test(content)) {
+      const link = `\n<link rel="icon" href="favicon.ico" type="image/x-icon">\n`;
       content = /<\/head>/i.test(content) ? content.replace(/<\/head>/i, `${link}</head>`) : `${link}${content}`;
     }
     return { ...f, content };
   });
-
-  // Try to inject logo into App header if present
-  const appPath = next.find((f) => /src\/App\.(tsx|jsx)$/i.test(f.path))?.path;
-  if (appPath) {
-    next = next.map((f) => {
-      if (f.path !== appPath) return f;
-      let content = f.content;
-      if (/\b\/logo\.svg\b/.test(content)) return f;
-
-      // Add import if TS/JSX module
-      if (!/import\s+logo\s+from\s+["']\/logo\.svg["']/.test(content)) {
-        content = `import logo from "/logo.svg";\n` + content;
-      }
-
-      // Insert <img> into first <header> if no image already
-      content = content.replace(
-        /<header([^>]*)>(?![\s\S]*?<img[^>]+src=)/i,
-        `<header$1>\n  <img src={logo} alt={"${safeText(siteName)} logo"} style={{ height: 40, width: "auto", display: "block" }} />`
-      );
-
-      return { ...f, content };
-    });
-  }
 
   return next;
 }
@@ -2188,100 +2170,171 @@ img { max-width: 100%; height: auto; display: block; }
 @media (min-width: 1024px) { /* Desktop */ }
 @media (min-width: 1280px) { /* Large */ }
 
-**REQUIRED FILES:**
-<!-- FILE: package.json -->
-{
-  "name": "react-website",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.8.0",
-    "react-scripts": "5.0.1"
-  },
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=8.0.0"
-  }
-}
+=== CDN-BASED REACT ARCHITECTURE (DEPLOY-READY, NO BUILD REQUIRED) ===
 
-<!-- FILE: public/index.html -->
-[Complete HTML with meta tags, Open Graph]
+**CRITICAL: This website MUST work immediately on static hosting WITHOUT npm/node/build!**
 
-<!-- FILE: src/index.js -->
-[React entry point]
+**FILE STRUCTURE - STATIC HTML WITH REACT VIA CDN:**
+All files go in the root directory. No src/, no public/, no node_modules.
 
-<!-- FILE: src/App.js -->
-[React Router with Header/Footer layout wrapping all routes]
+<!-- FILE: index.html -->
+<!DOCTYPE html>
+<html lang="[language-code]">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>[Site Name] - Home</title>
+  <meta name="description" content="[SEO description]">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <!-- React via CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+    // React components and app code here
+    const { useState, useEffect } = React;
+    
+    // Header Component
+    const Header = () => (
+      <header className="header">
+        <nav className="nav-container">
+          <a href="index.html" className="logo">[Site Name]</a>
+          <ul className="nav-menu">
+            <li><a href="index.html" className="active">Home</a></li>
+            <li><a href="about.html">About</a></li>
+            <li><a href="services.html">Services</a></li>
+            <li><a href="contact.html">Contact</a></li>
+          </ul>
+        </nav>
+      </header>
+    );
+    
+    // Footer Component
+    const Footer = () => (
+      <footer className="footer">
+        <div className="container">
+          <p>&copy; 2024 [Site Name]. All rights reserved.</p>
+          <div className="footer-links">
+            <a href="privacy.html">Privacy Policy</a>
+            <a href="terms.html">Terms of Service</a>
+          </div>
+        </div>
+      </footer>
+    );
+    
+    // Cookie Banner Component
+    const CookieBanner = () => {
+      const [visible, setVisible] = useState(false);
+      
+      useEffect(() => {
+        if (!localStorage.getItem('cookieConsent')) setVisible(true);
+      }, []);
+      
+      const accept = () => { localStorage.setItem('cookieConsent', 'accepted'); setVisible(false); };
+      const decline = () => { localStorage.setItem('cookieConsent', 'declined'); setVisible(false); };
+      
+      if (!visible) return null;
+      
+      return (
+        <div className="cookie-banner">
+          <p>We use cookies to enhance your experience.</p>
+          <div className="cookie-buttons">
+            <button onClick={accept} className="btn-accept">Accept</button>
+            <button onClick={decline} className="btn-decline">Decline</button>
+          </div>
+        </div>
+      );
+    };
+    
+    // Home Page Component (example - adapt for each page)
+    const HomePage = () => (
+      <>
+        <Header />
+        <main>
+          <section className="hero" style={{backgroundImage: 'url(https://picsum.photos/1920/1080?random=1)'}}>
+            <div className="hero-overlay"></div>
+            <div className="hero-content">
+              <h1>[Main Headline]</h1>
+              <p>[Subheadline]</p>
+              <a href="contact.html" className="btn-primary">Get Started</a>
+            </div>
+          </section>
+          {/* More sections... */}
+        </main>
+        <Footer />
+        <CookieBanner />
+      </>
+    );
+    
+    // Render
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<HomePage />);
+  </script>
+</body>
+</html>
 
-<!-- FILE: src/components/Header.js -->
-[Reusable header with navigation, active link styling]
-
-<!-- FILE: src/components/Footer.js -->
-[Reusable footer]
-
-<!-- FILE: src/components/CookieBanner.js -->
-[Cookie consent with Accept/Decline]
-
-<!-- FILE: src/pages/Home.js -->
-[Hero with background image, feature cards with images]
-
-<!-- FILE: src/pages/Services.js -->
-[Service cards with images]
-
-<!-- FILE: src/pages/About.js -->
-[Team photos, company info with images]
-
-<!-- FILE: src/pages/Contact.js -->
-[Contact form with redirect to /thank-you on submit, info section]
-
-<!-- FILE: src/pages/ThankYou.js -->
-[Success icon, thank you message, button to return home]
-
-<!-- FILE: src/pages/Terms.js -->
-<!-- FILE: src/pages/Privacy.js -->
-<!-- FILE: src/pages/NotFound.js -->
-
-<!-- FILE: src/styles/global.css -->
-[Complete CSS 250+ lines with all styles including image handling]
+**REQUIRED FILES (each is a complete standalone HTML with React):**
+1. index.html - Home page
+2. about.html - About page
+3. services.html - Services page  
+4. contact.html - Contact page with form
+5. thank-you.html - Thank you page (after form submission)
+6. privacy.html - Privacy Policy (10+ sections)
+7. terms.html - Terms of Service (14 sections)
+8. 404.html - Not Found page
+9. styles.css - Complete CSS (500+ lines)
+10. favicon.svg - SVG favicon with initials
 
 <!-- FILE: netlify.toml -->
 [build]
-  publish = "build"
-  command = "npm run build"
-
-[build.environment]
-  CI = "false"
+  publish = "."
 
 [[redirects]]
   from = "/*"
-  to = "/index.html"
-  status = 200
+  to = "/404.html"
+  status = 404
 
 <!-- FILE: vercel.json -->
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/(.*)", "destination": "/$1" }
   ],
-  "buildCommand": "npm run build",
-  "outputDirectory": "build"
+  "cleanUrls": true
 }
 
-<!-- FILE: public/_redirects -->
-/* /index.html 200
+<!-- FILE: _redirects -->
+/* /404.html 404
 
-<!-- FILE: public/robots.txt -->
+<!-- FILE: robots.txt -->
 User-agent: *
 Allow: /
 
-Generate EXCEPTIONAL React website with 10X better UI, proper image styling, and outstanding user experience. All styles MUST render correctly, NO markdown code blocks, NO backticks.`;
+**CRITICAL RULES FOR CDN-BASED REACT:**
+1. EACH HTML file is STANDALONE with its own <script type="text/babel"> block
+2. NO imports, NO modules, NO require() - everything is inline or via CDN
+3. Use standard <a href="page.html"> for navigation (NOT React Router)
+4. NO package.json, NO node_modules, NO build step
+5. CSS is in a single styles.css file, linked from all HTML files
+6. React components are defined INSIDE each page's script block
+7. Share common components (Header, Footer, CookieBanner) by copying into each page
+8. Form submission on Contact page should use: window.location.href = 'thank-you.html'
+9. All static assets (images, favicon) use relative paths
+10. Works IMMEDIATELY on Netlify/Vercel/GitHub Pages without ANY configuration
+
+**FORM HANDLING (Contact page):**
+\`\`\`javascript
+const handleSubmit = (e) => {
+  e.preventDefault();
+  // Form handling logic here
+  window.location.href = 'thank-you.html';
+};
+\`\`\`
+
+Generate EXCEPTIONAL static React website with 10X better UI. All pages are standalone HTML with React via CDN. NO build step required. Deploy-ready immediately.`;
 
 type GeneratedFile = { path: string; content: string };
 
@@ -2541,7 +2594,7 @@ async function runGeneration({
       {
         role: "system",
         content:
-          "You are an expert React generator. Return ONLY file blocks using exact markers like: <!-- FILE: src/App.js -->. No explanations. No markdown.",
+          "You are an expert React generator specializing in CDN-based static websites. Return ONLY file blocks using exact markers like: <!-- FILE: index.html -->. Generate standalone HTML files with React via CDN - NO build step required, NO package.json, NO src/ folder. Each HTML page is self-contained with inline React components. No explanations. No markdown.",
       },
       {
         role: "user",
@@ -2607,206 +2660,132 @@ async function runGeneration({
     };
   }
 
-  // MANDATORY: Ensure deployment configuration files and cookie banner are always present
+  // MANDATORY: Ensure deployment configuration files for CDN-based React
   const ensureMandatoryFiles = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
     const fileMap = new Map(generatedFiles.map(f => [f.path, f]));
     
-    // MANDATORY: Cookie Banner Component
-    const COOKIE_BANNER_COMPONENT = `import React, { useState, useEffect } from 'react';
-
-/**
- * CookieBanner - MANDATORY COMPONENT
- * This component handles cookie consent for GDPR compliance
- */
-const CookieBanner = () => {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const consent = localStorage.getItem('cookieConsent');
-    if (!consent) {
-      setIsVisible(true);
-    }
-  }, []);
-
-  const handleAccept = () => {
-    localStorage.setItem('cookieConsent', 'accepted');
-    setIsVisible(false);
-  };
-
-  const handleDecline = () => {
-    localStorage.setItem('cookieConsent', 'declined');
-    setIsVisible(false);
-  };
-
-  if (!isVisible) return null;
-
-  return (
-    <div style={{
-      position: 'fixed',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      background: 'rgba(0, 0, 0, 0.95)',
-      color: '#fff',
-      padding: '20px',
-      zIndex: 99999,
-      boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.3)',
-      fontFamily: 'system-ui, -apple-system, sans-serif'
-    }}>
-      <div style={{
-        maxWidth: '1200px',
-        margin: '0 auto',
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '15px'
-      }}>
-        <p style={{
-          margin: 0,
-          flex: 1,
-          minWidth: '200px',
-          fontSize: '14px',
-          lineHeight: 1.5
-        }}>
-          We use cookies to enhance your browsing experience and analyze site traffic. 
-          By clicking "Accept", you consent to our use of cookies.
-        </p>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button
-            onClick={handleAccept}
-            style={{
-              background: '#22c55e',
-              color: '#fff',
-              border: 'none',
-              padding: '12px 24px',
-              cursor: 'pointer',
-              fontWeight: 600,
-              borderRadius: '6px',
-              transition: 'all 0.2s'
-            }}
-          >
-            Accept
-          </button>
-          <button
-            onClick={handleDecline}
-            style={{
-              background: 'transparent',
-              color: '#fff',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              padding: '12px 24px',
-              cursor: 'pointer',
-              fontWeight: 600,
-              borderRadius: '6px',
-              transition: 'all 0.2s'
-            }}
-          >
-            Decline
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default CookieBanner;`;
-
-    // Always add CookieBanner component
-    if (!fileMap.has("src/components/CookieBanner.jsx") && !fileMap.has("src/components/CookieBanner.js")) {
-      console.log("📁 Adding mandatory src/components/CookieBanner.jsx");
-      generatedFiles.push({
-        path: "src/components/CookieBanner.jsx",
-        content: COOKIE_BANNER_COMPONENT
-      });
-    }
-    
-    // Ensure App.jsx/App.js includes CookieBanner
-    generatedFiles = generatedFiles.map(file => {
-      if (file.path === 'src/App.jsx' || file.path === 'src/App.js') {
-        let content = file.content;
-        const hasCookieBanner = content.includes('CookieBanner');
-        
-        if (!hasCookieBanner) {
-          console.log(`⚠️ Adding CookieBanner import and usage to ${file.path}`);
-          
-          // Add import at the top
-          if (content.includes("import React")) {
-            content = content.replace(
-              /import React[^;]*;/,
-              match => match + "\\nimport CookieBanner from './components/CookieBanner';"
-            );
-          } else {
-            content = "import CookieBanner from './components/CookieBanner';\\n" + content;
-          }
-          
-          // Add CookieBanner component before closing fragment/div
-          if (content.includes('</Router>')) {
-            content = content.replace('</Router>', '<CookieBanner />\\n      </Router>');
-          } else if (content.includes('</BrowserRouter>')) {
-            content = content.replace('</BrowserRouter>', '<CookieBanner />\\n      </BrowserRouter>');
-          } else if (content.includes('</div>')) {
-            // Add before the last closing div
-            const lastDivIndex = content.lastIndexOf('</div>');
-            content = content.slice(0, lastDivIndex) + '      <CookieBanner />\\n    ' + content.slice(lastDivIndex);
-          }
-        }
-        
-        return { ...file, content };
+    // CDN-based React: No src/ folder needed, files are in root
+    // Remove any CRA-style files that AI might have generated
+    generatedFiles = generatedFiles.filter(f => {
+      // Remove package.json - CDN React doesn't need it
+      if (f.path === 'package.json') {
+        console.log("🗑️ Removing package.json (not needed for CDN React)");
+        return false;
       }
-      return file;
+      // Remove src/index.js - CDN React uses inline scripts
+      if (f.path.startsWith('src/index.') || f.path.startsWith('src/App.')) {
+        console.log(`🗑️ Removing ${f.path} (using CDN-based inline React instead)`);
+        return false;
+      }
+      // Keep files in public/ but move them to root
+      return true;
     });
     
-    // netlify.toml - critical for Netlify deployment
-    if (!fileMap.has("netlify.toml")) {
-      console.log("⚠️ Adding missing netlify.toml");
+    // Move public/ files to root (CDN-based React doesn't need public/)
+    generatedFiles = generatedFiles.map(f => {
+      if (f.path.startsWith('public/') && !f.path.includes('_redirects')) {
+        const newPath = f.path.replace('public/', '');
+        console.log(`📁 Moving ${f.path} -> ${newPath}`);
+        return { ...f, path: newPath };
+      }
+      return f;
+    });
+    
+    // Rebuild fileMap after cleanup
+    const cleanFileMap = new Map(generatedFiles.map(f => [f.path, f]));
+    
+    // netlify.toml - static hosting (no build step!)
+    if (!cleanFileMap.has("netlify.toml")) {
+      console.log("⚠️ Adding netlify.toml (static, no build)");
       generatedFiles.push({
         path: "netlify.toml",
         content: `[build]
-  publish = "build"
-  command = "npm run build"
-
-[build.environment]
-  CI = "false"
+  publish = "."
 
 [[redirects]]
   from = "/*"
-  to = "/index.html"
-  status = 200`
+  to = "/404.html"
+  status = 404`
+      });
+    } else {
+      // Fix existing netlify.toml to not require build
+      generatedFiles = generatedFiles.map(f => {
+        if (f.path === 'netlify.toml') {
+          const hasNpmBuild = f.content.includes('npm run build');
+          if (hasNpmBuild) {
+            console.log("⚠️ Fixing netlify.toml to remove build step");
+            return {
+              ...f,
+              content: `[build]
+  publish = "."
+
+[[redirects]]
+  from = "/*"
+  to = "/404.html"
+  status = 404`
+            };
+          }
+        }
+        return f;
       });
     }
     
-    // vercel.json - critical for Vercel deployment
-    if (!fileMap.has("vercel.json")) {
-      console.log("⚠️ Adding missing vercel.json");
+    // vercel.json - static hosting
+    if (!cleanFileMap.has("vercel.json")) {
+      console.log("⚠️ Adding vercel.json (static)");
       generatedFiles.push({
         path: "vercel.json",
         content: `{
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/(.*)", "destination": "/$1" }
   ],
-  "buildCommand": "npm run build",
-  "outputDirectory": "build"
+  "cleanUrls": true
 }`
       });
-    }
-    
-    // public/_redirects - Netlify fallback
-    if (!fileMap.has("public/_redirects")) {
-      console.log("⚠️ Adding missing public/_redirects");
-      generatedFiles.push({
-        path: "public/_redirects",
-        content: "/* /index.html 200"
+    } else {
+      // Fix existing vercel.json
+      generatedFiles = generatedFiles.map(f => {
+        if (f.path === 'vercel.json') {
+          const hasBuildCommand = f.content.includes('buildCommand');
+          if (hasBuildCommand) {
+            console.log("⚠️ Fixing vercel.json to remove build step");
+            return {
+              ...f,
+              content: `{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/$1" }
+  ],
+  "cleanUrls": true
+}`
+            };
+          }
+        }
+        return f;
       });
     }
     
-    // public/robots.txt
-    if (!fileMap.has("public/robots.txt")) {
-      console.log("⚠️ Adding missing public/robots.txt");
+    // _redirects (Netlify fallback)
+    if (!cleanFileMap.has("_redirects")) {
+      console.log("⚠️ Adding _redirects");
       generatedFiles.push({
-        path: "public/robots.txt",
+        path: "_redirects",
+        content: "/* /404.html 404"
+      });
+    }
+    
+    // robots.txt
+    if (!cleanFileMap.has("robots.txt")) {
+      console.log("⚠️ Adding robots.txt");
+      generatedFiles.push({
+        path: "robots.txt",
         content: `User-agent: *
 Allow: /`
       });
+    }
+    
+    // Ensure index.html exists
+    if (!cleanFileMap.has("index.html")) {
+      console.log("⚠️ WARNING: index.html not found in generated files!");
     }
     
     return generatedFiles;
