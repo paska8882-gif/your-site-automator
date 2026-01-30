@@ -1133,19 +1133,215 @@ FOOTER STRUCTURE:
   }
 ];
 
-const REACT_GENERATION_PROMPT = `CRITICAL: CREATE EXCEPTIONAL MULTI-PAGE REACT WEBSITE WITH 10X BETTER UI
+const REACT_GENERATION_PROMPT = `
+🚨🚨🚨 CDN-BASED REACT - NO BUILD STEP - READ THIS FIRST! 🚨🚨🚨
 
-🌐🌐🌐 LANGUAGE - FIRST PRIORITY - READ BEFORE ANYTHING ELSE! 🌐🌐🌐
+**ARCHITECTURE: STANDALONE HTML FILES WITH INLINE REACT VIA CDN**
+
+You are generating a static website that uses React components loaded via CDN.
+Each HTML file is completely self-contained and works WITHOUT any build process.
+
+**FILE STRUCTURE (generate these exact files):**
+- index.html (homepage)
+- about.html (about page) 
+- services.html (services page)
+- contact.html (contact page with form)
+- privacy.html (privacy policy)
+- terms.html (terms of service)
+- thank-you.html (form submission success)
+- 404.html (error page)
+- styles.css (all styles in one file)
+- favicon.svg (simple SVG favicon)
+- netlify.toml (static deploy config)
+- vercel.json (static deploy config)
+- robots.txt
+- _redirects
+
+**CRITICAL: EACH HTML FILE MUST HAVE THIS EXACT STRUCTURE:**
+\`\`\`html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Page Title - Site Name</title>
+  <meta name="description" content="Page description for SEO">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <!-- React via CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    
+    // Define ALL components inline in this file
+    function Header() {
+      return (
+        <header className="header">
+          <nav className="nav">
+            <a href="index.html" className="logo">Site Name</a>
+            <ul className="nav-links">
+              <li><a href="index.html">Home</a></li>
+              <li><a href="about.html">About</a></li>
+              <li><a href="services.html">Services</a></li>
+              <li><a href="contact.html">Contact</a></li>
+            </ul>
+          </nav>
+        </header>
+      );
+    }
+    
+    function Footer() {
+      return (
+        <footer className="footer">
+          <div className="footer-content">
+            <div className="footer-contact">
+              <h5>Contact Us</h5>
+              <p><a href="tel:+491234567890">+49 123 456 7890</a></p>
+              <p><a href="mailto:info@sitename.com">info@sitename.com</a></p>
+            </div>
+            <div className="footer-hours">
+              <h5>Working Hours</h5>
+              <p>Monday - Friday: 9:00 AM - 6:00 PM</p>
+              <p>Saturday - Sunday: Closed</p>
+            </div>
+            <div className="footer-links">
+              <a href="privacy.html">Privacy Policy</a>
+              <a href="terms.html">Terms of Service</a>
+            </div>
+          </div>
+          <div className="footer-bottom">
+            <p>&copy; 2024 Site Name. All rights reserved.</p>
+          </div>
+        </footer>
+      );
+    }
+    
+    function CookieBanner() {
+      const [visible, setVisible] = useState(false);
+      
+      useEffect(() => {
+        if (!localStorage.getItem('cookieConsent')) {
+          setVisible(true);
+        }
+      }, []);
+      
+      const accept = () => {
+        localStorage.setItem('cookieConsent', 'accepted');
+        setVisible(false);
+      };
+      
+      const decline = () => {
+        localStorage.setItem('cookieConsent', 'declined');
+        setVisible(false);
+      };
+      
+      if (!visible) return null;
+      
+      return (
+        <div className="cookie-banner">
+          <p>We use cookies to enhance your experience. By continuing, you agree to our cookie policy.</p>
+          <div className="cookie-buttons">
+            <button onClick={decline} className="btn-decline">Decline</button>
+            <button onClick={accept} className="btn-accept">Accept All</button>
+          </div>
+        </div>
+      );
+    }
+    
+    // PAGE-SPECIFIC CONTENT COMPONENT
+    function PageContent() {
+      return (
+        <main>
+          {/* Page-specific sections here */}
+          <section className="hero">
+            <h1>Welcome to Our Website</h1>
+            <p>Professional services you can trust</p>
+            <a href="contact.html" className="btn-primary">Get Started</a>
+          </section>
+          {/* More sections... */}
+        </main>
+      );
+    }
+    
+    // Main App combining all components
+    function App() {
+      return (
+        <div className="app">
+          <Header />
+          <PageContent />
+          <Footer />
+          <CookieBanner />
+        </div>
+      );
+    }
+    
+    // Render the App
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
+\`\`\`
+
+**MANDATORY REQUIREMENTS:**
+1. Each HTML file contains ALL React components inline (Header, Footer, CookieBanner, page content)
+2. Components are DUPLICATED across files (each file is self-contained)
+3. Navigation uses regular <a href="page.html"> links (NOT React Router)
+4. Forms redirect using window.location.href = 'thank-you.html'
+5. Cookie consent uses localStorage (same logic in each file)
+6. All styles in single styles.css file (linked from each HTML)
+
+**NAVIGATION BETWEEN PAGES:**
+- Use standard HTML links: <a href="about.html">About</a>
+- Current page can be highlighted with a class check or inline style
+- DO NOT use React Router or any routing library
+
+**FORM HANDLING:**
+\`\`\`jsx
+function ContactForm() {
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // Redirect to thank you page
+    window.location.href = 'thank-you.html';
+  };
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      <input type="text" name="name" placeholder="Your Name" required />
+      <input type="email" name="email" placeholder="Your Email" required />
+      <textarea name="message" placeholder="Your Message" required></textarea>
+      <button type="submit" className="btn-primary">Send Message</button>
+    </form>
+  );
+}
+\`\`\`
+
+**DEPLOYMENT FILES:**
+netlify.toml:
+\`\`\`toml
+[build]
+  publish = "."
+\`\`\`
+
+vercel.json:
+\`\`\`json
+{
+  "cleanUrls": true
+}
+\`\`\`
+
+🌐🌐🌐 LANGUAGE - FIRST PRIORITY! 🌐🌐🌐
 **THE WEBSITE LANGUAGE IS SPECIFIED IN THE "TARGET WEBSITE LANGUAGE" SECTION BELOW!**
 YOU MUST GENERATE ALL CONTENT IN THAT EXACT LANGUAGE - THIS IS THE #1 PRIORITY!
 
-⏰⏰⏰ BUSINESS HOURS - MANDATORY IN EVERY FOOTER! ⏰⏰⏰
-**EVERY PAGE FOOTER MUST INCLUDE BUSINESS HOURS IN THIS EXACT FORMAT:**
+⏰ BUSINESS HOURS - MANDATORY IN EVERY FOOTER!
 Monday - Friday: 9:00 AM - 6:00 PM
 Saturday - Sunday: Closed
-
-THIS IS NOT OPTIONAL! IF FOOTER HAS NO BUSINESS HOURS = BROKEN SITE!
-Include under "Working Hours:" or "Business Hours:" label with icon.
 
 ⛔ LANGUAGE VIOLATIONS - THESE BREAK THE WEBSITE:
 - Generating in Ukrainian when English was requested = BROKEN!
@@ -1154,726 +1350,92 @@ Include under "Working Hours:" or "Business Hours:" label with icon.
 
 ✅ CORRECT BEHAVIOR:
 - If language = "en" → ALL text in English
-- If language = "de" → ALL text in German (Startseite, Über uns, Dienstleistungen, Kontakt)
-- If language = "uk" → ALL text in Ukrainian (Головна, Про нас, Послуги, Контакти)
-- If language = "pl" → ALL text in Polish (Strona główna, O nas, Usługi, Kontakt)
+- If language = "de" → ALL text in German
+- If language = "uk" → ALL text in Ukrainian
+- If language = "pl" → ALL text in Polish
 
-**IF WEBSITE IS IN WRONG LANGUAGE = WEBSITE IS COMPLETELY BROKEN!**
+⛔ TEXT CONTRAST - ABSOLUTELY CRITICAL!
+- Light backgrounds: Use DARK text (#333, #222)
+- Dark backgrounds: Use WHITE text (#fff, #f5f5f5)
+- Hero with images: ALWAYS add dark overlay before white text
 
-⛔⛔⛔ TEXT CONTRAST - ABSOLUTELY CRITICAL - NO EXCEPTIONS! ⛔⛔⛔
-**NEVER USE WHITE TEXT ON WHITE/LIGHT BACKGROUNDS!** This makes text INVISIBLE and BREAKS the website!
-
-MANDATORY CONTRAST RULES:
-- Light backgrounds (#fff, #f5f5f5, #fafafa, white, cream, beige): Use DARK text (#333, #222, #1a1a1a)
-- Dark backgrounds (#1a1a1a, #222, #333, black, navy): Use WHITE or LIGHT text (#fff, #f5f5f5)
-- Hero sections with background images: ALWAYS add dark overlay before white text
-- Cards on light pages: Use dark text (#333 or darker) - NEVER white!
-- Inline styles: Always check color matches background
-
-WRONG:
-❌ style={{ color: '#fff', background: '#ffffff' }}
-❌ White text on light section
-❌ className with text-white on white bg
-
-CORRECT:
-✅ style={{ color: '#333', background: '#f5f5f5' }}
-✅ Dark text on light backgrounds
-✅ White text ONLY on dark backgrounds or overlayed images
-
-**IF TEXT IS UNREADABLE = WEBSITE IS BROKEN!**
-
-👤👥🚨 TEAM/STAFF PORTRAITS - MANDATORY HUMAN PHOTOS! 🚨👥👤
-**When creating ANY section with people (Team, Staff, Employees, Testimonials with photos):**
-
-YOU MUST USE REAL HUMAN PORTRAIT PHOTOS FROM PEXELS! These are VERIFIED working URLs:
-
-MALE PORTRAITS (use these exact URLs):
+👤 TEAM/STAFF PORTRAITS - USE REAL PHOTOS FROM PEXELS:
+MALE:
 - https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
 - https://images.pexels.com/photos/2182970/pexels-photo-2182970.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
 - https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-- https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-- https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
 
-FEMALE PORTRAITS (use these exact URLs):
+FEMALE:
 - https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
 - https://images.pexels.com/photos/1065084/pexels-photo-1065084.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
 - https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-- https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-- https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
 
-⛔ NEVER USE FOR PEOPLE:
-- picsum.photos - these are RANDOM images, not faces!
-- Placeholder URLs with random numbers
-- Abstract images or silhouettes
-
-✅ MANDATORY: Alternate male/female, use different URLs for each person!
-
-**IF TEAM SECTION HAS NO REAL FACE PHOTOS = WEBSITE IS BROKEN!**
-
-📞📧🚨 CONTACT INFO - READ THIS FIRST! ABSOLUTELY MANDATORY! 🚨📧📞
-EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
-
-**PHONE NUMBER - REQUIRED IN FOOTER ONLY:**
-- MUST appear in FOOTER on ALL pages (NOT in header!)
-- MUST be realistic for the country/GEO
-- MUST be clickable (tel:): <a href="tel:+493028976543">+49 30 2897 6543</a>
-- The visible text MUST include the country code with "+" and spacing (never a bare local number)
-- MUST be at least 10 digits total (excluding spaces, parentheses, dashes)
-- NEVER output only the local part like "4567890" (INVALID)
-- NEVER use placeholder patterns: 123456, 4567890, 555-1234, XXX, 000000, 999999, (555)
-- ⚠️ CRITICAL: NEVER DUPLICATE THE COUNTRY CODE! Wrong: "+49 +49 30...", Correct: "+49 30..."
-- Examples by country:
-  * Germany: +49 30 2897 6543, +49 89 4521 7892
-  * Poland: +48 22 593 27 41, +48 12 784 63 19
-  * Spain: +34 912 643 781, +34 932 815 604
-  * France: +33 1 42 68 53 21, +33 4 93 45 67 12
-  * Italy: +39 06 8745 6321, +39 02 7654 3219
-  * UK: +44 20 7946 0958, +44 161 496 0753
-  * USA: +1 (212) 647-3812, +1 (415) 781-2046
-  * Netherlands: +31 20 794 5682
-  * Czech Republic: +420 221 643 781
-  * Ukraine: +380 44 239 4187
-  * Austria: +43 1 239 4187
-
-**EMAIL - REQUIRED IN FOOTER ONLY:**
-- MUST appear in FOOTER on ALL pages (NOT in header!)
-- MUST use the site's domain: info@<sitename>.com, contact@<sitename>.com
-- Extract domain from business name (lowercase, no spaces)
-- MUST be clickable: <a href="mailto:info@sitename.com">info@sitename.com</a>
-- NEVER use generic emails like info@company.com or test@example.com
-
-**BUSINESS HOURS - REQUIRED IN FOOTER (EXACT FORMAT):**
-- MUST appear in FOOTER on ALL pages
-- USE THIS EXACT FORMAT (two lines):
-  Line 1: Monday - Friday: 9:00 AM - 6:00 PM
-  Line 2: Saturday - Sunday: Closed
-- This is the ONLY acceptable format for business hours!
-- For non-English sites, translate the day names appropriately but keep the same structure:
-  * German: Montag - Freitag: 9:00 - 18:00 / Samstag - Sonntag: Geschlossen
-  * French: Lundi - Vendredi: 9h00 - 18h00 / Samedi - Dimanche: Fermé
-  * Spanish: Lunes - Viernes: 9:00 - 18:00 / Sábado - Domingo: Cerrado
-- Include label "Working Hours:" or "Business Hours:" (translated appropriately)
-- JSX example:
-  <div className="footer-hours">
-    <strong>Working Hours:</strong><br />
-    Monday - Friday: 9:00 AM - 6:00 PM<br />
-    Saturday - Sunday: Closed
-  </div>
-
-⚠️ IF NO PHONE/EMAIL/HOURS IN OUTPUT = SITE IS BROKEN! ALWAYS INCLUDE THEM!
-
-**🌍 LANGUAGE COMPLIANCE - ABSOLUTELY MANDATORY:**
-The website MUST be generated in the EXACT language specified in the request. This is NON-NEGOTIABLE:
-
-1. **ALL text content** MUST be in the specified language:
-   - Headings, paragraphs, buttons, links, navigation
-   - Form labels, placeholders, error messages
-   - Footer text, copyright notices
-   - Cookie banner text
-   - Alt text for images
-   - Meta descriptions and page titles
-
-2. **Language code mapping** (use correct language for each code):
-   - EN = English (US/UK)
-   - DE = German (Deutsch)
-   - FR = French (Français)
-   - ES = Spanish (Español)
-   - IT = Italian (Italiano)
-   - PL = Polish (Polski)
-   - NL = Dutch (Nederlands)
-   - UK/UA = Ukrainian (Українська)
-   - PT = Portuguese (Português)
-   - CS/CZ = Czech (Čeština)
-   - SV = Swedish (Svenska)
-   - NO = Norwegian (Norsk)
-   - DA = Danish (Dansk)
-   - FI = Finnish (Suomi)
-   - RU = Russian (Русский)
-   - TR = Turkish (Türkçe)
-   - AR = Arabic (العربية) - RTL layout
-   - HE = Hebrew (עברית) - RTL layout
-   - ZH = Chinese (中文)
-   - JA = Japanese (日本語)
-   - KO = Korean (한국어)
-
-3. **NEVER mix languages** - If the site is in German, ALL text must be German
-4. **NEVER default to Ukrainian** - Only use Ukrainian if explicitly specified as UK/UA
-5. **If language is "EN" or "English"** - Generate ALL content in proper English
-6. **Button text examples by language:**
-   - EN: "Get Started", "Learn More", "Contact Us"
-   - DE: "Jetzt starten", "Mehr erfahren", "Kontakt"
-   - FR: "Commencer", "En savoir plus", "Contactez-nous"
-   - ES: "Comenzar", "Saber más", "Contáctenos"
-   - PL: "Rozpocznij", "Dowiedz się więcej", "Kontakt"
-
-**DESIGN PHILOSOPHY - 10X BETTER UI:**
-- Start with FUNCTIONAL and BEAUTIFUL base UI - Every pixel must serve a purpose
-- Always make 10X better UI than standard - Go beyond expectations
-- Use advanced CSS patterns - CSS Grid, Flexbox, custom properties
-- Think like a product designer - Focus on user experience first
-
-**CRITICAL REQUIREMENT: PAGE CONTENT LENGTH**
-Each page MUST have SUBSTANTIAL content with proper scroll depth:
-
-**MAIN PAGES (Home.js, Services.js, About.js) - MINIMUM 5 SCREENS OF CONTENT:**
-Each main page component MUST include AT LEAST these sections (in order):
-1. Hero Section (100vh) - Full viewport hero with headline, subheadline, CTA button, background image
-2. Features/Benefits Section - 6-9 feature cards in grid (2-3 rows)
-3. About/Story Section - Company story with image, mission statement, values (3-4 paragraphs)
-4. Services/Products Section - Detailed service cards with descriptions, icons, pricing hints
-5. Testimonials Section - 3-6 client testimonials with photos, names, positions
-6. Statistics/Numbers Section - 4-6 key metrics with large numbers and descriptions
-7. FAQ Section - 5-8 frequently asked questions with expandable answers
-8. Call-to-Action Section - Final CTA with compelling copy and prominent button
-9. Partners/Clients Section - Logo grid of partner companies (6-12 logos)
-
-**SECONDARY PAGES (Contact.js, Privacy.js, Terms.js, CookiePolicy.js) - MINIMUM 2 SCREENS OF CONTENT:**
-- Contact: Hero + contact form + WORKING GOOGLE MAP (see Google Maps section below) + office info + working hours
-
-**📜 PRIVACY POLICY PAGE (Privacy.js) - MANDATORY 10+ SECTIONS:**
-Privacy Policy MUST contain AT LEAST 10 distinct sections with full legal text:
-1. Introduction & General Information
-2. Data Controller Contact Information
-3. Types of Personal Data Collected
-4. Purpose of Data Processing
-5. Legal Basis for Processing
-6. Data Retention Periods
-7. Data Sharing with Third Parties
-8. International Data Transfers
-9. User Rights (Access, Rectification, Erasure, Portability, etc.)
-10. Cookie Policy Reference
-11. Security Measures (optional but recommended)
-12. Changes to Privacy Policy (optional but recommended)
-Each section MUST have a heading (h2/h3) and 2-4 paragraphs of detailed legal text.
-
-**📋 TERMS OF SERVICE PAGE (Terms.js) - MANDATORY 14 SECTIONS:**
-Terms of Service MUST contain EXACTLY 14 distinct sections with full legal text:
-1. Acceptance of Terms
-2. Definitions
-3. User Eligibility
-4. Account Registration and Security
-5. Permitted Use of Services
-6. Prohibited Activities
-7. Intellectual Property Rights
-8. User-Generated Content
-9. Third-Party Links and Services
-10. Disclaimers and Limitation of Liability
-11. Indemnification
-12. Termination
-13. Governing Law and Dispute Resolution
-14. Contact Information and Notices
-Each section MUST have a heading (h2/h3) and 2-4 paragraphs of detailed legal text.
-
-**🍪 COOKIE POLICY PAGE (CookiePolicy.js) - MANDATORY WITH COOKIES TABLE:**
-Cookie Policy MUST contain:
-1. Introduction explaining what cookies are
-2. Why we use cookies
-3. Types of cookies we use (with explanations)
-4. **MANDATORY COOKIES TABLE** - Create a React table component with the following columns:
-   - Cookie Name
-   - Provider
-   - Purpose
-   - Expiry
-   - Type (Essential/Analytics/Marketing/Functional)
-   
-Example JSX structure:
-\`\`\`jsx
-<table className="cookies-table">
-  <thead>
-    <tr>
-      <th>Cookie Name</th>
-      <th>Provider</th>
-      <th>Purpose</th>
-      <th>Expiry</th>
-      <th>Type</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>cookieConsent</td>
-      <td>[Site Name]</td>
-      <td>Stores user's cookie consent preference</td>
-      <td>1 year</td>
-      <td>Essential</td>
-    </tr>
-    {/* Add 5-10 more cookie entries */}
-  </tbody>
-</table>
-\`\`\`
-5. How to manage/disable cookies
-6. Contact information for cookie-related inquiries
-The table MUST include AT LEAST 6-10 different cookies commonly used on websites.
-
-**CONTENT DENSITY REQUIREMENTS:**
-- Each section MUST be at least 300px in height on desktop
-- Use generous padding (80px-120px vertical padding per section)
-- Include detailed, realistic placeholder text (not Lorem Ipsum - write real business content)
-- Every service/feature needs title, description (2-3 sentences), and icon/image
-
-**LAYOUT REQUIREMENTS:**
-- Header and Footer as REUSABLE components used in App.js layout
-- Active nav link highlight using React Router
-- All pages share same header/footer structure
-
-**🍪 MANDATORY COOKIE SYSTEM - ABSOLUTELY CRITICAL, NON-NEGOTIABLE:**
-Every React website MUST include a REAL, FUNCTIONAL cookie consent system that ACTUALLY COLLECTS AND STORES user choices:
-
-**COOKIE BANNER COMPONENT REQUIREMENTS:**
-1. Create dedicated CookieBanner.js component in src/components/
-2. Use useState for banner visibility, useEffect for initial localStorage check
-3. On mount: check localStorage.getItem('cookieConsent'), if exists - don't show
-4. "Accept All" button: localStorage.setItem('cookieConsent', 'accepted') + setShowBanner(false)
-5. "Decline" button: localStorage.setItem('cookieConsent', 'declined') + setShowBanner(false)
-6. Banner NEVER shows again after user makes ANY choice
-
-**COOKIE BANNER COMPONENT TEMPLATE (MUST CREATE):**
-// src/components/CookieBanner.js
-import React, { useState, useEffect } from 'react';
-import './CookieBanner.css';
-
-function CookieBanner() {
-  const [showBanner, setShowBanner] = useState(false);
-  
-  useEffect(() => {
-    const consent = localStorage.getItem('cookieConsent');
-    if (!consent) setShowBanner(true);
-  }, []);
-  
-  const acceptCookies = () => {
-    localStorage.setItem('cookieConsent', 'accepted');
-    setShowBanner(false);
-  };
-  
-  const declineCookies = () => {
-    localStorage.setItem('cookieConsent', 'declined');
-    setShowBanner(false);
-  };
-  
-  if (!showBanner) return null;
-  
-  return (
-    <div className="cookie-banner">
-      <p>We use cookies to enhance your experience. By continuing, you agree to our cookie policy.</p>
-      <div className="cookie-buttons">
-        <button onClick={declineCookies} className="btn-decline">Decline</button>
-        <button onClick={acceptCookies} className="btn-accept">Accept All</button>
-      </div>
-    </div>
-  );
-}
-
-export default CookieBanner;
-
-**COOKIE BANNER STYLING (MUST INCLUDE IN CSS):**
-- Position: fixed at bottom (position: fixed; bottom: 0; left: 0; right: 0)
-- Background: semi-transparent dark or white with box-shadow
-- Z-index: 9999 (always visible on top)
-- Flex layout with space-between for text and buttons
-- Clear visual distinction between Accept (primary) and Decline (secondary) buttons
-
-**INTEGRATION IN App.js:**
-Import and render CookieBanner component at the end of App.js, before closing </div>
-
-**THIS IS NOT OPTIONAL - EVERY GENERATED REACT WEBSITE MUST HAVE WORKING COOKIE CONSENT!**
-
-**🚫 NUMBERS PROHIBITION - ABSOLUTELY CRITICAL, NON-NEGOTIABLE:**
-NEVER include ANY numerical data anywhere on the website. This is a STRICT requirement:
-
-**FORBIDDEN (NEVER USE):**
-- Prices, costs, monetary figures ($99, €50, £100, ₴500, etc.)
-- Statistics, percentages (95%, 100+, 50% off, etc.)
-- Years of experience ("10 years", "Since 2010", etc.)
-- Client/project counts ("500+ clients", "1000 projects", etc.)
-- Team size numbers ("50 experts", "Team of 20", etc.)
-- Ratings and scores ("4.9/5", "5 stars", etc.)
-- Time frames with numbers ("24/7", "in 48 hours", etc.)
-- Numerical guarantees ("100% satisfaction", "30-day guarantee", etc.)
-- Square meters, distances, capacities
-- Any forecasts, projections, or numerical predictions
-- Countdown timers or numerical deadlines
-
-**ALLOWED ALTERNATIVES (USE THESE INSTEAD):**
-- "Contact us for pricing" instead of prices
-- "Years of experience" instead of "10 years"
-- "Hundreds of satisfied clients" instead of "500+ clients"
-- "Our expert team" instead of "Team of 50"
-- "Top-rated service" instead of "4.9/5 rating"
-- "Fast delivery" instead of "in 24 hours"
-- "Satisfaction guaranteed" instead of "100% guarantee"
-- "Always available" instead of "24/7"
-- "Request a quote" instead of any price
-- "Proven track record" instead of statistics
-
-**THE ONLY ALLOWED NUMBERS:**
-- Phone numbers (required for contact)
-- Postal codes in addresses (required for location)
-- Years in copyright footer (e.g., "© 2024")
-
-**⚠️ MANDATORY DISCLAIMER - ABSOLUTELY CRITICAL, NON-NEGOTIABLE:**
-Every React website MUST include a disclaimer section adapted to the website's theme. This is REQUIRED for Google Ads compliance:
-
-**DISCLAIMER REQUIREMENTS:**
-1. Add the disclaimer in the Footer component, ABOVE the copyright section
-2. The disclaimer MUST be styled to MATCH THE WEBSITE'S DESIGN STYLE:
-   - Use colors that complement the site's color palette (can be accent color, muted tone, or contrasting block)
-   - Match the typography and spacing of the site
-   - Make it visible but harmonious with overall design
-   - Can use borders, subtle backgrounds, or other styling that fits the site aesthetic
-3. The disclaimer text MUST be ADAPTED to match the website's theme/industry:
-   - Keep the core meaning: "content is for general information/education only, not professional advice"
-   - Adapt terminology to the specific industry (e.g., "financial advice" for finance, "medical advice" for health, "legal advice" for law, etc.)
-   - Always include: not professional advice, consult qualified experts, involves risk, we don't sell [relevant products]
-
-**DISCLAIMER COMPONENT TEMPLATE (include in Footer.js or separate Disclaimer.js):**
-\`\`\`jsx
-<div className="disclaimer-section">
-  <p>
-    <strong>Important Notice (Disclaimer) regarding Google Ads compliance:</strong>{' '}
-    [ADAPTED DISCLAIMER TEXT FOR SITE THEME AND LANGUAGE]
-  </p>
-</div>
-\`\`\`
-
-**DISCLAIMER STYLING - ADAPT TO SITE DESIGN:**
-Style the disclaimer to match the overall website aesthetic. Examples:
-- Dark site: use a slightly lighter block or border accent
-- Light site: use a muted background or accent border
-- Colorful site: use the site's accent/secondary color
-- Minimal site: use subtle borders and typography emphasis
-
-\`\`\`css
-/* Example - adapt colors to match site palette */
-.disclaimer-section {
-  background-color: var(--site-accent-muted, rgba(0,0,0,0.05)); /* or use site's secondary color */
-  color: inherit;
-  padding: 20px 30px;
-  margin: 30px auto 0 auto;
-  max-width: 1200px;
-  border-radius: 8px;
-  text-align: center;
-  font-size: 14px;
-  line-height: 1.6;
-  border: 1px solid var(--site-border-color, rgba(0,0,0,0.1));
-}
-.disclaimer-section strong {
-  display: block;
-  margin-bottom: 8px;
-}
-\`\`\`
-
-**LANGUAGE EXAMPLES (ADAPT TO SITE THEME):**
-- EN (Finance theme): "Important Notice (Disclaimer): The content of this website is intended solely for general information and financial education. It does not constitute investment, tax, or legal advice and cannot replace individual consultations with qualified experts. Any investments involve risk. We do not sell financial products."
-- EN (Health theme): "Important Notice (Disclaimer): The content of this website is intended solely for general information and health education. It does not constitute medical advice and cannot replace individual consultations with qualified healthcare professionals. Always consult a doctor before making health decisions. We do not sell medications."
-- EN (Education/Courses): "Important Notice (Disclaimer): The content of this website and our courses is intended solely for general information and educational purposes. It does not constitute professional advice and cannot replace individual consultations with qualified experts. We do not guarantee specific results."
-- DE (Finance): "Wichtiger Hinweis (Haftungsausschluss): Der Inhalt dieser Website dient ausschließlich der allgemeinen Information und Finanzbildung. Er stellt keine Anlage-, Steuer- oder Rechtsberatung dar und kann individuelle Beratungen durch qualifizierte Experten nicht ersetzen. Jede Investition ist mit Risiken verbunden. Wir verkaufen keine Finanzprodukte."
-- RU (Finance): "Важное уведомление (отказ от ответственности): Контент этого веб-сайта предназначен исключительно для общего ознакомления и финансового образования. Он не является инвестиционной, налоговой или юридической консультацией и не может заменить индивидуальные консультации квалифицированных экспертов. Любые инвестиции сопряжены с риском. Мы не продаем финансовые продукты."
-- UK (Finance): "Важливе повідомлення (відмова від відповідальності): Контент цього веб-сайту призначений виключно для загального ознайомлення та фінансової освіти. Він не є інвестиційною, податковою чи юридичною консультацією і не може замінити індивідуальні консультації кваліфікованих експертів. Будь-які інвестиції пов'язані з ризиком. Ми не продаємо фінансові продукти."
-
-**THIS IS NOT OPTIONAL - EVERY GENERATED REACT WEBSITE MUST HAVE THE DISCLAIMER ADAPTED TO ITS THEME AND DESIGN!**
-
-**THIS RULE IS NON-NEGOTIABLE - ANY NUMERICAL DATA OTHER THAN CONTACT INFO WILL MAKE THE WEBSITE INVALID!**
-
-**📞 PHONE NUMBERS - MANDATORY REQUIREMENTS:**
-All phone numbers MUST be:
-1. **REALISTIC and RANDOM for the specified country** - Generate a unique, realistic phone number using proper country code and format. Pick random digits that look natural:
-   - USA/Canada: +1 (XXX) XXX-XXXX - e.g., +1 (347) 892-4156, +1 (415) 637-8294
-   - UK: +44 XX XXXX XXXX - e.g., +44 20 7839 5471, +44 7842 156 923
-   - Germany: +49 XX XXXXXXXX - e.g., +49 30 25847631, +49 176 48293651
-   - France: +33 X XX XX XX XX - e.g., +33 1 42 86 57 34, +33 6 78 42 91 53
-   - Italy: +39 XX XXXX XXXX - e.g., +39 02 4867 2391, +39 347 892 4156
-   - Spain: +34 XXX XXX XXX - e.g., +34 91 847 2563, +34 628 471 935
-   - Poland: +48 XX XXX XX XX - e.g., +48 22 847 63 91, +48 512 847 293
-   - Netherlands: +31 XX XXX XXXX - e.g., +31 20 847 3926, +31 6 48271935
-   - Ukraine: +380 XX XXX XXXX - e.g., +380 44 892 4731, +380 67 482 9135
-   - Australia: +61 X XXXX XXXX - e.g., +61 2 8471 2936, +61 412 847 293
-   - Switzerland: +41 XX XXX XX XX - e.g., +41 44 847 29 36, +41 79 482 71 93
-   - Austria: +43 X XXX XX XX - e.g., +43 1 847 29 36, +43 664 847 2931
-   - Belgium: +32 X XXX XX XX - e.g., +32 2 847 29 36, +32 470 84 72 93
-   - Portugal: +351 XX XXX XXXX - e.g., +351 21 847 2936, +351 912 847 293
-   - Czech Republic: +420 XXX XXX XXX - e.g., +420 221 847 293, +420 602 847 291
-   - Sweden: +46 X XXX XXX XX - e.g., +46 8 847 293 64, +46 70 847 29 36
-   - Norway: +47 XX XX XX XX - e.g., +47 22 84 72 93, +47 912 84 729
-   - Denmark: +45 XX XX XX XX - e.g., +45 32 84 72 93, +45 20 84 72 93
-   
-2. **CLICKABLE with tel: links** - ALWAYS wrap phone numbers in anchor tags:
-   <a href="tel:+14155551234">+1 (415) 555-1234</a>
-
-3. **NEVER use obviously fake numbers** like 1234567, 0000000, 123-456-7890, or all same digits
-4. **NEVER use placeholder patterns** like 555, 1111, 2222, 1234, 5678 or any repeated/sequential digits
-5. **ALWAYS generate RANDOM, REALISTIC digits** that could be real phone numbers
-6. **Match the country/geo of the website** - If the site is for Germany, use German phone format
-
-**📧 EMAIL ADDRESSES - MUST MATCH SITE DOMAIN:**
-- Email MUST use the site's domain name, NOT generic placeholders
-- Format: info@<sitename>.com, contact@<sitename>.com, support@<sitename>.com
-- Extract sitename from the business name (lowercase, no spaces, no special chars)
-- Examples:
-  * Business "Green Garden Services" → info@greengarden.com
-  * Business "Auto Pro Center" → contact@autoprocenter.com
-  * Business "Dr. Smith Clinic" → info@drsmithclinic.com
-- MUST be clickable: <a href="mailto:info@sitename.com">info@sitename.com</a>
-- NEVER use generic emails like info@company.com, test@example.com, or contact@yoursite.com
-
-**🏠 ADDRESSES - MANDATORY REQUIREMENTS:**
-All physical addresses MUST be:
-1. **REALISTIC and from the specified country/city** - Use real street names, real neighborhoods, real postal codes:
-   - USA: 847 Madison Avenue, New York, NY 10065 / 2847 Sunset Boulevard, Los Angeles, CA 90028
-   - UK: 47 King's Road, London SW3 4ND / 128 Princes Street, Edinburgh EH2 4AD
-   - Germany: Friedrichstraße 147, 10117 Berlin / Maximilianstraße 28, 80539 München
-   - France: 47 Rue du Faubourg Saint-Honoré, 75008 Paris / 28 Cours Mirabeau, 13100 Aix-en-Provence
-   - Italy: Via del Corso 147, 00186 Roma / Via Montenapoleone 28, 20121 Milano
-   - Spain: Calle Serrano 47, 28001 Madrid / Passeig de Gràcia 28, 08007 Barcelona
-   - Poland: ul. Nowy Świat 47, 00-042 Warszawa / ul. Floriańska 28, 31-021 Kraków
-   - Netherlands: Herengracht 147, 1015 BH Amsterdam / Coolsingel 47, 3012 AA Rotterdam
-   - Ukraine: вул. Хрещатик 47, Київ 01001 / вул. Дерибасівська 28, Одеса 65026
-   - Australia: 47 Collins Street, Melbourne VIC 3000 / 128 Pitt Street, Sydney NSW 2000
-   - Switzerland: Bahnhofstrasse 47, 8001 Zürich / Rue du Rhône 28, 1204 Genève
-   - Austria: Kärntner Straße 47, 1010 Wien / Getreidegasse 28, 5020 Salzburg
-   - Belgium: Avenue Louise 147, 1050 Bruxelles / Meir 47, 2000 Antwerpen
-   - Portugal: Avenida da Liberdade 147, 1250-096 Lisboa / Rua de Santa Catarina 28, 4000-442 Porto
-   - Czech Republic: Václavské náměstí 47, 110 00 Praha 1 / Masarykova 28, 602 00 Brno
-   - Sweden: Kungsgatan 47, 111 56 Stockholm / Avenyn 28, 411 36 Göteborg
-   - Norway: Karl Johans gate 47, 0162 Oslo / Bryggen 28, 5003 Bergen
-   - Denmark: Strøget 47, 1160 København / Vestergade 28, 8000 Aarhus
-
-2. **Use REAL street names** from the specified city - research or use well-known streets
-3. **Include proper postal/ZIP codes** that match the city format
-4. **NEVER use fake addresses** like "123 Main Street" or "456 Example Ave"
-5. **Match the country/geo of the website** - If site is for Berlin, use a real Berlin address
-
-**🗺️ GOOGLE MAPS - MANDATORY REQUIREMENTS FOR CONTACT PAGE:**
-Every contact page MUST include a WORKING, PROPERLY DISPLAYED Google Map. This is NON-NEGOTIABLE.
-
-**GOOGLE MAPS IN REACT - USE THIS EXACT FORMAT:**
-\`\`\`jsx
-// In Contact.js or Contact.jsx
-<div className="map-container">
-  <iframe 
-    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3024.2219901290355!2d-74.00369368400567!3d40.71312937933185!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89c25a23e28c1191%3A0x49f75d3281df052a!2s150%20Park%20Row%2C%20New%20York%2C%20NY%2010007%2C%20USA!5e0!3m2!1sen!2s!4v1635959481000"
-    width="100%" 
-    height="450" 
-    style={{border: 0}} 
-    allowFullScreen="" 
-    loading="lazy" 
-    referrerPolicy="no-referrer-when-downgrade"
-    title="Our Location"
-  />
-</div>
-\`\`\`
-
-**MAP LOCATION RULES (CRITICAL):**
-1. **Match the country/city from the website content** - If the site mentions Berlin, embed a Berlin map
-2. **Use realistic city center coordinates for the specified location:**
-   - New York: pb=!1m18!1m12!1m3!1d3024.2219901290355!2d-74.00369368400567!3d40.71312937933185
-   - London: pb=!1m18!1m12!1m3!1d2483.5401154424246!2d-0.12775868422771983!3d51.50735079567947
-   - Berlin: pb=!1m18!1m12!1m3!1d2428.4056057920547!2d13.376888015868405!3d52.51628097981411
-   - Paris: pb=!1m18!1m12!1m3!1d2624.991625695787!2d2.2944813156749647!3d48.85837007928746
-   - Kyiv/Київ: pb=!1m18!1m12!1m3!1d2540.858019773429!2d30.520420615745823!3d50.45049547947494
-   - Warsaw: pb=!1m18!1m12!1m3!1d2443.859132285!2d21.01223611576!3d52.22977297975
-   - Vienna: pb=!1m18!1m12!1m3!1d2658.799123456789!2d16.36341!3d48.20817
-   - Amsterdam: pb=!1m18!1m12!1m3!1d2435.123456789!2d4.89707!3d52.37403
-   - Prague: pb=!1m18!1m12!1m3!1d2560.123456789!2d14.42076!3d50.08804
-   - Rome: pb=!1m18!1m12!1m3!1d2969.123456789!2d12.49637!3d41.90278
-   - Madrid: pb=!1m18!1m12!1m3!1d3037.123456789!2d-3.70379!3d40.41678
-   - Munich: pb=!1m18!1m12!1m3!1d2662.123456789!2d11.57549!3d48.13743
-   - Zürich: pb=!1m18!1m12!1m3!1d2702.123456789!2d8.54169!3d47.37689
-   - Sydney: pb=!1m18!1m12!1m3!1d3312.123456789!2d151.20929!3d-33.86882
-   - Toronto: pb=!1m18!1m12!1m3!1d2886.123456789!2d-79.38318!3d43.65107
-3. **If no specific location mentioned** - Use a generic major city that matches the language (e.g., Berlin for German, Paris for French)
-
-**MAP CONTAINER CSS (MANDATORY IN global.css):**
-\`\`\`css
-.map-container {
-  width: 100%;
-  height: 450px;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  margin: 40px 0;
-}
-
-.map-container iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-}
-
-@media (max-width: 768px) {
-  .map-container {
-    height: 350px;
-    border-radius: 8px;
-  }
-}
-\`\`\`
-
-**REACT-SPECIFIC RULES:**
-- ALWAYS use \`style={{border: 0}}\` instead of \`style="border:0;"\`
-- ALWAYS use \`allowFullScreen\` (camelCase) instead of \`allowfullscreen\`
-- ALWAYS use \`referrerPolicy\` (camelCase) instead of \`referrerpolicy\`
-- ALWAYS add \`title="Our Location"\` attribute for accessibility
-
-**NEVER DO:**
-- Never use placeholder text like "[MAP]" or "Map goes here"
-- Never use broken/invalid iframe src URLs
-- Never omit the map from contact page
-- Never use coordinates that don't match the business location
-
-**🙏 THANK YOU PAGE - MANDATORY FOR ALL WEBSITES:**
-Every React website MUST include a ThankYou.js page that users see after submitting ANY form:
-
-1. **Create src/pages/ThankYou.js** with:
-   - Same layout as other pages (uses Header/Footer)
-   - Hero section with success checkmark icon (use CSS-styled checkmark or SVG)
-   - Thank you heading (in site language):
-     - EN: "Thank You!", "We've Received Your Message"
-     - DE: "Vielen Dank!", "Wir haben Ihre Nachricht erhalten"
-     - UK: "Дякуємо!", "Ми отримали ваше повідомлення"
-     - FR: "Merci!", "Nous avons reçu votre message"
-     - PL: "Dziękujemy!", "Otrzymaliśmy Twoją wiadomość"
-     - ES: "¡Gracias!", "Hemos recibido tu mensaje"
-     - IT: "Grazie!", "Abbiamo ricevuto il tuo messaggio"
-   - Friendly message explaining next steps (e.g., "We'll respond within 24 hours")
-   - Contact info for urgent matters
-   - Button to return to homepage using React Router: <Link to="/">Return to Home</Link>
-
-2. **Add route in App.js:**
-   <Route path="/thank-you" element={<ThankYou />} />
-   Don't forget to import: import ThankYou from './pages/ThankYou';
-
-3. **ALL forms MUST redirect to /thank-you after submission:**
-   - Contact forms
-   - Newsletter signup forms
-   - Callback request forms
-   - Any other forms
-
-4. **Form submission handler in Contact.js (and any other form components):**
-\`\`\`jsx
-import { useNavigate } from 'react-router-dom';
-
-function Contact() {
-  const navigate = useNavigate();
-  
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Here you would normally send data to server
-    // For static site, redirect to thank you page
-    navigate('/thank-you');
-  };
-  
-  return (
-    <form onSubmit={handleSubmit}>
-      {/* form fields */}
-      <button type="submit">Submit</button>
-    </form>
-  );
-}
-\`\`\`
-
-5. **Thank you page content requirements:**
-   - Large success icon (checkmark in circle)
-   - Clear success message heading
-   - Subtext about response time
-   - Contact info for urgent matters
-   - Prominent button to return to homepage
-   - Consistent styling with rest of site
-
-6. **THANK YOU PAGE CSS (MANDATORY IN global.css):**
-\`\`\`css
-.thank-you-section {
-  min-height: 70vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 80px 20px;
-}
-
-.thank-you-icon {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: var(--primary-color, #10b981);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 40px;
-  animation: scaleIn 0.5s ease-out;
-}
-
-.thank-you-icon svg {
-  width: 60px;
-  height: 60px;
-  stroke: white;
-  stroke-width: 3;
-}
-
-@keyframes scaleIn {
-  from { transform: scale(0); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-
-.thank-you-title {
-  font-size: 3rem;
-  margin-bottom: 20px;
-  color: var(--heading-color);
-}
-
-.thank-you-message {
-  font-size: 1.25rem;
-  color: var(--text-muted);
-  max-width: 600px;
-  margin-bottom: 40px;
-  line-height: 1.8;
-}
-
-.thank-you-button {
-  display: inline-block;
-  padding: 16px 40px;
-  background: var(--primary-color);
-  color: white;
-  text-decoration: none;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-}
-
-.thank-you-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-}
-\`\`\`
-
-**THIS IS NOT OPTIONAL - EVERY GENERATED REACT WEBSITE MUST HAVE A THANK YOU PAGE!**
-
-**VISUAL EXCELLENCE GUIDELINES:**
-- Whitespace is king - Generous spacing (1.5x standard)
-- Clean typography system - Hierarchy: H1 > H2 > H3 > Body > Small
-- Strategic color use - 60% primary, 30% secondary, 10% accent
-- Consistent spacing scale - 4px, 8px, 16px, 24px, 32px, 48px, 64px, 80px, 120px
-- Smooth transitions - 300ms ease-in-out for interactions
-
-**GLOBAL CSS (src/styles/global.css) MUST BE AT LEAST 500 LINES with:**
-- Reset/normalize styles
-- CSS variables in :root (colors, spacing, fonts)
+📞 PHONE & EMAIL - MANDATORY IN FOOTER:
+- Phone: Realistic for country with +country code, clickable: <a href="tel:+491234567890">+49 123 456 7890</a>
+- Email: Use site domain: <a href="mailto:info@sitename.com">info@sitename.com</a>
+- NEVER use fake numbers like 555-1234 or duplicate country codes like +49+49
+
+🚫 NUMBERS PROHIBITION:
+NEVER include prices, statistics, percentages, years of experience, client counts.
+Use descriptive text instead: "Contact us for pricing", "Years of experience", "Many satisfied clients"
+
+ALLOWED numbers: Phone numbers, postal codes, copyright year
+
+📋 CONTENT REQUIREMENTS:
+- Each main page (index, about, services): AT LEAST 5 full-screen sections
+- Privacy policy: 10+ legal sections with detailed text
+- Terms of service: 14 sections with legal text  
+- Contact page: Form + Google Maps iframe + office info
+
+🍪 COOKIE BANNER - MANDATORY:
+Every page must include the CookieBanner component that:
+1. Checks localStorage on mount
+2. Shows banner if no consent saved
+3. Accept: saves 'accepted' to localStorage
+4. Decline: saves 'declined' to localStorage
+5. Never shows again after any choice
+
+📜 DISCLAIMER - MANDATORY IN FOOTER:
+Add a disclaimer adapted to the website's theme/industry above copyright.
+Example: "The content of this website is for general information only and does not constitute professional advice."
+
+**CSS REQUIREMENTS (styles.css must be 400+ lines):**
+- CSS reset and variables
 - Header with sticky navigation
-- Hero section with image overlay/background (min-height: 100vh)
-- Multiple section variations with different backgrounds
-- Section padding: 80px 0 minimum
-- Card/grid layouts for services/features
-- Testimonial cards with photos
-- Statistics section with large numbers
-- FAQ accordion styling
-- Image containers with proper sizing (object-fit: cover)
-- Footer with multi-column layout
-- Cookie banner styling (position: fixed; bottom: 0)
-- Map container styling with responsive design
-- Thank you page styling (success icon, centered content)
-- Mobile responsive breakpoints
-- Hover/focus states
-- Form styling
+- Hero section with background image and overlay
+- Multiple section styles with alternating backgrounds
+- Card grids for services/features
+- Testimonial cards
+- Contact form styling
+- Footer multi-column layout
+- Cookie banner (fixed bottom, z-index: 9999)
+- Responsive breakpoints (768px, 480px)
+- Hover states and transitions
 
-`.trim();
+**FILE OUTPUT FORMAT - USE EXACTLY THIS:**
+<!-- FILE: index.html -->
+[full HTML content]
+
+<!-- FILE: about.html -->
+[full HTML content]
+
+<!-- FILE: styles.css -->
+[full CSS content]
+
+<!-- FILE: netlify.toml -->
+[config content]
+
+etc.
+
+🚨 CRITICAL: DO NOT GENERATE:
+- package.json (not needed)
+- src/ folder (not needed)
+- .js or .jsx files (all code goes in HTML <script type="text/babel">)
+- React Router imports (use regular <a href> links)
+- Any npm dependencies
+
+THIS IS A STATIC SITE THAT WORKS BY DROPPING FILES ON NETLIFY/VERCEL - NO BUILD!`.trim();
+
 
 // Image strategy - Basic (reliable random photos)
 const IMAGE_STRATEGY_BASIC = `
