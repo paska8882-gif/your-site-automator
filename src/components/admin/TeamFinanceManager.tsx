@@ -87,6 +87,10 @@ export function TeamFinanceManager({ teamId, teamName, currentBalance, members, 
   const [transactionToReverse, setTransactionToReverse] = useState<FinanceTransaction | null>(null);
   const [reversing, setReversing] = useState(false);
 
+  // Export dialog state
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportTypes, setExportTypes] = useState<string[]>(["generation", "appeal", "manual_add", "manual_subtract"]);
+
   // Data state
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -415,14 +419,50 @@ export function TeamFinanceManager({ teamId, teamName, currentBalance, members, 
     }
   };
 
+  // Transactions to export (filtered + by export type selection)
+  const transactionsToExport = useMemo(() => {
+    return filteredTransactions.filter(tx => exportTypes.includes(tx.type));
+  }, [filteredTransactions, exportTypes]);
+
+  const exportTotals = useMemo(() => {
+    return transactionsToExport.reduce(
+      (acc, tx) => {
+        if (tx.amount > 0) acc.income += tx.amount;
+        else acc.expense += Math.abs(tx.amount);
+        return acc;
+      },
+      { income: 0, expense: 0 }
+    );
+  }, [transactionsToExport]);
+
+  const openExportDialog = () => {
+    // Reset export types to match current filter
+    if (filterType !== "all") {
+      if (filterType === "generation") setExportTypes(["generation"]);
+      else if (filterType === "appeal") setExportTypes(["appeal"]);
+      else if (filterType === "manual") setExportTypes(["manual_add", "manual_subtract"]);
+    } else {
+      setExportTypes(["generation", "appeal", "manual_add", "manual_subtract"]);
+    }
+    setExportDialogOpen(true);
+  };
+
+  const toggleExportType = (type: string) => {
+    setExportTypes(prev => 
+      prev.includes(type) 
+        ? prev.filter(t => t !== type)
+        : [...prev, type]
+    );
+  };
+
   const exportToCSV = () => {
-    if (filteredTransactions.length === 0) {
+    if (transactionsToExport.length === 0) {
       toast({ title: "Немає даних", description: "Немає транзакцій для експорту", variant: "destructive" });
       return;
     }
 
     const headers = ["Дата", "Тип", "Опис", "Користувач", "Сума"];
-    const rows = filteredTransactions.map(tx => [
+    const rows = transactionsToExport.map(tx => [
       format(parseISO(tx.date), "dd.MM.yyyy HH:mm"),
       getTypeLabel(tx.type),
       tx.description.replace(/,/g, ";"),
@@ -432,9 +472,9 @@ export function TeamFinanceManager({ teamId, teamName, currentBalance, members, 
 
     // Add summary row
     rows.push([]);
-    rows.push(["", "", "", "Надходження:", `+${totals.income.toFixed(2)}`]);
-    rows.push(["", "", "", "Витрати:", `-${totals.expense.toFixed(2)}`]);
-    rows.push(["", "", "", "Баланс:", `${(totals.income - totals.expense).toFixed(2)}`]);
+    rows.push(["", "", "", "Надходження:", `+${exportTotals.income.toFixed(2)}`]);
+    rows.push(["", "", "", "Витрати:", `-${exportTotals.expense.toFixed(2)}`]);
+    rows.push(["", "", "", "Баланс:", `${(exportTotals.income - exportTotals.expense).toFixed(2)}`]);
 
     const csvContent = [
       headers.join(","),
@@ -450,7 +490,34 @@ export function TeamFinanceManager({ teamId, teamName, currentBalance, members, 
     link.click();
     document.body.removeChild(link);
 
-    toast({ title: "Експортовано", description: "Файл виписки завантажено" });
+    setExportDialogOpen(false);
+    toast({ title: "Експортовано", description: `Завантажено ${transactionsToExport.length} транзакцій` });
+  };
+
+  const getActiveFiltersDescription = () => {
+    const parts: string[] = [];
+    if (filterType !== "all") {
+      if (filterType === "generation") parts.push("Генерації");
+      else if (filterType === "appeal") parts.push("Апеляції");
+      else if (filterType === "manual") parts.push("Ручні операції");
+    }
+    if (filterBuyer !== "all") {
+      const member = members.find(m => m.user_id === filterBuyer);
+      parts.push(`Баєр: ${member?.display_name || filterBuyer.slice(0, 8)}`);
+    }
+    if (filterDatePreset >= 0) {
+      const preset = DATE_PRESETS.find(p => p.days === filterDatePreset);
+      if (preset) parts.push(preset.label);
+    } else if (filterDateFrom || filterDateTo) {
+      if (filterDateFrom && filterDateTo) {
+        parts.push(`${filterDateFrom} - ${filterDateTo}`);
+      } else if (filterDateFrom) {
+        parts.push(`Від ${filterDateFrom}`);
+      } else if (filterDateTo) {
+        parts.push(`До ${filterDateTo}`);
+      }
+    }
+    return parts.length > 0 ? parts.join(", ") : "Без фільтрів";
   };
 
   return (
@@ -489,12 +556,17 @@ export function TeamFinanceManager({ teamId, teamName, currentBalance, members, 
               Списати з балансу
             </Button>
             <Button 
-              onClick={exportToCSV} 
+              onClick={openExportDialog} 
               variant="outline"
               className="gap-2"
             >
               <Download className="h-4 w-4" />
               Експорт виписки
+              {hasActiveFilters && (
+                <Badge variant="secondary" className="text-[10px] ml-1">
+                  {filteredTransactions.length}
+                </Badge>
+              )}
             </Button>
             <Button 
               onClick={fetchAllTransactions} 
@@ -883,6 +955,108 @@ export function TeamFinanceManager({ teamId, teamName, currentBalance, members, 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Export Dialog */}
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Download className="h-5 w-5" />
+              Експорт виписки
+            </DialogTitle>
+            <DialogDescription>
+              Виберіть типи транзакцій для експорту
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {/* Active filters info */}
+            <div className="p-3 rounded bg-muted">
+              <div className="text-xs text-muted-foreground mb-1">Активні фільтри:</div>
+              <div className="text-sm font-medium">{getActiveFiltersDescription()}</div>
+            </div>
+
+            {/* Transaction type selection */}
+            <div className="space-y-2">
+              <Label className="text-sm">Типи транзакцій:</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant={exportTypes.includes("generation") ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => toggleExportType("generation")}
+                  className="justify-start"
+                >
+                  <ArrowDownCircle className="h-3 w-3 mr-2" />
+                  Генерації
+                </Button>
+                <Button
+                  variant={exportTypes.includes("appeal") ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => toggleExportType("appeal")}
+                  className="justify-start"
+                >
+                  <ArrowUpCircle className="h-3 w-3 mr-2" />
+                  Апеляції
+                </Button>
+                <Button
+                  variant={exportTypes.includes("manual_add") ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => toggleExportType("manual_add")}
+                  className="justify-start"
+                >
+                  <Plus className="h-3 w-3 mr-2" />
+                  Поповнення
+                </Button>
+                <Button
+                  variant={exportTypes.includes("manual_subtract") ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => toggleExportType("manual_subtract")}
+                  className="justify-start"
+                >
+                  <Minus className="h-3 w-3 mr-2" />
+                  Списання
+                </Button>
+              </div>
+            </div>
+
+            {/* Export preview */}
+            <div className="p-3 rounded border">
+              <div className="text-xs text-muted-foreground mb-2">Буде експортовано:</div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Транзакцій:</span>{" "}
+                  <span className="font-bold">{transactionsToExport.length}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Надходження:</span>{" "}
+                  <span className="font-bold text-green-600">+${exportTotals.income.toFixed(2)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Витрати:</span>{" "}
+                  <span className="font-bold text-red-600">-${exportTotals.expense.toFixed(2)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Баланс:</span>{" "}
+                  <span className="font-bold">${(exportTotals.income - exportTotals.expense).toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportDialogOpen(false)}>
+              Скасувати
+            </Button>
+            <Button 
+              onClick={exportToCSV} 
+              disabled={transactionsToExport.length === 0 || exportTypes.length === 0}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Експортувати ({transactionsToExport.length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
