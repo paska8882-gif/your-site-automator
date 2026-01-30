@@ -340,6 +340,9 @@ export const uk = {
     noTeam: "Ви не є учасником команди",
     awaitingApproval: "Очікує підтвердження",
     assignedRole: "Призначена роль",
+    creditLimit: "Кредитний ліміт",
+    creditLimitDesc: "Ви можете генерувати в кредит на суму до",
+    availableFunds: "Доступно коштів",
   },
 
   referral: {

@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Users, Wallet } from "lucide-react";
+import { Loader2, Users, Wallet, CreditCard } from "lucide-react";
 import { useBalanceSound } from "@/hooks/useBalanceSound";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRealtimeTable } from "@/contexts/RealtimeContext";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type TeamRole = "owner" | "team_lead" | "buyer" | "tech_dev";
 
@@ -11,6 +12,7 @@ interface TeamMembership {
   team_id: string;
   team_name: string;
   team_balance: number;
+  team_credit_limit: number;
   role: TeamRole;
 }
 
@@ -51,7 +53,7 @@ export function UserTeamInfo() {
     const teamIds = memberships.map(m => m.team_id);
     const { data: teamsData } = await supabase
       .from("teams")
-      .select("id, name, balance")
+      .select("id, name, balance, credit_limit")
       .in("id", teamIds);
 
     const teamMemberships: TeamMembership[] = memberships.map(m => {
@@ -62,6 +64,7 @@ export function UserTeamInfo() {
         team_id: m.team_id,
         team_name: team?.name || "Невідома команда",
         team_balance: balance,
+        team_credit_limit: team?.credit_limit || 0,
         role: m.role as TeamRole
       };
     });
@@ -80,6 +83,7 @@ export function UserTeamInfo() {
 
     const teamId = event.new.id as string;
     const newBalance = event.new.balance as number;
+    const newCreditLimit = event.new.credit_limit as number;
     const prevBalance = prevBalancesRef.current[teamId];
 
     setTeams(prev => {
@@ -103,7 +107,7 @@ export function UserTeamInfo() {
 
       return prev.map(team =>
         team.team_id === teamId
-          ? { ...team, team_balance: newBalance }
+          ? { ...team, team_balance: newBalance, team_credit_limit: newCreditLimit ?? team.team_credit_limit }
           : team
       );
     });
@@ -129,34 +133,69 @@ export function UserTeamInfo() {
     );
   }
 
+  // Calculate available funds (balance + credit limit)
+  const getAvailableFunds = (team: TeamMembership) => {
+    return team.team_balance + team.team_credit_limit;
+  };
+
   return (
-    <div className="border border-border">
-      {teams.map((team, idx) => (
-        <div 
-          key={team.team_id} 
-          className={`flex items-center justify-between p-4 ${idx > 0 ? 'border-t border-border' : ''}`}
-        >
-          <div className="flex items-center gap-3">
-            <Users className="h-5 w-5 text-muted-foreground" />
-            <div>
-              <div className="font-medium">{team.team_name}</div>
-              <div className="text-xs text-muted-foreground">{roleLabels[team.role]}</div>
+    <TooltipProvider>
+      <div className="border border-border">
+        {teams.map((team, idx) => (
+          <div 
+            key={team.team_id} 
+            className={`flex items-center justify-between p-4 ${idx > 0 ? 'border-t border-border' : ''}`}
+          >
+            <div className="flex items-center gap-3">
+              <Users className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <div className="font-medium">{team.team_name}</div>
+                <div className="text-xs text-muted-foreground">{roleLabels[team.role]}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {/* Balance display */}
+              <div 
+                className={`flex items-center gap-1 text-sm px-2 py-1 rounded ${
+                  animatingTeamId === team.team_id 
+                    ? balanceDirection === "positive" 
+                      ? "balance-changed" 
+                      : "balance-changed-negative"
+                    : ""
+                }`}
+              >
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+                <span className={`font-semibold ${team.team_balance < 0 ? "text-destructive" : ""}`}>
+                  ${team.team_balance.toFixed(2)}
+                </span>
+              </div>
+              
+              {/* Credit limit display - only show if > 0 */}
+              {team.team_credit_limit > 0 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 cursor-help">
+                      <CreditCard className="h-3.5 w-3.5" />
+                      <span className="font-medium">+${team.team_credit_limit.toFixed(0)}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <div className="space-y-1">
+                      <p className="font-medium">{t("team.creditLimit")}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t("team.creditLimitDesc")} ${team.team_credit_limit.toFixed(2)}
+                      </p>
+                      <p className="text-xs">
+                        {t("team.availableFunds")}: <strong>${getAvailableFunds(team).toFixed(2)}</strong>
+                      </p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              )}
             </div>
           </div>
-          <div 
-            className={`flex items-center gap-1 text-sm px-2 py-1 rounded ${
-              animatingTeamId === team.team_id 
-                ? balanceDirection === "positive" 
-                  ? "balance-changed" 
-                  : "balance-changed-negative"
-                : ""
-            }`}
-          >
-            <Wallet className="h-4 w-4 text-muted-foreground" />
-            <span className="font-semibold">${team.team_balance.toFixed(2)}</span>
-          </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </TooltipProvider>
   );
 }
