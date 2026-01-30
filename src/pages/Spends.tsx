@@ -93,7 +93,9 @@ const Spends = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
 
-  const toggleRow = (id: string) => {
+  const toggleRow = async (id: string) => {
+    const isExpanding = !expandedRows.has(id);
+    
     setExpandedRows(prev => {
       const newSet = new Set(prev);
       if (newSet.has(id)) {
@@ -103,6 +105,11 @@ const Spends = () => {
       }
       return newSet;
     });
+
+    // Lazy load files_data when expanding
+    if (isExpanding) {
+      loadFilesData(id);
+    }
   };
 
   const toggleSelectItem = (id: string, e: React.MouseEvent) => {
@@ -151,9 +158,10 @@ const Spends = () => {
   const fetchGenerations = async () => {
     if (!user) return;
 
+    // DON'T fetch files_data - it's huge and not needed for the list view
     const { data: genData, error: genError } = await supabase
       .from("generation_history")
-      .select("id, number, prompt, improved_prompt, site_name, language, website_type, ai_model, specific_ai_model, created_at, completed_at, status, files_data, sale_price")
+      .select("id, number, prompt, improved_prompt, site_name, language, website_type, ai_model, specific_ai_model, created_at, completed_at, status, sale_price")
       .eq("user_id", user.id)
       .eq("status", "completed")
       .order("created_at", { ascending: false });
@@ -188,7 +196,7 @@ const Spends = () => {
 
     const combined: GenerationWithSpend[] = (genData || []).map(g => ({
       ...g,
-      files_data: (Array.isArray(g.files_data) ? g.files_data as unknown as GeneratedFile[] : null),
+      files_data: null, // Don't load files_data in initial fetch - load on demand
       spend_id: spendsMap[g.id]?.id || null,
       spend_amount: spendsMap[g.id]?.spend_amount || 0,
       spend_notes: spendsMap[g.id]?.notes || null,
@@ -207,6 +215,26 @@ const Spends = () => {
     setEditedSpends(initial);
     
     setLoading(false);
+  };
+
+  // Lazy load files_data only when row is expanded
+  const loadFilesData = async (generationId: string) => {
+    const gen = generations.find(g => g.id === generationId);
+    if (gen?.files_data) return; // Already loaded
+
+    const { data } = await supabase
+      .from("generation_history")
+      .select("files_data")
+      .eq("id", generationId)
+      .single();
+
+    if (data?.files_data) {
+      setGenerations(prev => prev.map(g => 
+        g.id === generationId 
+          ? { ...g, files_data: Array.isArray(data.files_data) ? data.files_data as unknown as GeneratedFile[] : null }
+          : g
+      ));
+    }
   };
 
   const fetchSpendSets = async () => {
