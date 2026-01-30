@@ -310,13 +310,111 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 img { max-width: 100%; height: auto; }
-a { text-decoration: none; }
+a { text-decoration: none; color: inherit; }
 
 /* Fix common layout issues */
-.container { max-width: 1200px; margin: 0 auto; padding: 0 15px; }
+.container { max-width: 1200px; margin: 0 auto; padding: 0 15px; width: 100%; }
 section { overflow: hidden; }
+
+/* ===== HEADER / NAVIGATION CRITICAL FIXES ===== */
+/* These ensure header elements display horizontally, not vertically */
+
+header, .header, .site-header, .main-header, [class*="header"] {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+}
+
+header .container, .header .container, .site-header .container, .main-header .container {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+/* Top bar with phone/contact info */
+.top-bar, .topbar, .header-top, .top-header, [class*="top-bar"], [class*="topbar"], 
+.contact-bar, .info-bar, .header-info {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.top-bar .container, .topbar .container, .header-top .container {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+/* Navigation */
+nav, .nav, .navigation, .main-nav, .site-nav, [class*="nav-"] {
+  display: flex !important;
+  align-items: center;
+}
+
+nav ul, .nav ul, .navigation ul, .nav-menu, .menu, .nav-links, 
+ul.nav, ul.menu, ul.navigation, [class*="nav-"] ul {
+  display: flex !important;
+  align-items: center;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex-wrap: wrap;
+}
+
+nav ul li, .nav ul li, .menu li, .nav-menu li, .nav-links li {
+  display: inline-flex !important;
+  align-items: center;
+}
+
+nav ul li a, .nav ul li a, .menu li a, .nav-links a, .nav-menu a {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  white-space: nowrap;
+}
+
+/* Logo area */
+.logo, .site-logo, .brand, .navbar-brand, [class*="logo"] {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.logo img, .site-logo img, .brand img, .navbar-brand img {
+  max-height: 50px;
+  width: auto;
+  object-fit: contain;
+}
+
+/* Header CTA/buttons */
+.header-cta, .header-buttons, .nav-cta, .header-actions, .header-right {
+  display: flex !important;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+/* Phone in header */
+.header-phone, .phone-number, [class*="phone"], a[href^="tel:"] {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+/* ===== END HEADER FIXES ===== */
 
 /* Google Maps container - responsive and styled */
 .map-container, .map-wrapper, .google-map, [class*="map-section"] {
@@ -341,6 +439,30 @@ iframe[src*="google.com/maps"], iframe[src*="maps.google"] {
   border: none;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Footer fixes */
+footer, .footer, .site-footer, .main-footer {
+  width: 100%;
+}
+
+footer .container, .footer .container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+}
+
+/* Responsive: stack on mobile */
+@media (max-width: 768px) {
+  header .container, .header .container, nav ul, .nav ul, .menu {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  .header-cta, .header-buttons, .nav-cta {
+    margin-left: 0;
+    margin-top: 0.5rem;
+  }
 }
 </style>
 `;
