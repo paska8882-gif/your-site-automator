@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays, startOfDay, endOfDay, isWithinInterval, parseISO } from "date-fns";
@@ -24,9 +25,9 @@ import {
   ArrowUpCircle,
   ArrowDownCircle,
   RefreshCw,
-  Calendar,
-  User,
-  ChevronDown
+  ChevronDown,
+  Download,
+  RotateCcw
 } from "lucide-react";
 
 interface TeamMember {
@@ -37,6 +38,7 @@ interface TeamMember {
 
 interface FinanceTransaction {
   id: string;
+  originalId?: string;
   type: "generation" | "refund" | "appeal" | "manual_add" | "manual_subtract";
   amount: number;
   description: string;
@@ -45,6 +47,7 @@ interface FinanceTransaction {
   user_name?: string;
   balance_after?: number;
   site_name?: string;
+  canReverse?: boolean;
 }
 
 interface DatePreset {
@@ -78,6 +81,11 @@ export function TeamFinanceManager({ teamId, teamName, currentBalance, members, 
   const [adjustAmount, setAdjustAmount] = useState("");
   const [adjustNote, setAdjustNote] = useState("");
   const [adjusting, setAdjusting] = useState(false);
+
+  // Reverse transaction state
+  const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
+  const [transactionToReverse, setTransactionToReverse] = useState<FinanceTransaction | null>(null);
+  const [reversing, setReversing] = useState(false);
 
   // Data state
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
@@ -156,7 +164,8 @@ export function TeamFinanceManager({ teamId, teamName, currentBalance, members, 
             date: gen.created_at,
             user_id: gen.user_id || undefined,
             user_name: profileMap.get(gen.user_id || "") || "Невідомий",
-            site_name: gen.site_name || undefined
+            site_name: gen.site_name || undefined,
+            canReverse: false
           });
         }
       });
@@ -172,21 +181,25 @@ export function TeamFinanceManager({ teamId, teamName, currentBalance, members, 
             date: appeal.resolved_at || appeal.created_at,
             user_id: appeal.user_id,
             user_name: profileMap.get(appeal.user_id) || "Невідомий",
-            site_name: genMap.get(appeal.generation_id) || undefined
+            site_name: genMap.get(appeal.generation_id) || undefined,
+            canReverse: false
           });
         }
       });
 
       // Add balance transactions
       balanceTx?.forEach(tx => {
+        const isReversal = tx.note.startsWith("[СТОРНО]");
         txList.push({
           id: `tx-${tx.id}`,
+          originalId: tx.id,
           type: tx.amount >= 0 ? "manual_add" : "manual_subtract",
           amount: tx.amount,
           description: tx.note,
           date: tx.created_at,
           user_name: profileMap.get(tx.admin_id) || "Адмін",
-          balance_after: tx.balance_after
+          balance_after: tx.balance_after,
+          canReverse: !isReversal
         });
       });
 
@@ -258,6 +271,60 @@ export function TeamFinanceManager({ teamId, teamName, currentBalance, members, 
     } finally {
       setAdjusting(false);
     }
+  };
+
+  const handleReverseTransaction = async () => {
+    if (!transactionToReverse || !transactionToReverse.originalId) return;
+
+    setReversing(true);
+
+    try {
+      // Reverse the amount (opposite sign)
+      const reverseAmount = -transactionToReverse.amount;
+      const newBalance = currentBalance + reverseAmount;
+
+      // Update team balance
+      const { error: updateError } = await supabase
+        .from("teams")
+        .update({ balance: newBalance })
+        .eq("id", teamId);
+
+      if (updateError) throw updateError;
+
+      // Create reversal transaction record
+      const { error: txError } = await supabase
+        .from("balance_transactions")
+        .insert({
+          team_id: teamId,
+          amount: reverseAmount,
+          balance_before: currentBalance,
+          balance_after: newBalance,
+          note: `[СТОРНО] ${transactionToReverse.description}`,
+          admin_id: user?.id || ""
+        });
+
+      if (txError) throw txError;
+
+      toast({ 
+        title: "Сторновано", 
+        description: `Транзакцію на ${transactionToReverse.amount >= 0 ? "+" : ""}$${transactionToReverse.amount.toFixed(2)} сторновано` 
+      });
+
+      setReverseDialogOpen(false);
+      setTransactionToReverse(null);
+      onBalanceChange();
+      fetchAllTransactions();
+    } catch (error) {
+      console.error("Error reversing transaction:", error);
+      toast({ title: "Помилка", description: "Не вдалося сторнувати транзакцію", variant: "destructive" });
+    } finally {
+      setReversing(false);
+    }
+  };
+
+  const openReverseDialog = (tx: FinanceTransaction) => {
+    setTransactionToReverse(tx);
+    setReverseDialogOpen(true);
   };
 
   const openAdjustDialog = (type: "add" | "subtract") => {
@@ -348,6 +415,44 @@ export function TeamFinanceManager({ teamId, teamName, currentBalance, members, 
     }
   };
 
+  const exportToCSV = () => {
+    if (filteredTransactions.length === 0) {
+      toast({ title: "Немає даних", description: "Немає транзакцій для експорту", variant: "destructive" });
+      return;
+    }
+
+    const headers = ["Дата", "Тип", "Опис", "Користувач", "Сума"];
+    const rows = filteredTransactions.map(tx => [
+      format(parseISO(tx.date), "dd.MM.yyyy HH:mm"),
+      getTypeLabel(tx.type),
+      tx.description.replace(/,/g, ";"),
+      tx.user_name || "-",
+      tx.amount.toFixed(2)
+    ]);
+
+    // Add summary row
+    rows.push([]);
+    rows.push(["", "", "", "Надходження:", `+${totals.income.toFixed(2)}`]);
+    rows.push(["", "", "", "Витрати:", `-${totals.expense.toFixed(2)}`]);
+    rows.push(["", "", "", "Баланс:", `${(totals.income - totals.expense).toFixed(2)}`]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.join(","))
+    ].join("\n");
+
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${teamName}_finance_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({ title: "Експортовано", description: "Файл виписки завантажено" });
+  };
+
   return (
     <div className="space-y-4">
       {/* Balance Actions Card */}
@@ -382,6 +487,14 @@ export function TeamFinanceManager({ teamId, teamName, currentBalance, members, 
             >
               <Minus className="h-4 w-4" />
               Списати з балансу
+            </Button>
+            <Button 
+              onClick={exportToCSV} 
+              variant="outline"
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Експорт виписки
             </Button>
             <Button 
               onClick={fetchAllTransactions} 
@@ -578,11 +691,12 @@ export function TeamFinanceManager({ teamId, teamName, currentBalance, members, 
                     <TableHead className="text-xs">Опис</TableHead>
                     <TableHead className="text-xs">Користувач</TableHead>
                     <TableHead className="text-xs text-right">Сума</TableHead>
+                    <TableHead className="text-xs w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredTransactions.slice(0, 200).map((tx) => (
-                    <TableRow key={tx.id}>
+                    <TableRow key={tx.id} className={tx.description.startsWith("[СТОРНО]") ? "opacity-60" : ""}>
                       <TableCell className="text-xs whitespace-nowrap">
                         {format(parseISO(tx.date), "dd.MM.yyyy HH:mm", { locale: ukLocale })}
                       </TableCell>
@@ -602,6 +716,19 @@ export function TeamFinanceManager({ teamId, teamName, currentBalance, members, 
                       </TableCell>
                       <TableCell className={`text-xs font-medium text-right ${tx.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
                         {tx.amount >= 0 ? "+" : ""}{tx.amount.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {tx.canReverse && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => openReverseDialog(tx)}
+                            title="Сторнувати транзакцію"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -704,6 +831,58 @@ export function TeamFinanceManager({ teamId, teamName, currentBalance, members, 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Reverse Transaction Dialog */}
+      <AlertDialog open={reverseDialogOpen} onOpenChange={setReverseDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5" />
+              Сторнувати транзакцію?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {transactionToReverse && (
+                <div className="mt-2 space-y-2">
+                  <p>Ви збираєтесь сторнувати транзакцію:</p>
+                  <div className="p-3 rounded bg-muted">
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Опис:</span>{" "}
+                      <span className="font-medium">{transactionToReverse.description}</span>
+                    </div>
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Сума:</span>{" "}
+                      <span className={`font-medium ${transactionToReverse.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {transactionToReverse.amount >= 0 ? "+" : ""}${transactionToReverse.amount.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="text-sm border-t mt-2 pt-2">
+                      <span className="text-muted-foreground">Буде створено зворотню транзакцію:</span>{" "}
+                      <span className={`font-bold ${-transactionToReverse.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {-transactionToReverse.amount >= 0 ? "+" : ""}${(-transactionToReverse.amount).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Скасувати</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleReverseTransaction}
+              disabled={reversing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {reversing ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <RotateCcw className="h-4 w-4 mr-2" />
+              )}
+              Сторнувати
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
