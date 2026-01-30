@@ -324,6 +324,9 @@ export const ru = {
     noTeam: "Вы не являетесь участником команды",
     awaitingApproval: "Ожидает подтверждения",
     assignedRole: "Назначенная роль",
+    creditLimit: "Кредитный лимит",
+    creditLimitDesc: "Вы можете генерировать в кредит на сумму до",
+    availableFunds: "Доступно средств",
   },
 
   referral: {
