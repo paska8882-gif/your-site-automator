@@ -1,134 +1,81 @@
 
-# План: Виправлення проблеми з деплоєм React сайтів
+# План: Виправлення превью React сайтів
 
 ## Виявлена проблема
 
-React сайти генеруються як **Create React App** проєкти, які потребують збірки (`npm run build`) перед деплоєм. Це створює проблему для користувачів:
+`FilePreview.tsx` використовує застарілу логіку `buildReactPreviewHtml` яка:
+1. Шукає `App.js` / `.jsx` файли - яких немає в CDN React
+2. Видобуває код компонентів з окремих JS файлів - яких немає
+3. Намагається запустити `window.App` - який не існує
+4. Виводить "App component not found" замість контенту
 
-- ZIP містить вихідний код, а не готовий сайт
-- Потрібен Node.js та npm для збірки
-- Хостинг на простих платформах (без build-процесу) неможливий
-- HTML сайти працюють "з коробки", а React - ні
+CDN-based React сайти мають:
+- `index.html` з інлайн `<script type="text/babel">` блоками
+- Все працює одразу без трансформацій
+- Ніяких окремих `.js`/`.jsx` файлів
 
-## Технічні деталі поточної реалізації
+## Технічне рішення
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│           Поточна структура React-сайту (проблемна)         │
-├─────────────────────────────────────────────────────────────┤
-│  package.json          ← react-scripts 5.0.1               │
-│  public/index.html     ← %PUBLIC_URL% шаблони              │
-│  src/index.js          ← JSX код                           │
-│  src/App.js            ← React Router, компоненти          │
-│  src/pages/*.js        ← Сторінки з JSX                    │
-│  netlify.toml          ← "npm run build" ← потребує Node   │
-│  vercel.json           ← "npm run build" ← потребує Node   │
-└─────────────────────────────────────────────────────────────┘
-                         │
-                         ▼
-            Для деплою потрібно:
-            1. npm install
-            2. npm run build
-            3. Завантажити папку /build
+### Файл 1: `src/components/FilePreview.tsx`
+
+Переписати функцію `buildReactPreviewHtml` з повною підтримкою CDN-based React:
+
+```typescript
+function buildReactPreviewHtml(files: GeneratedFile[]): string {
+  // Check for CDN-based React - standalone HTML with inline React
+  const htmlFile = files.find(f => f.path === "index.html") ||
+                   files.find(f => f.path.endsWith(".html"));
+  
+  if (!htmlFile) {
+    return buildLegacyReactPreview(files);
+  }
+  
+  // Check if this is CDN React (has unpkg.com/react or text/babel)
+  const isCdnReact = htmlFile.content.includes('unpkg.com/react') || 
+                     htmlFile.content.includes('text/babel');
+  
+  if (isCdnReact) {
+    // CDN React: return HTML as-is with CSS injected
+    let html = htmlFile.content;
+    
+    // Inject styles.css if exists and not already in HTML
+    const cssFile = files.find(f => f.path === "styles.css");
+    if (cssFile && !html.includes('<link rel="stylesheet" href="styles.css"')) {
+      // Inline the CSS
+      const styleTag = `<style>${cssFile.content}</style>`;
+      html = html.replace('</head>', `${styleTag}</head>`);
+    }
+    
+    return html;
+  }
+  
+  // Legacy CRA-style React
+  return buildLegacyReactPreview(files);
+}
+
+// Move current logic to buildLegacyReactPreview (for backwards compatibility)
+function buildLegacyReactPreview(files: GeneratedFile[]): string {
+  // ... existing code that handles App.js etc
+}
 ```
 
-## Пропоновані варіанти рішення
+Також в `getPreviewContent()`:
+- Для CDN React сайтів: просто повертати HTML файл з інлайновим CSS
+- Не намагатися "збирати" React компоненти
 
-### Варіант A: CDN-підхід (React без збірки) ⭐ Рекомендований
+## Очікуваний результат
 
-Переробити генерацію щоб використовувати React через CDN:
+1. CDN-based React сайти відображаються коректно в превью
+2. Backward compatibility з CRA-style React проєктами
+3. Коректна робота CSS стилів
+4. Усунення помилки "App component not found"
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│           Нова структура React-сайту (CDN-based)            │
-├─────────────────────────────────────────────────────────────┤
-│  index.html                                                 │
-│    └── <script src="react.cdn">                             │
-│    └── <script src="react-dom.cdn">                         │
-│    └── <script src="react-router.cdn">                      │
-│    └── <script type="text/babel">App code</script>          │
-│  about.html                                                 │
-│  services.html                                              │
-│  contact.html                                               │
-│  styles.css                                                 │
-│  netlify.toml          ← publish = "." (без build)          │
-└─────────────────────────────────────────────────────────────┘
-```
+## Файли для редагування
 
-**Переваги:**
-- Працює відразу без збірки
-- Простий деплой як HTML-сайт
-- Зберігає можливості React (компоненти, стейт)
-
-**Недоліки:**
-- Трохи повільніше завантаження
-- Обмежені можливості (немає npm-пакетів)
-
-### Варіант B: Vite замість CRA
-
-Переробити на Vite - більш швидкий і сучасний:
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│              Vite-структура React-сайту                     │
-├─────────────────────────────────────────────────────────────┤
-│  package.json          ← vite, @vitejs/plugin-react         │
-│  vite.config.js                                             │
-│  index.html            ← <script type="module" src="main">  │
-│  src/main.jsx          ← Entry point                        │
-│  src/App.jsx           ← .jsx розширення                    │
-│  src/pages/*.jsx                                            │
-│  netlify.toml          ← "npm run build"                    │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Переваги:**
-- Сучасний стек
-- Швидша збірка
-- Більше можливостей
-
-**Недоліки:**
-- Все ще потребує build-процес
-- Потрібен Node.js
-
-### Варіант C: Pre-build на сервері
-
-Після генерації виконати збірку на сервері та повертати готовий `/build`:
-
-**Переваги:**
-- Користувач отримує готовий до деплою сайт
-
-**Недоліки:**
-- Значно складніша інфраструктура
-- Більший час генерації
-- Потрібен сервер з Node.js
-
-## Рекомендований план дій
-
-1. **Короткострокове рішення**: 
-   - Додати чітку інструкцію для користувача в UI при завантаженні React-сайту
-   - Пояснити кроки: `npm install` → `npm run build` → завантажити `/build`
-
-2. **Середньострокове рішення (Варіант A)**:
-   - Переробити промпт генерації на CDN-підхід
-   - React/ReactDOM/React-Router через CDN
-   - Babel in-browser для JSX
-   - Мульти-сторінковий HTML (кожна сторінка - окремий файл)
-
-3. **Довгострокове рішення (Варіант B або C)**:
-   - Міграція на Vite
-   - Або інтеграція build-процесу на сервері
-
-## Файли для зміни
-
-| Файл | Опис зміни |
-|------|------------|
-| `supabase/functions/generate-react-website/index.ts` | Повна переробка промпту та структури файлів |
-| `src/components/WebsiteGenerator.tsx` | Додати попередження/інструкцію для React |
-| `src/components/GenerationHistory.tsx` | Відображати інструкцію по деплою для React |
+| Файл | Зміна |
+|------|-------|
+| `src/components/FilePreview.tsx` | Переписати `buildReactPreviewHtml` + оновити `getPreviewContent` |
 
 ## Обсяг роботи
 
-- **Варіант A (CDN)**: ~4-6 годин на переробку промпту та тестування
-- **Варіант B (Vite)**: ~2-3 години (менші зміни)
-- **Інструкція**: ~30 хвилин
+~30 хвилин на переписання логіки та тестування
