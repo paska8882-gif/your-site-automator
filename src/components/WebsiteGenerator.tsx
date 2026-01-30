@@ -1574,7 +1574,6 @@ export function WebsiteGenerator() {
       });
       return;
     }
-    }
 
     // Show confirmation if more than 10 sites
     if (totalGenerations > 10) {
@@ -3111,8 +3110,8 @@ export function WebsiteGenerator() {
             {/* Standard Mode Options - show for non-admins OR when admin selects standard mode */}
             {(!isAdmin || adminGenerationMode === "standard") && (
               <>
-            {/* Compact row: Language, Style, Geo, Quantity - hide Language & Geo when VIP mode is active */}
-            <div className={`grid grid-cols-1 gap-2 ${isVipMode || isBilingualMode ? 'sm:grid-cols-2' : 'sm:grid-cols-4'}`}>
+                {/* Compact row: Language, Style, Geo, Quantity - hide Language & Geo when VIP mode is active */}
+                <div className={`grid grid-cols-1 gap-2 ${isVipMode || isBilingualMode ? 'sm:grid-cols-2' : 'sm:grid-cols-4'}`}>
               {/* Language Multi-Select Dropdown - hide in VIP mode and bilingual mode */}
               {!isVipMode && !isBilingualMode && (
               <div className="space-y-1.5">
@@ -3537,8 +3536,8 @@ export function WebsiteGenerator() {
             {/* Standard mode: Preset + Generate Button in one row */}
             {(!isAdmin || adminGenerationMode === "standard") && (
               <>
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
                 {/* Generate Button - left side */}
                 <Button
                   onClick={handleGenerateClick}
@@ -3669,8 +3668,8 @@ export function WebsiteGenerator() {
                     {t("genForm.creditLimitExceeded")}: {t("genForm.balance")} ${teamPricing.balance.toFixed(2)}, {t("genForm.fundsNeeded")} ${calculateTotalCost().toFixed(2)}, {t("genForm.creditLimit")} ${effectiveCreditLimit.toFixed(2)}
                   </p>
                 )}
-              </div>
-            </div>
+                  </div>
+                </div>
 
             {/* Cost breakdown */}
             {teamPricing && totalGenerations > 0 && (
