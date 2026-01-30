@@ -16,6 +16,12 @@ interface DatabaseStats {
   oldWithZip: number;
   oldWithFiles: number;
   oldestRecord: string | null;
+  // Storage stats
+  totalSize: string;
+  tablesSize: string;
+  generationHistorySize: string;
+  zipDataSize: string;
+  tableCount: number;
 }
 
 interface CleanupResult {
@@ -71,53 +77,52 @@ export function AdminDatabaseTab() {
   const fetchStats = async () => {
     setLoading(true);
     try {
-      // Get total count
-      const { count: totalGenerations } = await supabase
-        .from("generation_history")
-        .select("*", { count: "exact", head: true });
+      // Parallel fetch all counts
+      const [
+        totalResult,
+        withZipResult,
+        withFilesResult,
+        oldWithZipResult,
+        oldWithFilesResult,
+        oldestResult
+      ] = await Promise.all([
+        supabase.from("generation_history").select("*", { count: "exact", head: true }),
+        supabase.from("generation_history").select("*", { count: "exact", head: true }).not("zip_data", "is", null),
+        supabase.from("generation_history").select("*", { count: "exact", head: true }).not("files_data", "is", null),
+        supabase.from("generation_history").select("*", { count: "exact", head: true })
+          .lt("created_at", new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
+          .not("zip_data", "is", null),
+        supabase.from("generation_history").select("*", { count: "exact", head: true })
+          .lt("created_at", new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
+          .not("files_data", "is", null),
+        supabase.from("generation_history").select("created_at").order("created_at", { ascending: true }).limit(1).single()
+      ]);
 
-      // Get count with zip_data
-      const { count: withZipData } = await supabase
-        .from("generation_history")
-        .select("*", { count: "exact", head: true })
-        .not("zip_data", "is", null);
-
-      // Get count with files_data
-      const { count: withFilesData } = await supabase
-        .from("generation_history")
-        .select("*", { count: "exact", head: true })
-        .not("files_data", "is", null);
-
-      // Get old records with zip_data (>14 days)
-      const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+      // Fetch storage stats via RPC (server-side calculation)
+      const { data: storageData } = await supabase.rpc('get_database_storage_stats' as any);
       
-      const { count: oldWithZip } = await supabase
-        .from("generation_history")
-        .select("*", { count: "exact", head: true })
-        .lt("created_at", twoWeeksAgo)
-        .not("zip_data", "is", null);
-
-      const { count: oldWithFiles } = await supabase
-        .from("generation_history")
-        .select("*", { count: "exact", head: true })
-        .lt("created_at", twoWeeksAgo)
-        .not("files_data", "is", null);
-
-      // Get oldest record
-      const { data: oldestData } = await supabase
-        .from("generation_history")
-        .select("created_at")
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .single();
+      // Default storage values if RPC doesn't exist yet
+      const storage = storageData || {
+        total_size: 'N/A',
+        tables_size: 'N/A', 
+        generation_history_size: 'N/A',
+        zip_data_size: 'N/A',
+        table_count: 0
+      };
 
       setStats({
-        totalGenerations: totalGenerations || 0,
-        withZipData: withZipData || 0,
-        withFilesData: withFilesData || 0,
-        oldWithZip: oldWithZip || 0,
-        oldWithFiles: oldWithFiles || 0,
-        oldestRecord: oldestData?.created_at || null,
+        totalGenerations: totalResult.count || 0,
+        withZipData: withZipResult.count || 0,
+        withFilesData: withFilesResult.count || 0,
+        oldWithZip: oldWithZipResult.count || 0,
+        oldWithFiles: oldWithFilesResult.count || 0,
+        oldestRecord: oldestResult.data?.created_at || null,
+        // Storage stats
+        totalSize: storage.total_size || 'N/A',
+        tablesSize: storage.tables_size || 'N/A',
+        generationHistorySize: storage.generation_history_size || 'N/A',
+        zipDataSize: storage.zip_data_size || 'N/A',
+        tableCount: storage.table_count || 0,
       });
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -268,11 +273,41 @@ export function AdminDatabaseTab() {
         </Card>
       </div>
 
+      {/* Storage Size Info */}
+      <Card className="border-primary/30 bg-primary/5">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <HardDrive className="h-5 w-5 text-primary" />
+            Розмір сховища
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center p-4 bg-background rounded-lg border">
+              <div className="text-2xl font-bold text-primary">{stats?.totalSize || 'N/A'}</div>
+              <div className="text-xs text-muted-foreground mt-1">Загальний розмір БД</div>
+            </div>
+            <div className="text-center p-4 bg-background rounded-lg border">
+              <div className="text-2xl font-bold">{stats?.generationHistorySize || 'N/A'}</div>
+              <div className="text-xs text-muted-foreground mt-1">generation_history</div>
+            </div>
+            <div className="text-center p-4 bg-background rounded-lg border border-amber-500/30">
+              <div className="text-2xl font-bold text-amber-600">{stats?.zipDataSize || 'N/A'}</div>
+              <div className="text-xs text-muted-foreground mt-1">ZIP дані</div>
+            </div>
+            <div className="text-center p-4 bg-background rounded-lg border">
+              <div className="text-2xl font-bold">{stats?.tableCount || 0}</div>
+              <div className="text-xs text-muted-foreground mt-1">Таблиць</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Additional Info */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <HardDrive className="h-5 w-5" />
+            <Database className="h-5 w-5" />
             Інформація про сховище
           </CardTitle>
         </CardHeader>

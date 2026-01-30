@@ -1113,6 +1113,16 @@ export type Database = {
     }
     Functions: {
       decrement_active_generations: { Args: never; Returns: undefined }
+      get_database_storage_stats: {
+        Args: never
+        Returns: {
+          generation_history_size: string
+          table_count: number
+          tables_size: string
+          total_size: string
+          zip_data_size: string
+        }[]
+      }
       get_task_indicators: {
         Args: { p_user_id: string }
         Returns: {
