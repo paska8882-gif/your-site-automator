@@ -3735,6 +3735,40 @@ https://maps.google.com/maps?q=CITY+COUNTRY&t=&z=13&ie=UTF8&iwloc=&output=embed
 You are creating a PREMIUM, AGENCY-QUALITY website that looks like it cost $5,000+ to build.
 The design must be EXCEPTIONAL - think award-winning agency work, not template garbage.
 
+**🚨🚨🚨 CRITICAL HTML STRUCTURE REQUIREMENTS - MUST FOLLOW EXACTLY 🚨🚨🚨**
+
+Every HTML page MUST have proper semantic structure with these MANDATORY elements:
+
+1. **HEADER with NAVIGATION** - Every page MUST have:
+   - Sticky <header> element with .navbar or .header class
+   - Logo/site name link to index.php
+   - <nav> with links to ALL main pages (Home, About, Services, Contact)
+   - Mobile hamburger menu button with .nav-toggle or .hamburger-menu class
+   
+2. **MAIN CONTENT AREA** - Each page MUST have:
+   - Clear section structure with <section> elements
+   - Proper .container wrapper for content (max-width: 1200px)
+   - Visual hierarchy with headings (h1, h2, h3)
+   - Sufficient padding and spacing (use 80px section padding)
+   
+3. **FOOTER** - Every page MUST have complete footer with:
+   - 4-column grid layout (Brand, Links, Services, Contact)
+   - Company name/logo
+   - Navigation links
+   - Contact info: Address, Phone (clickable tel: link), Email (clickable mailto: link)
+   - Business hours (two-line format)
+   - Copyright notice
+   - Legal links (Privacy, Terms, Cookie Policy)
+
+**⛔ LAYOUT FAILURES TO AVOID:**
+- NEVER create pages without <header> navigation
+- NEVER create pages without <footer>
+- NEVER use tiny fonts (minimum body: 16px, minimum h1: 32px)
+- NEVER leave sections without proper spacing (min 60px padding)
+- NEVER create broken grids - use CSS Grid/Flexbox properly
+- NEVER forget the .container wrapper (prevents full-width chaos)
+- NEVER use fixed heights on text containers (use min-height instead)
+
 **⚠️ MANDATORY MULTI-PAGE REQUIREMENT - NON-NEGOTIABLE:**
 You MUST create a MINIMUM of 6 SEPARATE PHP PAGE FILES. This is ABSOLUTELY REQUIRED:
 
@@ -5915,33 +5949,33 @@ ACCENT COLOR: ${schemeColors.accent} (highlights and CTAs)
     "includes/footer.php",
     "index.php",
     "about.php",
-    "services.php",         // Added
+    "services.php",
     "contact.php",
     "form-handler.php",
     "thank-you.php",
     "privacy.php",
     "terms.php",
-    "cookie-policy.php",    // Added
+    "cookie-policy.php",
     "css/style.css",
     "js/script.js",
   ];
 
-  // Minimum content thresholds per file type (bytes) to detect "empty" pages
+  // Minimum content thresholds per file type (bytes) - INCREASED for better quality
   const MIN_CONTENT_LENGTH: Record<string, number> = {
-    "includes/config.php": 100,
-    "includes/header.php": 300,
-    "includes/footer.php": 200,
-    "index.php": 800,
-    "about.php": 600,
-    "services.php": 600,
-    "contact.php": 500,
-    "form-handler.php": 100,
-    "thank-you.php": 200,
-    "privacy.php": 1000,
-    "terms.php": 1000,
-    "cookie-policy.php": 800,
-    "css/style.css": 500,
-    "js/script.js": 50,
+    "includes/config.php": 200,
+    "includes/header.php": 600,
+    "includes/footer.php": 500,
+    "index.php": 2000,
+    "about.php": 1500,
+    "services.php": 1500,
+    "contact.php": 1200,
+    "form-handler.php": 150,
+    "thank-you.php": 400,
+    "privacy.php": 2000,
+    "terms.php": 2500,
+    "cookie-policy.php": 1500,
+    "css/style.css": 8000,
+    "js/script.js": 100,
   };
 
   const validateFiles = (files: GeneratedFile[]) => {
@@ -6302,8 +6336,9 @@ Generate complete, working code. No placeholders.${strictFormatBlock}`;
   // ============ CSS QUALITY ENFORCEMENT FOR PHP SITES ============
   // Ensure css/style.css has proper quality and all required styles
   const ensureQualityCSS = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
-    const MINIMUM_CSS_LINES = 400;
-    const MINIMUM_QUALITY_SCORE = 5;
+    const MINIMUM_CSS_LINES = 500;
+    const MINIMUM_CSS_CHARS = 18000;
+    const MINIMUM_QUALITY_SCORE = 6;
     
     // 30 color schemes for variety
     const COLOR_SCHEMES = [
@@ -6836,7 +6871,7 @@ tbody tr:hover { background: var(--bg-light); }
     };
     
     const qualityScore = Object.values(qualityIndicators).filter(Boolean).length;
-    const hasMinimumLength = lineCount >= MINIMUM_CSS_LINES || charCount >= 12000;
+    const hasMinimumLength = lineCount >= MINIMUM_CSS_LINES || charCount >= MINIMUM_CSS_CHARS;
     
     console.log(`📊 PHP CSS Quality: ${lineCount} lines, ${charCount} chars, score: ${qualityScore}/8`);
     
@@ -6852,6 +6887,121 @@ tbody tr:hover { background: var(--bg-light); }
     }
     
     console.log(`✅ PHP CSS quality sufficient - no enhancement needed`);
+    return generatedFiles;
+  };
+
+  // ============ HTML STRUCTURE QUALITY ENFORCEMENT ============
+  // Ensure all PHP pages have proper structure: header, footer, container, navigation
+  const ensureHtmlStructureQuality = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
+    const warnings: string[] = [];
+    
+    // Check if header.php and footer.php have proper content
+    const headerFile = generatedFiles.find(f => f.path === 'includes/header.php');
+    const footerFile = generatedFiles.find(f => f.path === 'includes/footer.php');
+    
+    // Validate header structure
+    if (headerFile) {
+      let header = headerFile.content;
+      const hasDoctype = header.includes('<!DOCTYPE') || header.includes('<!doctype');
+      const hasNav = /<nav\b/i.test(header) || /nav-links/i.test(header);
+      const hasLogo = /logo|site-name|brand/i.test(header);
+      const hasMobileMenu = /hamburger|mobile-menu|nav-toggle/i.test(header);
+      
+      if (!hasDoctype) {
+        warnings.push('Header missing DOCTYPE - structural issue');
+      }
+      if (!hasNav) {
+        warnings.push('Header missing navigation - adding basic nav');
+        // Add navigation if missing
+        if (/<\/header>/i.test(header)) {
+          header = header.replace(/<\/header>/i, `
+    <nav class="nav-container">
+      <a href="index.php" class="logo"><?php echo SITE_NAME; ?></a>
+      <ul class="nav-links">
+        <li><a href="index.php">Home</a></li>
+        <li><a href="about.php">About</a></li>
+        <li><a href="services.php">Services</a></li>
+        <li><a href="contact.php">Contact</a></li>
+      </ul>
+      <button class="nav-toggle" onclick="toggleMobileMenu()" aria-label="Menu">
+        <span class="hamburger"></span>
+        <span class="hamburger"></span>
+        <span class="hamburger"></span>
+      </button>
+    </nav>
+  </header>`);
+        }
+      }
+      if (!hasMobileMenu && hasNav) {
+        // Add mobile menu toggle if missing
+        if (!header.includes('nav-toggle')) {
+          header = header.replace(/<\/nav>/i, `
+      <button class="nav-toggle" onclick="toggleMobileMenu()" aria-label="Menu">
+        <span class="hamburger"></span>
+        <span class="hamburger"></span>
+        <span class="hamburger"></span>
+      </button>
+    </nav>`);
+        }
+      }
+      
+      generatedFiles = generatedFiles.map(f => 
+        f.path === 'includes/header.php' ? { ...f, content: header } : f
+      );
+    }
+    
+    // Validate footer structure
+    if (footerFile) {
+      let footer = footerFile.content;
+      const hasFooterTag = /<footer\b/i.test(footer);
+      const hasContactInfo = /tel:|mailto:|phone|email/i.test(footer);
+      const hasClosingBody = /<\/body>/i.test(footer);
+      
+      if (!hasFooterTag) {
+        warnings.push('Footer missing <footer> tag - structural issue');
+      }
+      if (!hasContactInfo) {
+        warnings.push('Footer missing contact info - adding placeholder');
+        // Contact info should be added by enforcePhoneInFiles and enforceEmailInFiles
+      }
+      if (!hasClosingBody) {
+        // Add closing body if missing
+        footer = footer.trim() + '\n</body>\n</html>';
+      }
+      
+      generatedFiles = generatedFiles.map(f => 
+        f.path === 'includes/footer.php' ? { ...f, content: footer } : f
+      );
+    }
+    
+    // Check each PHP page for proper structure
+    const phpPages = generatedFiles.filter(f => 
+      f.path.endsWith('.php') && 
+      !f.path.includes('includes/') && 
+      f.path !== 'form-handler.php'
+    );
+    
+    for (const page of phpPages) {
+      const hasHeaderInclude = /include.*header\.php/i.test(page.content);
+      const hasFooterInclude = /include.*footer\.php/i.test(page.content);
+      const hasSection = /<section\b/i.test(page.content);
+      const hasContainer = /container/i.test(page.content);
+      
+      if (!hasHeaderInclude || !hasFooterInclude) {
+        warnings.push(`${page.path}: Missing header/footer includes`);
+      }
+      if (!hasSection && !hasContainer) {
+        warnings.push(`${page.path}: Missing section/container structure`);
+      }
+    }
+    
+    if (warnings.length > 0) {
+      console.log(`🔧 HTML Structure fixes applied: ${warnings.length} issues found`);
+      warnings.forEach(w => console.log(`   - ${w}`));
+    } else {
+      console.log(`✅ HTML Structure quality OK`);
+    }
+    
     return generatedFiles;
   };
 
@@ -6881,7 +7031,8 @@ tbody tr:hover { background: var(--bg-light); }
   const normalized = normalizePaths(files);
   const withoutEmojis = removeEmojisFromContent(normalized);
   const withContact = ensureContactFlow(withoutEmojis);
-  const withQualityCSS = ensureQualityCSS(withContact);
+  const withHtmlStructure = ensureHtmlStructureQuality(withContact);
+  const withQualityCSS = ensureQualityCSS(withHtmlStructure);
   const finalFiles = ensureCookieBanner(withQualityCSS);
   console.log(`Final files count: ${finalFiles.length}`);
 
