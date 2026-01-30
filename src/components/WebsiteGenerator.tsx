@@ -1041,9 +1041,13 @@ export function WebsiteGenerator() {
           const newBalance = payload.new.balance;
           const prevBalance = prevAdminBalancesRef.current[teamId];
 
-          // Update teamPricing for non-admin users
+          // Update teamPricing for non-admin users (including credit_limit)
           if (teamPricing && teamId === teamPricing.teamId) {
-            setTeamPricing(prev => prev ? { ...prev, balance: newBalance } : null);
+            setTeamPricing(prev => prev ? { 
+              ...prev, 
+              balance: newBalance,
+              creditLimit: payload.new.credit_limit ?? prev.creditLimit
+            } : null);
           }
 
           // Update adminTeams array for admin users with animation
