@@ -43,6 +43,7 @@ import {
   Upload
 } from "lucide-react";
 import { BuyerGenerationsAnalytics } from "@/components/BuyerGenerationsAnalytics";
+import { TeamFinanceManager } from "@/components/admin/TeamFinanceManager";
 
 interface Team {
   id: string;
@@ -1099,18 +1100,22 @@ const AdminTeamDetails = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="members" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="members" className="text-xs">
               <Users className="h-4 w-4 mr-1" />
               Команда
+            </TabsTrigger>
+            <TabsTrigger value="finance" className="text-xs">
+              <Wallet className="h-4 w-4 mr-1" />
+              Фінанси
             </TabsTrigger>
             <TabsTrigger value="generations" className="text-xs">
               <BarChart3 className="h-4 w-4 mr-1" />
               Генерації
             </TabsTrigger>
             <TabsTrigger value="transactions" className="text-xs">
-              <Wallet className="h-4 w-4 mr-1" />
-              Транзакції
+              <TrendingUp className="h-4 w-4 mr-1" />
+              Баланс
             </TabsTrigger>
             <TabsTrigger value="pricing" className="text-xs">
               <FileText className="h-4 w-4 mr-1" />
@@ -1250,13 +1255,28 @@ const AdminTeamDetails = () => {
             </Card>
           </TabsContent>
 
-          {/* Transactions Tab */}
+          {/* Finance Tab - Full financial management */}
+          <TabsContent value="finance">
+            <TeamFinanceManager
+              teamId={teamId!}
+              teamName={team.name}
+              currentBalance={team.balance}
+              members={members.map(m => ({
+                id: m.id,
+                user_id: m.user_id,
+                display_name: m.display_name
+              }))}
+              onBalanceChange={fetchTeam}
+            />
+          </TabsContent>
+
+          {/* Transactions Tab - Balance transaction history only */}
           <TabsContent value="transactions">
             <Card>
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Wallet className="h-4 w-4" />
-                  Історія транзакцій балансу
+                  <TrendingUp className="h-4 w-4" />
+                  Історія зміни балансу
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
