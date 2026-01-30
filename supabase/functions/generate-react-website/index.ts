@@ -2791,6 +2791,107 @@ Allow: /`
     return generatedFiles;
   };
 
+  // Fix broken JSX/HTML syntax - common AI generation issues
+  const fixBrokenJsxSyntax = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
+    return generatedFiles.map(file => {
+      if (!/\.(jsx?|tsx?|html?)$/i.test(file.path)) return file;
+      
+      let content = file.content;
+      let fixedCount = 0;
+      
+      // Fix 1: Broken anchor tags like <a href="tel: +40 21 200 9648</a> 
+      // Pattern: href attribute without closing quote before </a>
+      const brokenAnchorPattern = /<a\s+href=["']([^"'>]+)<\/a>/gi;
+      content = content.replace(brokenAnchorPattern, (match, hrefContent) => {
+        // Extract the actual href value (before any text)
+        const parts = hrefContent.split(/\s+/);
+        let href = parts[0] || hrefContent;
+        let text = hrefContent;
+        
+        // If it's a tel: link, clean it up
+        if (href.startsWith('tel:')) {
+          text = href.replace('tel:', '').trim();
+          href = 'tel:' + text.replace(/[^\d+]/g, '');
+        }
+        
+        fixedCount++;
+        console.log(`🔧 Fixed broken anchor: "${match.substring(0, 50)}..."`);
+        return `<a href="${href}">${text}</a>`;
+      });
+      
+      // Fix 2: Unclosed href attributes: href="value without closing quote
+      // Look for href=" followed by text without closing " before next attribute or >
+      const unclosedHrefPattern = /href=["']([^"']*?)(\s+[a-zA-Z]+[=>\s])/gi;
+      content = content.replace(unclosedHrefPattern, (match, value, nextPart) => {
+        fixedCount++;
+        console.log(`🔧 Fixed unclosed href: href="${value.substring(0, 30)}..."`);
+        return `href="${value}"${nextPart}`;
+      });
+      
+      // Fix 3: href with content bleeding into it: href="tel: +40 21 200 9648 should be href="tel:+40212009648"
+      const telBleedPattern = /href=["']tel:\s*([^"']+?)["']/gi;
+      content = content.replace(telBleedPattern, (match, phone) => {
+        const cleanPhone = phone.replace(/[^\d+]/g, '');
+        if (cleanPhone !== phone.replace(/[\s]/g, '')) {
+          fixedCount++;
+          console.log(`🔧 Fixed tel: href format`);
+        }
+        return `href="tel:${cleanPhone}"`;
+      });
+      
+      // Fix 4: Anchor tags that end with text inside href: <a href="text content</a>
+      // More aggressive pattern for malformed anchors
+      const malformedAnchorPattern = /<a\s+([^>]*?)href=["']([^"']*?)<\/a>/gi;
+      content = content.replace(malformedAnchorPattern, (match, before, content) => {
+        if (!content.includes('"') && !content.includes("'")) {
+          fixedCount++;
+          console.log(`🔧 Fixed malformed anchor with content in href`);
+          return `<a ${before}href="#">${content}</a>`;
+        }
+        return match;
+      });
+      
+      // Fix 5: Self-closing anchor tags (invalid): <a href="..."/> -> <a href="..."></a>
+      content = content.replace(/<a\s+([^>]*?)\s*\/>/gi, (match, attrs) => {
+        fixedCount++;
+        console.log(`🔧 Fixed self-closing anchor`);
+        return `<a ${attrs}></a>`;
+      });
+      
+      // Fix 6: Missing closing angle bracket: <a href="..."  (end of line or space before next element)
+      const missingCloseBracketPattern = /<a\s+href=["'][^"']*["']\s*(?=<[a-zA-Z])/gi;
+      content = content.replace(missingCloseBracketPattern, (match) => {
+        if (!match.endsWith('>')) {
+          fixedCount++;
+          console.log(`🔧 Added missing > to anchor tag`);
+          return match.trim() + '>';
+        }
+        return match;
+      });
+      
+      // Fix 7: Double closing tags: </a></a> -> </a>
+      content = content.replace(/<\/a>\s*<\/a>/gi, '</a>');
+      
+      // Fix 8: Empty anchor text - add placeholder
+      content = content.replace(/<a\s+([^>]*?)>\s*<\/a>/gi, (match, attrs) => {
+        if (attrs.includes('href="tel:')) {
+          const phoneMatch = attrs.match(/href="tel:([^"]+)"/);
+          if (phoneMatch) {
+            fixedCount++;
+            return `<a ${attrs}>${phoneMatch[1]}</a>`;
+          }
+        }
+        return match;
+      });
+      
+      if (fixedCount > 0) {
+        console.log(`🔧 Fixed ${fixedCount} JSX/HTML syntax issue(s) in ${file.path}`);
+      }
+      
+      return { ...file, content };
+    });
+  };
+
   // Remove emojis and instruction symbols from generated content
   const removeEmojisFromContent = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
     const emojiPattern = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F900}-\u{1F9FF}]|[\u{1FA00}-\u{1FA6F}]|[\u{1FA70}-\u{1FAFF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{2300}-\u{23FF}]|[\u{25A0}-\u{25FF}]|[\u{2B50}]|[\u{2934}-\u{2935}]|[\u{3030}]|[\u{303D}]|[\u{3297}]|[\u{3299}]|[\u{FE00}-\u{FE0F}]|[\u{200D}]/gu;
@@ -2814,7 +2915,9 @@ Allow: /`
     });
   };
 
-  const withoutEmojis = removeEmojisFromContent(files);
+  // Apply all fixes in order
+  const withFixedJsx = fixBrokenJsxSyntax(files);
+  const withoutEmojis = removeEmojisFromContent(withFixedJsx);
   const finalFiles = ensureMandatoryFiles(withoutEmojis);
   console.log(`📁 Final files count (with mandatory files): ${finalFiles.length}`);
 
