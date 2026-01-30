@@ -12,9 +12,37 @@ interface SimplePreviewProps {
 }
 
 // ========== REACT PREVIEW BUILDER ==========
+// CDN-based React sites are already static HTML files with inline React
+// We just need to render the HTML directly
 
-function buildReactPreviewHtml(files: GeneratedFile[]): string {
-  const globalCss = files.find(f => f.path.includes("global.css") || f.path.includes("index.css"));
+function buildReactPreviewHtml(files: GeneratedFile[], currentPage: string): string {
+  // For CDN-based React, files are standalone HTML pages
+  // Just return the requested page (same as HTML preview)
+  const htmlFile = files.find(f => f.path === currentPage) || 
+                   files.find(f => f.path === "index.html") ||
+                   files.find(f => f.path.endsWith(".html"));
+  
+  if (!htmlFile) {
+    // Fallback: try to build from old CRA-style structure (for backwards compatibility)
+    return buildLegacyReactPreview(files);
+  }
+  
+  // Check if this is a CDN-based React file (has unpkg.com/react scripts)
+  const isCdnReact = htmlFile.content.includes('unpkg.com/react') || 
+                     htmlFile.content.includes('text/babel');
+  
+  if (isCdnReact) {
+    // It's already a complete standalone page, just return it
+    return htmlFile.content;
+  }
+  
+  // If it doesn't look like CDN React, try legacy approach
+  return buildLegacyReactPreview(files);
+}
+
+// Legacy support for old CRA-style React projects (backwards compatibility)
+function buildLegacyReactPreview(files: GeneratedFile[]): string {
+  const globalCss = files.find(f => f.path.includes("global.css") || f.path.includes("index.css") || f.path === "styles.css");
   const indexHtml = files.find(f => f.path.endsWith("index.html"));
   
   const jsFiles = files.filter(f => 
@@ -400,7 +428,7 @@ function SimplePreviewInner({ files, websiteType }: SimplePreviewProps) {
   // Generate preview content with memoization
   const previewContent = useMemo(() => {
     if (isReact) {
-      return buildReactPreviewHtml(files);
+      return buildReactPreviewHtml(files, currentPage);
     }
     return buildHtmlPreview(files, currentPage);
   }, [files, isReact, currentPage]);
