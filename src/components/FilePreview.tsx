@@ -14,8 +14,39 @@ interface FilePreviewProps {
   viewMode: "preview" | "code";
 }
 
-// Build a standalone HTML that runs the React app in-browser
-function buildReactPreviewHtml(files: GeneratedFile[]): string {
+// Check if this is a CDN-based React project (standalone HTML with inline React)
+function isCdnBasedReact(files: GeneratedFile[]): boolean {
+  const htmlFile = files.find(f => f.path === "index.html") || 
+                   files.find(f => f.path.endsWith(".html"));
+  if (!htmlFile) return false;
+  
+  return htmlFile.content.includes('unpkg.com/react') || 
+         htmlFile.content.includes('text/babel') ||
+         htmlFile.content.includes('cdnjs.cloudflare.com/ajax/libs/react');
+}
+
+// Build preview HTML for CDN-based React (just return HTML with CSS injected)
+function buildCdnReactPreviewHtml(files: GeneratedFile[], targetFile: GeneratedFile): string {
+  let html = targetFile.content;
+  
+  // Inject styles.css if exists and not already linked
+  const cssFile = files.find(f => f.path === "styles.css" || f.path === "style.css");
+  if (cssFile && !html.includes('href="styles.css"') && !html.includes('href="style.css"')) {
+    const styleTag = `<style>\n${cssFile.content}\n</style>`;
+    if (html.includes('</head>')) {
+      html = html.replace('</head>', `${styleTag}\n</head>`);
+    } else if (html.includes('<body')) {
+      html = html.replace('<body', `${styleTag}\n<body`);
+    } else {
+      html = styleTag + '\n' + html;
+    }
+  }
+  
+  return html;
+}
+
+// Legacy: Build a standalone HTML that runs the React app in-browser (CRA-style)
+function buildLegacyReactPreviewHtml(files: GeneratedFile[]): string {
   // Find key files
   const globalCss = files.find(f => f.path.includes("global.css") || f.path.includes("index.css"));
   const appFile = files.find(f => f.path.endsWith("App.js") || f.path.endsWith("App.jsx"));
@@ -235,6 +266,22 @@ function buildReactPreviewHtml(files: GeneratedFile[]): string {
 </html>`;
 }
 
+// Main function that routes to correct preview builder
+function buildReactPreviewHtml(files: GeneratedFile[], targetFile?: GeneratedFile): string {
+  // Check for CDN-based React first
+  if (isCdnBasedReact(files)) {
+    const htmlFile = targetFile || 
+                     files.find(f => f.path === "index.html") || 
+                     files.find(f => f.path.endsWith(".html"));
+    if (htmlFile) {
+      return buildCdnReactPreviewHtml(files, htmlFile);
+    }
+  }
+  
+  // Fallback to legacy CRA-style React
+  return buildLegacyReactPreviewHtml(files);
+}
+
 // Script to track image loading and report to parent - accepts frameId as parameter
 function createImageTrackingScript(frameId: string): string {
   return `
@@ -315,9 +362,14 @@ export function FilePreview({ file, cssFile, allFiles, websiteType, viewMode }: 
     
     // For React projects, build a standalone HTML preview
     if (isReact && allFiles && allFiles.length > 0) {
-      let html = buildReactPreviewHtml(allFiles);
+      // Pass the current file as target for CDN-based React (allows viewing specific pages)
+      let html = buildReactPreviewHtml(allFiles, file);
       // Inject tracking script before </body>
-      html = html.replace('</body>', trackingScript + '</body>');
+      if (html.includes('</body>')) {
+        html = html.replace('</body>', trackingScript + '</body>');
+      } else {
+        html = html + trackingScript;
+      }
       return html;
     }
     
