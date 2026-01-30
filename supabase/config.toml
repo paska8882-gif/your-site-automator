@@ -33,6 +33,10 @@ max_duration_seconds = 600
 verify_jwt = false
 max_duration_seconds = 600
 
+[functions.n8n-async-proxy]
+verify_jwt = false
+max_duration_seconds = 600
+
 [functions.cleanup-stale-generations]
 verify_jwt = false
 
