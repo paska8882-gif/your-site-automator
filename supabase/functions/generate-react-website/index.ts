@@ -2799,24 +2799,53 @@ Allow: /`
       let content = file.content;
       let fixedCount = 0;
       
-      // Fix 1: Broken anchor tags like <a href="tel: +40 21 200 9648</a> 
-      // Pattern: href attribute without closing quote before </a>
-      const brokenAnchorPattern = /<a\s+href=["']([^"'>]+)<\/a>/gi;
-      content = content.replace(brokenAnchorPattern, (match, hrefContent) => {
+      // Fix 1A: Broken anchor tags like <a href="tel: +40 21 200 9648</a> (href with content, no closing quote)
+      // The href value bleeds into the text content without a closing quote
+      // Pattern: href="... followed by </a> without intermediate quote
+      const brokenAnchorNoQuotePattern = /<a\s+href=["']([^"'<>]*?)<\/a>/gi;
+      content = content.replace(brokenAnchorNoQuotePattern, (match, hrefContent) => {
         // Extract the actual href value (before any text)
-        const parts = hrefContent.split(/\s+/);
+        const parts = hrefContent.split(/\s+/).filter(Boolean);
         let href = parts[0] || hrefContent;
-        let text = hrefContent;
+        let text = hrefContent.trim();
         
         // If it's a tel: link, clean it up
         if (href.startsWith('tel:')) {
-          text = href.replace('tel:', '').trim();
-          href = 'tel:' + text.replace(/[^\d+]/g, '');
+          // Get phone number part after tel:
+          const phoneText = hrefContent.replace(/^tel:\s*/i, '').trim();
+          text = phoneText || href.replace('tel:', '');
+          href = 'tel:' + phoneText.replace(/[^\d+]/g, '');
+        } else if (href.startsWith('mailto:')) {
+          text = hrefContent.replace(/^mailto:\s*/i, '').trim();
         }
         
         fixedCount++;
-        console.log(`🔧 Fixed broken anchor: "${match.substring(0, 50)}..."`);
+        console.log(`🔧 Fixed broken anchor (no closing quote): "${match.substring(0, 60)}..."`);
         return `<a href="${href}">${text}</a>`;
+      });
+      
+      // Fix 1B: Anchor with unclosed href attribute, text after unclosed href, then </a>
+      // Pattern: <a href="tel: +40... text content</a> - where quote is never closed
+      const hrefUnclosedBeforeClosePattern = /<a\s+href=["']([^"']*?)(\s*)(<\/a>)/gi;
+      content = content.replace(hrefUnclosedBeforeClosePattern, (match, hrefContent, space, closeTag) => {
+        // This pattern catches <a href="content</a> where quote wasn't closed
+        if (hrefContent && !match.includes('">') && !match.includes("'>")) {
+          let href = hrefContent;
+          let text = hrefContent;
+          
+          if (href.includes('tel:') || hrefContent.startsWith('tel:')) {
+            const phoneText = hrefContent.replace(/^tel:\s*/i, '').trim();
+            text = phoneText;
+            href = 'tel:' + phoneText.replace(/[^\d+]/g, '');
+          } else if (href.includes('mailto:') || hrefContent.startsWith('mailto:')) {
+            text = hrefContent.replace(/^mailto:\s*/i, '').trim();
+          }
+          
+          fixedCount++;
+          console.log(`🔧 Fixed unclosed href before </a>: "${match.substring(0, 60)}..."`);
+          return `<a href="${href}">${text}</a>`;
+        }
+        return match;
       });
       
       // Fix 2: Unclosed href attributes: href="value without closing quote
