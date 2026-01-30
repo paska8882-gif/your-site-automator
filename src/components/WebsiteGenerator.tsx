@@ -51,6 +51,7 @@ interface TeamPricing {
   teamId: string;
   teamName: string;
   balance: number;
+  creditLimit: number;
   htmlPrice: number;
   reactPrice: number;
   vipExtraPrice: number;
@@ -880,6 +881,7 @@ export function WebsiteGenerator() {
         teamId: selectedTeam.id,
         teamName: selectedTeam.name,
         balance: selectedTeam.balance || 0,
+        creditLimit: selectedTeam.credit_limit || 0,
         htmlPrice: pricing?.html_price || 7,
         reactPrice: pricing?.react_price || 9,
         vipExtraPrice: pricing?.vip_extra_price || 2
@@ -999,10 +1001,10 @@ export function WebsiteGenerator() {
 
       if (!membership) return;
 
-      // Get team details
+      // Get team details (including credit_limit)
       const { data: team } = await supabase
         .from("teams")
-        .select("id, name, balance")
+        .select("id, name, balance, credit_limit")
         .eq("id", membership.team_id)
         .maybeSingle();
 
@@ -1018,6 +1020,7 @@ export function WebsiteGenerator() {
           teamId: team.id,
           teamName: team.name,
           balance: team.balance || 0,
+          creditLimit: team.credit_limit || 0,
           htmlPrice: pricing?.html_price || 7,
           reactPrice: pricing?.react_price || 9,
           vipExtraPrice: pricing?.vip_extra_price || 2
@@ -1074,9 +1077,9 @@ export function WebsiteGenerator() {
     };
   }, [isAdmin, adminLoading, playBalanceSound]);
 
-  // Show debt popup when team balance is negative (only for non-admins)
+  // Show debt popup only when team exceeds credit limit (only for non-admins)
   useEffect(() => {
-    if (!isAdmin && teamPricing && teamPricing.balance < 0) {
+    if (!isAdmin && teamPricing && teamPricing.balance < -teamPricing.creditLimit) {
       setShowDebtPopup(true);
     }
   }, [teamPricing, isAdmin]);
@@ -1389,13 +1392,22 @@ export function WebsiteGenerator() {
     ? (adminTeams.find(t => t.id === selectedAdminTeamId)?.credit_limit || 0)
     : 0;
 
-  // Admins can generate on credit up to the credit limit
-  const insufficientBalance = !isAdmin && teamPricing ? calculateTotalCost() > teamPricing.balance : false;
-  const isGeneratingOnCredit = isAdmin && teamPricing ? calculateTotalCost() > teamPricing.balance : false;
-  // Check if admin exceeds credit limit (balance can go negative up to -credit_limit)
-  const exceedsCreditLimit = isAdmin && teamPricing 
-    ? (teamPricing.balance - calculateTotalCost()) < -selectedTeamCreditLimit
+  // Credit limit for the current context (admin uses selected team, buyer uses their team)
+  const effectiveCreditLimit = isAdmin ? selectedTeamCreditLimit : (teamPricing?.creditLimit || 0);
+  
+  // Both admins and buyers can generate on credit up to their team's credit limit
+  // insufficientBalance = would this generation exceed the credit limit?
+  const insufficientBalance = teamPricing 
+    ? (teamPricing.balance - calculateTotalCost()) < -effectiveCreditLimit
     : false;
+  
+  // For UI: is the user generating on credit (balance negative but within limit)?
+  const isGeneratingOnCredit = teamPricing 
+    ? calculateTotalCost() > teamPricing.balance && !insufficientBalance
+    : false;
+  
+  // Legacy alias for admin-specific checks
+  const exceedsCreditLimit = insufficientBalance;
 
   // Maximum concurrent generations limit per user (default 30, can be customized per user)
   const [userMaxGenerations, setUserMaxGenerations] = useState(30);
@@ -1552,15 +1564,16 @@ export function WebsiteGenerator() {
       }
     }
 
-    // Check balance before generating (admins can generate on credit)
-    if (teamPricing && insufficientBalance && !isAdmin) {
+    // Check balance before generating (both admins and buyers have credit limits)
+    if (teamPricing && insufficientBalance) {
       const totalCost = calculateTotalCost();
       toast({
-        title: t("genForm.insufficientFunds"),
-        description: `${t("genForm.fundsNeeded")} $${totalCost.toFixed(2)}, ${t("genForm.fundsBalance")} $${teamPricing.balance.toFixed(2)}. ${t("genForm.insufficientFundsDesc")}`,
+        title: t("genForm.creditLimitExceeded"),
+        description: `${t("genForm.fundsNeeded")} $${totalCost.toFixed(2)}, ${t("genForm.fundsBalance")} $${teamPricing.balance.toFixed(2)}, ${t("genForm.creditLimit")} $${effectiveCreditLimit.toFixed(2)}`,
         variant: "destructive",
       });
       return;
+    }
     }
 
     // Show confirmation if more than 10 sites
@@ -3536,7 +3549,7 @@ export function WebsiteGenerator() {
                     selectedAiModels.length === 0 || 
                     selectedWebsiteTypes.length === 0 || 
                     selectedImageSources.length === 0 || 
-                    (isAdmin ? exceedsCreditLimit : insufficientBalance) || 
+                    insufficientBalance || 
                     (isAdmin && !selectedAdminTeamId)
                   }
                   className="h-9 text-sm"
@@ -3644,22 +3657,16 @@ export function WebsiteGenerator() {
                 <div className="flex-1" />
 
                 {/* Credit warnings - right side */}
+                {isGeneratingOnCredit && teamPricing && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    {t("genForm.creditGeneration")}: {t("genForm.fundsNeeded")} ${calculateTotalCost().toFixed(2)}, {t("genForm.fundsBalance")} ${teamPricing.balance.toFixed(2)} ({t("genForm.creditLimit")}: ${effectiveCreditLimit.toFixed(2)})
+                  </p>
+                )}
                 {insufficientBalance && teamPricing && (
                   <p className="text-xs text-destructive flex items-center gap-1">
                     <AlertTriangle className="h-3 w-3" />
-                    {t("genForm.insufficientFunds")}: {t("genForm.fundsNeeded")} ${calculateTotalCost().toFixed(2)}, {t("genForm.fundsBalance")} ${teamPricing.balance.toFixed(2)}
-                  </p>
-                )}
-                {isGeneratingOnCredit && teamPricing && !exceedsCreditLimit && (
-                  <p className="text-xs text-amber-500 flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    {t("genForm.creditGeneration")}: {t("genForm.fundsNeeded")} ${calculateTotalCost().toFixed(2)}, {t("genForm.fundsBalance")} ${teamPricing.balance.toFixed(2)} ({t("genForm.creditLimit")}: ${selectedTeamCreditLimit.toFixed(2)})
-                  </p>
-                )}
-                {exceedsCreditLimit && teamPricing && (
-                  <p className="text-xs text-destructive flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    {t("genForm.creditLimitExceeded")}: {t("genForm.balance")} ${teamPricing.balance.toFixed(2)}, {t("genForm.fundsNeeded")} ${calculateTotalCost().toFixed(2)}, {t("genForm.creditLimit")} ${selectedTeamCreditLimit.toFixed(2)}
+                    {t("genForm.creditLimitExceeded")}: {t("genForm.balance")} ${teamPricing.balance.toFixed(2)}, {t("genForm.fundsNeeded")} ${calculateTotalCost().toFixed(2)}, {t("genForm.creditLimit")} ${effectiveCreditLimit.toFixed(2)}
                   </p>
                 )}
               </div>
