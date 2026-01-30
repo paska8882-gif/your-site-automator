@@ -98,17 +98,23 @@ export function AdminDatabaseTab() {
         supabase.from("generation_history").select("created_at").order("created_at", { ascending: true }).limit(1).single()
       ]);
 
-      // Fetch storage stats via RPC (server-side calculation)
-      const { data: storageData } = await supabase.rpc('get_database_storage_stats' as any);
-      
-      // Default storage values if RPC doesn't exist yet
-      const storage = storageData || {
+      // Fetch storage stats via edge function
+      let storage = {
         total_size: 'N/A',
         tables_size: 'N/A', 
         generation_history_size: 'N/A',
         zip_data_size: 'N/A',
         table_count: 0
       };
+      
+      try {
+        const { data: storageData, error: storageError } = await supabase.functions.invoke('get-storage-stats');
+        if (!storageError && storageData) {
+          storage = storageData;
+        }
+      } catch (e) {
+        console.warn('Could not fetch storage stats:', e);
+      }
 
       setStats({
         totalGenerations: totalResult.count || 0,

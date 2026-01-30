@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.analyze-screenshot]
 verify_jwt = false
+
+[functions.get-storage-stats]
+verify_jwt = false
