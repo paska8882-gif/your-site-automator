@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { UserDataProvider } from "@/contexts/UserDataContext";
@@ -11,7 +11,6 @@ import { RealtimeProvider } from "@/contexts/RealtimeContext";
 import { AdminModeProvider } from "@/contexts/AdminModeContext";
 import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
 import { MaintenanceOverlay } from "@/components/MaintenanceOverlay";
-import { useAdmin } from "@/hooks/useAdmin";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Edit from "./pages/Edit";
@@ -30,23 +29,22 @@ const queryClient = new QueryClient();
 // Inner component that can use hooks
 function AppContent() {
   const { maintenance, loading: maintenanceLoading } = useMaintenanceMode();
-  const { user, loading: authLoading } = useAuth();
-  const { isAdmin, loading: adminLoading } = useAdmin();
 
-  // Determine if we're still checking access
-  // If no user, we don't need to wait for admin check
-  const isCheckingAccess = maintenanceLoading || authLoading || (user && adminLoading);
-
-  // Show maintenance overlay when:
-  // 1. Maintenance is enabled
-  // 2. User is either not logged in, or logged in but not an admin
-  // 3. We've finished loading all necessary data
-  if (!isCheckingAccess && maintenance?.enabled && !isAdmin) {
+  // During maintenance mode, only allow access to /admin-login
+  // All other routes are completely blocked - no exceptions
+  if (!maintenanceLoading && maintenance?.enabled) {
     return (
-      <MaintenanceOverlay 
-        message={maintenance.message} 
-        supportLink={maintenance.support_link} 
-      />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/admin-login" element={<AdminLogin />} />
+          <Route path="*" element={
+            <MaintenanceOverlay 
+              message={maintenance.message} 
+              supportLink={maintenance.support_link} 
+            />
+          } />
+        </Routes>
+      </BrowserRouter>
     );
   }
 
