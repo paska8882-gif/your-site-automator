@@ -301,122 +301,166 @@ export function injectBaseStyles(html: string): string {
   if (!html) return html;
 
   const baseStyles = `<style data-preview-base>
-/* Preview base styles */
-* { box-sizing: border-box; }
+/* ===== CRITICAL PREVIEW RESET ===== */
+*, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { 
   margin: 0; 
   padding: 0; 
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
-img { max-width: 100%; height: auto; }
+img { max-width: 100%; height: auto; display: block; }
 a { text-decoration: none; color: inherit; }
 
-/* Fix common layout issues */
-.container { max-width: 1200px; margin: 0 auto; padding: 0 15px; width: 100%; }
+/* ===== DOCUMENT STRUCTURE ===== */
+/* Ensure proper stacking: header at top, main content fills, footer at bottom */
+body > header, body > .header, body > [class*="header"]:first-child { order: -2; }
+body > main, body > .main, body > .content { flex: 1 0 auto; order: 0; }
+body > footer, body > .footer, body > [class*="footer"]:last-child { order: 100; margin-top: auto; }
+
+/* Containers */
+.container, .wrapper, [class*="container"] { 
+  max-width: 1200px; 
+  margin-left: auto; 
+  margin-right: auto; 
+  padding-left: 15px; 
+  padding-right: 15px; 
+  width: 100%; 
+}
 section { overflow: hidden; }
 
-/* ===== HEADER / NAVIGATION CRITICAL FIXES ===== */
-/* These ensure header elements display horizontally, not vertically */
-
-header, .header, .site-header, .main-header, [class*="header"] {
-  display: flex !important;
-  flex-wrap: wrap;
-  align-items: center;
-  width: 100%;
-}
-
-header .container, .header .container, .site-header .container, .main-header .container {
-  display: flex !important;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-/* Top bar with phone/contact info */
+/* ===== HEADER / TOP BAR CRITICAL FIXES ===== */
+/* Top bar (phone, social, etc) */
 .top-bar, .topbar, .header-top, .top-header, [class*="top-bar"], [class*="topbar"], 
-.contact-bar, .info-bar, .header-info {
+.contact-bar, .info-bar, .header-info, .pre-header {
   display: flex !important;
-  align-items: center;
-  justify-content: flex-end;
+  align-items: center !important;
+  justify-content: space-between !important;
   gap: 1rem;
   flex-wrap: wrap;
   width: 100%;
+  padding: 8px 0;
 }
 
-.top-bar .container, .topbar .container, .header-top .container {
-  display: flex !important;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 1rem;
-}
-
-/* Navigation */
-nav, .nav, .navigation, .main-nav, .site-nav, [class*="nav-"] {
-  display: flex !important;
-  align-items: center;
-}
-
-nav ul, .nav ul, .navigation ul, .nav-menu, .menu, .nav-links, 
-ul.nav, ul.menu, ul.navigation, [class*="nav-"] ul {
-  display: flex !important;
-  align-items: center;
+.top-bar > *, .topbar > *, .header-top > *, .pre-header > * {
+  display: inline-flex !important;
+  align-items: center !important;
   gap: 0.5rem;
-  list-style: none;
-  margin: 0;
-  padding: 0;
+}
+
+/* Main header wrapper */
+header, .header, .site-header, .main-header {
+  position: relative;
+  width: 100%;
+}
+
+/* Header inner container - FORCE horizontal layout */
+header .container, .header .container, .site-header .container, 
+.main-header .container, header > .wrapper {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
   flex-wrap: wrap;
+  gap: 1rem;
+  min-height: 60px;
 }
 
-nav ul li, .nav ul li, .menu li, .nav-menu li, .nav-links li {
+/* ===== LOGO ===== */
+.logo, .site-logo, .brand, .navbar-brand, [class*="logo"]:not([class*="footer"]) {
   display: inline-flex !important;
-  align-items: center;
-}
-
-nav ul li a, .nav ul li a, .menu li a, .nav-links a, .nav-menu a {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.5rem 1rem;
-  white-space: nowrap;
-}
-
-/* Logo area */
-.logo, .site-logo, .brand, .navbar-brand, [class*="logo"] {
-  display: inline-flex !important;
-  align-items: center;
+  align-items: center !important;
   gap: 0.5rem;
   flex-shrink: 0;
+  order: 0;
 }
 
 .logo img, .site-logo img, .brand img, .navbar-brand img {
   max-height: 50px;
   width: auto;
+  height: auto;
   object-fit: contain;
 }
 
-/* Header CTA/buttons */
-.header-cta, .header-buttons, .nav-cta, .header-actions, .header-right {
+/* ===== NAVIGATION ===== */
+nav, .nav, .navigation, .main-nav, .site-nav, .navbar {
   display: flex !important;
-  align-items: center;
-  gap: 0.75rem;
+  align-items: center !important;
+  order: 1;
+}
+
+nav ul, .nav ul, .navigation ul, .nav-menu, .menu, .nav-links, 
+ul.nav, ul.menu, ul.navigation, .navbar ul, nav > ul {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.25rem;
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  flex-wrap: wrap;
+}
+
+nav li, .nav li, .menu li, .nav-menu li, .nav-links li, nav ul li {
+  display: inline-flex !important;
+  align-items: center !important;
+  list-style: none !important;
+}
+
+nav a, .nav a, .menu a, .nav-links a, .nav-menu a, nav ul li a {
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 0.5rem 0.75rem;
+  white-space: nowrap;
+}
+
+/* ===== HEADER CTA / ACTIONS ===== */
+.header-cta, .header-buttons, .nav-cta, .header-actions, 
+.header-right, .cta-button, header .btn, header .button {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.5rem;
   margin-left: auto;
+  order: 2;
 }
 
 /* Phone in header */
-.header-phone, .phone-number, [class*="phone"], a[href^="tel:"] {
+.header-phone, .phone-number, [class*="phone"]:not(footer *), a[href^="tel:"] {
   display: inline-flex !important;
-  align-items: center;
+  align-items: center !important;
   gap: 0.5rem;
   white-space: nowrap;
 }
 
-/* ===== END HEADER FIXES ===== */
+/* ===== HERO SECTION ===== */
+.hero, .hero-section, [class*="hero"], .banner, .jumbotron {
+  position: relative;
+  width: 100%;
+}
 
-/* Google Maps container - responsive and styled */
+/* ===== FOOTER - KEEP AT BOTTOM ===== */
+footer, .footer, .site-footer, .main-footer {
+  width: 100%;
+  margin-top: auto !important;
+}
+
+footer .container, .footer .container, .site-footer .container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  justify-content: space-between;
+}
+
+footer ul, .footer ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* ===== GOOGLE MAPS ===== */
 .map-container, .map-wrapper, .google-map, [class*="map-section"] {
   width: 100%;
   min-height: 350px;
@@ -425,43 +469,54 @@ nav ul li a, .nav ul li a, .menu li a, .nav-links a, .nav-menu a {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   margin: 20px 0;
 }
-.map-container iframe, .map-wrapper iframe, .google-map iframe, [class*="map-section"] iframe {
+.map-container iframe, .map-wrapper iframe, .google-map iframe {
   width: 100%;
   height: 100%;
   min-height: 350px;
   border: none;
   display: block;
 }
-/* Fallback for Google Maps iframes without container */
 iframe[src*="google.com/maps"], iframe[src*="maps.google"] {
   width: 100%;
   min-height: 350px;
   border: none;
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
-/* Footer fixes */
-footer, .footer, .site-footer, .main-footer {
-  width: 100%;
-}
-
-footer .container, .footer .container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2rem;
-}
-
-/* Responsive: stack on mobile */
-@media (max-width: 768px) {
-  header .container, .header .container, nav ul, .nav ul, .menu {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
+/* ===== RESPONSIVE ===== */
+@media (max-width: 991px) {
+  header .container, .header .container {
+    flex-wrap: wrap;
   }
-  .header-cta, .header-buttons, .nav-cta {
-    margin-left: 0;
+  nav, .nav, .navigation {
+    width: 100%;
+    order: 10;
+    justify-content: center;
     margin-top: 0.5rem;
+  }
+}
+
+@media (max-width: 767px) {
+  header .container, .header .container, .site-header .container {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center;
+    gap: 0.75rem;
+  }
+  nav ul, .nav ul, .menu, .nav-links {
+    flex-direction: column !important;
+    align-items: center !important;
+    width: 100%;
+  }
+  .header-cta, .header-buttons, .nav-cta, .header-right {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
+  .top-bar, .topbar, .header-top {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center;
   }
 }
 </style>
