@@ -38,8 +38,12 @@ function isImageChangeRequest(request: string): boolean {
 function extractImageDescription(request: string): string {
   // Remove common action words and extract the essence
   let desc = request
-    .replace(/вибрані елементи.*?\]/gi, '')
-    .replace(/\[.*?\]/g, '')
+    // Remove the "selected elements" block (it may span multiple lines)
+    .replace(/\[\s*Вибрані елементи[\s\S]*?\]\s*/gi, " ")
+    // Remove any other bracketed blocks
+    .replace(/\[[\s\S]*?\]/g, " ")
+    // Remove list prefixes like "1." "2." etc.
+    .replace(/(^|\n)\s*\d+\.[^\n]*/g, " ")
     .replace(/(заміни|поміняй|змін|постав|встанов|change|replace|set|add)/gi, '')
     .replace(/(це|цю|цей|ці|на|the|this|these|to|with)/gi, '')
     .replace(/(фото|фотку|картинку|зображення|image|photo|picture)/gi, '')
@@ -79,11 +83,11 @@ async function generateImage(prompt: string): Promise<string | null> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "dall-e-3",
-        prompt: `High quality professional photograph: ${prompt}. Ultra realistic, well-lit, 8k resolution.`,
+        // Use a model that is actually available in Lovable AI Gateway
+        model: "google/gemini-2.5-flash-image",
+        prompt: `Ultra realistic, professional photo: ${prompt}. Clean composition, high quality.`,
         n: 1,
         size: "1024x1024",
-        quality: "hd",
       }),
     });
 
@@ -94,6 +98,7 @@ async function generateImage(prompt: string): Promise<string | null> {
     }
 
     const data = await response.json();
+    // Depending on gateway response shape, the URL may be in data[0].url
     const imageUrl = data.data?.[0]?.url;
     
     if (imageUrl) {
@@ -107,6 +112,103 @@ async function generateImage(prompt: string): Promise<string | null> {
     console.error("[Image Gen] Error:", error);
     return null;
   }
+}
+
+function parseImageTargetsFromEditRequest(editRequest: string): { imgClass?: string; ancestorClass?: string }[] {
+  const targets: { imgClass?: string; ancestorClass?: string }[] = [];
+
+  // Examples we see in requests:
+  // 1. <img> .card-image [ ... > img.card-image]
+  // 2. <img> [ ... > div.service-detail-image > img]
+  const lines = editRequest.split("\n");
+
+  for (const line of lines) {
+    // Try to capture class mentioned right after <img>
+    const classAfterTag = line.match(/<img>\s*\.([a-zA-Z0-9_-]+)/i);
+    if (classAfterTag?.[1]) {
+      targets.push({ imgClass: classAfterTag[1] });
+      continue;
+    }
+
+    // Try to capture selector ending with img.someClass
+    const classInSelector = line.match(/>\s*img\.([a-zA-Z0-9_-]+)/i);
+    if (classInSelector?.[1]) {
+      targets.push({ imgClass: classInSelector[1] });
+      continue;
+    }
+
+    // Try to capture a meaningful ancestor class like div.some-ancestor > img
+    const ancestor = line.match(/>\s*div\.([a-zA-Z0-9_-]+)\s*>\s*img/i);
+    if (ancestor?.[1]) {
+      targets.push({ ancestorClass: ancestor[1] });
+      continue;
+    }
+  }
+
+  // If nothing parsed, do a safe fallback: target first image in page
+  if (targets.length === 0) {
+    targets.push({});
+  }
+
+  return targets;
+}
+
+function replaceImgSrcByClass(html: string, className: string, newUrl: string): { html: string; changed: boolean } {
+  // Replace src="..." for <img ... class="... className ..." ...>
+  // If src is missing, add it.
+  const imgTagRegex = new RegExp(
+    `<img([^>]*?)class=["']([^"']*?\\b${className}\\b[^"']*?)["']([^>]*?)>`,
+    "i"
+  );
+  const m = html.match(imgTagRegex);
+  if (!m) return { html, changed: false };
+
+  const full = m[0];
+  let updated = full;
+
+  if (/\ssrc=/.test(full)) {
+    updated = full.replace(/\ssrc=["'][^"']*["']/i, ` src="${newUrl}"`);
+  } else {
+    updated = full.replace("<img", `<img src="${newUrl}"`);
+  }
+
+  return { html: html.replace(full, updated), changed: true };
+}
+
+function replaceImgSrcByAncestorClass(html: string, ancestorClass: string, newUrl: string): { html: string; changed: boolean } {
+  // Look for <div class="...ancestorClass..."> ... <img ...>
+  const ancestorRegex = new RegExp(
+    `(<div[^>]*class=["'][^"']*?\\b${ancestorClass}\\b[^"']*?["'][^>]*>[\\s\\S]*?)(<img[^>]*> )`,
+    "i"
+  );
+  const m = html.match(ancestorRegex);
+  if (!m) return { html, changed: false };
+
+  // Replace src in the first <img> after the ancestor start
+  const beforeImg = m[1];
+  const imgTag = m[2].trim();
+  let updatedImg = imgTag;
+  if (/\ssrc=/.test(imgTag)) {
+    updatedImg = imgTag.replace(/\ssrc=["'][^"']*["']/i, ` src="${newUrl}"`);
+  } else {
+    updatedImg = imgTag.replace("<img", `<img src="${newUrl}"`);
+  }
+
+  const replaced = m[0].replace(imgTag, updatedImg);
+  return { html: html.replace(m[0], replaced), changed: true };
+}
+
+function replaceFirstImgSrc(html: string, newUrl: string): { html: string; changed: boolean } {
+  const firstImg = html.match(/<img[^>]*>/i);
+  if (!firstImg) return { html, changed: false };
+  const imgTag = firstImg[0];
+  let updatedImg = imgTag;
+  if (/\ssrc=/.test(imgTag)) {
+    updatedImg = imgTag.replace(/\ssrc=["'][^"']*["']/i, ` src="${newUrl}"`);
+  } else {
+    updatedImg = imgTag.replace("<img", `<img src="${newUrl}"`);
+  }
+  return { html: html.replace(imgTag, updatedImg), changed: true };
 }
 
 /**
@@ -1050,35 +1152,60 @@ Return EXACTLY ONE valid SEARCH/REPLACE block for ${activePage}.`,
     console.log(`Edit method: ${editMethod}, Modified files: ${modifiedFiles.map(f => f.path).join(", ")}`);
 
     // ========== IMAGE REPLACEMENT ENHANCEMENT ==========
-    // If this was an image change request, generate a REAL image and replace placeholder URLs
+    // If this was an image change request, generate/get an image URL and FORCE-replace src
+    // in the ACTIVE PAGE for the selected <img> targets (class / ancestor class / fallback).
     if (isImageChangeRequest(editRequest)) {
       console.log(`[Image Enhancement] Detected image change request`);
       const newImageUrl = await getImageForRequest(editRequest);
-      
       if (newImageUrl) {
         console.log(`[Image Enhancement] Got new image: ${newImageUrl.substring(0, 80)}...`);
-        
-        // Replace any placeholder or generic image URLs in modified files
-        modifiedFiles = modifiedFiles.map(f => {
-          let content = f.content;
-          
-          // Find src attributes that were likely just changed by AI
-          // Replace picsum, placehold.it, placeholder URLs with real image
-          content = content.replace(
-            /src=["'](https?:\/\/(?:picsum\.photos|placehold\.it|via\.placeholder|placeholder\.com)[^"']+)["']/gi,
-            `src="${newImageUrl}"`
-          );
-          
-          // Also replace if AI used a generic unsplash/pexels URL without specific ID
-          content = content.replace(
-            /src=["'](https?:\/\/(?:source\.unsplash|images\.unsplash)[^"']*(?:random|featured)[^"']*)["']/gi,
-            `src="${newImageUrl}"`
-          );
-          
-          return { ...f, content };
-        });
-        
-        console.log(`[Image Enhancement] Applied real image URL to modified files`);
+
+        const targets = parseImageTargetsFromEditRequest(editRequest);
+        console.log(`[Image Enhancement] Parsed targets: ${JSON.stringify(targets)}`);
+
+        // Ensure active page is in modifiedFiles, otherwise we can't force the change.
+        const activeLower = activePage.toLowerCase();
+        const activeFromModified = modifiedFiles.find((f) => f.path.toLowerCase() === activeLower);
+        const activeFromCurrent = currentFiles.find((f: GeneratedFile) => f.path.toLowerCase() === activeLower);
+
+        if (activeFromCurrent) {
+          const base = activeFromModified ?? activeFromCurrent;
+          let html = base.content;
+          let changed = false;
+
+          for (const t of targets) {
+            if (t.imgClass) {
+              const r = replaceImgSrcByClass(html, t.imgClass, newImageUrl);
+              html = r.html;
+              changed = changed || r.changed;
+              if (r.changed) continue;
+            }
+            if (t.ancestorClass) {
+              const r = replaceImgSrcByAncestorClass(html, t.ancestorClass, newImageUrl);
+              html = r.html;
+              changed = changed || r.changed;
+              if (r.changed) continue;
+            }
+          }
+
+          // As a last resort, replace the first <img>
+          if (!changed) {
+            const r = replaceFirstImgSrc(html, newImageUrl);
+            html = r.html;
+            changed = r.changed;
+          }
+
+          if (changed) {
+            // Upsert active page into modifiedFiles
+            modifiedFiles = modifiedFiles.filter((f) => f.path.toLowerCase() !== activeLower);
+            modifiedFiles.push({ path: base.path, content: html });
+            console.log(`[Image Enhancement] Forced <img src> replacement in ${base.path}`);
+          } else {
+            console.warn(`[Image Enhancement] Could not find target <img> in ${base.path} to replace src`);
+          }
+        } else {
+          console.warn(`[Image Enhancement] Active page file not found: ${activePage}`);
+        }
       }
     }
 
