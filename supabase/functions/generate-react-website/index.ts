@@ -2907,7 +2907,7 @@ ${promptForGeneration}`;
       };
       const countryName = geoNames[geo];
       if (countryName) {
-        promptForGeneration = `${prompt}\n\n[TARGET COUNTRY: ${countryName}]
+        promptForGeneration = `${promptForGeneration}\n\n[TARGET COUNTRY: ${countryName}]
 CRITICAL GEO REQUIREMENTS - ALL CONTENT MUST BE LOCALIZED FOR ${countryName.toUpperCase()}:
 
 1. **PHYSICAL ADDRESS**: Generate a REALISTIC address from ${countryName}:
