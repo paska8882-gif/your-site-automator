@@ -18,7 +18,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { FilePreview } from "./FilePreview";
-import { SimplePreview } from "./SimplePreview";
 import { PhpPreviewDialog } from "./PhpPreviewDialog";
 import { SiteEditor } from "./SiteEditor";
 import { GeneratedFile, COLOR_SCHEMES_UI, LAYOUT_STYLES } from "@/lib/websiteGenerator";
@@ -181,18 +180,22 @@ interface SingleHistoryItemProps {
   item: HistoryItem;
   expandedId: string | null;
   expandedPromptId: string | null;
+  selectedFile: GeneratedFile | null;
+  viewMode: "preview" | "code";
   onExpand: (item: HistoryItem) => void;
   onExpandPrompt: (id: string) => void;
   onDownload: (item: HistoryItem) => void;
   onEdit: (id: string) => void;
-  onPreview: (item: HistoryItem) => void;
   onUsePrompt?: (siteName: string, prompt: string) => void;
   onAppeal: (item: HistoryItem) => void;
   onPhpPreview?: (item: HistoryItem) => void;
   onCancel: (item: HistoryItem) => void;
   onRetry: (item: HistoryItem) => void;
   onCancelRetry: (itemId: string) => void;
+  onSelectFile: (file: GeneratedFile) => void;
+  onViewModeChange: (mode: "preview" | "code") => void;
   getAppeal: (itemId: string) => Appeal | undefined;
+  getCssFile: (files: GeneratedFile[] | null) => GeneratedFile | undefined;
   getRetryState: (itemId: string) => { countdown: number; isActive: boolean; isCancelled: boolean; isRetrying: boolean };
   toast: ReturnType<typeof useToast>["toast"];
   compact?: boolean;
@@ -204,18 +207,22 @@ function SingleHistoryItem({
   item,
   expandedId,
   expandedPromptId,
+  selectedFile,
+  viewMode,
   onExpand,
   onExpandPrompt,
   onDownload,
   onEdit,
-  onPreview,
   onUsePrompt,
   onAppeal,
   onPhpPreview,
   onCancel,
   onRetry,
   onCancelRetry,
+  onSelectFile,
+  onViewModeChange,
   getAppeal,
+  getCssFile,
   getRetryState,
   toast,
   compact = false,
@@ -551,22 +558,19 @@ function SingleHistoryItem({
               )}
               {(item.status === "completed" || item.status === "manual_completed") && (
                   <>
-                  {/* Preview button - opens fullscreen preview */}
-                  {item.files_data && item.files_data.length > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onPreview(item);
-                      }}
-                      title={t("historyExtra.previewTab")}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  )}
-                  {/* PHP Preview button - for PHP sites */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(item.id);
+                    }}
+                    title={t("historyExtra.editButton")}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  {/* PHP Preview button */}
                   {item.website_type === "php" && item.files_data && onPhpPreview && (
                     <Button
                       variant="ghost"
@@ -683,12 +687,104 @@ function SingleHistoryItem({
             {/* Improved prompt is only visible in admin panel Sites tab */}
           </div>
 
-          {/* Appeal status or button */}
           {item.files_data && item.files_data.length > 0 && (
-            <div className="border-t p-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Files className="h-4 w-4" />
-                <span>{item.files_data.length} {t("generator.files")}</span>
+            <div className="border-t p-4 space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-2">
+                        <Files className="h-4 w-4" />
+                        {t("generator.files")} ({item.files_data.length})
+                        <ChevronDown className="h-3 w-3" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-0" align="start">
+                      <ScrollArea className="h-64">
+                        <div className="p-2 space-y-1">
+                          {item.files_data.map((file) => (
+                            <div
+                              key={file.path}
+                              onClick={() => onSelectFile(file)}
+                              className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-sm cursor-pointer transition-colors ${
+                                selectedFile?.path === file.path ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                              }`}
+                            >
+                              {getFileIcon(file.path)}
+                              <span className="truncate">{file.path}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
+                  {selectedFile && (
+                    <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                      {selectedFile.path}
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    variant={viewMode === "preview" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => onViewModeChange("preview")}
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    {t("historyExtra.previewTab")}
+                  </Button>
+                  <Button
+                    variant={viewMode === "code" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => onViewModeChange("code")}
+                  >
+                    <Code className="h-4 w-4 mr-1" />
+                    {t("historyExtra.codeTab")}
+                  </Button>
+                </div>
+              </div>
+
+              {selectedFile && (
+                <div className="h-[500px]">
+                  <FilePreview
+                    file={selectedFile}
+                    cssFile={getCssFile(item.files_data)}
+                    allFiles={item.files_data || undefined}
+                    websiteType={item.website_type || undefined}
+                    viewMode={viewMode}
+                  />
+                </div>
+              )}
+
+              <div className="border-t pt-4 mt-4">
+                {(() => {
+                  const appeal = getAppeal(item.id);
+                  if (appeal) {
+                    const statusText = appeal.status === "pending" ? t("historyExtra.appealPending") : appeal.status === "approved" ? t("historyExtra.appealApproved") : t("historyExtra.appealRejected");
+                    return (
+                      <div className="flex items-center gap-2 text-sm">
+                        <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                        <span>{t("historyExtra.appealStatus")}:</span>
+                        <Badge 
+                          variant={appeal.status === "approved" ? "default" : appeal.status === "rejected" ? "destructive" : "outline"}
+                        >
+                          {statusText}
+                        </Badge>
+                      </div>
+                    );
+                  }
+                  return (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onAppeal(item)}
+                      className="text-yellow-600 border-yellow-500/50 hover:bg-yellow-500/10"
+                    >
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      {t("historyExtra.submitAppeal")}
+                    </Button>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -734,6 +830,8 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedPromptId, setExpandedPromptId] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<GeneratedFile | null>(null);
+  const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
   const [searchQuery, setSearchQuery] = useState("");
   
   // Filters
@@ -769,10 +867,6 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
   // Edit dialog state - simplified to use SiteEditor
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<HistoryItem | null>(null);
-  
-  // Fullscreen preview dialog
-  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
-  const [previewItem, setPreviewItem] = useState<HistoryItem | null>(null);
   
   // Download loading state
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
@@ -1239,12 +1333,6 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
     setEditDialogOpen(true);
   };
 
-  // Open fullscreen preview dialog
-  const openPreviewDialog = (item: HistoryItem) => {
-    setPreviewItem(item);
-    setPreviewDialogOpen(true);
-  };
-
 
   const truncatePrompt = (text: string, maxLength: number = 100) => {
     if (text.length <= maxLength) return text;
@@ -1287,9 +1375,19 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
   const handleExpand = (item: HistoryItem) => {
     if (expandedId === item.id) {
       setExpandedId(null);
+      setSelectedFile(null);
     } else {
       setExpandedId(item.id);
+      if (item.files_data && item.files_data.length > 0) {
+        const indexFile = item.files_data.find((f) => f.path === "index.html");
+        setSelectedFile(indexFile || item.files_data[0]);
+      }
     }
+  };
+
+  const getCssFile = (files: GeneratedFile[] | null) => {
+    if (!files) return undefined;
+    return files.find((f) => f.path === "styles.css");
   };
 
   const getAppealForItem = (itemId: string) => {
@@ -1810,6 +1908,8 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
                           item={item}
                           expandedId={expandedId}
                           expandedPromptId={expandedPromptId}
+                          selectedFile={selectedFile}
+                          viewMode={viewMode}
                           onExpand={handleExpand}
                           onExpandPrompt={(id) => setExpandedPromptId(expandedPromptId === id ? null : id)}
                           onDownload={handleDownload}
@@ -1817,7 +1917,6 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
                             const item = group.items.find(i => i.id === id);
                             if (item) openEditDialog(item);
                           }}
-                          onPreview={openPreviewDialog}
                           onUsePrompt={onUsePrompt}
                           onAppeal={openAppealDialog}
                           onPhpPreview={(item) => {
@@ -1827,7 +1926,10 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
                           onCancel={handleCancel}
                           onRetry={handleRetry}
                           onCancelRetry={cancelAutoRetry}
+                          onSelectFile={setSelectedFile}
+                          onViewModeChange={setViewMode}
                           getAppeal={getAppealForItem}
+                          getCssFile={getCssFile}
                           getRetryState={getRetryState}
                           toast={toast}
                           compact
@@ -1848,6 +1950,8 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
                   item={item}
                   expandedId={expandedId}
                   expandedPromptId={expandedPromptId}
+                  selectedFile={selectedFile}
+                  viewMode={viewMode}
                   onExpand={handleExpand}
                   onExpandPrompt={(id) => setExpandedPromptId(expandedPromptId === id ? null : id)}
                   onDownload={handleDownload}
@@ -1855,7 +1959,6 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
                     const item = history.find(i => i.id === id);
                     if (item) openEditDialog(item);
                   }}
-                  onPreview={openPreviewDialog}
                   onUsePrompt={onUsePrompt}
                   onAppeal={openAppealDialog}
                   onPhpPreview={(item) => {
@@ -1865,7 +1968,10 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
                   onCancel={handleCancel}
                   onRetry={handleRetry}
                   onCancelRetry={cancelAutoRetry}
+                  onSelectFile={setSelectedFile}
+                  onViewModeChange={setViewMode}
                   getAppeal={getAppealForItem}
+                  getCssFile={getCssFile}
                   getRetryState={getRetryState}
                   toast={toast}
                   isAdmin={isAdmin}
@@ -2024,98 +2130,6 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
               }
               className="h-full"
             />
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Fullscreen Preview Dialog */}
-      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
-        <DialogContent className="w-[90vw] max-w-[90vw] h-[90vh] flex flex-col p-0 gap-0">
-          {previewItem && previewItem.files_data && (
-            <>
-              <div className="border-b px-4 py-3 flex items-center justify-between shrink-0 bg-background">
-                <div className="flex items-center gap-3">
-                  <span className="font-medium">
-                    {previewItem.site_name || `Site ${previewItem.number}`}
-                  </span>
-                  <Badge variant="outline">
-                    {previewItem.website_type === "react" ? "React" : previewItem.website_type === "php" ? "PHP" : "HTML"}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  {/* Download button */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      handleDownload(previewItem);
-                    }}
-                    disabled={downloadingIds.has(previewItem.id)}
-                    className="gap-2"
-                  >
-                    {downloadingIds.has(previewItem.id) ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4" />
-                    )}
-                    {t("historyExtra.downloadZip")}
-                  </Button>
-                  
-                  {/* Appeal button or status */}
-                  {(() => {
-                    const appeal = getAppealForItem(previewItem.id);
-                    if (appeal) {
-                      const statusText = appeal.status === "pending" ? t("historyExtra.appealPending") : appeal.status === "approved" ? t("historyExtra.appealApproved") : t("historyExtra.appealRejected");
-                      return (
-                        <Badge 
-                          variant={appeal.status === "approved" ? "default" : appeal.status === "rejected" ? "destructive" : "outline"}
-                          className="text-xs h-8 px-3"
-                        >
-                          <AlertTriangle className="h-4 w-4 mr-1" />
-                          {statusText}
-                        </Badge>
-                      );
-                    }
-                    return (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setPreviewDialogOpen(false);
-                          openAppealDialog(previewItem);
-                        }}
-                        className="text-yellow-600 border-yellow-500/50 hover:bg-yellow-500/10 gap-2"
-                      >
-                        <AlertTriangle className="h-4 w-4" />
-                        {t("historyExtra.submitAppeal")}
-                      </Button>
-                    );
-                  })()}
-                  
-                  {/* Edit button - only for admins */}
-                  {isAdmin && (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => {
-                        setPreviewDialogOpen(false);
-                        openEditDialog(previewItem);
-                      }}
-                      className="gap-2"
-                    >
-                      <Pencil className="h-4 w-4" />
-                      {t("historyExtra.editButton")}
-                    </Button>
-                  )}
-                </div>
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <SimplePreview 
-                  files={previewItem.files_data} 
-                  websiteType={previewItem.website_type || "html"} 
-                />
-              </div>
-            </>
           )}
         </DialogContent>
       </Dialog>

@@ -400,18 +400,9 @@ export function EditPreview({ files, selectedFile, onSelectFile, onFilesUpdate, 
   const [viewport, setViewport] = useState<ViewportSize>("desktop");
   const [previewKey, setPreviewKey] = useState(0);
 
-  // Force preview refresh when files change - use actual content hash
+  // Force preview refresh when files change
   const filesHash = useMemo(() => {
-    // Simple but reliable hash: sum char codes of first/last 200 chars of each file
-    let hash = 0;
-    for (const f of files) {
-      const c = f.content;
-      const sample = c.slice(0, 200) + c.slice(-200) + f.path;
-      for (let i = 0; i < sample.length; i++) {
-        hash = ((hash << 5) - hash + sample.charCodeAt(i)) | 0;
-      }
-    }
-    return hash.toString(36);
+    return files.map(f => `${f.path}:${f.content.length}`).join('|');
   }, [files]);
 
   useEffect(() => {
