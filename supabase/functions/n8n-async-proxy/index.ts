@@ -11,8 +11,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const N8N_START_URL = "https://n8n.dragonwhite-n8n.top/webhook/mcp/start";
-const N8N_STATUS_URL = "https://n8n.dragonwhite-n8n.top/webhook/mcp/status";
+const N8N_START_URL = "https://n8n.dragonwhite-n8n.top/webhook/lovable-generate";
+const N8N_STATUS_URL = "https://n8n.dragonwhite-n8n.top/webhook/lovable-generate/status";
 
 const POLL_INTERVAL_MS = 4000; // 4 seconds between polls
 const MAX_POLL_TIME_MS = 30 * 60 * 1000; // 30 minutes max
