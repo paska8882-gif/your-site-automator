@@ -623,6 +623,8 @@ function fixPhoneNumbersInFiles(files: Array<{ path: string; content: string }>,
 // This function MUST reliably parse VIP data even when embedded in a larger prompt
 function extractExplicitBrandingFromPrompt(prompt: string): { siteName?: string; phone?: string; address?: string; domain?: string } {
   const out: { siteName?: string; phone?: string; address?: string; domain?: string } = {};
+  console.log(`[extractBranding] Starting extraction from prompt (${prompt.length} chars)`);
+  console.log(`[extractBranding] First 500 chars: ${prompt.substring(0, 500)}`);
 
   // VIP prompt format examples:
   // "Domain: example.com"
@@ -677,6 +679,136 @@ function extractExplicitBrandingFromPrompt(prompt: string): { siteName?: string;
   console.log(`[extractBranding] Extracted ${foundFields.length} fields: ${foundFields.join(', ') || 'none'}`);
 
   return out;
+}
+
+// ============ VIP DATA VALIDATION ============
+// CRITICAL: Validates that VIP data (phone, address, domain) is ACTUALLY present in generated files
+// before saving. This prevents delivery of sites that don't contain the mandatory VIP data.
+interface VipValidationResult {
+  isValid: boolean;
+  phone: { found: boolean; occurrences: number; files: string[] };
+  address: { found: boolean; occurrences: number; files: string[] };
+  domain: { found: boolean; occurrences: number; files: string[] };
+  warnings: string[];
+}
+
+function validateVipDataInFiles(
+  files: Array<{ path: string; content: string }>,
+  expectedPhone?: string,
+  expectedAddress?: string,
+  expectedDomain?: string
+): VipValidationResult {
+  const result: VipValidationResult = {
+    isValid: true,
+    phone: { found: false, occurrences: 0, files: [] },
+    address: { found: false, occurrences: 0, files: [] },
+    domain: { found: false, occurrences: 0, files: [] },
+    warnings: []
+  };
+
+  // Skip validation if no VIP data expected
+  if (!expectedPhone && !expectedAddress && !expectedDomain) {
+    console.log(`[VIP Validation] No VIP data to validate - skipping`);
+    return result;
+  }
+
+  console.log(`[VIP Validation] Starting validation...`);
+  console.log(`[VIP Validation] Expected phone: "${expectedPhone}"`);
+  console.log(`[VIP Validation] Expected address: "${expectedAddress}"`);
+  console.log(`[VIP Validation] Expected domain: "${expectedDomain}"`);
+
+  // Get all HTML/PHP content files (skip CSS, JS, assets)
+  const contentFiles = files.filter(f => /\.(html?|php)$/i.test(f.path));
+  const indexFile = contentFiles.find(f => /^index\.(html?|php)$/i.test(f.path));
+
+  for (const file of contentFiles) {
+    const content = file.content;
+
+    // Check for phone (both formatted and as tel: link)
+    if (expectedPhone) {
+      const phoneDigits = expectedPhone.replace(/[^\d]/g, '');
+      const phonePattern = new RegExp(expectedPhone.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      const telPattern = new RegExp(`tel:[+]?${phoneDigits}`, 'gi');
+      
+      const phoneMatches = (content.match(phonePattern) || []).length;
+      const telMatches = (content.match(telPattern) || []).length;
+      
+      if (phoneMatches > 0 || telMatches > 0) {
+        result.phone.found = true;
+        result.phone.occurrences += phoneMatches + telMatches;
+        result.phone.files.push(file.path);
+      }
+    }
+
+    // Check for address (case-insensitive partial match)
+    if (expectedAddress) {
+      // Extract significant parts of address (first 30 chars or until comma)
+      const addressParts = expectedAddress.split(',').map(p => p.trim()).filter(p => p.length > 3);
+      let addressFound = false;
+      
+      for (const part of addressParts) {
+        // Skip generic parts like "Street", "Avenue", etc.
+        if (/^(street|avenue|road|drive|lane|st|ave|rd|dr|ln)$/i.test(part)) continue;
+        
+        const partPattern = new RegExp(part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        const matches = (content.match(partPattern) || []).length;
+        
+        if (matches > 0) {
+          addressFound = true;
+          result.address.occurrences += matches;
+          break;
+        }
+      }
+      
+      if (addressFound && !result.address.files.includes(file.path)) {
+        result.address.found = true;
+        result.address.files.push(file.path);
+      }
+    }
+
+    // Check for domain in canonical URLs, meta tags, or links
+    if (expectedDomain) {
+      const domainPattern = new RegExp(expectedDomain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      const domainMatches = (content.match(domainPattern) || []).length;
+      
+      if (domainMatches > 0) {
+        result.domain.found = true;
+        result.domain.occurrences += domainMatches;
+        result.domain.files.push(file.path);
+      }
+    }
+  }
+
+  // Determine validity and generate warnings
+  if (expectedPhone && !result.phone.found) {
+    result.isValid = false;
+    result.warnings.push(`⚠️ VIP Phone "${expectedPhone}" NOT found in any HTML files!`);
+  } else if (expectedPhone && result.phone.found) {
+    console.log(`[VIP Validation] ✅ Phone found ${result.phone.occurrences} times in: ${result.phone.files.join(', ')}`);
+  }
+
+  if (expectedAddress && !result.address.found) {
+    result.isValid = false;
+    result.warnings.push(`⚠️ VIP Address "${expectedAddress}" NOT found in any HTML files!`);
+  } else if (expectedAddress && result.address.found) {
+    console.log(`[VIP Validation] ✅ Address found ${result.address.occurrences} times in: ${result.address.files.join(', ')}`);
+  }
+
+  if (expectedDomain && !result.domain.found) {
+    // Domain in canonical/meta is optional - just warn
+    result.warnings.push(`⚠️ VIP Domain "${expectedDomain}" not found in meta/canonical tags`);
+    console.log(`[VIP Validation] ⚠️ Domain not found (optional)`);
+  } else if (expectedDomain && result.domain.found) {
+    console.log(`[VIP Validation] ✅ Domain found ${result.domain.occurrences} times in: ${result.domain.files.join(', ')}`);
+  }
+
+  // Log summary
+  console.log(`[VIP Validation] Result: ${result.isValid ? '✅ VALID' : '❌ INVALID'}`);
+  if (result.warnings.length > 0) {
+    console.log(`[VIP Validation] Warnings: ${result.warnings.join('; ')}`);
+  }
+
+  return result;
 }
 
 function enforcePhoneInFiles(
@@ -10055,6 +10187,60 @@ async function runBackgroundGeneration(
       enforcedFiles = contactValidatedFiles;
       if (contactWarnings.length > 0) {
         console.log(`[BG] Contact validation applied ${contactWarnings.length} fixes (phone: ${phoneForValidation})`);
+      }
+
+      // ============ VIP DATA FINAL VALIDATION ============
+      // CRITICAL: Before saving, validate that VIP data is actually present in the files
+      if (isVipGeneration) {
+        const vipValidation = validateVipDataInFiles(
+          enforcedFiles,
+          desiredPhone,
+          desiredAddress,
+          desiredDomain
+        );
+        
+        // Log validation results
+        console.log(`[BG] VIP Validation complete - Valid: ${vipValidation.isValid}`);
+        
+        if (!vipValidation.isValid) {
+          console.error(`[BG] ❌ VIP DATA VALIDATION FAILED!`);
+          for (const warning of vipValidation.warnings) {
+            console.error(`[BG] ${warning}`);
+          }
+          
+          // CRITICAL: Force re-enforcement of missing VIP data
+          console.log(`[BG] Attempting force re-enforcement of VIP data...`);
+          
+          if (!vipValidation.phone.found && desiredPhone) {
+            console.log(`[BG] Force re-enforcing phone: ${desiredPhone}`);
+            enforcedFiles = enforcePhoneInFiles(enforcedFiles, desiredPhone);
+          }
+          
+          if (!vipValidation.address.found && desiredAddress) {
+            console.log(`[BG] Force re-enforcing address: ${desiredAddress}`);
+            enforcedFiles = enforceAddressInFiles(enforcedFiles, desiredAddress);
+          }
+          
+          if (!vipValidation.domain.found && desiredDomain) {
+            console.log(`[BG] Force re-enforcing domain: ${desiredDomain}`);
+            enforcedFiles = enforceDomainInFiles(enforcedFiles, desiredDomain);
+          }
+          
+          // Re-validate after force enforcement
+          const reValidation = validateVipDataInFiles(
+            enforcedFiles,
+            desiredPhone,
+            desiredAddress,
+            desiredDomain
+          );
+          
+          if (!reValidation.isValid) {
+            console.error(`[BG] ❌ VIP DATA STILL MISSING AFTER RE-ENFORCEMENT!`);
+            // Continue anyway but log the issue clearly
+          } else {
+            console.log(`[BG] ✅ VIP data successfully enforced after re-validation`);
+          }
+        }
       }
 
       // Create zip base64 with fixed files
