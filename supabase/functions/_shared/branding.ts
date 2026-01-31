@@ -444,43 +444,274 @@ const LOGO_TEMPLATES: LogoTemplate[] = [
   <text x="32" y="38" text-anchor="middle" font-family="system-ui" font-size="16" font-weight="700" fill="#fff">${initials}</text>
 </svg>`
   }),
+
+  // 26. Crown shape (luxury, premium)
+  ({ initials, siteName, primaryColor, accentColor }) => ({
+    logo: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64">
+  <defs><linearGradient id="g26" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${accentColor}"/><stop offset="1" stop-color="${primaryColor}"/></linearGradient></defs>
+  <path d="M8 48 L8 24 L20 36 L32 16 L44 36 L56 24 L56 48 Z" fill="url(#g26)"/>
+  <circle cx="8" cy="20" r="4" fill="${accentColor}"/>
+  <circle cx="32" cy="12" r="4" fill="${accentColor}"/>
+  <circle cx="56" cy="20" r="4" fill="${accentColor}"/>
+  <text x="32" y="44" text-anchor="middle" font-family="system-ui" font-size="12" font-weight="800" fill="#fff">${initials}</text>
+  <text x="76" y="41" font-family="system-ui" font-size="18" font-weight="700" fill="#111">${siteName}</text>
+</svg>`,
+    favicon: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs><linearGradient id="fg26" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${accentColor}"/><stop offset="1" stop-color="${primaryColor}"/></linearGradient></defs>
+  <path d="M8 52 L8 26 L20 38 L32 14 L44 38 L56 26 L56 52 Z" fill="url(#fg26)"/>
+  <circle cx="8" cy="22" r="5" fill="${accentColor}"/>
+  <circle cx="32" cy="10" r="5" fill="${accentColor}"/>
+  <circle cx="56" cy="22" r="5" fill="${accentColor}"/>
+  <text x="32" y="48" text-anchor="middle" font-family="system-ui" font-size="14" font-weight="800" fill="#fff">${initials}</text>
+</svg>`
+  }),
+
+  // 27. Lightning bolt (energy, speed)
+  ({ initials, siteName, primaryColor, accentColor }) => ({
+    logo: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64">
+  <defs><linearGradient id="g27" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${primaryColor}"/><stop offset="1" stop-color="${accentColor}"/></linearGradient></defs>
+  <polygon points="36,4 16,32 28,32 20,60 48,28 36,28 44,4" fill="url(#g27)"/>
+  <text x="76" y="41" font-family="system-ui" font-size="18" font-weight="700" fill="#111">${siteName}</text>
+</svg>`,
+    favicon: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs><linearGradient id="fg27" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${primaryColor}"/><stop offset="1" stop-color="${accentColor}"/></linearGradient></defs>
+  <polygon points="38,4 14,34 28,34 20,60 50,28 36,28 46,4" fill="url(#fg27)"/>
+</svg>`
+  }),
+
+  // 28. Wave shape (water, flow, creativity)
+  ({ initials, siteName, primaryColor, accentColor }) => ({
+    logo: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64">
+  <defs><linearGradient id="g28" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${primaryColor}"/><stop offset="1" stop-color="${accentColor}"/></linearGradient></defs>
+  <path d="M4 32 Q16 16 28 32 Q40 48 52 32 Q60 20 60 32 L60 56 L4 56 Z" fill="url(#g28)" opacity="0.9"/>
+  <path d="M4 40 Q16 24 28 40 Q40 56 52 40 Q60 28 60 40 L60 56 L4 56 Z" fill="${primaryColor}" opacity="0.7"/>
+  <text x="32" y="52" text-anchor="middle" font-family="system-ui" font-size="12" font-weight="800" fill="#fff">${initials}</text>
+  <text x="76" y="41" font-family="system-ui" font-size="18" font-weight="600" fill="#111">${siteName}</text>
+</svg>`,
+    favicon: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs><linearGradient id="fg28" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${primaryColor}"/><stop offset="1" stop-color="${accentColor}"/></linearGradient></defs>
+  <path d="M4 32 Q16 12 32 32 Q48 52 60 32 L60 60 L4 60 Z" fill="url(#fg28)" opacity="0.9"/>
+  <path d="M4 42 Q16 22 32 42 Q48 62 60 42 L60 60 L4 60 Z" fill="${primaryColor}" opacity="0.7"/>
+  <text x="32" y="54" text-anchor="middle" font-family="system-ui" font-size="14" font-weight="800" fill="#fff">${initials}</text>
+</svg>`
+  }),
+
+  // 29. Mountain peak (adventure, nature, stability)
+  ({ initials, siteName, primaryColor, accentColor }) => ({
+    logo: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64">
+  <defs><linearGradient id="g29" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${accentColor}"/><stop offset="1" stop-color="${primaryColor}"/></linearGradient></defs>
+  <polygon points="32,6 60,58 4,58" fill="url(#g29)"/>
+  <polygon points="32,6 38,18 26,18" fill="#fff" opacity="0.8"/>
+  <polygon points="48,30 60,58 36,58" fill="${primaryColor}" opacity="0.6"/>
+  <text x="32" y="50" text-anchor="middle" font-family="system-ui" font-size="14" font-weight="700" fill="#fff">${initials}</text>
+  <text x="76" y="41" font-family="system-ui" font-size="18" font-weight="600" fill="#111">${siteName}</text>
+</svg>`,
+    favicon: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs><linearGradient id="fg29" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${accentColor}"/><stop offset="1" stop-color="${primaryColor}"/></linearGradient></defs>
+  <polygon points="32,4 62,60 2,60" fill="url(#fg29)"/>
+  <polygon points="32,4 40,18 24,18" fill="#fff" opacity="0.8"/>
+  <polygon points="50,32 62,60 38,60" fill="${primaryColor}" opacity="0.6"/>
+  <text x="32" y="52" text-anchor="middle" font-family="system-ui" font-size="16" font-weight="700" fill="#fff">${initials}</text>
+</svg>`
+  }),
+
+  // 30. Flame shape (energy, passion, heat)
+  ({ initials, siteName, primaryColor, accentColor }) => ({
+    logo: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64">
+  <defs><linearGradient id="g30" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${primaryColor}"/><stop offset="1" stop-color="${accentColor}"/></linearGradient></defs>
+  <path d="M32 4 Q48 20 48 36 Q48 52 32 60 Q16 52 16 36 Q16 20 32 4 Z" fill="url(#g30)"/>
+  <path d="M32 24 Q40 32 40 42 Q40 52 32 56 Q24 52 24 42 Q24 32 32 24 Z" fill="${accentColor}" opacity="0.6"/>
+  <text x="32" y="46" text-anchor="middle" font-family="system-ui" font-size="12" font-weight="800" fill="#fff">${initials}</text>
+  <text x="76" y="41" font-family="system-ui" font-size="18" font-weight="700" fill="#111">${siteName}</text>
+</svg>`,
+    favicon: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs><linearGradient id="fg30" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${primaryColor}"/><stop offset="1" stop-color="${accentColor}"/></linearGradient></defs>
+  <path d="M32 2 Q52 22 52 38 Q52 56 32 62 Q12 56 12 38 Q12 22 32 2 Z" fill="url(#fg30)"/>
+  <path d="M32 24 Q44 36 44 46 Q44 58 32 60 Q20 58 20 46 Q20 36 32 24 Z" fill="${accentColor}" opacity="0.6"/>
+  <text x="32" y="48" text-anchor="middle" font-family="system-ui" font-size="14" font-weight="800" fill="#fff">${initials}</text>
+</svg>`
+  }),
+
+  // 31. Compass shape (navigation, travel, direction)
+  ({ initials, siteName, primaryColor, accentColor }) => ({
+    logo: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64">
+  <circle cx="32" cy="32" r="28" fill="none" stroke="${primaryColor}" stroke-width="4"/>
+  <polygon points="32,8 36,28 32,24 28,28" fill="${primaryColor}"/>
+  <polygon points="32,56 28,36 32,40 36,36" fill="${accentColor}"/>
+  <polygon points="8,32 28,28 24,32 28,36" fill="${accentColor}" opacity="0.7"/>
+  <polygon points="56,32 36,36 40,32 36,28" fill="${accentColor}" opacity="0.7"/>
+  <circle cx="32" cy="32" r="6" fill="${primaryColor}"/>
+  <text x="32" y="36" text-anchor="middle" font-family="system-ui" font-size="8" font-weight="800" fill="#fff">${initials.charAt(0)}</text>
+  <text x="76" y="41" font-family="system-ui" font-size="18" font-weight="600" fill="#111">${siteName}</text>
+</svg>`,
+    favicon: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <circle cx="32" cy="32" r="28" fill="none" stroke="${primaryColor}" stroke-width="4"/>
+  <polygon points="32,8 38,28 32,22 26,28" fill="${primaryColor}"/>
+  <polygon points="32,56 26,36 32,42 38,36" fill="${accentColor}"/>
+  <polygon points="8,32 28,26 22,32 28,38" fill="${accentColor}" opacity="0.7"/>
+  <polygon points="56,32 36,38 42,32 36,26" fill="${accentColor}" opacity="0.7"/>
+  <circle cx="32" cy="32" r="8" fill="${primaryColor}"/>
+  <text x="32" y="36" text-anchor="middle" font-family="system-ui" font-size="10" font-weight="800" fill="#fff">${initials.charAt(0)}</text>
+</svg>`
+  }),
+
+  // 32. Anchor shape (maritime, stability, port)
+  ({ initials, siteName, primaryColor }) => ({
+    logo: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64">
+  <circle cx="32" cy="12" r="8" fill="none" stroke="${primaryColor}" stroke-width="4"/>
+  <rect x="30" y="16" width="4" height="36" fill="${primaryColor}"/>
+  <rect x="14" y="28" width="36" height="4" fill="${primaryColor}"/>
+  <path d="M12 52 Q32 40 52 52" fill="none" stroke="${primaryColor}" stroke-width="4" stroke-linecap="round"/>
+  <polygon points="12,52 8,46 16,48" fill="${primaryColor}"/>
+  <polygon points="52,52 56,46 48,48" fill="${primaryColor}"/>
+  <text x="76" y="41" font-family="system-ui" font-size="18" font-weight="600" fill="#111">${siteName}</text>
+</svg>`,
+    favicon: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <circle cx="32" cy="14" r="8" fill="none" stroke="${primaryColor}" stroke-width="4"/>
+  <rect x="30" y="18" width="4" height="34" fill="${primaryColor}"/>
+  <rect x="14" y="30" width="36" height="4" fill="${primaryColor}"/>
+  <path d="M12 54 Q32 42 52 54" fill="none" stroke="${primaryColor}" stroke-width="4" stroke-linecap="round"/>
+  <polygon points="12,54 6,46 16,50" fill="${primaryColor}"/>
+  <polygon points="52,54 58,46 48,50" fill="${primaryColor}"/>
+</svg>`
+  }),
+
+  // 33. Rocket shape (startup, growth, innovation)
+  ({ initials, siteName, primaryColor, accentColor }) => ({
+    logo: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64">
+  <defs><linearGradient id="g33" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${primaryColor}"/><stop offset="1" stop-color="${accentColor}"/></linearGradient></defs>
+  <path d="M32 4 Q48 12 48 32 L48 48 L40 56 L40 40 L24 40 L24 56 L16 48 L16 32 Q16 12 32 4 Z" fill="url(#g33)"/>
+  <circle cx="32" cy="24" r="6" fill="#fff"/>
+  <polygon points="16,52 8,60 16,56" fill="${accentColor}"/>
+  <polygon points="48,52 56,60 48,56" fill="${accentColor}"/>
+  <polygon points="28,56 32,64 36,56" fill="${accentColor}"/>
+  <text x="76" y="41" font-family="system-ui" font-size="18" font-weight="700" fill="#111">${siteName}</text>
+</svg>`,
+    favicon: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs><linearGradient id="fg33" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${primaryColor}"/><stop offset="1" stop-color="${accentColor}"/></linearGradient></defs>
+  <path d="M32 2 Q52 12 52 34 L52 50 L42 58 L42 42 L22 42 L22 58 L12 50 L12 34 Q12 12 32 2 Z" fill="url(#fg33)"/>
+  <circle cx="32" cy="24" r="8" fill="#fff"/>
+  <polygon points="12,54 2,64 12,58" fill="${accentColor}"/>
+  <polygon points="52,54 62,64 52,58" fill="${accentColor}"/>
+  <polygon points="26,58 32,68 38,58" fill="${accentColor}"/>
+</svg>`
+  }),
+
+  // 34. Drop/Water drop (purity, clean, essential)
+  ({ initials, siteName, primaryColor, accentColor }) => ({
+    logo: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64">
+  <defs><linearGradient id="g34" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${accentColor}"/><stop offset="1" stop-color="${primaryColor}"/></linearGradient></defs>
+  <path d="M32 4 Q52 28 52 42 Q52 58 32 60 Q12 58 12 42 Q12 28 32 4 Z" fill="url(#g34)"/>
+  <ellipse cx="24" cy="32" rx="4" ry="6" fill="#fff" opacity="0.4"/>
+  <text x="32" y="48" text-anchor="middle" font-family="system-ui" font-size="14" font-weight="700" fill="#fff">${initials}</text>
+  <text x="76" y="41" font-family="system-ui" font-size="18" font-weight="600" fill="#111">${siteName}</text>
+</svg>`,
+    favicon: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs><linearGradient id="fg34" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${accentColor}"/><stop offset="1" stop-color="${primaryColor}"/></linearGradient></defs>
+  <path d="M32 2 Q58 32 58 46 Q58 62 32 62 Q6 62 6 46 Q6 32 32 2 Z" fill="url(#fg34)"/>
+  <ellipse cx="22" cy="34" rx="6" ry="10" fill="#fff" opacity="0.4"/>
+  <text x="32" y="50" text-anchor="middle" font-family="system-ui" font-size="16" font-weight="700" fill="#fff">${initials}</text>
+</svg>`
+  }),
+
+  // 35. Sun/Sunburst (energy, positivity, warmth)
+  ({ initials, siteName, primaryColor, accentColor }) => ({
+    logo: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64">
+  <defs><linearGradient id="g35" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${primaryColor}"/><stop offset="1" stop-color="${accentColor}"/></linearGradient></defs>
+  <circle cx="32" cy="32" r="16" fill="url(#g35)"/>
+  <g stroke="${primaryColor}" stroke-width="3" stroke-linecap="round">
+    <line x1="32" y1="4" x2="32" y2="12"/>
+    <line x1="32" y1="52" x2="32" y2="60"/>
+    <line x1="4" y1="32" x2="12" y2="32"/>
+    <line x1="52" y1="32" x2="60" y2="32"/>
+    <line x1="12" y1="12" x2="18" y2="18"/>
+    <line x1="46" y1="46" x2="52" y2="52"/>
+    <line x1="52" y1="12" x2="46" y2="18"/>
+    <line x1="18" y1="46" x2="12" y2="52"/>
+  </g>
+  <text x="32" y="38" text-anchor="middle" font-family="system-ui" font-size="12" font-weight="800" fill="#fff">${initials}</text>
+  <text x="76" y="41" font-family="system-ui" font-size="18" font-weight="600" fill="#111">${siteName}</text>
+</svg>`,
+    favicon: `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs><linearGradient id="fg35" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${primaryColor}"/><stop offset="1" stop-color="${accentColor}"/></linearGradient></defs>
+  <circle cx="32" cy="32" r="16" fill="url(#fg35)"/>
+  <g stroke="${primaryColor}" stroke-width="3" stroke-linecap="round">
+    <line x1="32" y1="4" x2="32" y2="12"/>
+    <line x1="32" y1="52" x2="32" y2="60"/>
+    <line x1="4" y1="32" x2="12" y2="32"/>
+    <line x1="52" y1="32" x2="60" y2="32"/>
+    <line x1="12" y1="12" x2="18" y2="18"/>
+    <line x1="46" y1="46" x2="52" y2="52"/>
+    <line x1="52" y1="12" x2="46" y2="18"/>
+    <line x1="18" y1="46" x2="12" y2="52"/>
+  </g>
+  <text x="32" y="38" text-anchor="middle" font-family="system-ui" font-size="14" font-weight="800" fill="#fff">${initials}</text>
+</svg>`
+  }),
 ];
 
 // Map layout styles to preferred template indices
 const STYLE_TEMPLATE_MAP: Record<string, number[]> = {
-  classic: [0, 12, 5],       // Rectangle, squircle, shield
-  corporate: [0, 6, 10],     // Rectangle, pill, octagon
-  professional: [2, 5, 17],  // Hexagon, shield, badge
-  executive: [5, 17, 15],    // Shield, badge, bookmark
-  asymmetric: [3, 7, 18],    // Diamond, corner accent, diagonal
-  editorial: [14, 15, 12],   // Pentagon, bookmark, squircle
-  bold: [16, 9, 4],          // Star, triangle, diamond
-  creative: [7, 8, 24],      // Corner accent, stacked circles, heart
-  artistic: [22, 24, 8],     // Leaf, heart, stacked circles
-  minimalist: [11, 1, 12],   // Ring, circle, squircle
-  zen: [22, 1, 12],          // Leaf, circle, squircle
-  clean: [0, 12, 6],         // Rectangle, squircle, pill
-  whitespace: [11, 1, 12],   // Ring, circle, squircle
-  showcase: [3, 20, 21],     // Diamond, arrow, cube
-  interactive: [19, 2, 21],  // Inner circle, hexagon, cube
-  animated: [20, 19, 8],     // Arrow, inner circle, stacked
-  parallax: [21, 2, 10],     // Cube, hexagon, octagon
-  saas: [12, 0, 6],          // Squircle, rectangle, pill
-  startup: [20, 12, 3],      // Arrow, squircle, diamond
-  tech: [2, 21, 23],         // Hexagon, cube, gear
-  app: [12, 0, 6],           // Squircle, rectangle, pill
-  gradient: [18, 13, 12],    // Diagonal, horizontal gradient, squircle
-  brutalist: [6, 7, 11],     // Pill, corner accent, ring
-  glassmorphism: [12, 1, 19], // Squircle, circle, inner circle
-  neomorphism: [12, 0, 1],   // Squircle, rectangle, circle
-  retro: [16, 9, 4],         // Star, triangle, diamond
-  portfolio: [3, 18, 20],    // Diamond, diagonal, arrow
-  agency: [20, 5, 17],       // Arrow, shield, badge
-  studio: [15, 14, 5],       // Bookmark, pentagon, shield
-  ecommerce: [6, 0, 12],     // Pill, rectangle, squircle
-  services: [5, 17, 2],      // Shield, badge, hexagon
-  restaurant: [22, 24, 8],   // Leaf, heart, stacked
-  hotel: [17, 5, 12],        // Badge, shield, squircle
+  classic: [0, 12, 5, 26],         // Rectangle, squircle, shield, crown
+  corporate: [0, 6, 10, 5],        // Rectangle, pill, octagon, shield
+  professional: [2, 5, 17, 31],    // Hexagon, shield, badge, compass
+  executive: [5, 17, 15, 26],      // Shield, badge, bookmark, crown
+  asymmetric: [3, 7, 18, 27],      // Diamond, corner accent, diagonal, lightning
+  editorial: [14, 15, 12, 34],     // Pentagon, bookmark, squircle, drop
+  bold: [16, 9, 4, 27, 30],        // Star, triangle, diamond, lightning, flame
+  creative: [7, 8, 24, 28, 35],    // Corner accent, stacked circles, heart, wave, sun
+  artistic: [22, 24, 8, 28],       // Leaf, heart, stacked circles, wave
+  minimalist: [11, 1, 12, 34],     // Ring, circle, squircle, drop
+  zen: [22, 1, 12, 28],            // Leaf, circle, squircle, wave
+  clean: [0, 12, 6, 34],           // Rectangle, squircle, pill, drop
+  whitespace: [11, 1, 12],         // Ring, circle, squircle
+  showcase: [3, 20, 21, 27],       // Diamond, arrow, cube, lightning
+  interactive: [19, 2, 21, 33],    // Inner circle, hexagon, cube, rocket
+  animated: [20, 19, 8, 27],       // Arrow, inner circle, stacked, lightning
+  parallax: [21, 2, 10, 29],       // Cube, hexagon, octagon, mountain
+  saas: [12, 0, 6, 33],            // Squircle, rectangle, pill, rocket
+  startup: [20, 12, 3, 33, 27],    // Arrow, squircle, diamond, rocket, lightning
+  tech: [2, 21, 23, 27],           // Hexagon, cube, gear, lightning
+  app: [12, 0, 6, 33],             // Squircle, rectangle, pill, rocket
+  gradient: [18, 13, 12, 28],      // Diagonal, horizontal gradient, squircle, wave
+  brutalist: [6, 7, 11, 27],       // Pill, corner accent, ring, lightning
+  glassmorphism: [12, 1, 19, 34],  // Squircle, circle, inner circle, drop
+  neomorphism: [12, 0, 1, 35],     // Squircle, rectangle, circle, sun
+  retro: [16, 9, 4, 33],           // Star, triangle, diamond, rocket
+  portfolio: [3, 18, 20, 26],      // Diamond, diagonal, arrow, crown
+  agency: [20, 5, 17, 33],         // Arrow, shield, badge, rocket
+  studio: [15, 14, 5, 30],         // Bookmark, pentagon, shield, flame
+  ecommerce: [6, 0, 12, 34],       // Pill, rectangle, squircle, drop
+  services: [5, 17, 2, 31],        // Shield, badge, hexagon, compass
+  restaurant: [22, 24, 8, 30],     // Leaf, heart, stacked, flame
+  hotel: [17, 5, 12, 26],          // Badge, shield, squircle, crown
+  travel: [31, 29, 32, 35],        // Compass, mountain, anchor, sun
+  fitness: [30, 27, 35, 33],       // Flame, lightning, sun, rocket
+  spa: [28, 34, 22, 1],            // Wave, drop, leaf, circle
+  outdoor: [29, 31, 22, 35],       // Mountain, compass, leaf, sun
+  maritime: [32, 28, 34, 31],      // Anchor, wave, drop, compass
+  energy: [30, 27, 35, 33],        // Flame, lightning, sun, rocket
+  luxury: [26, 5, 17, 4],          // Crown, shield, badge, diamond
 };
 
 // Extract initials from site name
