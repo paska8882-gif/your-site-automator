@@ -1,93 +1,81 @@
 
-# Plan: Виправити VIP генерацію - ЗАВЕРШЕНО ✅
+# План: Виправлення превью React сайтів
 
-## Виправлені проблеми
+## Виявлена проблема
 
-### ✅ Проблема 1: КРИТИЧНИЙ БАГ - VIP prompt перезаписувався при наявності geo
-**Виправлено у файлах:**
-- `supabase/functions/generate-website/index.ts` (рядок ~10283)
-- `supabase/functions/generate-php-website/index.ts` (рядок ~7380)
-- `supabase/functions/generate-react-website/index.ts` (рядок ~2910)
+`FilePreview.tsx` використовує застарілу логіку `buildReactPreviewHtml` яка:
+1. Шукає `App.js` / `.jsx` файли - яких немає в CDN React
+2. Видобуває код компонентів з окремих JS файлів - яких немає
+3. Намагається запустити `window.App` - який не існує
+4. Виводить "App component not found" замість контенту
 
-**Зміна:** `${prompt}` → `${promptForGeneration}` щоб зберігати VIP prompt при додаванні geo.
+CDN-based React сайти мають:
+- `index.html` з інлайн `<script type="text/babel">` блоками
+- Все працює одразу без трансформацій
+- Ніяких окремих `.js`/`.jsx` файлів
 
-### ✅ Проблема 2: VIP prompt шаблон оновлено з примусовими інструкціями
-**Файл:** `supabase/functions/generate-vip-prompt/index.ts`
+## Технічне рішення
 
-Новий VIP_TEMPLATE містить:
-- Чіткі примусові інструкції для AI
-- Заборони на вигадування даних
-- Чек-лист для верифікації
-- Фінальне нагадування про обов'язкові дані
+### Файл 1: `src/components/FilePreview.tsx`
 
-### ✅ Проблема 3: Збільшено max_tokens для VIP генерації
-**Файл:** `supabase/functions/generate-vip-prompt/index.ts`
-- Page structure: 2000 → 4000 tokens
-- Design: 1000 → 2000 tokens
+Переписати функцію `buildReactPreviewHtml` з повною підтримкою CDN-based React:
 
-### ✅ Проблема 4: Покращено парсинг VIP даних (extractExplicitBrandingFromPrompt)
-**Файли:**
-- `supabase/functions/generate-website/index.ts`
-- `supabase/functions/generate-php-website/index.ts`
-- `supabase/functions/generate-react-website/index.ts`
-
-**Зміни:**
-- Regex тепер використовує `(?:^|\n)` замість `^` для кращого матчінгу всередині тексту
-- Додано детальне логування для кожного знайденого поля
-- Парсяться всі 4 поля: domain, phone, address, siteName
-
-### ✅ Проблема 5: Додано VIP форму з валідацією на фронтенді
-**Файл:** `src/components/VipManualRequestDialog.tsx`
-
-- Обов'язкові поля: Domain, Address, Phone
-- Валідація паттернів (domain format, phone 7-20 символів, address мін. 10 символів)
-- Структурований VIP prompt з маркерами для парсингу
-
-### ✅ Проблема 6: React генератор тепер підтримує VIP enforcement
-**Файл:** `supabase/functions/generate-react-website/index.ts`
-
-Додано функції:
-- `enforceAddressInFiles()` - примусово підставляє VIP адресу
-- `enforceDomainInFiles()` - примусово підставляє домен у canonical URLs та meta tags
-- VIP detection і виклик цих функцій при генерації
-
-## Технічні деталі
-
-### extractExplicitBrandingFromPrompt (оновлено)
 ```typescript
-function extractExplicitBrandingFromPrompt(prompt: string): { 
-  siteName?: string; 
-  phone?: string; 
-  address?: string; 
-  domain?: string 
+function buildReactPreviewHtml(files: GeneratedFile[]): string {
+  // Check for CDN-based React - standalone HTML with inline React
+  const htmlFile = files.find(f => f.path === "index.html") ||
+                   files.find(f => f.path.endsWith(".html"));
+  
+  if (!htmlFile) {
+    return buildLegacyReactPreview(files);
+  }
+  
+  // Check if this is CDN React (has unpkg.com/react or text/babel)
+  const isCdnReact = htmlFile.content.includes('unpkg.com/react') || 
+                     htmlFile.content.includes('text/babel');
+  
+  if (isCdnReact) {
+    // CDN React: return HTML as-is with CSS injected
+    let html = htmlFile.content;
+    
+    // Inject styles.css if exists and not already in HTML
+    const cssFile = files.find(f => f.path === "styles.css");
+    if (cssFile && !html.includes('<link rel="stylesheet" href="styles.css"')) {
+      // Inline the CSS
+      const styleTag = `<style>${cssFile.content}</style>`;
+      html = html.replace('</head>', `${styleTag}</head>`);
+    }
+    
+    return html;
+  }
+  
+  // Legacy CRA-style React
+  return buildLegacyReactPreview(files);
+}
+
+// Move current logic to buildLegacyReactPreview (for backwards compatibility)
+function buildLegacyReactPreview(files: GeneratedFile[]): string {
+  // ... existing code that handles App.js etc
 }
 ```
 
-Парсить з VIP промпту:
-- `Domain:` → domain
-- `Name:` / `Business Name:` → siteName
-- `Phone:` → phone
-- `Address:` → address
+Також в `getPreviewContent()`:
+- Для CDN React сайтів: просто повертати HTML файл з інлайновим CSS
+- Не намагатися "збирати" React компоненти
 
-### VIP форма на фронтенді (VipManualRequestDialog)
-Формує структурований prompt:
-```
-═══════════════════════════════════════════════════════════════
-⚠️ MANDATORY VIP DATA - USE EXACTLY AS PROVIDED:
-═══════════════════════════════════════════════════════════════
-Domain: example.com
-Name: My Business
-Phone: +1 (548) 269-2050
-Address: 100 Main Street, City, Country
-═══════════════════════════════════════════════════════════════
-```
+## Очікуваний результат
 
-## Результат
+1. CDN-based React сайти відображаються коректно в превью
+2. Backward compatibility з CRA-style React проєктами
+3. Коректна робота CSS стилів
+4. Усунення помилки "App component not found"
 
-VIP генерація тепер:
-1. ✅ Зберігає VIP prompt при наявності geo
-2. ✅ AI отримує чіткі примусові інструкції
-3. ✅ Post-processing гарантує підстановку phone/address/domain
-4. ✅ Збільшені ліміти токенів для повних відповідей AI
-5. ✅ Фронтенд форма з валідацією обов'язкових полів
-6. ✅ React генератор підтримує VIP enforcement
+## Файли для редагування
+
+| Файл | Зміна |
+|------|-------|
+| `src/components/FilePreview.tsx` | Переписати `buildReactPreviewHtml` + оновити `getPreviewContent` |
+
+## Обсяг роботи
+
+~30 хвилин на переписання логіки та тестування

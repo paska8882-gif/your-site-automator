@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { generateBranding, generateBrandingSync, type BrandingConfig } from "../_shared/branding.ts";
 
 declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void };
 
@@ -328,247 +327,21 @@ function fixPhoneNumbersInFiles(files: Array<{ path: string; content: string }>,
   return { files: fixedFiles, totalFixed };
 }
 
-// Extract explicit SITE NAME / PHONE / ADDRESS / DOMAIN from VIP prompt (or other structured prompts)
-// This function MUST reliably parse VIP data even when embedded in a larger prompt
-function extractExplicitBrandingFromPrompt(prompt: string): { siteName?: string; phone?: string; address?: string; domain?: string } {
-  const out: { siteName?: string; phone?: string; address?: string; domain?: string } = {};
+// Extract explicit SITE NAME / PHONE from VIP prompt (or other structured prompts)
+function extractExplicitBrandingFromPrompt(prompt: string): { siteName?: string; phone?: string } {
+  const out: { siteName?: string; phone?: string } = {};
+  const nameMatch = prompt.match(/^(?:Name|SITE_NAME)\s*:\s*(.+)$/mi);
+  if (nameMatch?.[1]) out.siteName = nameMatch[1].trim();
 
-  // VIP prompt format examples:
-  // "Domain: example.com"
-  // "Name: My Business"
-  // "Phone: +1 (548) 269-2050"
-  // "Address: 100 Main Street, City, Country"
-  
-  // Use more flexible regex that allows optional leading whitespace/emojis
-  
-  // Domain - look for "Domain:" pattern anywhere
-  const domainMatch = prompt.match(/(?:^|\n)\s*Domain\s*:\s*([^\n]+)/i);
-  if (domainMatch?.[1]) {
-    out.domain = domainMatch[1].trim();
-    console.log(`[extractBranding] Found Domain: "${out.domain}"`);
-  }
-  
-  // Phone - look for "Phone:" pattern anywhere
-  const phoneMatch = prompt.match(/(?:^|\n)\s*Phone\s*:\s*([^\n]+)/i);
-  if (phoneMatch?.[1]) {
-    out.phone = phoneMatch[1].trim();
-    console.log(`[extractBranding] Found Phone: "${out.phone}"`);
-  }
-  
-  // Address - look for "Address:" pattern anywhere
-  const addressMatch = prompt.match(/(?:^|\n)\s*Address\s*:\s*([^\n]+)/i);
-  if (addressMatch?.[1]) {
-    out.address = addressMatch[1].trim();
-    console.log(`[extractBranding] Found Address: "${out.address}"`);
-  }
-  
-  // Name / Business Name - look for "Name:" pattern anywhere
-  const nameMatch = prompt.match(/(?:^|\n)\s*(?:Name|Business Name|SITE_NAME)\s*:\s*([^\n]+)/i);
-  if (nameMatch?.[1]) {
-    out.siteName = nameMatch[1].trim();
-    console.log(`[extractBranding] Found Name: "${out.siteName}"`);
-  }
+  const phoneMatch = prompt.match(/^(?:Phone|PHONE)\s*:\s*(.+)$/mi);
+  if (phoneMatch?.[1]) out.phone = phoneMatch[1].trim();
 
-  // Fallback: CONTACT block format "- phone: ..."
   if (!out.phone) {
     const phoneMatch2 = prompt.match(/^\s*-\s*phone\s*:\s*(.+)$/mi);
-    if (phoneMatch2?.[1]) {
-      out.phone = phoneMatch2[1].trim();
-      console.log(`[extractBranding] Found Phone (fallback): "${out.phone}"`);
-    }
+    if (phoneMatch2?.[1]) out.phone = phoneMatch2[1].trim();
   }
-  
-  // Log summary
-  const foundFields = Object.entries(out).filter(([_, v]) => v).map(([k]) => k);
-  console.log(`[extractBranding] Extracted ${foundFields.length} fields: ${foundFields.join(', ') || 'none'}`);
 
   return out;
-}
-
-// ============ VIP DATA VALIDATION ============
-// CRITICAL: Validates that VIP data (phone, address, domain) is ACTUALLY present in generated files
-interface VipValidationResult {
-  isValid: boolean;
-  phone: { found: boolean; occurrences: number; files: string[] };
-  address: { found: boolean; occurrences: number; files: string[] };
-  domain: { found: boolean; occurrences: number; files: string[] };
-  warnings: string[];
-}
-
-function validateVipDataInFiles(
-  files: Array<{ path: string; content: string }>,
-  expectedPhone?: string,
-  expectedAddress?: string,
-  expectedDomain?: string
-): VipValidationResult {
-  const result: VipValidationResult = {
-    isValid: true,
-    phone: { found: false, occurrences: 0, files: [] },
-    address: { found: false, occurrences: 0, files: [] },
-    domain: { found: false, occurrences: 0, files: [] },
-    warnings: []
-  };
-
-  if (!expectedPhone && !expectedAddress && !expectedDomain) {
-    console.log(`[VIP Validation] No VIP data to validate - skipping`);
-    return result;
-  }
-
-  console.log(`[VIP Validation] Starting validation...`);
-  console.log(`[VIP Validation] Expected phone: "${expectedPhone}"`);
-  console.log(`[VIP Validation] Expected address: "${expectedAddress}"`);
-  console.log(`[VIP Validation] Expected domain: "${expectedDomain}"`);
-
-  const contentFiles = files.filter(f => /\.(html?|php)$/i.test(f.path) && !/config\.php$/i.test(f.path) && !/includes\//i.test(f.path));
-
-  for (const file of contentFiles) {
-    const content = file.content;
-
-    if (expectedPhone) {
-      const phoneDigits = expectedPhone.replace(/[^\d]/g, '');
-      const phonePattern = new RegExp(expectedPhone.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-      const telPattern = new RegExp(`tel:[+]?${phoneDigits}`, 'gi');
-      const phoneMatches = (content.match(phonePattern) || []).length;
-      const telMatches = (content.match(telPattern) || []).length;
-      if (phoneMatches > 0 || telMatches > 0) {
-        result.phone.found = true;
-        result.phone.occurrences += phoneMatches + telMatches;
-        result.phone.files.push(file.path);
-      }
-    }
-
-    if (expectedAddress) {
-      const addressParts = expectedAddress.split(',').map(p => p.trim()).filter(p => p.length > 3);
-      let addressFound = false;
-      for (const part of addressParts) {
-        if (/^(street|avenue|road|drive|lane|st|ave|rd|dr|ln)$/i.test(part)) continue;
-        const partPattern = new RegExp(part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-        const matches = (content.match(partPattern) || []).length;
-        if (matches > 0) {
-          addressFound = true;
-          result.address.occurrences += matches;
-          break;
-        }
-      }
-      if (addressFound && !result.address.files.includes(file.path)) {
-        result.address.found = true;
-        result.address.files.push(file.path);
-      }
-    }
-
-    if (expectedDomain) {
-      const domainPattern = new RegExp(expectedDomain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-      const domainMatches = (content.match(domainPattern) || []).length;
-      if (domainMatches > 0) {
-        result.domain.found = true;
-        result.domain.occurrences += domainMatches;
-        result.domain.files.push(file.path);
-      }
-    }
-  }
-
-  if (expectedPhone && !result.phone.found) {
-    result.isValid = false;
-    result.warnings.push(`⚠️ VIP Phone "${expectedPhone}" NOT found in any PHP files!`);
-  } else if (expectedPhone) {
-    console.log(`[VIP Validation] ✅ Phone found ${result.phone.occurrences} times in: ${result.phone.files.join(', ')}`);
-  }
-
-  if (expectedAddress && !result.address.found) {
-    result.isValid = false;
-    result.warnings.push(`⚠️ VIP Address "${expectedAddress}" NOT found in any PHP files!`);
-  } else if (expectedAddress) {
-    console.log(`[VIP Validation] ✅ Address found ${result.address.occurrences} times in: ${result.address.files.join(', ')}`);
-  }
-
-  if (expectedDomain && !result.domain.found) {
-    result.warnings.push(`⚠️ VIP Domain "${expectedDomain}" not found in meta/canonical tags`);
-  } else if (expectedDomain) {
-    console.log(`[VIP Validation] ✅ Domain found ${result.domain.occurrences} times in: ${result.domain.files.join(', ')}`);
-  }
-
-  console.log(`[VIP Validation] Result: ${result.isValid ? '✅ VALID' : '❌ INVALID'}`);
-  return result;
-}
-
-// ============ ADDRESS ENFORCEMENT FOR VIP (PHP) ============
-function enforceAddressInFiles(
-  files: Array<{ path: string; content: string }>,
-  desiredAddress: string | undefined
-): Array<{ path: string; content: string }> {
-  if (!desiredAddress) return files;
-
-  const address = desiredAddress.trim();
-  console.log(`[enforceAddressInFiles] Enforcing VIP address: "${address}"`);
-
-  const genericAddressPatterns = [
-    /\d{1,5}\s+(?:Main|Oak|Elm|Pine|Cedar|Maple|First|Second|Third)\s+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr|Way|Court|Ct)[,.]?\s*(?:#\d+|Suite\s*\d+|Apt\.?\s*\d+)?[,.]?\s*[A-Za-z\s]+[,.]?\s*(?:[A-Z]{2}\s*)?\d{5}(?:-\d{4})?/gi,
-    /123\s+(?:Main|Example|Sample|Test)\s+(?:Street|St)[^\n<]{0,50}/gi,
-  ];
-
-  return files.map((f) => {
-    if (!/\.(html?|php|jsx?|tsx?)$/i.test(f.path)) return f;
-    // Skip config.php and includes to prevent breaking PHP
-    if (/config\.php$/i.test(f.path) || /includes\//i.test(f.path)) return f;
-
-    let content = f.content;
-    let replaced = false;
-
-    for (const pattern of genericAddressPatterns) {
-      if (pattern.test(content)) {
-        content = content.replace(pattern, address);
-        replaced = true;
-        pattern.lastIndex = 0;
-      }
-    }
-
-    content = content.replace(
-      /(Address|Адреса|Adresse|Dirección|Indirizzo|Endereço|Adres)\s*:\s*[^<\n]{10,80}/gi,
-      (m) => {
-        const label = m.split(":")[0];
-        replaced = true;
-        return `${label}: ${address}`;
-      }
-    );
-
-    if (replaced) {
-      console.log(`[enforceAddressInFiles] Updated address in ${f.path}`);
-    }
-
-    return { ...f, content };
-  });
-}
-
-// ============ DOMAIN ENFORCEMENT FOR VIP (PHP) ============
-function enforceDomainInFiles(
-  files: Array<{ path: string; content: string }>,
-  desiredDomain: string | undefined
-): Array<{ path: string; content: string }> {
-  if (!desiredDomain) return files;
-
-  const domain = desiredDomain.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
-  const canonicalUrl = `https://${domain}`;
-  
-  console.log(`[enforceDomainInFiles] Enforcing VIP domain: "${domain}"`);
-
-  return files.map((f) => {
-    if (!/\.(html?|php)$/i.test(f.path)) return f;
-    if (/config\.php$/i.test(f.path) || /includes\//i.test(f.path)) return f;
-
-    let content = f.content;
-    
-    content = content.replace(
-      /<link[^>]*rel=["']canonical["'][^>]*href=["'][^"']*["'][^>]*>/gi,
-      `<link rel="canonical" href="${canonicalUrl}/${f.path.replace(/^\//, '')}">`
-    );
-
-    content = content.replace(
-      /<meta[^>]*property=["']og:url["'][^>]*content=["'][^"']*["'][^>]*>/gi,
-      `<meta property="og:url" content="${canonicalUrl}/${f.path.replace(/^\//, '')}">`
-    );
-
-    return { ...f, content };
-  });
 }
 
 function enforcePhoneInFiles(
@@ -2345,112 +2118,232 @@ function enforceResponsiveImagesInFiles(
   });
 }
 
-// Async version for VIP mode (uses AI logo generation)
-async function ensureFaviconAndLogoInFilesAsync(
-  files: Array<{ path: string; content: string }>,
-  siteNameRaw?: string,
-  brandColors?: { primary: string; accent: string },
-  layoutStyle?: string,
-  topic?: string,
-  useAI: boolean = false
-): Promise<Array<{ path: string; content: string }>> {
-  const siteName = (siteNameRaw || "Website").trim() || "Website";
-  
-  const safeText = (s: string) =>
-    s.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c] as string));
-
-  const brandingConfig: BrandingConfig = {
-    siteName,
-    topic: topic || "",
-    primaryColor: brandColors?.primary || "#10b981",
-    accentColor: brandColors?.accent || "#047857",
-    layoutStyle: layoutStyle || "classic",
-  };
-
-  let branding;
-  if (useAI) {
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (apiKey) {
-      console.log(`[Branding] VIP mode - attempting AI logo generation for "${siteName}"`);
-      branding = await generateBranding(brandingConfig, apiKey);
-    } else {
-      console.log(`[Branding] VIP mode but no API key - falling back to templates`);
-      branding = generateBrandingSync(brandingConfig);
-    }
-  } else {
-    branding = generateBrandingSync(brandingConfig);
-  }
-  console.log(`[Branding] Generated ${branding.source} branding for "${siteName}" with style "${layoutStyle || 'classic'}"${useAI ? " (VIP)" : ""}`);
-
-  const hasLogo = files.some((f) => f.path.toLowerCase() === "logo.svg");
-  const hasFaviconSvg = files.some((f) => f.path.toLowerCase() === "favicon.svg");
-  const hasFaviconIco = files.some((f) => f.path.toLowerCase() === "favicon.ico");
-
-  const withAssets = [...files];
-  if (!hasLogo) withAssets.push({ path: "logo.svg", content: branding.logoSvg });
-  if (!hasFaviconSvg) withAssets.push({ path: "favicon.svg", content: branding.faviconSvg });
-  if (!hasFaviconIco) withAssets.push({ path: "favicon.ico", content: branding.faviconIcoBase64 });
-
-  return withAssets.map((f) => {
-    if (!/\.(html?|php)$/i.test(f.path)) return f;
-    let content = f.content;
-
-    if (!/rel=["']icon["']/i.test(content)) {
-      const link = `\n<link rel="icon" href="favicon.ico" type="image/x-icon">\n<link rel="icon" href="favicon.svg" type="image/svg+xml">\n`;
-      content = /<\/head>/i.test(content)
-        ? content.replace(/<\/head>/i, `${link}</head>`)
-        : `${link}${content}`;
-    } else {
-      if (!/href=["']favicon\.ico["']/i.test(content)) {
-        const link = `\n<link rel="icon" href="favicon.ico" type="image/x-icon">\n`;
-        content = /<\/head>/i.test(content)
-          ? content.replace(/<\/head>/i, `${link}</head>`)
-          : `${link}${content}`;
-      }
-    }
-
-    content = content.replace(
-      /<a([^>]*\bclass=["'][^"']*(?:nav-logo|logo|brand)[^"']*["'][^>]*)>(?!\s*<img\b)[\s\S]*?<\/a>/gi,
-      (_m, aAttrs) =>
-        `<a${aAttrs}><img src="logo.svg" alt="${safeText(siteName)} logo" style="height:40px;width:auto;display:block" loading="eager"></a>`
-    );
-
-    return { ...f, content };
-  });
-}
-
-// Synchronous version for non-VIP mode
 function ensureFaviconAndLogoInFiles(
   files: Array<{ path: string; content: string }>,
   siteNameRaw?: string,
-  brandColors?: { primary: string; accent: string },
-  layoutStyle?: string,
-  topic?: string
+  brandColors?: { primary: string; accent: string }
 ): Array<{ path: string; content: string }> {
   const siteName = (siteNameRaw || "Website").trim() || "Website";
-  
+  const initials =
+    siteName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => (w[0] ? w[0].toUpperCase() : ""))
+      .join("") || "W";
+
   const safeText = (s: string) =>
     s.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c] as string));
 
-  const brandingConfig: BrandingConfig = {
-    siteName,
-    topic: topic || "",
-    primaryColor: brandColors?.primary || "#10b981",
-    accentColor: brandColors?.accent || "#047857",
-    layoutStyle: layoutStyle || "classic",
+  const toBase64 = (bytes: Uint8Array) => {
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    return btoa(binary);
   };
 
-  const branding = generateBrandingSync(brandingConfig);
-  console.log(`[Branding] Generated ${branding.source} branding for "${siteName}" with style "${layoutStyle || 'classic'}"`);
+  const font5x7: Record<string, string[]> = {
+    A: ["01110","10001","10001","11111","10001","10001","10001"],
+    B: ["11110","10001","10001","11110","10001","10001","11110"],
+    C: ["01111","10000","10000","10000","10000","10000","01111"],
+    D: ["11110","10001","10001","10001","10001","10001","11110"],
+    E: ["11111","10000","10000","11110","10000","10000","11111"],
+    F: ["11111","10000","10000","11110","10000","10000","10000"],
+    G: ["01111","10000","10000","10111","10001","10001","01111"],
+    H: ["10001","10001","10001","11111","10001","10001","10001"],
+    I: ["11111","00100","00100","00100","00100","00100","11111"],
+    J: ["00111","00010","00010","00010","10010","10010","01100"],
+    K: ["10001","10010","10100","11000","10100","10010","10001"],
+    L: ["10000","10000","10000","10000","10000","10000","11111"],
+    M: ["10001","11011","10101","10101","10001","10001","10001"],
+    N: ["10001","11001","10101","10011","10001","10001","10001"],
+    O: ["01110","10001","10001","10001","10001","10001","01110"],
+    P: ["11110","10001","10001","11110","10000","10000","10000"],
+    Q: ["01110","10001","10001","10001","10101","10010","01101"],
+    R: ["11110","10001","10001","11110","10100","10010","10001"],
+    S: ["01111","10000","10000","01110","00001","00001","11110"],
+    T: ["11111","00100","00100","00100","00100","00100","00100"],
+    U: ["10001","10001","10001","10001","10001","10001","01110"],
+    V: ["10001","10001","10001","10001","10001","01010","00100"],
+    W: ["10001","10001","10001","10101","10101","11011","10001"],
+    X: ["10001","10001","01010","00100","01010","10001","10001"],
+    Y: ["10001","10001","01010","00100","00100","00100","00100"],
+    Z: ["11111","00001","00010","00100","01000","10000","11111"],
+    "0": ["01110","10001","10011","10101","11001","10001","01110"],
+    "1": ["00100","01100","00100","00100","00100","00100","01110"],
+    "2": ["01110","10001","00001","00010","00100","01000","11111"],
+    "3": ["11110","00001","00001","01110","00001","00001","11110"],
+    "4": ["00010","00110","01010","10010","11111","00010","00010"],
+    "5": ["11111","10000","10000","11110","00001","00001","11110"],
+    "6": ["01110","10000","10000","11110","10001","10001","01110"],
+    "7": ["11111","00001","00010","00100","01000","01000","01000"],
+    "8": ["01110","10001","10001","01110","10001","10001","01110"],
+    "9": ["01110","10001","10001","01111","00001","00001","01110"],
+    "?": ["01110","10001","00001","00010","00100","00000","00100"],
+  };
+
+  const createIcoBase64 = (text: string) => {
+    const w = 32;
+    const h = 32;
+    const pickChars = text.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 2);
+    const chars = pickChars.length ? pickChars.split("") : ["W"];
+
+    const pixels = new Uint8Array(w * h * 4);
+    const c1 = { r: 16, g: 185, b: 129 };
+    const c2 = { r: 4, g: 120, b: 87 };
+    const lerp = (a: number, b: number, t: number) => Math.round(a + (b - a) * t);
+
+    for (let y = 0; y < h; y++) {
+      const t = y / (h - 1);
+      const r = lerp(c1.r, c2.r, t);
+      const g = lerp(c1.g, c2.g, t);
+      const b = lerp(c1.b, c2.b, t);
+      for (let x = 0; x < w; x++) {
+        const i = ((h - 1 - y) * w + x) * 4;
+        pixels[i + 0] = b;
+        pixels[i + 1] = g;
+        pixels[i + 2] = r;
+        pixels[i + 3] = 255;
+      }
+    }
+
+    const radius = 7;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const inCorner =
+          (x < radius && y < radius) ||
+          (x >= w - radius && y < radius) ||
+          (x < radius && y >= h - radius) ||
+          (x >= w - radius && y >= h - radius);
+        if (!inCorner) continue;
+        const cx = x < radius ? radius - 1 : w - radius;
+        const cy = y < radius ? radius - 1 : h - radius;
+        const dx = x - cx;
+        const dy = y - cy;
+        if (dx * dx + dy * dy > (radius - 1) * (radius - 1)) {
+          const i = ((h - 1 - y) * w + x) * 4;
+          pixels[i + 3] = 0;
+        }
+      }
+    }
+
+    const scale = 3;
+    const glyphW = 5 * scale;
+    const glyphH = 7 * scale;
+    const gap = scale;
+    const totalW = chars.length * glyphW + (chars.length - 1) * gap;
+    const startX = Math.floor((w - totalW) / 2);
+    const startY = Math.floor((h - glyphH) / 2) + 1;
+
+    const setPx = (x: number, y: number) => {
+      if (x < 0 || y < 0 || x >= w || y >= h) return;
+      const i = ((h - 1 - y) * w + x) * 4;
+      pixels[i + 0] = 255;
+      pixels[i + 1] = 255;
+      pixels[i + 2] = 255;
+      pixels[i + 3] = 255;
+    };
+
+    chars.forEach((ch, idx) => {
+      const glyph = font5x7[ch] || font5x7["?"];
+      const ox = startX + idx * (glyphW + gap);
+      for (let gy = 0; gy < 7; gy++) {
+        const row = glyph[gy];
+        for (let gx = 0; gx < 5; gx++) {
+          if (row[gx] !== "1") continue;
+          for (let sy = 0; sy < scale; sy++) {
+            for (let sx = 0; sx < scale; sx++) setPx(ox + gx * scale + sx, startY + gy * scale + sy);
+          }
+        }
+      }
+    });
+
+    const maskRowBytes = Math.ceil(w / 32) * 4;
+    const mask = new Uint8Array(maskRowBytes * h);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = ((h - 1 - y) * w + x) * 4;
+        const a = pixels[i + 3];
+        const bit = a === 0 ? 1 : 0;
+        const byteIndex = y * maskRowBytes + (x >> 3);
+        const bitIndex = 7 - (x & 7);
+        if (bit) mask[byteIndex] |= 1 << bitIndex;
+      }
+    }
+
+    const headerSize = 40;
+    const dib = new Uint8Array(headerSize);
+    const dv = new DataView(dib.buffer);
+    dv.setUint32(0, headerSize, true);
+    dv.setInt32(4, w, true);
+    dv.setInt32(8, h * 2, true);
+    dv.setUint16(12, 1, true);
+    dv.setUint16(14, 32, true);
+    dv.setUint32(16, 0, true);
+    dv.setUint32(20, pixels.length + mask.length, true);
+
+    const imageData = new Uint8Array(dib.length + pixels.length + mask.length);
+    imageData.set(dib, 0);
+    imageData.set(pixels, dib.length);
+    imageData.set(mask, dib.length + pixels.length);
+
+    const icoHeader = new Uint8Array(6 + 16);
+    const iv = new DataView(icoHeader.buffer);
+    iv.setUint16(0, 0, true);
+    iv.setUint16(2, 1, true);
+    iv.setUint16(4, 1, true);
+    icoHeader[6] = w;
+    icoHeader[7] = h;
+    icoHeader[8] = 0;
+    icoHeader[9] = 0;
+    iv.setUint16(10, 1, true);
+    iv.setUint16(12, 32, true);
+    iv.setUint32(14, imageData.length, true);
+    iv.setUint32(18, icoHeader.length, true);
+
+    const out = new Uint8Array(icoHeader.length + imageData.length);
+    out.set(icoHeader, 0);
+    out.set(imageData, icoHeader.length);
+    return toBase64(out);
+  };
+
+  // Use color scheme colors if provided, otherwise default to emerald/green
+  const primaryColor = brandColors?.primary || "#10b981";
+  const accentColor = brandColors?.accent || "#047857";
+
+  const logoSvg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64" role="img" aria-label="${safeText(siteName)} logo">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="${primaryColor}"/>
+      <stop offset="1" stop-color="${accentColor}"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#g)"/>
+  <text x="32" y="41" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="26" font-weight="800" fill="#ffffff">${safeText(initials)}</text>
+  <text x="76" y="41" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="18" font-weight="700" fill="#111827">${safeText(siteName)}</text>
+</svg>`;
+
+  const faviconSvg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="${safeText(siteName)} favicon">
+  <defs>
+    <linearGradient id="fg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="${primaryColor}"/>
+      <stop offset="1" stop-color="${accentColor}"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="url(#fg)"/>
+  <text x="32" y="42" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="26" font-weight="900" fill="#ffffff">${safeText(initials)}</text>
+</svg>`;
 
   const hasLogo = files.some((f) => f.path.toLowerCase() === "logo.svg");
   const hasFaviconSvg = files.some((f) => f.path.toLowerCase() === "favicon.svg");
   const hasFaviconIco = files.some((f) => f.path.toLowerCase() === "favicon.ico");
 
   const withAssets = [...files];
-  if (!hasLogo) withAssets.push({ path: "logo.svg", content: branding.logoSvg });
-  if (!hasFaviconSvg) withAssets.push({ path: "favicon.svg", content: branding.faviconSvg });
-  if (!hasFaviconIco) withAssets.push({ path: "favicon.ico", content: branding.faviconIcoBase64 });
+  if (!hasLogo) withAssets.push({ path: "logo.svg", content: logoSvg });
+  if (!hasFaviconSvg) withAssets.push({ path: "favicon.svg", content: faviconSvg });
+  if (!hasFaviconIco) withAssets.push({ path: "favicon.ico", content: createIcoBase64(initials) });
 
   return withAssets.map((f) => {
     if (!/\.(html?|php)$/i.test(f.path)) return f;
@@ -2516,111 +2409,6 @@ CONTACT:
 - email: <if present + must be clickable mailto: link>
 - address: <if present>
 `.trim();
-
-// ============ TYPOGRAPHY SYSTEM FOR LAYOUT STYLES ============
-interface LayoutTypography {
-  headingFont: string;
-  bodyFont: string;
-  headingWeight: string;
-  bodyWeight: string;
-  headingStyle?: string;
-  letterSpacing?: string;
-  lineHeight: string;
-  googleFontsUrl: string;
-  fallback: string;
-}
-
-const STYLE_TYPOGRAPHY: Record<string, LayoutTypography> = {
-  classic: { headingFont: "Playfair Display", bodyFont: "Source Sans Pro", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Sans+Pro:wght@400;600&display=swap", fallback: "serif" },
-  corporate: { headingFont: "Montserrat", bodyFont: "Open Sans", headingWeight: "700", bodyWeight: "400", letterSpacing: "-0.02em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&family=Open+Sans:wght@400;600&display=swap", fallback: "sans-serif" },
-  professional: { headingFont: "Roboto Slab", bodyFont: "Roboto", headingWeight: "600", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.65", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400;600;700&family=Roboto:wght@400;500&display=swap", fallback: "serif" },
-  executive: { headingFont: "Cinzel", bodyFont: "Lora", headingWeight: "600", bodyWeight: "400", headingStyle: "normal", letterSpacing: "0.05em", lineHeight: "1.8", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lora:wght@400;500;600&display=swap", fallback: "serif" },
-  asymmetric: { headingFont: "Archivo Black", bodyFont: "Archivo", headingWeight: "400", bodyWeight: "400", letterSpacing: "-0.03em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600&display=swap", fallback: "sans-serif" },
-  editorial: { headingFont: "Cormorant Garamond", bodyFont: "Libre Baskerville", headingWeight: "600", bodyWeight: "400", headingStyle: "italic", letterSpacing: "0.02em", lineHeight: "1.9", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,600&family=Libre+Baskerville:wght@400;700&display=swap", fallback: "serif" },
-  bold: { headingFont: "Bebas Neue", bodyFont: "Barlow", headingWeight: "400", bodyWeight: "400", letterSpacing: "0.1em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600&display=swap", fallback: "sans-serif" },
-  creative: { headingFont: "Caveat", bodyFont: "Poppins", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Poppins:wght@400;500;600&display=swap", fallback: "cursive" },
-  artistic: { headingFont: "DM Serif Display", bodyFont: "Karla", headingWeight: "400", bodyWeight: "400", letterSpacing: "0.01em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Karla:wght@400;500;600&display=swap", fallback: "serif" },
-  minimalist: { headingFont: "Inter", bodyFont: "Inter", headingWeight: "300", bodyWeight: "400", letterSpacing: "-0.01em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap", fallback: "sans-serif" },
-  zen: { headingFont: "Cormorant", bodyFont: "Nunito Sans", headingWeight: "400", bodyWeight: "400", letterSpacing: "0.03em", lineHeight: "1.9", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Cormorant:wght@400;500;600&family=Nunito+Sans:wght@400;600&display=swap", fallback: "serif" },
-  clean: { headingFont: "Work Sans", bodyFont: "Work Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
-  whitespace: { headingFont: "Jost", bodyFont: "Jost", headingWeight: "500", bodyWeight: "400", letterSpacing: "0.02em", lineHeight: "1.8", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&display=swap", fallback: "sans-serif" },
-  showcase: { headingFont: "Syne", bodyFont: "Space Grotesk", headingWeight: "700", bodyWeight: "400", letterSpacing: "-0.02em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Space+Grotesk:wght@400;500&display=swap", fallback: "sans-serif" },
-  interactive: { headingFont: "Plus Jakarta Sans", bodyFont: "Plus Jakarta Sans", headingWeight: "700", bodyWeight: "400", letterSpacing: "-0.01em", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
-  animated: { headingFont: "Outfit", bodyFont: "Outfit", headingWeight: "600", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
-  parallax: { headingFont: "Oswald", bodyFont: "Lato", headingWeight: "600", bodyWeight: "400", letterSpacing: "0.05em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Lato:wght@400;700&display=swap", fallback: "sans-serif" },
-  saas: { headingFont: "Inter", bodyFont: "Inter", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.02em", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
-  startup: { headingFont: "Manrope", bodyFont: "Manrope", headingWeight: "700", bodyWeight: "400", letterSpacing: "-0.01em", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap", fallback: "sans-serif" },
-  tech: { headingFont: "Space Grotesk", bodyFont: "IBM Plex Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.02em", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500&display=swap", fallback: "sans-serif" },
-  app: { headingFont: "Inter", bodyFont: "Inter", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.01em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap", fallback: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
-  gradient: { headingFont: "Sora", bodyFont: "DM Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.02em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=DM+Sans:wght@400;500&display=swap", fallback: "sans-serif" },
-  brutalist: { headingFont: "Space Grotesk", bodyFont: "JetBrains Mono", headingWeight: "700", bodyWeight: "400", letterSpacing: "0", lineHeight: "1.4", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap", fallback: "monospace" },
-  glassmorphism: { headingFont: "Poppins", bodyFont: "Poppins", headingWeight: "600", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
-  neomorphism: { headingFont: "Nunito", bodyFont: "Nunito", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap", fallback: "sans-serif" },
-  retro: { headingFont: "Press Start 2P", bodyFont: "VT323", headingWeight: "400", bodyWeight: "400", letterSpacing: "0.05em", lineHeight: "1.8", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap", fallback: "monospace" },
-  portfolio: { headingFont: "Sora", bodyFont: "DM Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.01em", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=DM+Sans:wght@400;500;700&display=swap", fallback: "sans-serif" },
-  agency: { headingFont: "Space Grotesk", bodyFont: "Work Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.02em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500&display=swap", fallback: "sans-serif" },
-  studio: { headingFont: "Bodoni Moda", bodyFont: "Figtree", headingWeight: "600", bodyWeight: "400", headingStyle: "italic", letterSpacing: "0.02em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,600;1,600&family=Figtree:wght@400;500;600&display=swap", fallback: "serif" },
-  ecommerce: { headingFont: "Lexend", bodyFont: "Lexend", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.01em", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
-  services: { headingFont: "Mulish", bodyFont: "Mulish", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Mulish:wght@400;500;600;700;800&display=swap", fallback: "sans-serif" },
-  restaurant: { headingFont: "Playfair Display", bodyFont: "Raleway", headingWeight: "700", bodyWeight: "400", letterSpacing: "0.02em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Raleway:wght@400;500;600&display=swap", fallback: "serif" },
-  hotel: { headingFont: "Cormorant Garamond", bodyFont: "Nunito Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "0.03em", lineHeight: "1.8", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Nunito+Sans:wght@400;600&display=swap", fallback: "serif" },
-  medical: { headingFont: "DM Sans", bodyFont: "DM Sans", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
-  legal: { headingFont: "Merriweather", bodyFont: "Source Sans Pro", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.8", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Source+Sans+Pro:wght@400;600&display=swap", fallback: "serif" },
-  education: { headingFont: "Lora", bodyFont: "Open Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Open+Sans:wght@400;600&display=swap", fallback: "serif" },
-  nonprofit: { headingFont: "Bitter", bodyFont: "Public Sans", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Bitter:wght@400;600;700&family=Public+Sans:wght@400;500;600&display=swap", fallback: "serif" },
-  realestate: { headingFont: "Prata", bodyFont: "Nunito", headingWeight: "400", bodyWeight: "400", letterSpacing: "0.02em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Prata&family=Nunito:wght@400;600;700&display=swap", fallback: "serif" },
-  fitness: { headingFont: "Teko", bodyFont: "Roboto", headingWeight: "600", bodyWeight: "400", letterSpacing: "0.05em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Roboto:wght@400;500&display=swap", fallback: "sans-serif" },
-  photography: { headingFont: "Tenor Sans", bodyFont: "Crimson Pro", headingWeight: "400", bodyWeight: "400", letterSpacing: "0.1em", lineHeight: "1.8", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Tenor+Sans&family=Crimson+Pro:wght@400;500;600&display=swap", fallback: "serif" },
-  blog: { headingFont: "Literata", bodyFont: "Source Serif Pro", headingWeight: "600", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.9", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Literata:wght@400;600;700&family=Source+Serif+Pro:wght@400;600&display=swap", fallback: "serif" },
-};
-
-const DEFAULT_TYPOGRAPHY: LayoutTypography = { headingFont: "Inter", bodyFont: "Inter", headingWeight: "600", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap", fallback: "sans-serif" };
-
-function getTypographyForStyle(styleId: string): LayoutTypography {
-  return STYLE_TYPOGRAPHY[styleId] || DEFAULT_TYPOGRAPHY;
-}
-
-function generateTypographyPromptSection(typography: LayoutTypography, styleName: string): string {
-  return `
-⚠️⚠️⚠️ MANDATORY TYPOGRAPHY - NON-NEGOTIABLE! ⚠️⚠️⚠️
-
-═══════════════════════════════════════════════════════════════════
-🔤 FONT REQUIREMENTS FOR "${styleName}" - USE THESE EXACT FONTS:
-═══════════════════════════════════════════════════════════════════
-
-HEADING FONT: ${typography.headingFont}
-BODY FONT: ${typography.bodyFont}
-
-REQUIRED GOOGLE FONTS IMPORT (ADD TO <head> OF EVERY PHP/HTML PAGE):
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="${typography.googleFontsUrl}" rel="stylesheet">
-
-═══════════════════════════════════════════════════════════════════
-🎨 TYPOGRAPHY CSS - APPLY IN YOUR CSS:
-═══════════════════════════════════════════════════════════════════
-
-h1, h2, h3, h4, h5, h6 {
-  font-family: '${typography.headingFont}', ${typography.fallback};
-  font-weight: ${typography.headingWeight};
-  ${typography.letterSpacing !== 'normal' ? `letter-spacing: ${typography.letterSpacing};` : ''}
-  ${typography.headingStyle ? `font-style: ${typography.headingStyle};` : ''}
-}
-
-body, p, li, a, span, td, input, textarea, button {
-  font-family: '${typography.bodyFont}', ${typography.fallback};
-  font-weight: ${typography.bodyWeight};
-  line-height: ${typography.lineHeight};
-}
-
-⛔ TYPOGRAPHY RULES - DO NOT VIOLATE:
-- DO NOT use Arial, Helvetica, Times New Roman, or system fonts!
-- DO NOT skip the Google Fonts import!
-- DO NOT use different fonts than specified!
-- EVERY page MUST have the Google Fonts link in <head>!
-
-`;
-}
 
 // ~30 unique layout variations for randomization or manual selection
 // Each style has UNIQUE structure for: Header/Nav, Hero, Sections, Features, Testimonials, CTA, Footer
@@ -6057,31 +5845,23 @@ async function runGeneration({
   );
   console.log("Refined prompt:", refinedPrompt.substring(0, 200) + "...");
 
-  // 2. Select layout variation with stronger enforcement + typography
+  // 2. Select layout variation with stronger enforcement
   let layoutDescription = "";
   let selectedLayoutName = "";
-  let selectedLayoutId = "";
   if (layoutStyle) {
     const selectedLayout = LAYOUT_VARIATIONS.find(l => l.id === layoutStyle);
     if (selectedLayout) {
       selectedLayoutName = selectedLayout.name;
-      selectedLayoutId = selectedLayout.id;
-      const typography = getTypographyForStyle(selectedLayout.id);
-      const typographySection = generateTypographyPromptSection(typography, selectedLayout.name);
-      console.log(`🔤 Typography for "${selectedLayout.name}": ${typography.headingFont} / ${typography.bodyFont}`);
       layoutDescription = `
 ⚠️⚠️⚠️ MANDATORY LAYOUT STRUCTURE - NON-NEGOTIABLE! ⚠️⚠️⚠️
 LAYOUT STYLE: "${selectedLayout.name}"
 
 ${selectedLayout.description}
 
-${typographySection}
-
 ⚠️ CRITICAL LAYOUT RULES - YOU MUST FOLLOW EXACTLY:
 - Hero section MUST match the layout description above!
 - Card grids MUST use the specified arrangement!
 - Section layouts MUST follow the style guidelines!
-- TYPOGRAPHY MUST use the specified Google Fonts!
 - IF YOU IGNORE THIS LAYOUT = GENERATION FAILURE!
 `;
     }
@@ -6089,23 +5869,16 @@ ${typographySection}
     // Random layout
     const randomLayout = LAYOUT_VARIATIONS[Math.floor(Math.random() * LAYOUT_VARIATIONS.length)];
     selectedLayoutName = randomLayout.name;
-    selectedLayoutId = randomLayout.id;
-    const typography = getTypographyForStyle(randomLayout.id);
-    const typographySection = generateTypographyPromptSection(typography, randomLayout.name);
-    console.log(`🔤 Typography for "${randomLayout.name}": ${typography.headingFont} / ${typography.bodyFont}`);
     layoutDescription = `
 ⚠️⚠️⚠️ MANDATORY LAYOUT STRUCTURE - NON-NEGOTIABLE! ⚠️⚠️⚠️
 LAYOUT STYLE: "${randomLayout.name}"
 
 ${randomLayout.description}
 
-${typographySection}
-
 ⚠️ CRITICAL LAYOUT RULES - YOU MUST FOLLOW EXACTLY:
 - Hero section MUST match the layout description above!
 - Card grids MUST use the specified arrangement!
 - Section layouts MUST follow the style guidelines!
-- TYPOGRAPHY MUST use the specified Google Fonts!
 - IF YOU IGNORE THIS LAYOUT = GENERATION FAILURE!
 `;
   }
@@ -7306,15 +7079,8 @@ async function runBackgroundGeneration(
       const explicit = extractExplicitBrandingFromPrompt(prompt);
       const desiredSiteName = explicit.siteName;
       const desiredPhone = explicit.phone;
-      const desiredAddress = explicit.address;
-      const desiredDomain = explicit.domain;
       
-      console.log(`[BG] PHP - Extracted branding - siteName: "${desiredSiteName}", phone: "${desiredPhone}", address: "${desiredAddress}", domain: "${desiredDomain}"`);
-      
-      const isVipGeneration = !!(desiredPhone && desiredAddress);
-      if (isVipGeneration) {
-        console.log(`[BG] PHP VIP DATA DETECTED - will enforce phone "${desiredPhone}" and address "${desiredAddress}"`);
-      }
+      console.log(`[BG] PHP - Extracted branding - siteName: "${desiredSiteName}", phone: "${desiredPhone}"`);
       
       // STEP 1: Force ALL images to use external URLs (picsum.photos) - no local assets
       const externalImgResult = forceExternalImages(result.files);
@@ -7350,18 +7116,10 @@ async function runBackgroundGeneration(
 
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceEmailInFiles(enforcedFiles, desiredSiteName);
-      
-      // VIP-specific enforcement: Address and Domain
-      if (isVipGeneration) {
-        enforcedFiles = enforceAddressInFiles(enforcedFiles, desiredAddress);
-        enforcedFiles = enforceDomainInFiles(enforcedFiles, desiredDomain);
-        console.log(`[BG] PHP VIP: Enforced address "${desiredAddress}" and domain "${desiredDomain}" across all files`);
-      }
-      
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
-      // Use color scheme for logo/favicon colors + layout style for logo template selection
+      // Use color scheme for logo/favicon colors
       // Note: userColorScheme is not passed to runBackgroundGeneration, use default colors
-      enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName, undefined, layoutStyle || undefined);
+      enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName);
       
       // STEP 4: Ensure all 14 required files exist
       const siteNameForPages = desiredSiteName || extractExplicitBrandingFromPrompt(prompt).siteName;
@@ -7397,49 +7155,6 @@ async function runBackgroundGeneration(
       enforcedFiles = contactValidatedFiles;
       if (contactWarnings.length > 0) {
         console.log(`[BG] PHP Contact validation applied ${contactWarnings.length} fixes (phone: ${phoneForValidation})`);
-      }
-
-      // ============ VIP DATA FINAL VALIDATION ============
-      if (isVipGeneration) {
-        const vipValidation = validateVipDataInFiles(
-          enforcedFiles,
-          desiredPhone,
-          desiredAddress,
-          desiredDomain
-        );
-        
-        console.log(`[BG] PHP VIP Validation complete - Valid: ${vipValidation.isValid}`);
-        
-        if (!vipValidation.isValid) {
-          console.error(`[BG] ❌ PHP VIP DATA VALIDATION FAILED!`);
-          for (const warning of vipValidation.warnings) {
-            console.error(`[BG] ${warning}`);
-          }
-          
-          console.log(`[BG] Attempting force re-enforcement of VIP data...`);
-          
-          if (!vipValidation.phone.found && desiredPhone) {
-            console.log(`[BG] Force re-enforcing phone: ${desiredPhone}`);
-            enforcedFiles = enforcePhoneInFiles(enforcedFiles, desiredPhone);
-          }
-          
-          if (!vipValidation.address.found && desiredAddress) {
-            console.log(`[BG] Force re-enforcing address: ${desiredAddress}`);
-            enforcedFiles = enforceAddressInFiles(enforcedFiles, desiredAddress);
-          }
-          
-          if (!vipValidation.domain.found && desiredDomain) {
-            console.log(`[BG] Force re-enforcing domain: ${desiredDomain}`);
-            enforcedFiles = enforceDomainInFiles(enforcedFiles, desiredDomain);
-          }
-          
-          const reValidation = validateVipDataInFiles(enforcedFiles, desiredPhone, desiredAddress, desiredDomain);
-          if (!reValidation.isValid) {
-            console.error(`[BG] ❌ PHP VIP DATA STILL MISSING AFTER RE-ENFORCEMENT!`);
-          } else {
-            console.log(`[BG] ✅ PHP VIP data successfully enforced after re-validation`);
-          }
-        }
       }
       
       const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");
@@ -7661,7 +7376,7 @@ ${promptForGeneration}`;
       };
       const countryName = geoNames[geo];
       if (countryName) {
-        promptForGeneration = `${promptForGeneration}\n\n[TARGET COUNTRY: ${countryName}]
+        promptForGeneration = `${prompt}\n\n[TARGET COUNTRY: ${countryName}]
 CRITICAL GEO REQUIREMENTS - ALL CONTENT MUST BE LOCALIZED FOR ${countryName.toUpperCase()}:
 
 1. **PHYSICAL ADDRESS**: Generate a REALISTIC address from ${countryName}:
@@ -7979,14 +7694,7 @@ ${promptForGeneration}`;
         const explicit = extractExplicitBrandingFromPrompt(promptForGeneration);
         const desiredSiteName = explicit.siteName || siteName;
         const desiredPhone = explicit.phone;
-        const desiredAddress = explicit.address;
-        const desiredDomain = explicit.domain;
         const geoToUse = geo;
-        
-        const isVipGeneration = !!(desiredPhone && desiredAddress);
-        if (isVipGeneration) {
-          console.log(`[BG-PHP-ASYNC] VIP DATA DETECTED - will enforce phone "${desiredPhone}" and address "${desiredAddress}"`);
-        }
 
         // CRITICAL: Fix broken image URLs FIRST (before any phone processing)
         let enforcedFiles = result.files.map(f => {
@@ -8002,19 +7710,11 @@ ${promptForGeneration}`;
         enforcedFiles = enforcePhoneInFiles(fixedFiles, phoneToUse);
         enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
         enforcedFiles = enforceEmailInFiles(enforcedFiles, desiredSiteName);
-        
-        // VIP-specific enforcement: Address and Domain
-        if (isVipGeneration) {
-          enforcedFiles = enforceAddressInFiles(enforcedFiles, desiredAddress);
-          enforcedFiles = enforceDomainInFiles(enforcedFiles, desiredDomain);
-          console.log(`[BG-PHP-ASYNC] VIP: Enforced address "${desiredAddress}" and domain "${desiredDomain}"`);
-        }
-        
         enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
         
-        // Ensure branding assets with color scheme + layout style for logo template selection
+        // Ensure branding assets with color scheme
         const brandColorsForLogo = getBrandColors(colorScheme);
-        enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName, brandColorsForLogo, layoutStyle || undefined);
+        enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName, brandColorsForLogo);
         const { files: contactValidatedFiles } = runContactValidation(enforcedFiles, geoToUse, language);
         enforcedFiles = contactValidatedFiles;
 

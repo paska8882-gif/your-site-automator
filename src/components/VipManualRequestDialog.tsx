@@ -2,35 +2,23 @@ import { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Upload, X, Image as ImageIcon, Hand, Crown, Globe, Phone, MapPin, AlertCircle } from "lucide-react";
+import { Loader2, Upload, X, Image as ImageIcon, Hand, Crown } from "lucide-react";
 
 interface VipManualRequestDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (note: string, imageUrls: string[], vipData: VipData) => Promise<void>;
+  onSubmit: (note: string, imageUrls: string[]) => Promise<void>;
   siteNames: string[];
   prompt: string;
 }
 
-export interface VipData {
-  domain: string;
-  address: string;
-  phone: string;
-}
-
 const MAX_IMAGES = 5;
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-
-// Validation patterns
-const DOMAIN_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}$/;
-const PHONE_PATTERN = /^[+]?[\d\s\-()]{7,20}$/;
 
 export function VipManualRequestDialog({
   open,
@@ -43,41 +31,9 @@ export function VipManualRequestDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [note, setNote] = useState("");
-  const [domain, setDomain] = useState("");
-  const [address, setAddress] = useState("");
-  const [phone, setPhone] = useState("");
   const [images, setImages] = useState<{ file: File; preview: string }[]>([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors] = useState<{ domain?: string; address?: string; phone?: string }>({});
-
-  const validateFields = (): boolean => {
-    const newErrors: { domain?: string; address?: string; phone?: string } = {};
-    
-    // Domain validation
-    if (!domain.trim()) {
-      newErrors.domain = t("vipRequest.domainRequired") || "Домен обов'язковий";
-    } else if (!DOMAIN_PATTERN.test(domain.trim())) {
-      newErrors.domain = t("vipRequest.domainInvalid") || "Невірний формат домену (наприклад: example.com)";
-    }
-    
-    // Address validation
-    if (!address.trim()) {
-      newErrors.address = t("vipRequest.addressRequired") || "Адреса обов'язкова";
-    } else if (address.trim().length < 10) {
-      newErrors.address = t("vipRequest.addressTooShort") || "Адреса занадто коротка (мін. 10 символів)";
-    }
-    
-    // Phone validation
-    if (!phone.trim()) {
-      newErrors.phone = t("vipRequest.phoneRequired") || "Телефон обов'язковий";
-    } else if (!PHONE_PATTERN.test(phone.trim())) {
-      newErrors.phone = t("vipRequest.phoneInvalid") || "Невірний формат телефону";
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -146,12 +102,6 @@ export function VipManualRequestDialog({
   };
 
   const handleSubmit = async () => {
-    // Validate before submit
-    if (!validateFields()) {
-      toast.error(t("vipRequest.fixErrors") || "Виправте помилки у формі");
-      return;
-    }
-    
     setSubmitting(true);
     
     try {
@@ -159,22 +109,12 @@ export function VipManualRequestDialog({
       const imageUrls = await uploadImages();
       setUploading(false);
       
-      const vipData: VipData = {
-        domain: domain.trim(),
-        address: address.trim(),
-        phone: phone.trim()
-      };
-      
-      await onSubmit(note, imageUrls, vipData);
+      await onSubmit(note, imageUrls);
       
       // Clean up
       images.forEach(img => URL.revokeObjectURL(img.preview));
       setImages([]);
       setNote("");
-      setDomain("");
-      setAddress("");
-      setPhone("");
-      setErrors({});
       onOpenChange(false);
       
     } catch (error) {
@@ -191,26 +131,20 @@ export function VipManualRequestDialog({
       images.forEach(img => URL.revokeObjectURL(img.preview));
       setImages([]);
       setNote("");
-      setDomain("");
-      setAddress("");
-      setPhone("");
-      setErrors({});
       onOpenChange(false);
     }
   };
 
-  const hasErrors = Object.keys(errors).length > 0;
-
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Crown className="h-5 w-5 text-purple-500" />
             {t("vipRequest.title") || "VIP Ручний запит"}
           </DialogTitle>
           <DialogDescription>
-            {t("vipRequest.description") || "Заповніть обов'язкові поля та додайте зображення"}
+            {t("vipRequest.description") || "Додайте примітку та зображення для сайту"}
           </DialogDescription>
         </DialogHeader>
 
@@ -225,76 +159,6 @@ export function VipManualRequestDialog({
               ))}
             </div>
             <p className="text-xs text-muted-foreground line-clamp-2">{prompt}</p>
-          </div>
-
-          {/* Validation error alert */}
-          {hasErrors && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {t("vipRequest.fillRequired") || "Заповніть всі обов'язкові поля коректно"}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Domain field */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              <Globe className="h-4 w-4" />
-              {t("vipRequest.domain") || "Домен"} <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              placeholder="example.com"
-              value={domain}
-              onChange={(e) => {
-                setDomain(e.target.value);
-                if (errors.domain) setErrors(prev => ({ ...prev, domain: undefined }));
-              }}
-              className={errors.domain ? "border-destructive" : ""}
-            />
-            {errors.domain && (
-              <p className="text-xs text-destructive">{errors.domain}</p>
-            )}
-          </div>
-
-          {/* Address field */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
-              {t("vipRequest.address") || "Адреса"} <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              placeholder="вул. Хрещатик 1, Київ, Україна"
-              value={address}
-              onChange={(e) => {
-                setAddress(e.target.value);
-                if (errors.address) setErrors(prev => ({ ...prev, address: undefined }));
-              }}
-              className={errors.address ? "border-destructive" : ""}
-            />
-            {errors.address && (
-              <p className="text-xs text-destructive">{errors.address}</p>
-            )}
-          </div>
-
-          {/* Phone field */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              <Phone className="h-4 w-4" />
-              {t("vipRequest.phone") || "Телефон"} <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              placeholder="+380 44 123 4567"
-              value={phone}
-              onChange={(e) => {
-                setPhone(e.target.value);
-                if (errors.phone) setErrors(prev => ({ ...prev, phone: undefined }));
-              }}
-              className={errors.phone ? "border-destructive" : ""}
-            />
-            {errors.phone && (
-              <p className="text-xs text-destructive">{errors.phone}</p>
-            )}
           </div>
 
           {/* Note */}

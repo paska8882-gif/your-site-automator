@@ -246,157 +246,21 @@ function fixPhoneNumbersInFiles(files: Array<{ path: string; content: string }>,
   return { files: fixedFiles, totalFixed };
 }
 
-// Extract explicit SITE NAME / PHONE / ADDRESS / DOMAIN from VIP prompt (or other structured prompts)
-function extractExplicitBrandingFromPrompt(prompt: string): { siteName?: string; phone?: string; address?: string; domain?: string } {
-  const out: { siteName?: string; phone?: string; address?: string; domain?: string } = {};
+// Extract explicit SITE NAME / PHONE from VIP prompt (or other structured prompts)
+function extractExplicitBrandingFromPrompt(prompt: string): { siteName?: string; phone?: string } {
+  const out: { siteName?: string; phone?: string } = {};
+  const nameMatch = prompt.match(/^(?:Name|SITE_NAME)\s*:\s*(.+)$/mi);
+  if (nameMatch?.[1]) out.siteName = nameMatch[1].trim();
 
-  // Domain - look for "Domain:" pattern anywhere
-  const domainMatch = prompt.match(/(?:^|\n)\s*Domain\s*:\s*([^\n]+)/i);
-  if (domainMatch?.[1]) {
-    out.domain = domainMatch[1].trim();
-    console.log(`[extractBranding] Found Domain: "${out.domain}"`);
-  }
-  
-  // Phone - look for "Phone:" pattern anywhere
-  const phoneMatch = prompt.match(/(?:^|\n)\s*Phone\s*:\s*([^\n]+)/i);
-  if (phoneMatch?.[1]) {
-    out.phone = phoneMatch[1].trim();
-    console.log(`[extractBranding] Found Phone: "${out.phone}"`);
-  }
-  
-  // Address - look for "Address:" pattern anywhere
-  const addressMatch = prompt.match(/(?:^|\n)\s*Address\s*:\s*([^\n]+)/i);
-  if (addressMatch?.[1]) {
-    out.address = addressMatch[1].trim();
-    console.log(`[extractBranding] Found Address: "${out.address}"`);
-  }
-  
-  // Name / Business Name - look for "Name:" pattern anywhere
-  const nameMatch = prompt.match(/(?:^|\n)\s*(?:Name|Business Name|SITE_NAME)\s*:\s*([^\n]+)/i);
-  if (nameMatch?.[1]) {
-    out.siteName = nameMatch[1].trim();
-    console.log(`[extractBranding] Found Name: "${out.siteName}"`);
-  }
+  const phoneMatch = prompt.match(/^(?:Phone|PHONE)\s*:\s*(.+)$/mi);
+  if (phoneMatch?.[1]) out.phone = phoneMatch[1].trim();
 
-  // Fallback: CONTACT block format "- phone: ..."
   if (!out.phone) {
     const phoneMatch2 = prompt.match(/^\s*-\s*phone\s*:\s*(.+)$/mi);
-    if (phoneMatch2?.[1]) {
-      out.phone = phoneMatch2[1].trim();
-      console.log(`[extractBranding] Found Phone (fallback): "${out.phone}"`);
-    }
+    if (phoneMatch2?.[1]) out.phone = phoneMatch2[1].trim();
   }
-  
-  // Log summary
-  const foundFields = Object.entries(out).filter(([_, v]) => v).map(([k]) => k);
-  console.log(`[extractBranding] Extracted ${foundFields.length} fields: ${foundFields.join(', ') || 'none'}`);
 
   return out;
-}
-
-// ============ VIP DATA VALIDATION ============
-interface VipValidationResult {
-  isValid: boolean;
-  phone: { found: boolean; occurrences: number; files: string[] };
-  address: { found: boolean; occurrences: number; files: string[] };
-  domain: { found: boolean; occurrences: number; files: string[] };
-  warnings: string[];
-}
-
-function validateVipDataInFiles(
-  files: Array<{ path: string; content: string }>,
-  expectedPhone?: string,
-  expectedAddress?: string,
-  expectedDomain?: string
-): VipValidationResult {
-  const result: VipValidationResult = {
-    isValid: true,
-    phone: { found: false, occurrences: 0, files: [] },
-    address: { found: false, occurrences: 0, files: [] },
-    domain: { found: false, occurrences: 0, files: [] },
-    warnings: []
-  };
-
-  if (!expectedPhone && !expectedAddress && !expectedDomain) {
-    console.log(`[VIP Validation] No VIP data to validate - skipping`);
-    return result;
-  }
-
-  console.log(`[VIP Validation] Starting validation...`);
-  console.log(`[VIP Validation] Expected phone: "${expectedPhone}"`);
-  console.log(`[VIP Validation] Expected address: "${expectedAddress}"`);
-  console.log(`[VIP Validation] Expected domain: "${expectedDomain}"`);
-
-  const contentFiles = files.filter(f => /\.(html?|jsx?|tsx?)$/i.test(f.path));
-
-  for (const file of contentFiles) {
-    const content = file.content;
-
-    if (expectedPhone) {
-      const phoneDigits = expectedPhone.replace(/[^\d]/g, '');
-      const phonePattern = new RegExp(expectedPhone.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-      const telPattern = new RegExp(`tel:[+]?${phoneDigits}`, 'gi');
-      const phoneMatches = (content.match(phonePattern) || []).length;
-      const telMatches = (content.match(telPattern) || []).length;
-      if (phoneMatches > 0 || telMatches > 0) {
-        result.phone.found = true;
-        result.phone.occurrences += phoneMatches + telMatches;
-        result.phone.files.push(file.path);
-      }
-    }
-
-    if (expectedAddress) {
-      const addressParts = expectedAddress.split(',').map(p => p.trim()).filter(p => p.length > 3);
-      let addressFound = false;
-      for (const part of addressParts) {
-        if (/^(street|avenue|road|drive|lane|st|ave|rd|dr|ln)$/i.test(part)) continue;
-        const partPattern = new RegExp(part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-        const matches = (content.match(partPattern) || []).length;
-        if (matches > 0) {
-          addressFound = true;
-          result.address.occurrences += matches;
-          break;
-        }
-      }
-      if (addressFound && !result.address.files.includes(file.path)) {
-        result.address.found = true;
-        result.address.files.push(file.path);
-      }
-    }
-
-    if (expectedDomain) {
-      const domainPattern = new RegExp(expectedDomain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-      const domainMatches = (content.match(domainPattern) || []).length;
-      if (domainMatches > 0) {
-        result.domain.found = true;
-        result.domain.occurrences += domainMatches;
-        result.domain.files.push(file.path);
-      }
-    }
-  }
-
-  if (expectedPhone && !result.phone.found) {
-    result.isValid = false;
-    result.warnings.push(`⚠️ VIP Phone "${expectedPhone}" NOT found in any React files!`);
-  } else if (expectedPhone) {
-    console.log(`[VIP Validation] ✅ Phone found ${result.phone.occurrences} times in: ${result.phone.files.join(', ')}`);
-  }
-
-  if (expectedAddress && !result.address.found) {
-    result.isValid = false;
-    result.warnings.push(`⚠️ VIP Address "${expectedAddress}" NOT found in any React files!`);
-  } else if (expectedAddress) {
-    console.log(`[VIP Validation] ✅ Address found ${result.address.occurrences} times in: ${result.address.files.join(', ')}`);
-  }
-
-  if (expectedDomain && !result.domain.found) {
-    result.warnings.push(`⚠️ VIP Domain "${expectedDomain}" not found in meta/canonical tags`);
-  } else if (expectedDomain) {
-    console.log(`[VIP Validation] ✅ Domain found ${result.domain.occurrences} times in: ${result.domain.files.join(', ')}`);
-  }
-
-  console.log(`[VIP Validation] Result: ${result.isValid ? '✅ VALID' : '❌ INVALID'}`);
-  return result;
 }
 
 function enforcePhoneInFiles(
@@ -452,95 +316,6 @@ function enforcePhoneInFiles(
         content += phoneBlock;
       }
     }
-
-    return { ...f, content };
-  });
-}
-
-// ============ ADDRESS ENFORCEMENT FOR VIP (React) ============
-function enforceAddressInFiles(
-  files: Array<{ path: string; content: string }>,
-  desiredAddress: string | undefined
-): Array<{ path: string; content: string }> {
-  if (!desiredAddress) return files;
-
-  const address = desiredAddress.trim();
-  console.log(`[enforceAddressInFiles] Enforcing VIP address: "${address}"`);
-
-  // Common address patterns to replace (generic placeholders)
-  const genericAddressPatterns = [
-    /\d{1,5}\s+(?:Main|Oak|Elm|Pine|Cedar|Maple|First|Second|Third)\s+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr|Way|Court|Ct)[,.]?\s*(?:#\d+|Suite\s*\d+|Apt\.?\s*\d+)?[,.]?\s*[A-Za-z\s]+[,.]?\s*(?:[A-Z]{2}\s*)?\d{5}(?:-\d{4})?/gi,
-    /123\s+(?:Main|Example|Sample|Test)\s+(?:Street|St)[^\n<]{0,50}/gi,
-    /456\s+(?:Main|Example|Sample|Test)\s+(?:Street|St)[^\n<]{0,50}/gi,
-    /789\s+(?:Main|Example|Sample|Test)\s+(?:Street|St)[^\n<]{0,50}/gi,
-    /100\s+Main\s+Street[^\n<]{0,50}/gi,
-  ];
-
-  return files.map((f) => {
-    if (!/\.(html?|php|jsx?|tsx?)$/i.test(f.path)) return f;
-
-    let content = f.content;
-    let replaced = false;
-
-    // Replace generic address patterns
-    for (const pattern of genericAddressPatterns) {
-      if (pattern.test(content)) {
-        content = content.replace(pattern, address);
-        replaced = true;
-        pattern.lastIndex = 0;
-      }
-    }
-
-    // Replace "Address:" labels with generic addresses
-    content = content.replace(
-      /(Address|Адреса|Adresse|Dirección|Indirizzo|Endereço|Adres)\s*:\s*[^<\n]{10,80}/gi,
-      (m) => {
-        const label = m.split(":")[0];
-        replaced = true;
-        return `${label}: ${address}`;
-      }
-    );
-
-    if (replaced) {
-      console.log(`[enforceAddressInFiles] Updated address in ${f.path}`);
-    }
-
-    return { ...f, content };
-  });
-}
-
-// ============ DOMAIN ENFORCEMENT FOR VIP (React) ============
-function enforceDomainInFiles(
-  files: Array<{ path: string; content: string }>,
-  desiredDomain: string | undefined
-): Array<{ path: string; content: string }> {
-  if (!desiredDomain) return files;
-
-  const domain = desiredDomain.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
-  const canonicalUrl = `https://${domain}`;
-  
-  console.log(`[enforceDomainInFiles] Enforcing VIP domain: "${domain}" (canonical: ${canonicalUrl})`);
-
-  return files.map((f) => {
-    if (!/\.(html?|php|jsx?|tsx?)$/i.test(f.path)) return f;
-
-    let content = f.content;
-    
-    // Update canonical URLs
-    content = content.replace(
-      /<link[^>]*rel=["']canonical["'][^>]*href=["'][^"']*["'][^>]*>/gi,
-      `<link rel="canonical" href="${canonicalUrl}/${f.path.replace(/^\//, '')}">`
-    );
-
-    // Update og:url meta tag
-    content = content.replace(
-      /<meta[^>]*property=["']og:url["'][^>]*content=["'][^"']*["'][^>]*>/gi,
-      `<meta property="og:url" content="${canonicalUrl}/${f.path.replace(/^\//, '')}">`
-    );
-
-    // Update JSON-LD @id and url fields
-    content = content.replace(/"@id"\s*:\s*"[^"]*"/gi, `"@id": "${canonicalUrl}"`);
-    content = content.replace(/"url"\s*:\s*"https?:\/\/[^"]*"/gi, `"url": "${canonicalUrl}"`);
 
     return { ...f, content };
   });
@@ -964,103 +739,6 @@ CONTACT:
 - email: <if present>
 - address: <if present>
 `.trim();
-
-// ============ TYPOGRAPHY SYSTEM FOR LAYOUT STYLES ============
-interface LayoutTypography {
-  headingFont: string;
-  bodyFont: string;
-  headingWeight: string;
-  bodyWeight: string;
-  headingStyle?: string;
-  letterSpacing?: string;
-  lineHeight: string;
-  googleFontsUrl: string;
-  fallback: string;
-}
-
-const STYLE_TYPOGRAPHY: Record<string, LayoutTypography> = {
-  classic: { headingFont: "Playfair Display", bodyFont: "Source Sans Pro", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Sans+Pro:wght@400;600&display=swap", fallback: "serif" },
-  corporate: { headingFont: "Montserrat", bodyFont: "Open Sans", headingWeight: "700", bodyWeight: "400", letterSpacing: "-0.02em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&family=Open+Sans:wght@400;600&display=swap", fallback: "sans-serif" },
-  professional: { headingFont: "Roboto Slab", bodyFont: "Roboto", headingWeight: "600", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.65", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400;600;700&family=Roboto:wght@400;500&display=swap", fallback: "serif" },
-  executive: { headingFont: "Cinzel", bodyFont: "Lora", headingWeight: "600", bodyWeight: "400", headingStyle: "normal", letterSpacing: "0.05em", lineHeight: "1.8", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lora:wght@400;500;600&display=swap", fallback: "serif" },
-  asymmetric: { headingFont: "Archivo Black", bodyFont: "Archivo", headingWeight: "400", bodyWeight: "400", letterSpacing: "-0.03em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600&display=swap", fallback: "sans-serif" },
-  editorial: { headingFont: "Cormorant Garamond", bodyFont: "Libre Baskerville", headingWeight: "600", bodyWeight: "400", headingStyle: "italic", letterSpacing: "0.02em", lineHeight: "1.9", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,600&family=Libre+Baskerville:wght@400;700&display=swap", fallback: "serif" },
-  bold: { headingFont: "Bebas Neue", bodyFont: "Barlow", headingWeight: "400", bodyWeight: "400", letterSpacing: "0.1em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600&display=swap", fallback: "sans-serif" },
-  creative: { headingFont: "Caveat", bodyFont: "Poppins", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Poppins:wght@400;500;600&display=swap", fallback: "cursive" },
-  artistic: { headingFont: "DM Serif Display", bodyFont: "Karla", headingWeight: "400", bodyWeight: "400", letterSpacing: "0.01em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Karla:wght@400;500;600&display=swap", fallback: "serif" },
-  minimalist: { headingFont: "Inter", bodyFont: "Inter", headingWeight: "300", bodyWeight: "400", letterSpacing: "-0.01em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap", fallback: "sans-serif" },
-  zen: { headingFont: "Cormorant", bodyFont: "Nunito Sans", headingWeight: "400", bodyWeight: "400", letterSpacing: "0.03em", lineHeight: "1.9", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Cormorant:wght@400;500;600&family=Nunito+Sans:wght@400;600&display=swap", fallback: "serif" },
-  clean: { headingFont: "Work Sans", bodyFont: "Work Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
-  whitespace: { headingFont: "Jost", bodyFont: "Jost", headingWeight: "500", bodyWeight: "400", letterSpacing: "0.02em", lineHeight: "1.8", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&display=swap", fallback: "sans-serif" },
-  showcase: { headingFont: "Syne", bodyFont: "Space Grotesk", headingWeight: "700", bodyWeight: "400", letterSpacing: "-0.02em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Space+Grotesk:wght@400;500&display=swap", fallback: "sans-serif" },
-  interactive: { headingFont: "Plus Jakarta Sans", bodyFont: "Plus Jakarta Sans", headingWeight: "700", bodyWeight: "400", letterSpacing: "-0.01em", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
-  animated: { headingFont: "Outfit", bodyFont: "Outfit", headingWeight: "600", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
-  parallax: { headingFont: "Oswald", bodyFont: "Lato", headingWeight: "600", bodyWeight: "400", letterSpacing: "0.05em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Lato:wght@400;700&display=swap", fallback: "sans-serif" },
-  saas: { headingFont: "Inter", bodyFont: "Inter", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.02em", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
-  startup: { headingFont: "Manrope", bodyFont: "Manrope", headingWeight: "700", bodyWeight: "400", letterSpacing: "-0.01em", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap", fallback: "sans-serif" },
-  tech: { headingFont: "Space Grotesk", bodyFont: "IBM Plex Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.02em", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500&display=swap", fallback: "sans-serif" },
-  app: { headingFont: "Inter", bodyFont: "Inter", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.01em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap", fallback: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
-  gradient: { headingFont: "Sora", bodyFont: "DM Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.02em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=DM+Sans:wght@400;500&display=swap", fallback: "sans-serif" },
-  brutalist: { headingFont: "Space Grotesk", bodyFont: "JetBrains Mono", headingWeight: "700", bodyWeight: "400", letterSpacing: "0", lineHeight: "1.4", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap", fallback: "monospace" },
-  glassmorphism: { headingFont: "Poppins", bodyFont: "Poppins", headingWeight: "600", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
-  neomorphism: { headingFont: "Nunito", bodyFont: "Nunito", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap", fallback: "sans-serif" },
-  retro: { headingFont: "Press Start 2P", bodyFont: "VT323", headingWeight: "400", bodyWeight: "400", letterSpacing: "0.05em", lineHeight: "1.8", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap", fallback: "monospace" },
-  portfolio: { headingFont: "Sora", bodyFont: "DM Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.01em", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=DM+Sans:wght@400;500;700&display=swap", fallback: "sans-serif" },
-  agency: { headingFont: "Space Grotesk", bodyFont: "Work Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.02em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500&display=swap", fallback: "sans-serif" },
-  studio: { headingFont: "Bodoni Moda", bodyFont: "Figtree", headingWeight: "600", bodyWeight: "400", headingStyle: "italic", letterSpacing: "0.02em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,600;1,600&family=Figtree:wght@400;500;600&display=swap", fallback: "serif" },
-  ecommerce: { headingFont: "Lexend", bodyFont: "Lexend", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.01em", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
-  services: { headingFont: "Mulish", bodyFont: "Mulish", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Mulish:wght@400;500;600;700;800&display=swap", fallback: "sans-serif" },
-  restaurant: { headingFont: "Playfair Display", bodyFont: "Raleway", headingWeight: "700", bodyWeight: "400", letterSpacing: "0.02em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Raleway:wght@400;500;600&display=swap", fallback: "serif" },
-  hotel: { headingFont: "Cormorant Garamond", bodyFont: "Nunito Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "0.03em", lineHeight: "1.8", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Nunito+Sans:wght@400;600&display=swap", fallback: "serif" },
-  medical: { headingFont: "DM Sans", bodyFont: "DM Sans", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
-  legal: { headingFont: "Merriweather", bodyFont: "Source Sans Pro", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.8", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Source+Sans+Pro:wght@400;600&display=swap", fallback: "serif" },
-};
-
-const DEFAULT_TYPOGRAPHY: LayoutTypography = { headingFont: "Inter", bodyFont: "Inter", headingWeight: "600", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap", fallback: "sans-serif" };
-
-function getTypographyForStyle(styleId: string): LayoutTypography {
-  return STYLE_TYPOGRAPHY[styleId] || DEFAULT_TYPOGRAPHY;
-}
-
-function generateTypographyPromptSection(typography: LayoutTypography, styleName: string): string {
-  return `
-⚠️⚠️⚠️ MANDATORY TYPOGRAPHY - NON-NEGOTIABLE! ⚠️⚠️⚠️
-
-═══════════════════════════════════════════════════════════════════
-🔤 FONT REQUIREMENTS FOR "${styleName}" - USE THESE EXACT FONTS:
-═══════════════════════════════════════════════════════════════════
-
-HEADING FONT: ${typography.headingFont}
-BODY FONT: ${typography.bodyFont}
-
-REQUIRED GOOGLE FONTS IMPORT (ADD TO <head>):
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="${typography.googleFontsUrl}" rel="stylesheet">
-
-═══════════════════════════════════════════════════════════════════
-🎨 TYPOGRAPHY CSS - APPLY IN YOUR CSS:
-═══════════════════════════════════════════════════════════════════
-
-h1, h2, h3, h4, h5, h6 {
-  font-family: '${typography.headingFont}', ${typography.fallback};
-  font-weight: ${typography.headingWeight};
-  ${typography.letterSpacing !== 'normal' ? `letter-spacing: ${typography.letterSpacing};` : ''}
-}
-
-body, p, li, a, span, td, input, textarea, button {
-  font-family: '${typography.bodyFont}', ${typography.fallback};
-  font-weight: ${typography.bodyWeight};
-  line-height: ${typography.lineHeight};
-}
-
-⛔ TYPOGRAPHY RULES - DO NOT VIOLATE:
-- DO NOT use Arial, Helvetica, Times New Roman, or system fonts!
-- DO NOT skip the Google Fonts import!
-- EVERY page MUST have the Google Fonts link in <head>!
-
-`;
-}
 
 // ~30 unique layout variations for randomization or manual selection
 // Each style has UNIQUE structure for: Header/Nav, Hero, Sections, Features, Testimonials, CTA, Footer
@@ -2456,16 +2134,11 @@ async function runGeneration({
   
   console.log("Refined prompt generated, now generating React website...");
 
-  // Select layout: use provided layoutStyle or random + get typography
+  // Select layout: use provided layoutStyle or random
   const selectedLayout = layoutStyle 
     ? LAYOUT_VARIATIONS.find(l => l.id === layoutStyle) || LAYOUT_VARIATIONS[Math.floor(Math.random() * LAYOUT_VARIATIONS.length)]
     : LAYOUT_VARIATIONS[Math.floor(Math.random() * LAYOUT_VARIATIONS.length)];
   console.log(`Selected layout variation: ${selectedLayout.name} (${layoutStyle ? 'manual' : 'random'})`);
-  
-  // Get typography for selected layout
-  const layoutTypography = getTypographyForStyle(selectedLayout.id);
-  const typographySection = generateTypographyPromptSection(layoutTypography, selectedLayout.name);
-  console.log(`🔤 Typography for "${selectedLayout.name}": ${layoutTypography.headingFont} / ${layoutTypography.bodyFont}`);
 
   // Fetch Pexels photos if AI image source selected
   let imageStrategy = IMAGE_STRATEGY_BASIC;
@@ -2487,7 +2160,7 @@ async function runGeneration({
       },
       {
         role: "user",
-        content: `${REACT_GENERATION_PROMPT}\n\n${imageStrategy}\n\n${IMAGE_CSS}\n\n=== MANDATORY LAYOUT STRUCTURE (FOLLOW EXACTLY) ===\n${selectedLayout.description}\n\n${typographySection}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== TARGET WEBSITE LANGUAGE (CRITICAL - MUST FOLLOW EXACTLY) ===\nALL website content MUST be in: ${language === "uk" ? "UKRAINIAN language" : language === "en" ? "ENGLISH language" : language === "de" ? "GERMAN language" : language === "pl" ? "POLISH language" : language === "ru" ? "RUSSIAN language" : language === "fr" ? "FRENCH language" : language === "es" ? "SPANISH language" : language ? language.toUpperCase() + " language" : "ENGLISH language (default)"}\n\nThis includes: navigation, buttons, headings, paragraphs, footer, cookie banner, ALL text content. DO NOT MIX LANGUAGES.\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
+        content: `${REACT_GENERATION_PROMPT}\n\n${imageStrategy}\n\n${IMAGE_CSS}\n\n=== MANDATORY LAYOUT STRUCTURE (FOLLOW EXACTLY) ===\n${selectedLayout.description}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== TARGET WEBSITE LANGUAGE (CRITICAL - MUST FOLLOW EXACTLY) ===\nALL website content MUST be in: ${language === "uk" ? "UKRAINIAN language" : language === "en" ? "ENGLISH language" : language === "de" ? "GERMAN language" : language === "pl" ? "POLISH language" : language === "ru" ? "RUSSIAN language" : language === "fr" ? "FRENCH language" : language === "es" ? "SPANISH language" : language ? language.toUpperCase() + " language" : "ENGLISH language (default)"}\n\nThis includes: navigation, buttons, headings, paragraphs, footer, cookie banner, ALL text content. DO NOT MIX LANGUAGES.\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
       },
     ],
   };
@@ -2887,16 +2560,8 @@ async function runBackgroundGeneration(
       const explicit = extractExplicitBrandingFromPrompt(prompt);
       const desiredSiteName = explicit.siteName || siteName;
       const desiredPhone = explicit.phone;
-      const desiredAddress = explicit.address;
-      const desiredDomain = explicit.domain;
       
-      console.log(`[BG] React - Extracted branding - siteName: "${desiredSiteName}", phone: "${desiredPhone}", address: "${desiredAddress}", domain: "${desiredDomain}"`);
-      
-      // Check if this is a VIP generation (has explicit VIP data)
-      const isVipGeneration = !!(desiredPhone && desiredAddress);
-      if (isVipGeneration) {
-        console.log(`[BG] React VIP DATA DETECTED - will enforce phone "${desiredPhone}", address "${desiredAddress}", domain "${desiredDomain}"`);
-      }
+      console.log(`[BG] React - Extracted branding - siteName: "${desiredSiteName}", phone: "${desiredPhone}"`);
       
       // CRITICAL behavior:
       // - If phone is explicitly provided in prompt -> enforce EXACTLY that phone and DO NOT "fix" it.
@@ -2920,59 +2585,8 @@ async function runBackgroundGeneration(
 
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceEmailInFiles(enforcedFiles, desiredSiteName);
-      
-      // VIP-specific enforcement: Address and Domain
-      if (isVipGeneration) {
-        enforcedFiles = enforceAddressInFiles(enforcedFiles, desiredAddress);
-        enforcedFiles = enforceDomainInFiles(enforcedFiles, desiredDomain);
-        console.log(`[BG] React VIP: Enforced address "${desiredAddress}" and domain "${desiredDomain}" across all files`);
-      }
-      
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
       enforcedFiles = ensureReactFaviconAndLogoInFiles(enforcedFiles, desiredSiteName);
-
-      // ============ VIP DATA FINAL VALIDATION ============
-      if (isVipGeneration) {
-        const vipValidation = validateVipDataInFiles(
-          enforcedFiles,
-          desiredPhone,
-          desiredAddress,
-          desiredDomain
-        );
-        
-        console.log(`[BG] React VIP Validation complete - Valid: ${vipValidation.isValid}`);
-        
-        if (!vipValidation.isValid) {
-          console.error(`[BG] ❌ React VIP DATA VALIDATION FAILED!`);
-          for (const warning of vipValidation.warnings) {
-            console.error(`[BG] ${warning}`);
-          }
-          
-          console.log(`[BG] Attempting force re-enforcement of VIP data...`);
-          
-          if (!vipValidation.phone.found && desiredPhone) {
-            console.log(`[BG] Force re-enforcing phone: ${desiredPhone}`);
-            enforcedFiles = enforcePhoneInFiles(enforcedFiles, desiredPhone);
-          }
-          
-          if (!vipValidation.address.found && desiredAddress) {
-            console.log(`[BG] Force re-enforcing address: ${desiredAddress}`);
-            enforcedFiles = enforceAddressInFiles(enforcedFiles, desiredAddress);
-          }
-          
-          if (!vipValidation.domain.found && desiredDomain) {
-            console.log(`[BG] Force re-enforcing domain: ${desiredDomain}`);
-            enforcedFiles = enforceDomainInFiles(enforcedFiles, desiredDomain);
-          }
-          
-          const reValidation = validateVipDataInFiles(enforcedFiles, desiredPhone, desiredAddress, desiredDomain);
-          if (!reValidation.isValid) {
-            console.error(`[BG] ❌ React VIP DATA STILL MISSING AFTER RE-ENFORCEMENT!`);
-          } else {
-            console.log(`[BG] ✅ React VIP data successfully enforced after re-validation`);
-          }
-        }
-      }
       
       // Create zip base64 with fixed files
       const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");
@@ -3191,7 +2805,7 @@ ${promptForGeneration}`;
       };
       const countryName = geoNames[geo];
       if (countryName) {
-        promptForGeneration = `${promptForGeneration}\n\n[TARGET COUNTRY: ${countryName}]
+        promptForGeneration = `${prompt}\n\n[TARGET COUNTRY: ${countryName}]
 CRITICAL GEO REQUIREMENTS - ALL CONTENT MUST BE LOCALIZED FOR ${countryName.toUpperCase()}:
 
 1. **PHYSICAL ADDRESS**: Generate a REALISTIC address from ${countryName}:
