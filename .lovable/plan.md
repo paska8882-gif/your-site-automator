@@ -1,228 +1,174 @@
 
+# Plan: Виправити VIP генерацію - правильна підстановка домену, адреси, телефону
 
-# Plan: Dodати унікальну типографіку та структуру до кожного стилю макету
+## Виявлені проблеми
 
-## Огляд
-
-Зараз кожен стиль макету (`LAYOUT_VARIATIONS`) містить детальні описи для структури (header, hero, секції, footer), але **шрифти не визначені** для кожного стилю. Всі сайти використовують стандартні шрифти, що робить їх схожими візуально.
-
-## Що буде змінено
-
-### 1. Нова структура типографіки для кожного стилю
-
-Додаю до кожного з 30+ стилів унікальну комбінацію шрифтів:
-
-```text
-┌─────────────────┬────────────────────────────────────┐
-│ Style           │ Typography                         │
-├─────────────────┼────────────────────────────────────┤
-│ classic         │ Heading: Playfair Display (serif)  │
-│                 │ Body: Source Sans Pro              │
-├─────────────────┼────────────────────────────────────┤
-│ corporate       │ Heading: Montserrat (bold)         │
-│                 │ Body: Open Sans                    │
-├─────────────────┼────────────────────────────────────┤
-│ minimalist      │ Heading: Inter (thin)              │
-│                 │ Body: Inter                        │
-├─────────────────┼────────────────────────────────────┤
-│ brutalist       │ Heading: Space Grotesk             │
-│                 │ Body: JetBrains Mono (monospace)   │
-├─────────────────┼────────────────────────────────────┤
-│ retro           │ Heading: Press Start 2P (pixel)    │
-│                 │ Body: VT323                        │
-├─────────────────┼────────────────────────────────────┤
-│ editorial       │ Heading: Cormorant Garamond        │
-│                 │ Body: Libre Baskerville            │
-├─────────────────┼────────────────────────────────────┤
-│ executive       │ Heading: Cinzel (luxury serif)     │
-│                 │ Body: Lora                         │
-├─────────────────┼────────────────────────────────────┤
-│ tech            │ Heading: Space Grotesk             │
-│                 │ Body: IBM Plex Sans                │
-├─────────────────┼────────────────────────────────────┤
-│ saas            │ Heading: Inter (medium)            │
-│                 │ Body: Inter                        │
-├─────────────────┼────────────────────────────────────┤
-│ creative        │ Heading: Caveat (handwritten)      │
-│                 │ Body: Poppins                      │
-├─────────────────┼────────────────────────────────────┤
-│ restaurant      │ Heading: Playfair Display          │
-│                 │ Body: Raleway                      │
-├─────────────────┼────────────────────────────────────┤
-│ hotel           │ Heading: Cormorant Garamond        │
-│                 │ Body: Nunito Sans                  │
-└─────────────────┴────────────────────────────────────┘
+### Проблема 1: КРИТИЧНИЙ БАГ - VIP prompt перезаписується при наявності geo
+У файлі `supabase/functions/generate-website/index.ts` рядок 10283:
+```typescript
+promptForGeneration = `${prompt}\n\n[TARGET COUNTRY: ${countryName}]...
 ```
+Коли є geo параметр, він бере **`prompt`** (оригінальний) замість **`promptForGeneration`** (який вже містить vipPrompt). Це повністю втрачає VIP prompt!
 
-### 2. Оновлені структурні специфікації
+**Такий самий баг є в:**
+- `generate-php-website/index.ts`
+- `generate-react-website/index.ts`
 
-Розширюю `description` кожного стилю з додатковими правилами:
+### Проблема 2: VIP prompt шаблон не має примусових інструкцій
+Поточний VIP_TEMPLATE в `generate-vip-prompt/index.ts` просто перелічує дані, але не містить:
+- **Примусових інструкцій** для AI використовувати ці конкретні дані
+- **Заборон** на вигадування інших адрес/телефонів
+- **Чітких маркерів** для post-processing
 
-- **Порядок секцій** - унікальна послідовність для кожного стилю
-- **Розташування елементів** - ліво/право/центр для різних блоків
-- **Пропорції грід** - 2 колонки, 3 колонки, асиметричні
-- **Розміри типографіки** - конкретні px значення для H1-H6
-- **Відступи** - унікальні spacing patterns
+### Проблема 3: max_tokens занадто малий для VIP
+VIP генерація має більше контенту (детальна структура сторінок, дизайн), але max_tokens = 2000 для AI виклику page structure та 1000 для design - це може обрізати відповідь.
 
-### 3. Технічна реалізація
+## Виправлення
 
-#### Файли для зміни:
-
-**Edge Functions (3 файли):**
+### 1. Виправити баг з prompt vs promptForGeneration (3 файли)
+**Файли:**
 - `supabase/functions/generate-website/index.ts`
-- `supabase/functions/generate-php-website/index.ts`  
+- `supabase/functions/generate-php-website/index.ts`
 - `supabase/functions/generate-react-website/index.ts`
 
-**Зміни в кожному файлі:**
+**Зміна рядка 10283 (та аналогічних):**
+```typescript
+// БУЛО (НЕПРАВИЛЬНО):
+promptForGeneration = `${prompt}\n\n[TARGET COUNTRY: ${countryName}]...
 
-1. **Оновити `LAYOUT_VARIATIONS` масив** - додати поле `typography`:
+// СТАЛО (ПРАВИЛЬНО):
+promptForGeneration = `${promptForGeneration}\n\n[TARGET COUNTRY: ${countryName}]...
+```
+
+### 2. Оновити VIP_TEMPLATE з примусовими інструкціями
+**Файл:** `supabase/functions/generate-vip-prompt/index.ts`
+
+Додати примусовий преамбулу:
+```text
+⚠️⚠️⚠️ MANDATORY VIP DATA - NON-NEGOTIABLE! ⚠️⚠️⚠️
+
+THE FOLLOWING DATA MUST APPEAR EXACTLY AS PROVIDED:
+- Domain: {domain} → Use in meta tags, JSON-LD, sitemap
+- Name: {siteName} → Use in logo, title, footer, copyright
+- Address: {address} → Use in contact page AND footer
+- Phone: {phone} → Use in contact page AND footer (with tel: link)
+
+⛔ FORBIDDEN:
+- DO NOT invent different address
+- DO NOT generate random phone number
+- DO NOT change the site name
+- DO NOT use placeholder data like "123 Main St" or "+1 555-1234"
+
+✅ REQUIRED:
+- Phone MUST be clickable: <a href="tel:{phoneDigits}">{phone}</a>
+- Address MUST appear on contact.html AND in footer
+- Name MUST appear in logo and copyright
+
+Domain: {domain}
+Name: {siteName}
+Geo: {geo}
+...
+```
+
+### 3. Збільшити max_tokens для VIP генерації
+**Файл:** `supabase/functions/generate-vip-prompt/index.ts`
 
 ```typescript
-const LAYOUT_VARIATIONS = [
-  {
-    id: "classic",
-    name: "Classic Corporate",
-    typography: {
-      headingFont: "Playfair Display",
-      bodyFont: "Source Sans Pro",
-      headingWeight: "700",
-      bodyWeight: "400",
-      letterSpacing: "normal",
-      lineHeight: "1.6"
-    },
-    description: `...existing description...`
-  },
-  // ... інші стилі
-];
+// Page structure generation
+max_tokens: 4000,  // було 2000
+
+// Design generation  
+max_tokens: 2000,  // було 1000
 ```
 
-2. **Додати Google Fonts import** у генерований HTML:
+### 4. Додати post-processing валідацію для VIP даних
+**Файл:** `supabase/functions/generate-website/index.ts`
 
-```html
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
-```
+Створити функцію `enforceVipDataInFiles()` яка:
+1. Знаходить телефон з VIP prompt та примусово підставляє його
+2. Знаходить адресу з VIP prompt та перевіряє її наявність
+3. Перевіряє наявність site name в логотипі та footer
 
-3. **Додати CSS змінні** для типографіки:
+### 5. Передавати VIP дані окремими параметрами для post-processing
+На фронтенді додати парсинг VIP prompt для отримання:
+- vipPhone
+- vipAddress
+- vipSiteName
 
-```css
-:root {
-  --font-heading: 'Playfair Display', serif;
-  --font-body: 'Source Sans Pro', sans-serif;
-  --heading-weight: 700;
-  --body-weight: 400;
-}
+Передавати їх як окремі параметри в body запиту.
 
-h1, h2, h3, h4, h5, h6 { 
-  font-family: var(--font-heading);
-  font-weight: var(--heading-weight);
-}
+## Технічні деталі
 
-body, p, li, td { 
-  font-family: var(--font-body);
-  font-weight: var(--body-weight);
-}
-```
+### Файли для зміни:
 
-4. **Оновити AI prompt** з обов'язковими вимогами до типографіки:
+| Файл | Зміни |
+|------|-------|
+| `generate-website/index.ts` | Виправити prompt → promptForGeneration, додати enforceVipDataInFiles() |
+| `generate-php-website/index.ts` | Виправити prompt → promptForGeneration, додати enforceVipDataInFiles() |
+| `generate-react-website/index.ts` | Виправити prompt → promptForGeneration |
+| `generate-vip-prompt/index.ts` | Оновити VIP_TEMPLATE з примусовими інструкціями, збільшити max_tokens |
+| `src/lib/websiteGenerator.ts` | Парсити vipPrompt для отримання phone/address |
+
+### Приклад оновленого VIP_TEMPLATE:
 
 ```text
-⚠️⚠️⚠️ MANDATORY TYPOGRAPHY - NON-NEGOTIABLE! ⚠️⚠️⚠️
-HEADING FONT: Playfair Display (Google Fonts)
-BODY FONT: Source Sans Pro (Google Fonts)
+⚠️⚠️⚠️ CRITICAL VIP GENERATION - ALL DATA BELOW IS MANDATORY! ⚠️⚠️⚠️
 
-YOU MUST:
-- Import these fonts from Google Fonts
-- Apply heading font to h1, h2, h3, h4, h5, h6
-- Apply body font to body, p, li, a
-- Use font-weight: 700 for headings
-- Use font-weight: 400 for body text
-```
+YOU MUST USE THESE EXACT VALUES - NO EXCEPTIONS:
 
-### 4. Повний список типографіки для всіх 30+ стилів
+📍 SITE IDENTITY (USE EXACTLY):
+   Domain: {domain}
+   Business Name: {siteName}
+   
+📞 CONTACT DETAILS (MANDATORY ON CONTACT PAGE + FOOTER):
+   Phone: {phone}
+   Address: {address}
+   
+🌍 LOCALIZATION:
+   Target Country: {geo}
+   Language: {language}
 
-| Style ID | Heading Font | Body Font | Mood |
-|----------|-------------|-----------|------|
-| classic | Playfair Display | Source Sans Pro | Елегантний |
-| corporate | Montserrat | Open Sans | Діловий |
-| professional | Roboto Slab | Roboto | Чистий |
-| executive | Cinzel | Lora | Люксовий |
-| asymmetric | Archivo Black | Archivo | Сміливий |
-| editorial | Cormorant Garamond | Libre Baskerville | Журнальний |
-| bold | Bebas Neue | Barlow | Агресивний |
-| creative | Caveat | Poppins | Творчий |
-| artistic | DM Serif Display | Karla | Галерея |
-| minimalist | Inter | Inter | Чистий |
-| zen | Cormorant | Nunito Sans | Спокійний |
-| clean | Work Sans | Work Sans | Простий |
-| whitespace | Jost | Jost | Повітряний |
-| showcase | Syne | Space Grotesk | Динамічний |
-| interactive | Plus Jakarta Sans | Plus Jakarta Sans | Сучасний |
-| animated | Outfit | Outfit | Плавний |
-| parallax | Oswald | Lato | Глибокий |
-| saas | Inter | Inter | Технічний |
-| startup | Manrope | Manrope | Стартап |
-| tech | Space Grotesk | IBM Plex Sans | Код |
-| app | SF Pro Display | SF Pro Text | Мобільний |
-| gradient | Clash Display | Satoshi | Трендовий |
-| brutalist | Space Grotesk | JetBrains Mono | Сирий |
-| glassmorphism | Poppins | Poppins | Прозорий |
-| neomorphism | Nunito | Nunito | М'який |
-| retro | Press Start 2P | VT323 | 90-ті |
-| portfolio | Sora | DM Sans | Креативний |
-| agency | Clash Display | Cabinet Grotesk | Агенція |
-| studio | Bodoni Moda | Figtree | Кіно |
-| ecommerce | Lexend | Lexend | Магазин |
-| services | Mulish | Mulish | Сервіс |
-| restaurant | Playfair Display | Raleway | Ресторан |
-| hotel | Cormorant Garamond | Nunito Sans | Готель |
+⛔ ABSOLUTELY FORBIDDEN:
+   - Using different phone number
+   - Using different address
+   - Using different business name
+   - Making up placeholder contact details
 
-### 5. Приклад результату генерації
+✅ VERIFICATION CHECKLIST:
+   □ Phone "{phone}" appears in footer with tel: link
+   □ Phone "{phone}" appears on contact page
+   □ Address "{address}" appears in footer
+   □ Address "{address}" appears on contact page  
+   □ Business name "{siteName}" in logo
+   □ Business name "{siteName}" in copyright
+   □ Domain "{domain}" in canonical URL
 
-**До (всі стилі схожі):**
-- Всі сайти: system-ui, Arial, sans-serif
-- Однакові пропорції тексту
-- Стандартні відступи
+═══════════════════════════════════════════════════════════════
 
-**Після (унікальний вигляд):**
+Topic: {topic}
+Type: Information Platform + {typeDescription}
+Description: {description}
+Keywords: {keywords}
+Banned words: {bannedWords}
 
-**Classic Corporate:**
-```css
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Sans+Pro:wght@400;600&display=swap');
+{pageStructure}
 
-h1 { font-family: 'Playfair Display', serif; font-size: 56px; }
-h2 { font-family: 'Playfair Display', serif; font-size: 42px; }
-body { font-family: 'Source Sans Pro', sans-serif; }
-```
+{design}
 
-**Tech Modern:**
-```css
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500&display=swap');
-
-h1 { font-family: 'Space Grotesk', sans-serif; font-size: 48px; letter-spacing: -1px; }
-body { font-family: 'IBM Plex Sans', sans-serif; }
-code { font-family: 'JetBrains Mono', monospace; }
-```
-
-**Retro 90s:**
-```css
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
-
-h1 { font-family: 'Press Start 2P', cursive; font-size: 32px; }
-body { font-family: 'VT323', monospace; font-size: 20px; }
+Technology: HTML5 / CSS3 / Vanilla JS; responsive; semantic markup; JSON-LD schema; meta tags; hreflang={hreflang}; sitemap.xml + robots.txt
 ```
 
 ## Послідовність реалізації
 
-1. **Створити типографічну конфігурацію** - об'єкт з шрифтами для всіх 30+ стилів
-2. **Оновити LAYOUT_VARIATIONS** - додати typography поле до кожного стилю
-3. **Модифікувати HTML_GENERATION_PROMPT** - додати обов'язкові вимоги до шрифтів
-4. **Додати post-processing** - перевірка наявності Google Fonts import
-5. **Тестування** - перевірити генерацію для кількох стилів
+1. **Виправити критичний баг** (prompt → promptForGeneration) в усіх 3 edge functions
+2. **Оновити VIP_TEMPLATE** з примусовими інструкціями
+3. **Збільшити max_tokens** для AI викликів
+4. **Додати post-processing** для VIP даних
+5. **Протестувати** VIP генерацію з різними geo/language комбінаціями
 
 ## Очікуваний результат
 
-- Кожен з 30+ стилів матиме унікальну типографіку
-- Сайти візуально відрізнятимуться один від одного
-- Google Fonts буде автоматично підключатися
-- AI буде отримувати чіткі інструкції щодо шрифтів
-
+- VIP prompt більше не втрачається при наявності geo
+- AI отримує чіткі примусові інструкції використовувати надані дані
+- Post-processing перевіряє та гарантує наявність phone/address
+- Генеровані сайти мають правильні контактні дані
