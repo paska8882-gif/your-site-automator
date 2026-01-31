@@ -11,7 +11,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const N8N_WEBHOOK_URL = "https://n8n.dragonwhite-n8n.top/webhook/lovable-generate";
+const N8N_START_URL = "https://n8n.dragonwhite-n8n.top/webhook/mcp/start";
+const N8N_STATUS_URL = "https://n8n.dragonwhite-n8n.top/webhook/mcp/status";
 
 const POLL_INTERVAL_MS = 4000; // 4 seconds between polls
 const MAX_POLL_TIME_MS = 30 * 60 * 1000; // 30 minutes max
@@ -85,7 +86,7 @@ async function pollN8nStatus(
       console.log(`📡 Polling n8n status for ${requestId}...`);
       
       try {
-        const statusResponse = await fetch(`${N8N_WEBHOOK_URL}/status?requestId=${requestId}`, {
+        const statusResponse = await fetch(`${N8N_STATUS_URL}?requestId=${requestId}`, {
           method: "GET",
           headers: { "Content-Type": "application/json" },
         });
@@ -312,8 +313,8 @@ serve(async (req) => {
 
     console.log("📤 Calling n8n start endpoint...");
 
-    // Call n8n webhook endpoint - this should return quickly
-    const startResponse = await fetch(N8N_WEBHOOK_URL, {
+    // Call n8n start endpoint - this should return quickly
+    const startResponse = await fetch(N8N_START_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(n8nPayload),
