@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { generateBrandingSync, type BrandingConfig } from "../_shared/branding.ts";
 
 declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void };
 
@@ -2320,250 +2321,35 @@ function enforceUiUxBaselineInFiles(
 function ensureFaviconAndLogoInFiles(
   files: Array<{ path: string; content: string }>,
   siteNameRaw?: string,
-  brandColors?: { primary: string; accent: string }
+  brandColors?: { primary: string; accent: string },
+  layoutStyle?: string,
+  topic?: string
 ): Array<{ path: string; content: string }> {
   const siteName = (siteNameRaw || "Website").trim() || "Website";
-  const initials =
-    siteName
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((w) => (w[0] ? w[0].toUpperCase() : ""))
-      .join("") || "W";
-
+  
   const safeText = (s: string) =>
     s.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c] as string));
 
-  // Generate a small legacy-compatible favicon.ico (32-bit BMP inside ICO).
-  // Note: we can't reliably rasterize SVG here without native deps, so we render
-  // a simplified bitmap that matches the brand gradient + initials.
-  const toBase64 = (bytes: Uint8Array) => {
-    let binary = "";
-    const chunk = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunk) {
-      binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-    }
-    return btoa(binary);
+  // Use the new branding module for diverse logo generation
+  const brandingConfig: BrandingConfig = {
+    siteName,
+    topic: topic || "",
+    primaryColor: brandColors?.primary || "#10b981",
+    accentColor: brandColors?.accent || "#047857",
+    layoutStyle: layoutStyle || "classic",
   };
 
-  const font5x7: Record<string, string[]> = {
-    A: ["01110","10001","10001","11111","10001","10001","10001"],
-    B: ["11110","10001","10001","11110","10001","10001","11110"],
-    C: ["01111","10000","10000","10000","10000","10000","01111"],
-    D: ["11110","10001","10001","10001","10001","10001","11110"],
-    E: ["11111","10000","10000","11110","10000","10000","11111"],
-    F: ["11111","10000","10000","11110","10000","10000","10000"],
-    G: ["01111","10000","10000","10111","10001","10001","01111"],
-    H: ["10001","10001","10001","11111","10001","10001","10001"],
-    I: ["11111","00100","00100","00100","00100","00100","11111"],
-    J: ["00111","00010","00010","00010","10010","10010","01100"],
-    K: ["10001","10010","10100","11000","10100","10010","10001"],
-    L: ["10000","10000","10000","10000","10000","10000","11111"],
-    M: ["10001","11011","10101","10101","10001","10001","10001"],
-    N: ["10001","11001","10101","10011","10001","10001","10001"],
-    O: ["01110","10001","10001","10001","10001","10001","01110"],
-    P: ["11110","10001","10001","11110","10000","10000","10000"],
-    Q: ["01110","10001","10001","10001","10101","10010","01101"],
-    R: ["11110","10001","10001","11110","10100","10010","10001"],
-    S: ["01111","10000","10000","01110","00001","00001","11110"],
-    T: ["11111","00100","00100","00100","00100","00100","00100"],
-    U: ["10001","10001","10001","10001","10001","10001","01110"],
-    V: ["10001","10001","10001","10001","10001","01010","00100"],
-    W: ["10001","10001","10001","10101","10101","11011","10001"],
-    X: ["10001","10001","01010","00100","01010","10001","10001"],
-    Y: ["10001","10001","01010","00100","00100","00100","00100"],
-    Z: ["11111","00001","00010","00100","01000","10000","11111"],
-    "0": ["01110","10001","10011","10101","11001","10001","01110"],
-    "1": ["00100","01100","00100","00100","00100","00100","01110"],
-    "2": ["01110","10001","00001","00010","00100","01000","11111"],
-    "3": ["11110","00001","00001","01110","00001","00001","11110"],
-    "4": ["00010","00110","01010","10010","11111","00010","00010"],
-    "5": ["11111","10000","10000","11110","00001","00001","11110"],
-    "6": ["01110","10000","10000","11110","10001","10001","01110"],
-    "7": ["11111","00001","00010","00100","01000","01000","01000"],
-    "8": ["01110","10001","10001","01110","10001","10001","01110"],
-    "9": ["01110","10001","10001","01111","00001","00001","01110"],
-    "?": ["01110","10001","00001","00010","00100","00000","00100"],
-  };
-
-  const createIcoBase64 = (text: string) => {
-    const w = 32;
-    const h = 32;
-
-    const pickChars = text
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, "")
-      .slice(0, 2);
-    const chars = pickChars.length ? pickChars.split("") : ["W"];
-
-    // BGRA pixels, bottom-up for BMP in ICO
-    const pixels = new Uint8Array(w * h * 4);
-
-    // Gradient colors (roughly tailwind emerald 500 -> emerald 700)
-    const c1 = { r: 16, g: 185, b: 129 };
-    const c2 = { r: 4, g: 120, b: 87 };
-
-    const lerp = (a: number, b: number, t: number) => Math.round(a + (b - a) * t);
-    for (let y = 0; y < h; y++) {
-      const t = y / (h - 1);
-      const r = lerp(c1.r, c2.r, t);
-      const g = lerp(c1.g, c2.g, t);
-      const b = lerp(c1.b, c2.b, t);
-      for (let x = 0; x < w; x++) {
-        const i = ((h - 1 - y) * w + x) * 4; // bottom-up
-        pixels[i + 0] = b;
-        pixels[i + 1] = g;
-        pixels[i + 2] = r;
-        pixels[i + 3] = 255;
-      }
-    }
-
-    // Rounded corners mask (approx)
-    const radius = 7;
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const inCorner =
-          (x < radius && y < radius) ||
-          (x >= w - radius && y < radius) ||
-          (x < radius && y >= h - radius) ||
-          (x >= w - radius && y >= h - radius);
-        if (!inCorner) continue;
-
-        const cx = x < radius ? radius - 1 : w - radius;
-        const cy = y < radius ? radius - 1 : h - radius;
-        const dx = x - cx;
-        const dy = y - cy;
-        if (dx * dx + dy * dy > (radius - 1) * (radius - 1)) {
-          const i = ((h - 1 - y) * w + x) * 4;
-          pixels[i + 3] = 0;
-        }
-      }
-    }
-
-    // Draw 5x7 font scaled
-    const scale = chars.length === 1 ? 3 : 3;
-    const glyphW = 5 * scale;
-    const glyphH = 7 * scale;
-    const gap = scale;
-    const totalW = chars.length * glyphW + (chars.length - 1) * gap;
-    const startX = Math.floor((w - totalW) / 2);
-    const startY = Math.floor((h - glyphH) / 2) + 1;
-
-    const setPx = (x: number, y: number) => {
-      if (x < 0 || y < 0 || x >= w || y >= h) return;
-      const i = ((h - 1 - y) * w + x) * 4;
-      // white
-      pixels[i + 0] = 255;
-      pixels[i + 1] = 255;
-      pixels[i + 2] = 255;
-      pixels[i + 3] = 255;
-    };
-
-    chars.forEach((ch, idx) => {
-      const glyph = font5x7[ch] || font5x7["?"];
-      const ox = startX + idx * (glyphW + gap);
-      for (let gy = 0; gy < 7; gy++) {
-        const row = glyph[gy];
-        for (let gx = 0; gx < 5; gx++) {
-          if (row[gx] !== "1") continue;
-          for (let sy = 0; sy < scale; sy++) {
-            for (let sx = 0; sx < scale; sx++) {
-              setPx(ox + gx * scale + sx, startY + gy * scale + sy);
-            }
-          }
-        }
-      }
-    });
-
-    // AND mask: 1 means transparent, 0 opaque. We'll derive from alpha.
-    const maskRowBytes = Math.ceil(w / 32) * 4; // aligned to 32 bits
-    const mask = new Uint8Array(maskRowBytes * h);
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const i = ((h - 1 - y) * w + x) * 4;
-        const a = pixels[i + 3];
-        const bit = a === 0 ? 1 : 0;
-        const byteIndex = y * maskRowBytes + (x >> 3);
-        const bitIndex = 7 - (x & 7);
-        if (bit) mask[byteIndex] |= 1 << bitIndex;
-      }
-    }
-
-    // BITMAPINFOHEADER
-    const headerSize = 40;
-    const dib = new Uint8Array(headerSize);
-    const dv = new DataView(dib.buffer);
-    dv.setUint32(0, headerSize, true);
-    dv.setInt32(4, w, true);
-    dv.setInt32(8, h * 2, true); // color + mask
-    dv.setUint16(12, 1, true); // planes
-    dv.setUint16(14, 32, true); // bpp
-    dv.setUint32(16, 0, true); // BI_RGB
-    dv.setUint32(20, pixels.length + mask.length, true);
-
-    const imageData = new Uint8Array(dib.length + pixels.length + mask.length);
-    imageData.set(dib, 0);
-    imageData.set(pixels, dib.length);
-    imageData.set(mask, dib.length + pixels.length);
-
-    // ICO header + directory
-    const icoHeader = new Uint8Array(6 + 16);
-    const iv = new DataView(icoHeader.buffer);
-    iv.setUint16(0, 0, true); // reserved
-    iv.setUint16(2, 1, true); // type
-    iv.setUint16(4, 1, true); // count
-    icoHeader[6] = w; // width
-    icoHeader[7] = h; // height
-    icoHeader[8] = 0; // colors
-    icoHeader[9] = 0; // reserved
-    iv.setUint16(10, 1, true); // planes
-    iv.setUint16(12, 32, true); // bpp
-    iv.setUint32(14, imageData.length, true); // bytesInRes
-    iv.setUint32(18, icoHeader.length, true); // offset
-
-    const out = new Uint8Array(icoHeader.length + imageData.length);
-    out.set(icoHeader, 0);
-    out.set(imageData, icoHeader.length);
-    return toBase64(out);
-  };
-
-  // Use color scheme colors if provided, otherwise default to emerald/green
-  const primaryColor = brandColors?.primary || "#10b981";
-  const accentColor = brandColors?.accent || "#047857";
-
-  const logoSvg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64" role="img" aria-label="${safeText(siteName)} logo">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="${primaryColor}"/>
-      <stop offset="1" stop-color="${accentColor}"/>
-    </linearGradient>
-  </defs>
-  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#g)"/>
-  <text x="32" y="41" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="26" font-weight="800" fill="#ffffff">${safeText(initials)}</text>
-  <text x="76" y="41" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="18" font-weight="700" fill="#111827">${safeText(siteName)}</text>
-</svg>`;
-
-  const faviconSvg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="${safeText(siteName)} favicon">
-  <defs>
-    <linearGradient id="fg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="${primaryColor}"/>
-      <stop offset="1" stop-color="${accentColor}"/>
-    </linearGradient>
-  </defs>
-  <rect x="4" y="4" width="56" height="56" rx="16" fill="url(#fg)"/>
-  <text x="32" y="42" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="26" font-weight="900" fill="#ffffff">${safeText(initials)}</text>
-</svg>`;
+  const branding = generateBrandingSync(brandingConfig);
+  console.log(`[Branding] Generated ${branding.source} branding for "${siteName}" with style "${layoutStyle || 'classic'}"`);
 
   const hasLogo = files.some((f) => f.path.toLowerCase() === "logo.svg");
   const hasFaviconSvg = files.some((f) => f.path.toLowerCase() === "favicon.svg");
   const hasFaviconIco = files.some((f) => f.path.toLowerCase() === "favicon.ico");
 
   const withAssets = [...files];
-  if (!hasLogo) withAssets.push({ path: "logo.svg", content: logoSvg });
-  if (!hasFaviconSvg) withAssets.push({ path: "favicon.svg", content: faviconSvg });
-  if (!hasFaviconIco) withAssets.push({ path: "favicon.ico", content: createIcoBase64(initials) });
+  if (!hasLogo) withAssets.push({ path: "logo.svg", content: branding.logoSvg });
+  if (!hasFaviconSvg) withAssets.push({ path: "favicon.svg", content: branding.faviconSvg });
+  if (!hasFaviconIco) withAssets.push({ path: "favicon.ico", content: branding.faviconIcoBase64 });
 
   return withAssets.map((f) => {
     if (!/\.(html?|php)$/i.test(f.path)) return f;
@@ -9990,9 +9776,9 @@ async function runBackgroundGeneration(
        enforcedFiles = ensureBilingualI18nInFiles(enforcedFiles, bilingualLanguages, desiredSiteName);
 
        // Ensure branding assets exist AND are linked in ALL html pages (including 200/404 added above)
-       // Use selected color scheme for logo/favicon colors
+       // Use selected color scheme for logo/favicon colors + layout style for logo template selection
        const brandColorsForLogo = getBrandColors(colorScheme || undefined);
-       enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName, brandColorsForLogo);
+       enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName, brandColorsForLogo, layoutStyle || undefined);
       
        // CRITICAL: Enforce business hours in footer
        
