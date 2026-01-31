@@ -896,22 +896,59 @@ img, video, iframe, embed, object {
 
 <script data-hamburger-menu>
 (function() {
-  // Wait for DOM to be ready
   function initHamburgerMenu() {
-    // Find the header
-    var header = document.querySelector('header, .header, .site-header, .main-header');
+    // Find the header - try multiple patterns
+    var header = document.querySelector('header, .header, .site-header, .main-header, [class*="header"]:not(footer *)');
+    if (!header) {
+      // Fallback: look for any element with logo + nav pattern
+      header = document.querySelector('[class*="logo"]')?.closest('header, div, section');
+    }
     if (!header) return;
-    
-    // Find navigation inside header
-    var nav = header.querySelector('nav, .nav, .navigation, .main-nav, .site-nav, .navbar');
-    if (!nav) return;
     
     // Check if hamburger already exists
     if (document.querySelector('.mobile-menu-toggle')) return;
     
-    // Get all nav links
-    var navLinks = nav.querySelectorAll('a');
-    if (navLinks.length === 0) return;
+    // Find navigation - try inside header first, then broader search
+    var nav = header.querySelector('nav, .nav, .navigation, .main-nav, .site-nav, .navbar, .menu, ul.nav, ul.menu');
+    
+    // If no nav element found, look for ul with links directly in header
+    if (!nav) {
+      nav = header.querySelector('ul');
+    }
+    
+    // Collect all navigation links from multiple sources
+    var allNavLinks = [];
+    
+    // Get links from nav element
+    if (nav) {
+      var navLinks = nav.querySelectorAll('a');
+      navLinks.forEach(function(link) {
+        var href = link.getAttribute('href');
+        // Skip empty hrefs, anchors to current page, and javascript: links
+        if (href && href !== '#' && href !== '' && !href.startsWith('javascript:')) {
+          allNavLinks.push(link);
+        }
+      });
+    }
+    
+    // If still no links, try to find any navigation-like links in header
+    if (allNavLinks.length === 0) {
+      var headerLinks = header.querySelectorAll('a');
+      headerLinks.forEach(function(link) {
+        var href = link.getAttribute('href');
+        var text = link.textContent.trim();
+        // Skip logo links, empty links, and very short/long text
+        if (href && href !== '#' && href !== '' && 
+            !href.startsWith('javascript:') &&
+            !link.closest('.logo, .site-logo, .brand, [class*="logo"]') &&
+            text.length > 0 && text.length < 50) {
+          allNavLinks.push(link);
+        }
+      });
+    }
+    
+    // Need at least one link
+    if (allNavLinks.length === 0) return;
     
     // Create hamburger button
     var hamburger = document.createElement('button');
@@ -932,7 +969,7 @@ img, video, iframe, embed, object {
     mobileMenu.appendChild(closeBtn);
     
     // Clone nav links into mobile menu
-    navLinks.forEach(function(link) {
+    allNavLinks.forEach(function(link) {
       var clone = link.cloneNode(true);
       clone.addEventListener('click', function() {
         closeMobileMenu();
@@ -940,9 +977,13 @@ img, video, iframe, embed, object {
       mobileMenu.appendChild(clone);
     });
     
-    // Add phone/CTA if exists
-    var headerPhone = header.querySelector('a[href^="tel:"], .header-phone, .phone-number');
-    if (headerPhone) {
+    // Add phone/CTA if exists (search in entire header area)
+    var headerPhone = header.querySelector('a[href^="tel:"], .header-phone, .phone-number, [class*="phone"]');
+    if (!headerPhone) {
+      // Also check document for phone in top-bar area
+      headerPhone = document.querySelector('.top-bar a[href^="tel:"], .topbar a[href^="tel:"], .pre-header a[href^="tel:"]');
+    }
+    if (headerPhone && !allNavLinks.includes(headerPhone)) {
       var phoneClone = headerPhone.cloneNode(true);
       phoneClone.style.marginTop = '2rem';
       phoneClone.style.color = '#3b82f6';
@@ -952,21 +993,12 @@ img, video, iframe, embed, object {
       mobileMenu.appendChild(phoneClone);
     }
     
-    // Append to document
-    var headerContainer = header.querySelector('.container, .wrapper') || header;
+    // Find the best container to append hamburger
+    var headerContainer = header.querySelector('.container, .wrapper, .header-container, .header-wrapper') || header;
     headerContainer.appendChild(hamburger);
     document.body.appendChild(mobileMenu);
     
-    // Toggle function
-    function toggleMobileMenu() {
-      var isActive = mobileMenu.classList.contains('active');
-      if (isActive) {
-        closeMobileMenu();
-      } else {
-        openMobileMenu();
-      }
-    }
-    
+    // Toggle functions
     function openMobileMenu() {
       mobileMenu.classList.add('active');
       hamburger.classList.add('active');
@@ -979,6 +1011,14 @@ img, video, iframe, embed, object {
       hamburger.classList.remove('active');
       hamburger.setAttribute('aria-expanded', 'false');
       document.body.style.overflow = '';
+    }
+    
+    function toggleMobileMenu() {
+      if (mobileMenu.classList.contains('active')) {
+        closeMobileMenu();
+      } else {
+        openMobileMenu();
+      }
     }
     
     // Event listeners
@@ -1001,19 +1041,22 @@ img, video, iframe, embed, object {
       }
     });
     
-    // Close when clicking outside menu
+    // Close when clicking outside menu content
     mobileMenu.addEventListener('click', function(e) {
       if (e.target === mobileMenu) {
         closeMobileMenu();
       }
     });
+    
+    console.log('[HamburgerMenu] Initialized with', allNavLinks.length, 'links');
   }
   
   // Initialize when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initHamburgerMenu);
   } else {
-    initHamburgerMenu();
+    // Small delay to ensure all elements are rendered
+    setTimeout(initHamburgerMenu, 100);
   }
 })();
 </script>
