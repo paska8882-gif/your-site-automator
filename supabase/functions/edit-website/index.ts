@@ -16,6 +16,180 @@ interface FileWithCookie extends GeneratedFile {
   _cookieBanner?: string | null;
 }
 
+// ========== IMAGE GENERATION FUNCTIONS ==========
+
+/**
+ * Detect if the request is asking for an image change
+ */
+function isImageChangeRequest(request: string): boolean {
+  const imageKeywords = [
+    "фото", "фотку", "картинк", "зображен", "image", "photo", "picture", "img",
+    "заміни", "змін", "поміня", "change", "replace", "котик", "собак", "кіт",
+    "людин", "персон", "person", "avatar", "аватар", "банер", "banner", "hero",
+    "логотип", "logo", "іконк", "icon"
+  ];
+  const lower = request.toLowerCase();
+  return imageKeywords.some(kw => lower.includes(kw));
+}
+
+/**
+ * Extract desired image description from the request
+ */
+function extractImageDescription(request: string): string {
+  // Remove common action words and extract the essence
+  let desc = request
+    .replace(/вибрані елементи.*?\]/gi, '')
+    .replace(/\[.*?\]/g, '')
+    .replace(/(заміни|поміняй|змін|постав|встанов|change|replace|set|add)/gi, '')
+    .replace(/(це|цю|цей|ці|на|the|this|these|to|with)/gi, '')
+    .replace(/(фото|фотку|картинку|зображення|image|photo|picture)/gi, '')
+    .trim();
+  
+  // If we got something, return it; otherwise extract the main subject
+  if (desc.length > 2) {
+    return desc;
+  }
+  
+  // Fallback: look for specific subject mentions
+  const subjectMatch = request.match(/(котик|кіт|собак|людин|природ|місто|їж|food|cat|dog|city|nature|person)/i);
+  if (subjectMatch) {
+    return subjectMatch[1];
+  }
+  
+  return "professional photo";
+}
+
+/**
+ * Generate an image using Lovable AI Gateway
+ */
+async function generateImage(prompt: string): Promise<string | null> {
+  const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!lovableApiKey) {
+    console.error("[Image Gen] LOVABLE_API_KEY not configured");
+    return null;
+  }
+
+  try {
+    console.log(`[Image Gen] Generating image for: "${prompt}"`);
+    
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "dall-e-3",
+        prompt: `High quality professional photograph: ${prompt}. Ultra realistic, well-lit, 8k resolution.`,
+        n: 1,
+        size: "1024x1024",
+        quality: "hd",
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[Image Gen] API error: ${response.status}`, errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    const imageUrl = data.data?.[0]?.url;
+    
+    if (imageUrl) {
+      console.log(`[Image Gen] Successfully generated image: ${imageUrl.substring(0, 80)}...`);
+      return imageUrl;
+    }
+    
+    console.error("[Image Gen] No image URL in response");
+    return null;
+  } catch (error) {
+    console.error("[Image Gen] Error:", error);
+    return null;
+  }
+}
+
+/**
+ * Find a stock photo from Pexels
+ */
+async function findPexelsImage(query: string): Promise<string | null> {
+  const pexelsKey = Deno.env.get("PEXELS_API_KEY");
+  if (!pexelsKey) {
+    console.log("[Pexels] API key not configured, skipping");
+    return null;
+  }
+
+  try {
+    const searchQuery = query.replace(/[^a-zA-Zа-яА-ЯіІїЇєЄ\s]/g, '').trim();
+    // Translate common Ukrainian words for better Pexels results
+    const translations: Record<string, string> = {
+      "котик": "cute cat", "кіт": "cat", "собака": "dog", "собак": "dog",
+      "людина": "person", "людин": "person", "природа": "nature",
+      "місто": "city", "їжа": "food", "море": "ocean"
+    };
+    
+    let englishQuery = searchQuery;
+    for (const [uk, en] of Object.entries(translations)) {
+      if (searchQuery.toLowerCase().includes(uk)) {
+        englishQuery = en;
+        break;
+      }
+    }
+
+    console.log(`[Pexels] Searching for: "${englishQuery}"`);
+    
+    const response = await fetch(
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(englishQuery)}&per_page=5&orientation=landscape`,
+      {
+        headers: { Authorization: pexelsKey },
+      }
+    );
+
+    if (!response.ok) {
+      console.error(`[Pexels] API error: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    if (data.photos && data.photos.length > 0) {
+      const photo = data.photos[Math.floor(Math.random() * data.photos.length)];
+      const url = photo.src?.large2x || photo.src?.large || photo.src?.original;
+      console.log(`[Pexels] Found image: ${url?.substring(0, 80)}...`);
+      return url || null;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("[Pexels] Error:", error);
+    return null;
+  }
+}
+
+/**
+ * Get an image URL - tries AI generation first, then falls back to Pexels
+ */
+async function getImageForRequest(request: string): Promise<string | null> {
+  const description = extractImageDescription(request);
+  console.log(`[Image] Extracted description: "${description}"`);
+  
+  // Try AI image generation first
+  const aiImage = await generateImage(description);
+  if (aiImage) {
+    return aiImage;
+  }
+  
+  // Fallback to Pexels
+  const pexelsImage = await findPexelsImage(description);
+  if (pexelsImage) {
+    return pexelsImage;
+  }
+  
+  // Ultimate fallback: use Picsum with a random seed
+  const seed = Math.floor(Math.random() * 1000);
+  console.log(`[Image] Using Picsum fallback with seed ${seed}`);
+  return `https://picsum.photos/seed/${seed}/800/600`;
+}
+
 // Regex to match the cookie banner block injected by the generator
 const COOKIE_BLOCK_REGEX = /<!--\s*Cookie Banner with Settings\s*-->[\s\S]*?<!--\s*End Cookie Banner\s*-->/i;
 
@@ -874,6 +1048,39 @@ Return EXACTLY ONE valid SEARCH/REPLACE block for ${activePage}.`,
     }
     
     console.log(`Edit method: ${editMethod}, Modified files: ${modifiedFiles.map(f => f.path).join(", ")}`);
+
+    // ========== IMAGE REPLACEMENT ENHANCEMENT ==========
+    // If this was an image change request, generate a REAL image and replace placeholder URLs
+    if (isImageChangeRequest(editRequest)) {
+      console.log(`[Image Enhancement] Detected image change request`);
+      const newImageUrl = await getImageForRequest(editRequest);
+      
+      if (newImageUrl) {
+        console.log(`[Image Enhancement] Got new image: ${newImageUrl.substring(0, 80)}...`);
+        
+        // Replace any placeholder or generic image URLs in modified files
+        modifiedFiles = modifiedFiles.map(f => {
+          let content = f.content;
+          
+          // Find src attributes that were likely just changed by AI
+          // Replace picsum, placehold.it, placeholder URLs with real image
+          content = content.replace(
+            /src=["'](https?:\/\/(?:picsum\.photos|placehold\.it|via\.placeholder|placeholder\.com)[^"']+)["']/gi,
+            `src="${newImageUrl}"`
+          );
+          
+          // Also replace if AI used a generic unsplash/pexels URL without specific ID
+          content = content.replace(
+            /src=["'](https?:\/\/(?:source\.unsplash|images\.unsplash)[^"']*(?:random|featured)[^"']*)["']/gi,
+            `src="${newImageUrl}"`
+          );
+          
+          return { ...f, content };
+        });
+        
+        console.log(`[Image Enhancement] Applied real image URL to modified files`);
+      }
+    }
 
     // RESTORE COOKIE BANNERS: Put them back after AI modifications
     modifiedFiles = modifiedFiles.map((f) => {
