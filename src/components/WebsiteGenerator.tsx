@@ -533,8 +533,8 @@ export function WebsiteGenerator() {
   const [bilingualLang1, setBilingualLang1] = useState("");
   const [bilingualLang2, setBilingualLang2] = useState("");
   
-  // Image bundling mode: true = download images to ZIP (slower), false = keep as URLs (faster)
-  const [bundleImages, setBundleImages] = useState(false);
+  // Image bundling mode: true = download images to ZIP (default, reliable), false = keep as URLs (faster but broken on deploy)
+  const [bundleImages, setBundleImages] = useState(true);
   
   // Theme-based prompt generation state
   const [promptMode, setPromptMode] = useState<"manual" | "theme">("manual");
