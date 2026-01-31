@@ -60,3 +60,6 @@ verify_jwt = false
 
 [functions.get-storage-stats]
 verify_jwt = false
+
+[functions.n8n-callback]
+verify_jwt = false
