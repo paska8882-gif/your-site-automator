@@ -25,17 +25,33 @@
 - Page structure: 2000 → 4000 tokens
 - Design: 1000 → 2000 tokens
 
-### ✅ Додано post-processing валідацію VIP даних
+### ✅ Проблема 4: Покращено парсинг VIP даних (extractExplicitBrandingFromPrompt)
 **Файли:**
 - `supabase/functions/generate-website/index.ts`
 - `supabase/functions/generate-php-website/index.ts`
+- `supabase/functions/generate-react-website/index.ts`
 
-Нові функції:
-- `extractExplicitBrandingFromPrompt()` - тепер парсить: siteName, phone, address, domain
+**Зміни:**
+- Regex тепер використовує `(?:^|\n)` замість `^` для кращого матчінгу всередині тексту
+- Додано детальне логування для кожного знайденого поля
+- Парсяться всі 4 поля: domain, phone, address, siteName
+
+### ✅ Проблема 5: Додано VIP форму з валідацією на фронтенді
+**Файл:** `src/components/VipManualRequestDialog.tsx`
+
+- Обов'язкові поля: Domain, Address, Phone
+- Валідація паттернів (domain format, phone 7-20 символів, address мін. 10 символів)
+- Структурований VIP prompt з маркерами для парсингу
+
+### ✅ Проблема 6: React генератор тепер підтримує VIP enforcement
+**Файл:** `supabase/functions/generate-react-website/index.ts`
+
+Додано функції:
 - `enforceAddressInFiles()` - примусово підставляє VIP адресу
 - `enforceDomainInFiles()` - примусово підставляє домен у canonical URLs та meta tags
+- VIP detection і виклик цих функцій при генерації
 
-## Технічні зміни
+## Технічні деталі
 
 ### extractExplicitBrandingFromPrompt (оновлено)
 ```typescript
@@ -48,21 +64,23 @@ function extractExplicitBrandingFromPrompt(prompt: string): {
 ```
 
 Парсить з VIP промпту:
+- `Domain:` → domain
 - `Name:` / `Business Name:` → siteName
 - `Phone:` → phone
 - `Address:` → address
-- `Domain:` → domain
 
-### enforceAddressInFiles (нова)
-Замінює generic адреси на VIP адресу:
-- Плейсхолдери типу "123 Main Street"
-- Лейбли "Address: ..."
-
-### enforceDomainInFiles (нова)
-Оновлює:
-- `<link rel="canonical" href="...">` 
-- `<meta property="og:url" content="...">`
-- JSON-LD `@id` та `url`
+### VIP форма на фронтенді (VipManualRequestDialog)
+Формує структурований prompt:
+```
+═══════════════════════════════════════════════════════════════
+⚠️ MANDATORY VIP DATA - USE EXACTLY AS PROVIDED:
+═══════════════════════════════════════════════════════════════
+Domain: example.com
+Name: My Business
+Phone: +1 (548) 269-2050
+Address: 100 Main Street, City, Country
+═══════════════════════════════════════════════════════════════
+```
 
 ## Результат
 
@@ -71,3 +89,5 @@ VIP генерація тепер:
 2. ✅ AI отримує чіткі примусові інструкції
 3. ✅ Post-processing гарантує підстановку phone/address/domain
 4. ✅ Збільшені ліміти токенів для повних відповідей AI
+5. ✅ Фронтенд форма з валідацією обов'язкових полів
+6. ✅ React генератор підтримує VIP enforcement
