@@ -483,41 +483,310 @@ iframe[src*="google.com/maps"], iframe[src*="maps.google"] {
   border-radius: 12px;
 }
 
-/* ===== RESPONSIVE ===== */
-@media (max-width: 991px) {
-  header .container, .header .container {
-    flex-wrap: wrap;
+/* ===== RESPONSIVE - TABLET (768px - 1024px) ===== */
+@media (max-width: 1024px) {
+  .container, .wrapper, [class*="container"] {
+    max-width: 100%;
+    padding-left: 20px;
+    padding-right: 20px;
   }
-  nav, .nav, .navigation {
-    width: 100%;
-    order: 10;
-    justify-content: center;
-    margin-top: 0.5rem;
+  
+  /* Grid layouts become 2 columns */
+  .grid, [class*="grid"], .cards, .features, .services-grid, .team-grid, .gallery {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 1.5rem !important;
+  }
+  
+  /* Flex rows wrap more aggressively */
+  .row, [class*="row"], .flex-row {
+    flex-wrap: wrap !important;
+    gap: 1rem !important;
+  }
+  
+  .row > *, .flex-row > * {
+    min-width: 45% !important;
+    flex: 1 1 45% !important;
+  }
+  
+  /* Two-column sections become stacked */
+  .two-columns, .split-section, [class*="two-col"], 
+  .content-image, .image-content, .text-image, .about-content {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2rem !important;
+  }
+  
+  .two-columns > *, .split-section > *, [class*="two-col"] > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+  }
+  
+  /* Hero text sizing */
+  h1, .hero h1, .hero-title, [class*="hero"] h1 {
+    font-size: clamp(2rem, 5vw, 3rem) !important;
+    line-height: 1.2 !important;
+  }
+  
+  h2 {
+    font-size: clamp(1.5rem, 4vw, 2.25rem) !important;
+  }
+  
+  h3 {
+    font-size: clamp(1.25rem, 3vw, 1.75rem) !important;
+  }
+  
+  /* Section padding reduction */
+  section, .section, [class*="section"] {
+    padding-top: clamp(40px, 8vw, 60px) !important;
+    padding-bottom: clamp(40px, 8vw, 60px) !important;
   }
 }
 
+/* ===== RESPONSIVE - MOBILE LARGE (481px - 767px) ===== */
 @media (max-width: 767px) {
-  header .container, .header .container, .site-header .container {
+  /* Header becomes stacked */
+  header .container, .header .container, .site-header .container,
+  .main-header .container, header > .wrapper {
     flex-direction: column !important;
     align-items: center !important;
     text-align: center;
-    gap: 0.75rem;
+    gap: 1rem;
+    padding: 1rem;
   }
-  nav ul, .nav ul, .menu, .nav-links {
+  
+  /* Logo centered */
+  .logo, .site-logo, .brand, .navbar-brand {
+    order: 0;
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Navigation stacked */
+  nav, .nav, .navigation, .main-nav, .site-nav {
+    width: 100%;
+    order: 1;
+    justify-content: center !important;
+  }
+  
+  nav ul, .nav ul, .menu, .nav-links, .nav-menu {
     flex-direction: column !important;
     align-items: center !important;
     width: 100%;
+    gap: 0.5rem !important;
   }
-  .header-cta, .header-buttons, .nav-cta, .header-right {
-    margin-left: 0;
+  
+  nav li, .nav li, .menu li {
     width: 100%;
-    justify-content: center;
+    text-align: center;
   }
-  .top-bar, .topbar, .header-top {
+  
+  nav a, .nav a, .menu a, .nav-links a {
+    width: 100%;
+    justify-content: center !important;
+    padding: 0.75rem 1rem !important;
+  }
+  
+  /* Header actions centered */
+  .header-cta, .header-buttons, .nav-cta, .header-right, .header-actions {
+    margin-left: 0 !important;
+    width: 100%;
+    justify-content: center !important;
+    order: 2;
+  }
+  
+  /* Top bar stacked */
+  .top-bar, .topbar, .header-top, .pre-header {
     flex-direction: column !important;
     align-items: center !important;
     text-align: center;
+    gap: 0.5rem !important;
+    padding: 0.75rem !important;
   }
+  
+  /* All grids become single column */
+  .grid, [class*="grid"], .cards, .features, .services-grid, 
+  .team-grid, .gallery, .portfolio-grid, .blog-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+  
+  /* Flex items full width */
+  .row > *, .flex-row > *, [class*="col-"] {
+    min-width: 100% !important;
+    flex: 1 1 100% !important;
+    width: 100% !important;
+  }
+  
+  /* Hero section adjustments */
+  .hero, .hero-section, [class*="hero"], .banner {
+    min-height: 70vh !important;
+    padding: 2rem 1rem !important;
+  }
+  
+  .hero .container, [class*="hero"] .container {
+    text-align: center;
+  }
+  
+  .hero-content, [class*="hero-content"] {
+    max-width: 100% !important;
+    text-align: center !important;
+  }
+  
+  /* Hero buttons stacked */
+  .hero-buttons, .hero-cta, .cta-buttons, .button-group, .btn-group {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+    width: 100%;
+  }
+  
+  .hero-buttons .btn, .hero-buttons .button, .hero-buttons a,
+  .cta-buttons .btn, .cta-buttons .button {
+    width: 100% !important;
+    max-width: 280px;
+    text-align: center !important;
+    justify-content: center !important;
+  }
+  
+  /* Cards full width */
+  .card, .service-card, .feature-card, .team-card, .testimonial-card,
+  [class*="card"], .box, .item {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  /* Footer columns stacked */
+  footer .container, .footer .container, .site-footer .container {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center;
+    gap: 2rem !important;
+  }
+  
+  .footer-col, .footer-column, .footer-widget, footer > div > div {
+    width: 100% !important;
+    text-align: center;
+  }
+  
+  footer ul, .footer ul {
+    align-items: center;
+  }
+  
+  /* Contact form full width */
+  form, .contact-form, .newsletter-form {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  input, textarea, select, .form-control, .input-field {
+    width: 100% !important;
+    min-width: 0 !important;
+    font-size: 16px !important; /* Prevents iOS zoom */
+  }
+  
+  /* Tables responsive */
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Stats/counters row */
+  .stats, .counters, .numbers, [class*="stats"], [class*="counter"] {
+    flex-direction: column !important;
+    gap: 1.5rem !important;
+  }
+  
+  /* Pricing tables stacked */
+  .pricing, .pricing-table, [class*="pricing"] {
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+  
+  .pricing-card, .price-card, [class*="pricing"] > div {
+    width: 100% !important;
+    max-width: 350px !important;
+  }
+}
+
+/* ===== RESPONSIVE - MOBILE SMALL (≤480px) ===== */
+@media (max-width: 480px) {
+  .container, .wrapper, [class*="container"] {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  
+  /* Even smaller typography */
+  h1, .hero h1, .hero-title {
+    font-size: clamp(1.5rem, 7vw, 2.25rem) !important;
+  }
+  
+  h2 {
+    font-size: clamp(1.25rem, 5vw, 1.75rem) !important;
+  }
+  
+  h3 {
+    font-size: clamp(1.1rem, 4vw, 1.5rem) !important;
+  }
+  
+  p, li, span {
+    font-size: clamp(0.9rem, 3.5vw, 1rem) !important;
+  }
+  
+  /* Buttons */
+  .btn, .button, button, [class*="btn"], a.cta {
+    padding: 0.75rem 1.25rem !important;
+    font-size: 0.9rem !important;
+    width: 100% !important;
+    text-align: center !important;
+  }
+  
+  /* Reduce section padding */
+  section, .section {
+    padding-top: 32px !important;
+    padding-bottom: 32px !important;
+  }
+  
+  /* Hero smaller */
+  .hero, [class*="hero"], .banner {
+    min-height: 60vh !important;
+    padding: 1.5rem 1rem !important;
+  }
+  
+  /* Logo smaller */
+  .logo img, .site-logo img, .brand img {
+    max-height: 40px !important;
+  }
+  
+  /* Google Maps smaller */
+  .map-container, .google-map, iframe[src*="google.com/maps"] {
+    min-height: 250px !important;
+    height: 250px !important;
+  }
+  
+  /* Hide decorative elements */
+  .decoration, .ornament, .bg-pattern, [class*="decoration"] {
+    display: none !important;
+  }
+}
+
+/* ===== UTILITY FIXES ===== */
+/* Prevent horizontal scroll */
+html, body {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+}
+
+/* Images never overflow */
+img, video, iframe, embed, object {
+  max-width: 100% !important;
+}
+
+/* Fix for flexbox items */
+* {
+  min-width: 0;
 }
 </style>
 `;

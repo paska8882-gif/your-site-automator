@@ -2581,11 +2581,158 @@ function enforceUiUxBaselineInFiles(
 ): Array<{ path: string; content: string }> {
   const STYLE_ID = "lovable-uix-baseline";
 
-  // Baseline UI/UX guardrails for generated HTML sites:
-  // - prevent accidental 100vh heroes on mobile
-  // - keep sections readable and not overly tall
-  // - eliminate horizontal overflow
-  const css = `\n<style id="${STYLE_ID}">\n  html { -webkit-text-size-adjust: 100%; }\n  body { overflow-x: hidden; }\n  img, video { max-width: 100%; }\n\n  /* HERO / BANNERS: clamp instead of full viewport */\n  .hero,\n  .page-hero,\n  .banner,\n  .masthead,\n  .cover,\n  .fullwidth {\n    min-height: clamp(420px, 70vh, 720px) !important;\n    max-height: none !important;\n  }\n\n  /* If generator produced 100vh directly, tame it */\n  [style*="height:100vh"],\n  [style*="height: 100vh"],\n  [style*="min-height:100vh"],\n  [style*="min-height: 100vh"] {\n    height: auto !important;\n    min-height: clamp(420px, 70vh, 720px) !important;\n  }\n\n  /* Sections: keep spacing balanced across devices */\n  section {\n    padding-block: clamp(56px, 7vw, 96px);\n  }\n\n  /* Containers: prevent accidental ultra-wide layouts */\n  .container {\n    width: min(1120px, 100% - 32px);\n    margin-inline: auto;\n  }\n\n  @media (max-width: 640px) {\n    .hero,\n    .page-hero,\n    .banner,\n    .masthead,\n    .cover,\n    .fullwidth {\n      min-height: clamp(360px, 62vh, 560px) !important;\n    }\n    section {\n      padding-block: clamp(44px, 9vw, 72px);\n    }\n  }\n</style>\n`;
+  // Comprehensive responsive baseline for all generated HTML sites
+  const css = `
+<style id="${STYLE_ID}">
+  /* ===== BASE RESET ===== */
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body { overflow-x: hidden; margin: 0; }
+  *, *::before, *::after { box-sizing: border-box; }
+  img, video { max-width: 100%; height: auto; }
+
+  /* ===== HERO / BANNERS ===== */
+  .hero, .page-hero, .banner, .masthead, .cover, .fullwidth {
+    min-height: clamp(420px, 70vh, 720px) !important;
+    max-height: none !important;
+  }
+  [style*="height:100vh"], [style*="height: 100vh"],
+  [style*="min-height:100vh"], [style*="min-height: 100vh"] {
+    height: auto !important;
+    min-height: clamp(420px, 70vh, 720px) !important;
+  }
+
+  /* ===== SECTIONS & CONTAINERS ===== */
+  section { padding-block: clamp(48px, 7vw, 80px); }
+  .container { width: min(1120px, 100% - 32px); margin-inline: auto; }
+
+  /* ===== TABLET BREAKPOINT (≤1024px) ===== */
+  @media (max-width: 1024px) {
+    .container { width: 100%; padding-inline: 24px; }
+    
+    /* Grids become 2 columns */
+    .grid, [class*="grid"], .cards, .features, .services-grid, .team-grid {
+      display: grid !important;
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 1.5rem !important;
+    }
+    
+    /* Two-column layouts stack */
+    .two-columns, .split-section, [class*="two-col"], 
+    .content-image, .image-content, .about-content {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 2rem !important;
+    }
+    .two-columns > *, .split-section > *, [class*="two-col"] > * {
+      width: 100% !important;
+      flex: none !important;
+    }
+    
+    /* Typography scaling */
+    h1 { font-size: clamp(2rem, 5vw, 3rem) !important; }
+    h2 { font-size: clamp(1.5rem, 4vw, 2.25rem) !important; }
+    h3 { font-size: clamp(1.25rem, 3.5vw, 1.75rem) !important; }
+  }
+
+  /* ===== MOBILE BREAKPOINT (≤767px) ===== */
+  @media (max-width: 767px) {
+    .hero, .page-hero, .banner, .masthead, .cover, .fullwidth {
+      min-height: clamp(350px, 60vh, 500px) !important;
+      padding: 1.5rem 1rem !important;
+    }
+    section { padding-block: clamp(36px, 8vw, 56px); }
+    .container { padding-inline: 16px; }
+    
+    /* Header stacked */
+    header .container, .header .container, .site-header .container {
+      flex-direction: column !important;
+      align-items: center !important;
+      text-align: center;
+      gap: 1rem;
+    }
+    
+    /* Navigation vertical */
+    nav ul, .nav ul, .menu, .nav-links, .nav-menu {
+      flex-direction: column !important;
+      align-items: center !important;
+      width: 100%;
+      gap: 0.5rem !important;
+    }
+    nav a, .nav a, .menu a { 
+      width: 100%; 
+      justify-content: center !important;
+      padding: 0.75rem 1rem !important;
+    }
+    
+    /* All grids single column */
+    .grid, [class*="grid"], .cards, .features, .services-grid, 
+    .team-grid, .gallery, .portfolio-grid, .blog-grid {
+      grid-template-columns: 1fr !important;
+      gap: 1.25rem !important;
+    }
+    
+    /* Flex items full width */
+    .row > *, [class*="col-"], .flex-row > * {
+      width: 100% !important;
+      min-width: 100% !important;
+      flex: 1 1 100% !important;
+    }
+    
+    /* Hero content centered */
+    .hero-content, [class*="hero-content"] {
+      text-align: center !important;
+      max-width: 100% !important;
+    }
+    .hero-buttons, .cta-buttons, .button-group {
+      flex-direction: column !important;
+      align-items: center !important;
+      gap: 0.75rem !important;
+    }
+    .hero-buttons .btn, .hero-buttons .button, .cta-buttons .btn {
+      width: 100% !important;
+      max-width: 280px;
+    }
+    
+    /* Cards full width */
+    .card, [class*="card"], .service-card, .feature-card, .team-card {
+      width: 100% !important;
+    }
+    
+    /* Footer stacked */
+    footer .container, .footer .container {
+      flex-direction: column !important;
+      align-items: center !important;
+      text-align: center;
+      gap: 2rem !important;
+    }
+    .footer-col, .footer-column, .footer-widget { width: 100% !important; text-align: center; }
+    
+    /* Forms */
+    input, textarea, select { width: 100% !important; font-size: 16px !important; }
+    
+    /* Stats row */
+    .stats, .counters, [class*="stats"] { flex-direction: column !important; gap: 1.5rem !important; }
+  }
+
+  /* ===== SMALL MOBILE (≤480px) ===== */
+  @media (max-width: 480px) {
+    h1 { font-size: clamp(1.5rem, 7vw, 2rem) !important; }
+    h2 { font-size: clamp(1.25rem, 5vw, 1.5rem) !important; }
+    h3 { font-size: clamp(1.1rem, 4vw, 1.35rem) !important; }
+    p, li { font-size: clamp(0.9rem, 3.5vw, 1rem) !important; }
+    
+    .btn, .button, button { 
+      padding: 0.75rem 1rem !important; 
+      font-size: 0.9rem !important;
+      width: 100% !important;
+    }
+    
+    section { padding-block: 28px !important; }
+    .hero, [class*="hero"] { min-height: 55vh !important; }
+    .logo img { max-height: 36px !important; }
+  }
+</style>
+`;
 
   return files.map((f) => {
     if (!/\.(html?)$/i.test(f.path)) return f;
