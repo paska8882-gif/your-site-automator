@@ -74,12 +74,17 @@ serve(async (req) => {
 
     const { requestId, historyId, status, files, content, result, cost, model, error } = body;
 
-    if (!historyId) {
-      return new Response(JSON.stringify({ error: "Missing historyId" }), {
+    // Підтримуємо і historyId і requestId (для сумісності)
+    const generationId = historyId || requestId;
+
+    if (!generationId) {
+      return new Response(JSON.stringify({ error: "Missing historyId or requestId" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    console.log(`🔍 Processing callback for generationId: ${generationId}, status: ${status}`);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -92,7 +97,7 @@ serve(async (req) => {
 
     // Обробка статусу
     if (status === "done" || status === "completed") {
-      console.log(`✅ Generation completed for historyId: ${historyId}`);
+      console.log(`✅ Generation completed for generationId: ${generationId}`);
       
       // Витягуємо файли
       let parsedFiles: GeneratedFile[] = [];
@@ -117,7 +122,7 @@ serve(async (req) => {
       const { data: historyData } = await supabase
         .from("generation_history")
         .select("user_id, site_name")
-        .eq("id", historyId)
+        .eq("id", generationId)
         .single();
       
       // Оновлюємо generation_history
@@ -132,7 +137,7 @@ serve(async (req) => {
           specific_ai_model: model ?? "n8n-callback",
           completed_at: new Date().toISOString()
         })
-        .eq("id", historyId);
+        .eq("id", generationId);
       
       if (updateError) {
         console.error("Failed to update generation_history:", updateError);
@@ -148,13 +153,14 @@ serve(async (req) => {
           title: "Генерація завершена",
           message: `Сайт "${historyData.site_name || "Website"}" успішно згенеровано (${parsedFiles.length} файлів)`,
           type: "generation_complete",
-          data: { historyId, filesCount: parsedFiles.length }
+          data: { historyId: generationId, filesCount: parsedFiles.length }
         });
       }
       
       return new Response(JSON.stringify({ 
         success: true, 
         message: "Callback processed successfully",
+        generationId,
         filesCount: parsedFiles.length 
       }), {
         status: 200,
@@ -163,7 +169,7 @@ serve(async (req) => {
       
     } else if (status === "failed" || status === "error") {
       const errorMessage = error || "n8n generation failed";
-      console.error(`❌ Generation failed for historyId: ${historyId}`, errorMessage);
+      console.error(`❌ Generation failed for generationId: ${generationId}`, errorMessage);
       
       // Оновлюємо з помилкою
       await supabase
@@ -172,13 +178,13 @@ serve(async (req) => {
           status: "failed",
           error_message: errorMessage
         })
-        .eq("id", historyId);
+        .eq("id", generationId);
       
       // Повертаємо баланс
       const { data: historyData } = await supabase
         .from("generation_history")
         .select("user_id, sale_price, site_name")
-        .eq("id", historyId)
+        .eq("id", generationId)
         .single();
       
       if (historyData?.user_id && historyData?.sale_price) {
@@ -205,7 +211,7 @@ serve(async (req) => {
             await supabase
               .from("generation_history")
               .update({ sale_price: 0 })
-              .eq("id", historyId);
+              .eq("id", generationId);
           }
         }
         
@@ -215,7 +221,7 @@ serve(async (req) => {
           title: "Помилка генерації",
           message: `Не вдалося згенерувати сайт "${historyData.site_name}". Кошти повернено.`,
           type: "generation_failed",
-          data: { historyId, error: errorMessage }
+          data: { historyId: generationId, error: errorMessage }
         });
       }
       
@@ -232,7 +238,7 @@ serve(async (req) => {
       await supabase
         .from("generation_history")
         .update({ status: "generating" })
-        .eq("id", historyId);
+        .eq("id", generationId);
       
       return new Response(JSON.stringify({ 
         success: true, 
