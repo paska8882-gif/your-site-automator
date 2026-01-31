@@ -3165,6 +3165,119 @@ CONTACT:
 - address: <if present>
 `.trim();
 
+// ============ TYPOGRAPHY SYSTEM FOR LAYOUT STYLES ============
+interface LayoutTypography {
+  headingFont: string;
+  bodyFont: string;
+  headingWeight: string;
+  bodyWeight: string;
+  headingStyle?: string;
+  letterSpacing?: string;
+  lineHeight: string;
+  googleFontsUrl: string;
+  fallback: string;
+}
+
+const STYLE_TYPOGRAPHY: Record<string, LayoutTypography> = {
+  // Classic & Corporate
+  classic: { headingFont: "Playfair Display", bodyFont: "Source Sans Pro", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Sans+Pro:wght@400;600&display=swap", fallback: "serif" },
+  corporate: { headingFont: "Montserrat", bodyFont: "Open Sans", headingWeight: "700", bodyWeight: "400", letterSpacing: "-0.02em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&family=Open+Sans:wght@400;600&display=swap", fallback: "sans-serif" },
+  professional: { headingFont: "Roboto Slab", bodyFont: "Roboto", headingWeight: "600", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.65", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400;600;700&family=Roboto:wght@400;500&display=swap", fallback: "serif" },
+  executive: { headingFont: "Cinzel", bodyFont: "Lora", headingWeight: "600", bodyWeight: "400", headingStyle: "normal", letterSpacing: "0.05em", lineHeight: "1.8", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lora:wght@400;500;600&display=swap", fallback: "serif" },
+  // Modern & Creative
+  asymmetric: { headingFont: "Archivo Black", bodyFont: "Archivo", headingWeight: "400", bodyWeight: "400", letterSpacing: "-0.03em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600&display=swap", fallback: "sans-serif" },
+  editorial: { headingFont: "Cormorant Garamond", bodyFont: "Libre Baskerville", headingWeight: "600", bodyWeight: "400", headingStyle: "italic", letterSpacing: "0.02em", lineHeight: "1.9", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,600&family=Libre+Baskerville:wght@400;700&display=swap", fallback: "serif" },
+  bold: { headingFont: "Bebas Neue", bodyFont: "Barlow", headingWeight: "400", bodyWeight: "400", letterSpacing: "0.1em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600&display=swap", fallback: "sans-serif" },
+  creative: { headingFont: "Caveat", bodyFont: "Poppins", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Poppins:wght@400;500;600&display=swap", fallback: "cursive" },
+  artistic: { headingFont: "DM Serif Display", bodyFont: "Karla", headingWeight: "400", bodyWeight: "400", letterSpacing: "0.01em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Karla:wght@400;500;600&display=swap", fallback: "serif" },
+  // Minimalist
+  minimalist: { headingFont: "Inter", bodyFont: "Inter", headingWeight: "300", bodyWeight: "400", letterSpacing: "-0.01em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap", fallback: "sans-serif" },
+  zen: { headingFont: "Cormorant", bodyFont: "Nunito Sans", headingWeight: "400", bodyWeight: "400", letterSpacing: "0.03em", lineHeight: "1.9", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Cormorant:wght@400;500;600&family=Nunito+Sans:wght@400;600&display=swap", fallback: "serif" },
+  clean: { headingFont: "Work Sans", bodyFont: "Work Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
+  whitespace: { headingFont: "Jost", bodyFont: "Jost", headingWeight: "500", bodyWeight: "400", letterSpacing: "0.02em", lineHeight: "1.8", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&display=swap", fallback: "sans-serif" },
+  // Interactive
+  showcase: { headingFont: "Syne", bodyFont: "Space Grotesk", headingWeight: "700", bodyWeight: "400", letterSpacing: "-0.02em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Space+Grotesk:wght@400;500&display=swap", fallback: "sans-serif" },
+  interactive: { headingFont: "Plus Jakarta Sans", bodyFont: "Plus Jakarta Sans", headingWeight: "700", bodyWeight: "400", letterSpacing: "-0.01em", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
+  animated: { headingFont: "Outfit", bodyFont: "Outfit", headingWeight: "600", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
+  parallax: { headingFont: "Oswald", bodyFont: "Lato", headingWeight: "600", bodyWeight: "400", letterSpacing: "0.05em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Lato:wght@400;700&display=swap", fallback: "sans-serif" },
+  // Tech & SaaS
+  saas: { headingFont: "Inter", bodyFont: "Inter", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.02em", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
+  startup: { headingFont: "Manrope", bodyFont: "Manrope", headingWeight: "700", bodyWeight: "400", letterSpacing: "-0.01em", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap", fallback: "sans-serif" },
+  tech: { headingFont: "Space Grotesk", bodyFont: "IBM Plex Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.02em", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500&display=swap", fallback: "sans-serif" },
+  app: { headingFont: "Inter", bodyFont: "Inter", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.01em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap", fallback: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
+  // Modern effects
+  gradient: { headingFont: "Sora", bodyFont: "DM Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.02em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=DM+Sans:wght@400;500&display=swap", fallback: "sans-serif" },
+  brutalist: { headingFont: "Space Grotesk", bodyFont: "JetBrains Mono", headingWeight: "700", bodyWeight: "400", letterSpacing: "0", lineHeight: "1.4", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap", fallback: "monospace" },
+  glassmorphism: { headingFont: "Poppins", bodyFont: "Poppins", headingWeight: "600", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
+  neomorphism: { headingFont: "Nunito", bodyFont: "Nunito", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap", fallback: "sans-serif" },
+  retro: { headingFont: "Press Start 2P", bodyFont: "VT323", headingWeight: "400", bodyWeight: "400", letterSpacing: "0.05em", lineHeight: "1.8", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap", fallback: "monospace" },
+  // Portfolio & Agency
+  portfolio: { headingFont: "Sora", bodyFont: "DM Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.01em", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=DM+Sans:wght@400;500;700&display=swap", fallback: "sans-serif" },
+  agency: { headingFont: "Space Grotesk", bodyFont: "Work Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.02em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500&display=swap", fallback: "sans-serif" },
+  studio: { headingFont: "Bodoni Moda", bodyFont: "Figtree", headingWeight: "600", bodyWeight: "400", headingStyle: "italic", letterSpacing: "0.02em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,600;1,600&family=Figtree:wght@400;500;600&display=swap", fallback: "serif" },
+  // Business & Services
+  ecommerce: { headingFont: "Lexend", bodyFont: "Lexend", headingWeight: "600", bodyWeight: "400", letterSpacing: "-0.01em", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
+  services: { headingFont: "Mulish", bodyFont: "Mulish", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Mulish:wght@400;500;600;700;800&display=swap", fallback: "sans-serif" },
+  restaurant: { headingFont: "Playfair Display", bodyFont: "Raleway", headingWeight: "700", bodyWeight: "400", letterSpacing: "0.02em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Raleway:wght@400;500;600&display=swap", fallback: "serif" },
+  hotel: { headingFont: "Cormorant Garamond", bodyFont: "Nunito Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "0.03em", lineHeight: "1.8", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Nunito+Sans:wght@400;600&display=swap", fallback: "serif" },
+  medical: { headingFont: "DM Sans", bodyFont: "DM Sans", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap", fallback: "sans-serif" },
+  legal: { headingFont: "Merriweather", bodyFont: "Source Sans Pro", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.8", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Source+Sans+Pro:wght@400;600&display=swap", fallback: "serif" },
+  education: { headingFont: "Lora", bodyFont: "Open Sans", headingWeight: "600", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Open+Sans:wght@400;600&display=swap", fallback: "serif" },
+  nonprofit: { headingFont: "Bitter", bodyFont: "Public Sans", headingWeight: "700", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Bitter:wght@400;600;700&family=Public+Sans:wght@400;500;600&display=swap", fallback: "serif" },
+  realestate: { headingFont: "Prata", bodyFont: "Nunito", headingWeight: "400", bodyWeight: "400", letterSpacing: "0.02em", lineHeight: "1.7", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Prata&family=Nunito:wght@400;600;700&display=swap", fallback: "serif" },
+  fitness: { headingFont: "Teko", bodyFont: "Roboto", headingWeight: "600", bodyWeight: "400", letterSpacing: "0.05em", lineHeight: "1.5", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Roboto:wght@400;500&display=swap", fallback: "sans-serif" },
+  photography: { headingFont: "Tenor Sans", bodyFont: "Crimson Pro", headingWeight: "400", bodyWeight: "400", letterSpacing: "0.1em", lineHeight: "1.8", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Tenor+Sans&family=Crimson+Pro:wght@400;500;600&display=swap", fallback: "serif" },
+  blog: { headingFont: "Literata", bodyFont: "Source Serif Pro", headingWeight: "600", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.9", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Literata:wght@400;600;700&family=Source+Serif+Pro:wght@400;600&display=swap", fallback: "serif" },
+};
+
+const DEFAULT_TYPOGRAPHY: LayoutTypography = { headingFont: "Inter", bodyFont: "Inter", headingWeight: "600", bodyWeight: "400", letterSpacing: "normal", lineHeight: "1.6", googleFontsUrl: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap", fallback: "sans-serif" };
+
+function getTypographyForStyle(styleId: string): LayoutTypography {
+  return STYLE_TYPOGRAPHY[styleId] || DEFAULT_TYPOGRAPHY;
+}
+
+function generateTypographyPromptSection(typography: LayoutTypography, styleName: string): string {
+  return `
+⚠️⚠️⚠️ MANDATORY TYPOGRAPHY - NON-NEGOTIABLE! ⚠️⚠️⚠️
+
+═══════════════════════════════════════════════════════════════════
+🔤 FONT REQUIREMENTS FOR "${styleName}" - USE THESE EXACT FONTS:
+═══════════════════════════════════════════════════════════════════
+
+HEADING FONT: ${typography.headingFont}
+BODY FONT: ${typography.bodyFont}
+
+REQUIRED GOOGLE FONTS IMPORT (ADD TO <head> OF EVERY HTML PAGE):
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="${typography.googleFontsUrl}" rel="stylesheet">
+
+═══════════════════════════════════════════════════════════════════
+🎨 TYPOGRAPHY CSS - APPLY IN YOUR CSS:
+═══════════════════════════════════════════════════════════════════
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: '${typography.headingFont}', ${typography.fallback};
+  font-weight: ${typography.headingWeight};
+  ${typography.letterSpacing !== 'normal' ? `letter-spacing: ${typography.letterSpacing};` : ''}
+  ${typography.headingStyle ? `font-style: ${typography.headingStyle};` : ''}
+}
+
+body, p, li, a, span, td, input, textarea, button {
+  font-family: '${typography.bodyFont}', ${typography.fallback};
+  font-weight: ${typography.bodyWeight};
+  line-height: ${typography.lineHeight};
+}
+
+⛔ TYPOGRAPHY RULES - DO NOT VIOLATE:
+- DO NOT use Arial, Helvetica, Times New Roman, or system fonts!
+- DO NOT skip the Google Fonts import!
+- DO NOT use different fonts than specified!
+- EVERY page MUST have the Google Fonts link in <head>!
+
+`;
+}
+
 // ~30 unique layout variations for randomization or manual selection
 // Each style has UNIQUE structure for: Header/Nav, Hero, Sections, Features, Testimonials, CTA, Footer
 const LAYOUT_VARIATIONS = [
@@ -6966,16 +7079,24 @@ ACCENT COLOR: ${schemeColors.accent} (highlights and CTAs)
   }
 
   // Build mandatory layout section with stronger enforcement
+  // Get typography for the selected layout style
+  const layoutTypography = getTypographyForStyle(selectedLayout.id);
+  const mandatoryTypographySection = generateTypographyPromptSection(layoutTypography, selectedLayout.name);
+  console.log(`🔤 Typography for "${selectedLayout.name}": ${layoutTypography.headingFont} / ${layoutTypography.bodyFont}`);
+  
   const mandatoryLayoutSection = `
 ⚠️⚠️⚠️ MANDATORY LAYOUT STRUCTURE - NON-NEGOTIABLE! ⚠️⚠️⚠️
 LAYOUT STYLE: "${selectedLayout.name}"
 
 ${selectedLayout.description}
 
+${mandatoryTypographySection}
+
 ⚠️ CRITICAL LAYOUT RULES - YOU MUST FOLLOW EXACTLY:
 - Hero section MUST match the layout description above!
 - Card grids MUST use the specified arrangement!
 - Section layouts MUST follow the style guidelines!
+- TYPOGRAPHY MUST use the specified Google Fonts!
 - IF YOU IGNORE THIS LAYOUT = GENERATION FAILURE!
 - DO NOT use generic boring layouts - make it UNIQUE as specified!
 `;
