@@ -1504,6 +1504,9 @@ function fixFormActionsForStaticHost(
     let needsScript = false;
     
     // Pattern to match form tags with action attributes
+    // CRITICAL FIX: On static hosts (Netlify, Vercel, etc.), POST requests to .html files 
+    // return 404 even if the file exists! We MUST use JavaScript handlers for ALL forms 
+    // except those with external actions (Netlify Forms, Formspree, etc.)
     content = content.replace(
       /<form([^>]*)action=["']([^"']+)["']([^>]*)>/gi,
       (match, before: string, actionUrl: string, after: string) => {
@@ -1518,30 +1521,15 @@ function fixFormActionsForStaticHost(
         // Skip JavaScript actions
         if (/^javascript:/i.test(trimmedAction)) return match;
         
+        // Skip Netlify forms (have data-netlify or netlify attribute)
+        if (/data-netlify|netlify|formspree/i.test(before + after)) return match;
+        
         // Skip already fixed forms
         if (/data-static-form/i.test(before + after)) return match;
         
-        // Normalize the action path for comparison
-        let normalizedAction = trimmedAction;
-        if (normalizedAction.startsWith('/')) normalizedAction = normalizedAction.slice(1);
-        if (normalizedAction.startsWith('./')) normalizedAction = normalizedAction.slice(2);
-        
-        // Check if this action points to an existing HTML file
-        const actionLower = normalizedAction.toLowerCase();
-        const actionWithHtml = actionLower.endsWith('.html') ? actionLower : actionLower + '.html';
-        
-        // If the action target exists as a file, leave it alone
-        if (htmlFiles.has(actionLower) || htmlFiles.has(actionWithHtml)) {
-          // But still normalize the path
-          if (trimmedAction !== normalizedAction) {
-            fixedInFile++;
-            return `<form${before}action="${normalizedAction}"${after}>`;
-          }
-          return match;
-        }
-        
-        // Action points to non-existent page - fix it!
-        // Remove action and add marker for JavaScript handler
+        // CRITICAL: On static hosts, POST to .html files returns 404!
+        // We MUST use JavaScript handler for ALL local form actions
+        // This includes thank-you.html, success.html, etc.
         fixedInFile++;
         needsScript = true;
         
@@ -1549,7 +1537,7 @@ function fixFormActionsForStaticHost(
         const cleanBefore = before.replace(/\s*action=["'][^"']*["']/gi, '');
         const cleanAfter = after.replace(/\s*action=["'][^"']*["']/gi, '');
         
-        console.log(`📝 [fixFormActions] Fixed form in ${f.path}: action="${trimmedAction}" -> inline handler`);
+        console.log(`📝 [fixFormActions] Fixed form in ${f.path}: action="${trimmedAction}" -> inline JS handler (static host fix)`);
         
         return `<form${cleanBefore} data-static-form="true"${cleanAfter}>`;
       }
