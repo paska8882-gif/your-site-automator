@@ -300,7 +300,12 @@ export function injectExternalResources(html: string): string {
 export function injectBaseStyles(html: string): string {
   if (!html) return html;
 
-  const baseStyles = `<style data-preview-base>
+  const baseMeta = `<!-- Preview meta: helps external assets load reliably in iframe -->
+<meta data-preview-meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+<meta data-preview-meta name="referrer" content="no-referrer-when-downgrade">
+`;
+
+  const baseStyles = `${baseMeta}<style data-preview-base>
 /* ===== CRITICAL PREVIEW RESET ===== */
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
@@ -1074,6 +1079,60 @@ img, video, iframe, embed, object {
 }
 
 /**
+ * Improve external image loading inside sandboxed iframes.
+ * - Adds referrerpolicy + crossorigin + loading attributes to external <img>
+ * - Upgrades protocol-relative URLs to https
+ *
+ * Note: <img> doesn't strictly need CORS to *display*, but some CDNs block by referrer
+ * and protocol-relative URLs can behave unexpectedly in blob/srcdoc contexts.
+ */
+export function patchExternalImages(html: string): string {
+  if (!html) return html;
+
+  return html.replace(
+    /(<img\b[^>]*\bsrc\s*=\s*["'])([^"']+)(["'][^>]*>)/gi,
+    (match, before: string, rawSrc: string, after: string) => {
+      const src = rawSrc.trim();
+
+      const isExternal =
+        src.startsWith("http://") ||
+        src.startsWith("https://") ||
+        src.startsWith("//");
+
+      if (!isExternal) return match;
+
+      // Normalize protocol-relative URLs to https
+      const normalizedSrc = src.startsWith("//") ? `https:${src}` : src;
+
+      let patchedAfter = after;
+
+      // Add attributes only if not already present
+      if (!/\breferrerpolicy\s*=\s*/i.test(patchedAfter)) {
+        patchedAfter = patchedAfter.replace(
+          />\s*$/,
+          ' referrerpolicy="no-referrer-when-downgrade">'
+        );
+      }
+
+      // Setting crossOrigin can help when images are later drawn onto canvas (some previews do this)
+      if (!/\bcrossorigin\s*=\s*/i.test(patchedAfter)) {
+        patchedAfter = patchedAfter.replace(/>\s*$/, ' crossorigin="anonymous">');
+      }
+
+      if (!/\bloading\s*=\s*/i.test(patchedAfter)) {
+        patchedAfter = patchedAfter.replace(/>\s*$/, ' loading="lazy">');
+      }
+
+      if (!/\bdecoding\s*=\s*/i.test(patchedAfter)) {
+        patchedAfter = patchedAfter.replace(/>\s*$/, ' decoding="async">');
+      }
+
+      return before + normalizedSrc + patchedAfter;
+    }
+  );
+}
+
+/**
  * Optimize Google Maps iframes for proper display
  * - Ensures proper attributes for embedding
  * - Adds loading="lazy" and allowfullscreen
@@ -1140,6 +1199,9 @@ export function processHtmlForPreview(html: string, files: GeneratedFile[]): str
 
   // 2. Replace broken image URLs with placeholders
   result = inlineLocalImages(result, files);
+
+  // 2.1 Patch external <img> attributes (reliability in sandbox/srcDoc/blob)
+  result = patchExternalImages(result);
 
   // 3. Inject external resources (fonts, icons)
   result = injectExternalResources(result);
