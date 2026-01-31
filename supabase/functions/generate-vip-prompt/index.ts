@@ -5,34 +5,70 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// VIP prompt template with placeholders
-const VIP_TEMPLATE = `Domain: {domain}
+// VIP prompt template with placeholders - MANDATORY DATA ENFORCEMENT
+const VIP_TEMPLATE = `⚠️⚠️⚠️ CRITICAL VIP GENERATION - ALL DATA BELOW IS MANDATORY! ⚠️⚠️⚠️
 
-Name: {siteName}
+YOU MUST USE THESE EXACT VALUES - NO EXCEPTIONS, NO ALTERNATIVES!
 
-Geo: {geo}
+════════════════════════════════════════════════════════════════════════════════
+📍 SITE IDENTITY (USE EXACTLY AS PROVIDED):
+════════════════════════════════════════════════════════════════════════════════
+   Domain: {domain}
+   Business Name: {siteName}
+   
+════════════════════════════════════════════════════════════════════════════════
+📞 CONTACT DETAILS (MANDATORY ON CONTACT PAGE + FOOTER):
+════════════════════════════════════════════════════════════════════════════════
+   Phone: {phone}
+   Address: {address}
+   
+════════════════════════════════════════════════════════════════════════════════
+🌍 LOCALIZATION:
+════════════════════════════════════════════════════════════════════════════════
+   Target Country: {geo}
+   Language: {language}
 
-Language: {language}
+════════════════════════════════════════════════════════════════════════════════
+⛔ ABSOLUTELY FORBIDDEN - DO NOT DO ANY OF THESE:
+════════════════════════════════════════════════════════════════════════════════
+   ❌ DO NOT use a different phone number than "{phone}"
+   ❌ DO NOT use a different address than "{address}"
+   ❌ DO NOT use a different business name than "{siteName}"
+   ❌ DO NOT invent or generate placeholder contact details
+   ❌ DO NOT use "123 Main Street" or "+1 555-1234" or any fake data
+   ❌ DO NOT omit any of the mandatory contact information
 
-Address: {address}
+════════════════════════════════════════════════════════════════════════════════
+✅ VERIFICATION CHECKLIST - ALL MUST BE TRUE:
+════════════════════════════════════════════════════════════════════════════════
+   ✓ Phone "{phone}" appears in footer with clickable tel: link
+   ✓ Phone "{phone}" appears on contact page with clickable tel: link
+   ✓ Address "{address}" appears in footer
+   ✓ Address "{address}" appears on contact page
+   ✓ Business name "{siteName}" appears in logo/header
+   ✓ Business name "{siteName}" appears in copyright footer
+   ✓ Domain "{domain}" in canonical URL and meta tags
+   ✓ Phone link format: <a href="tel:{phoneDigits}">{phone}</a>
 
-Phone: {phone}
+════════════════════════════════════════════════════════════════════════════════
+📋 WEBSITE SPECIFICATION:
+════════════════════════════════════════════════════════════════════════════════
 
 Topic: {topic}
-
 Type: Information Platform + {typeDescription}
-
 Description: {description}
-
 Keywords: {keywords}
-
 Banned words: {bannedWords}
 
 {pageStructure}
 
 {design}
 
-Technology: HTML5 / CSS3 / Vanilla JS; responsive; semantic markup; JSON-LD schema; meta tags; hreflang={hreflang}; sitemap.xml + robots.txt`;
+Technology: HTML5 / CSS3 / Vanilla JS; responsive; semantic markup; JSON-LD schema; meta tags; hreflang={hreflang}; sitemap.xml + robots.txt
+
+════════════════════════════════════════════════════════════════════════════════
+🔔 FINAL REMINDER: The phone "{phone}" and address "{address}" MUST appear EXACTLY as written above!
+════════════════════════════════════════════════════════════════════════════════`;
 
 // Generate page structure based on topic
 async function generatePageStructure(topic: string, siteName: string, apiKey: string): Promise<string> {
@@ -78,7 +114,7 @@ Return ONLY the page structure, nothing else.`;
         { role: "system", content: "You are a website structure expert. Generate detailed, topic-specific page structures." },
         { role: "user", content: prompt }
       ],
-      max_tokens: 2000,
+      max_tokens: 4000,
       temperature: 0.7,
     }),
   });
@@ -133,7 +169,7 @@ Return ONLY the design specification, nothing else.`;
         { role: "system", content: "You are a web designer expert. Generate cohesive, topic-appropriate design specifications." },
         { role: "user", content: prompt }
       ],
-      max_tokens: 1000,
+      max_tokens: 2000,
       temperature: 0.7,
     }),
   });

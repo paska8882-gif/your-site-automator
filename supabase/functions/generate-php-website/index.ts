@@ -328,14 +328,20 @@ function fixPhoneNumbersInFiles(files: Array<{ path: string; content: string }>,
   return { files: fixedFiles, totalFixed };
 }
 
-// Extract explicit SITE NAME / PHONE from VIP prompt (or other structured prompts)
-function extractExplicitBrandingFromPrompt(prompt: string): { siteName?: string; phone?: string } {
-  const out: { siteName?: string; phone?: string } = {};
-  const nameMatch = prompt.match(/^(?:Name|SITE_NAME)\s*:\s*(.+)$/mi);
+// Extract explicit SITE NAME / PHONE / ADDRESS / DOMAIN from VIP prompt (or other structured prompts)
+function extractExplicitBrandingFromPrompt(prompt: string): { siteName?: string; phone?: string; address?: string; domain?: string } {
+  const out: { siteName?: string; phone?: string; address?: string; domain?: string } = {};
+  const nameMatch = prompt.match(/^(?:Name|Business Name|SITE_NAME)\s*:\s*(.+)$/mi);
   if (nameMatch?.[1]) out.siteName = nameMatch[1].trim();
 
   const phoneMatch = prompt.match(/^(?:Phone|PHONE)\s*:\s*(.+)$/mi);
   if (phoneMatch?.[1]) out.phone = phoneMatch[1].trim();
+
+  const addressMatch = prompt.match(/^(?:Address|ADDRESS)\s*:\s*(.+)$/mi);
+  if (addressMatch?.[1]) out.address = addressMatch[1].trim();
+
+  const domainMatch = prompt.match(/^(?:Domain|DOMAIN)\s*:\s*(.+)$/mi);
+  if (domainMatch?.[1]) out.domain = domainMatch[1].trim();
 
   if (!out.phone) {
     const phoneMatch2 = prompt.match(/^\s*-\s*phone\s*:\s*(.+)$/mi);
@@ -343,6 +349,86 @@ function extractExplicitBrandingFromPrompt(prompt: string): { siteName?: string;
   }
 
   return out;
+}
+
+// ============ ADDRESS ENFORCEMENT FOR VIP (PHP) ============
+function enforceAddressInFiles(
+  files: Array<{ path: string; content: string }>,
+  desiredAddress: string | undefined
+): Array<{ path: string; content: string }> {
+  if (!desiredAddress) return files;
+
+  const address = desiredAddress.trim();
+  console.log(`[enforceAddressInFiles] Enforcing VIP address: "${address}"`);
+
+  const genericAddressPatterns = [
+    /\d{1,5}\s+(?:Main|Oak|Elm|Pine|Cedar|Maple|First|Second|Third)\s+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr|Way|Court|Ct)[,.]?\s*(?:#\d+|Suite\s*\d+|Apt\.?\s*\d+)?[,.]?\s*[A-Za-z\s]+[,.]?\s*(?:[A-Z]{2}\s*)?\d{5}(?:-\d{4})?/gi,
+    /123\s+(?:Main|Example|Sample|Test)\s+(?:Street|St)[^\n<]{0,50}/gi,
+  ];
+
+  return files.map((f) => {
+    if (!/\.(html?|php|jsx?|tsx?)$/i.test(f.path)) return f;
+    // Skip config.php and includes to prevent breaking PHP
+    if (/config\.php$/i.test(f.path) || /includes\//i.test(f.path)) return f;
+
+    let content = f.content;
+    let replaced = false;
+
+    for (const pattern of genericAddressPatterns) {
+      if (pattern.test(content)) {
+        content = content.replace(pattern, address);
+        replaced = true;
+        pattern.lastIndex = 0;
+      }
+    }
+
+    content = content.replace(
+      /(Address|Адреса|Adresse|Dirección|Indirizzo|Endereço|Adres)\s*:\s*[^<\n]{10,80}/gi,
+      (m) => {
+        const label = m.split(":")[0];
+        replaced = true;
+        return `${label}: ${address}`;
+      }
+    );
+
+    if (replaced) {
+      console.log(`[enforceAddressInFiles] Updated address in ${f.path}`);
+    }
+
+    return { ...f, content };
+  });
+}
+
+// ============ DOMAIN ENFORCEMENT FOR VIP (PHP) ============
+function enforceDomainInFiles(
+  files: Array<{ path: string; content: string }>,
+  desiredDomain: string | undefined
+): Array<{ path: string; content: string }> {
+  if (!desiredDomain) return files;
+
+  const domain = desiredDomain.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const canonicalUrl = `https://${domain}`;
+  
+  console.log(`[enforceDomainInFiles] Enforcing VIP domain: "${domain}"`);
+
+  return files.map((f) => {
+    if (!/\.(html?|php)$/i.test(f.path)) return f;
+    if (/config\.php$/i.test(f.path) || /includes\//i.test(f.path)) return f;
+
+    let content = f.content;
+    
+    content = content.replace(
+      /<link[^>]*rel=["']canonical["'][^>]*href=["'][^"']*["'][^>]*>/gi,
+      `<link rel="canonical" href="${canonicalUrl}/${f.path.replace(/^\//, '')}">`
+    );
+
+    content = content.replace(
+      /<meta[^>]*property=["']og:url["'][^>]*content=["'][^"']*["'][^>]*>/gi,
+      `<meta property="og:url" content="${canonicalUrl}/${f.path.replace(/^\//, '')}">`
+    );
+
+    return { ...f, content };
+  });
 }
 
 function enforcePhoneInFiles(
@@ -7080,8 +7166,15 @@ async function runBackgroundGeneration(
       const explicit = extractExplicitBrandingFromPrompt(prompt);
       const desiredSiteName = explicit.siteName;
       const desiredPhone = explicit.phone;
+      const desiredAddress = explicit.address;
+      const desiredDomain = explicit.domain;
       
-      console.log(`[BG] PHP - Extracted branding - siteName: "${desiredSiteName}", phone: "${desiredPhone}"`);
+      console.log(`[BG] PHP - Extracted branding - siteName: "${desiredSiteName}", phone: "${desiredPhone}", address: "${desiredAddress}", domain: "${desiredDomain}"`);
+      
+      const isVipGeneration = !!(desiredPhone && desiredAddress);
+      if (isVipGeneration) {
+        console.log(`[BG] PHP VIP DATA DETECTED - will enforce phone "${desiredPhone}" and address "${desiredAddress}"`);
+      }
       
       // STEP 1: Force ALL images to use external URLs (picsum.photos) - no local assets
       const externalImgResult = forceExternalImages(result.files);
@@ -7117,6 +7210,14 @@ async function runBackgroundGeneration(
 
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceEmailInFiles(enforcedFiles, desiredSiteName);
+      
+      // VIP-specific enforcement: Address and Domain
+      if (isVipGeneration) {
+        enforcedFiles = enforceAddressInFiles(enforcedFiles, desiredAddress);
+        enforcedFiles = enforceDomainInFiles(enforcedFiles, desiredDomain);
+        console.log(`[BG] PHP VIP: Enforced address "${desiredAddress}" and domain "${desiredDomain}" across all files`);
+      }
+      
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
       // Use color scheme for logo/favicon colors + layout style for logo template selection
       // Note: userColorScheme is not passed to runBackgroundGeneration, use default colors
@@ -7377,7 +7478,7 @@ ${promptForGeneration}`;
       };
       const countryName = geoNames[geo];
       if (countryName) {
-        promptForGeneration = `${prompt}\n\n[TARGET COUNTRY: ${countryName}]
+        promptForGeneration = `${promptForGeneration}\n\n[TARGET COUNTRY: ${countryName}]
 CRITICAL GEO REQUIREMENTS - ALL CONTENT MUST BE LOCALIZED FOR ${countryName.toUpperCase()}:
 
 1. **PHYSICAL ADDRESS**: Generate a REALISTIC address from ${countryName}:
@@ -7695,7 +7796,14 @@ ${promptForGeneration}`;
         const explicit = extractExplicitBrandingFromPrompt(promptForGeneration);
         const desiredSiteName = explicit.siteName || siteName;
         const desiredPhone = explicit.phone;
+        const desiredAddress = explicit.address;
+        const desiredDomain = explicit.domain;
         const geoToUse = geo;
+        
+        const isVipGeneration = !!(desiredPhone && desiredAddress);
+        if (isVipGeneration) {
+          console.log(`[BG-PHP-ASYNC] VIP DATA DETECTED - will enforce phone "${desiredPhone}" and address "${desiredAddress}"`);
+        }
 
         // CRITICAL: Fix broken image URLs FIRST (before any phone processing)
         let enforcedFiles = result.files.map(f => {
@@ -7711,6 +7819,14 @@ ${promptForGeneration}`;
         enforcedFiles = enforcePhoneInFiles(fixedFiles, phoneToUse);
         enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
         enforcedFiles = enforceEmailInFiles(enforcedFiles, desiredSiteName);
+        
+        // VIP-specific enforcement: Address and Domain
+        if (isVipGeneration) {
+          enforcedFiles = enforceAddressInFiles(enforcedFiles, desiredAddress);
+          enforcedFiles = enforceDomainInFiles(enforcedFiles, desiredDomain);
+          console.log(`[BG-PHP-ASYNC] VIP: Enforced address "${desiredAddress}" and domain "${desiredDomain}"`);
+        }
+        
         enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
         
         // Ensure branding assets with color scheme + layout style for logo template selection
