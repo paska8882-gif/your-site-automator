@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Hash, Palette, ChevronDown, AlertTriangle, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp, Filter, Newspaper, MapPin, X, Plus, Star, Phone, Building2, Tag, Shuffle, Hand } from "lucide-react";
-import { VipManualRequestDialog } from "./VipManualRequestDialog";
+import { VipManualRequestDialog, type VipData } from "./VipManualRequestDialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -1866,8 +1866,8 @@ export function WebsiteGenerator() {
     setShowVipManualDialog(true);
   };
 
-  // Submit VIP manual request with note and images
-  const handleVipManualSubmit = async (note: string, imageUrls: string[]) => {
+  // Submit VIP manual request with note, images, and VIP data (domain, address, phone)
+  const handleVipManualSubmit = async (note: string, imageUrls: string[], vipData: VipData) => {
     const siteNames = getAllSiteNames();
     
     if (!teamPricing) {
@@ -1882,12 +1882,50 @@ export function WebsiteGenerator() {
       const websiteType = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes[0] : "html";
       const aiModel = selectedAiModels.length > 0 ? selectedAiModels[0] : "senior";
       
+      // Build structured VIP prompt with mandatory data markers
+      // This format is parsed by extractExplicitBrandingFromPrompt in Edge Functions
+      const buildVipPromptWithData = (baseSiteName: string): string => {
+        const lines: string[] = [];
+        
+        // Add mandatory VIP data header for AI and post-processing
+        lines.push("═══════════════════════════════════════════════════════════════");
+        lines.push("⚠️ MANDATORY VIP DATA - USE EXACTLY AS PROVIDED:");
+        lines.push("═══════════════════════════════════════════════════════════════");
+        lines.push(`Domain: ${vipData.domain}`);
+        lines.push(`Name: ${baseSiteName}`);
+        lines.push(`Phone: ${vipData.phone}`);
+        lines.push(`Address: ${vipData.address}`);
+        lines.push("═══════════════════════════════════════════════════════════════");
+        lines.push("");
+        
+        // Add base prompt content
+        if (vipPromptValue) {
+          lines.push(vipPromptValue);
+        } else if (improvedPromptValue) {
+          lines.push(improvedPromptValue);
+        } else {
+          lines.push(prompt.trim());
+        }
+        
+        // Add user note if provided
+        if (note?.trim()) {
+          lines.push("");
+          lines.push("═══════════════════════════════════════════════════════════════");
+          lines.push("📝 ADDITIONAL REQUIREMENTS:");
+          lines.push(note.trim());
+        }
+        
+        return lines.join("\n");
+      };
+      
       // Create manual request records
       for (const siteName of siteNames) {
+        const structuredVipPrompt = buildVipPromptWithData(siteName);
+        
         const { error } = await supabase.from("generation_history").insert({
           prompt: prompt.trim(),
           improved_prompt: improvedPromptValue || null,
-          vip_prompt: vipPromptValue || null,
+          vip_prompt: structuredVipPrompt,
           site_name: siteName,
           language,
           website_type: websiteType,
@@ -1897,7 +1935,8 @@ export function WebsiteGenerator() {
           user_id: user?.id,
           image_source: "manual",
           admin_note: note || null,
-          vip_images: imageUrls.length > 0 ? imageUrls : null
+          vip_images: imageUrls.length > 0 ? imageUrls : null,
+          geo: selectedGeo !== "none" ? selectedGeo : null
         });
 
         if (error) throw error;
