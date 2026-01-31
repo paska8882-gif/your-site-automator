@@ -620,27 +620,61 @@ function fixPhoneNumbersInFiles(files: Array<{ path: string; content: string }>,
 }
 
 // Extract explicit SITE NAME / PHONE / ADDRESS / DOMAIN from VIP prompt (or other structured prompts)
+// This function MUST reliably parse VIP data even when embedded in a larger prompt
 function extractExplicitBrandingFromPrompt(prompt: string): { siteName?: string; phone?: string; address?: string; domain?: string } {
   const out: { siteName?: string; phone?: string; address?: string; domain?: string } = {};
 
-  // VIP prompt format: "Name: ..." / "Business Name: ..." / "Phone: ..." / "Address: ..." / "Domain: ..."
-  const nameMatch = prompt.match(/^(?:Name|Business Name|SITE_NAME)\s*:\s*(.+)$/mi);
-  if (nameMatch?.[1]) out.siteName = nameMatch[1].trim();
+  // VIP prompt format examples:
+  // "Domain: example.com"
+  // "Name: My Business"
+  // "Phone: +1 (548) 269-2050"
+  // "Address: 100 Main Street, City, Country"
+  
+  // Use more flexible regex that:
+  // 1. Allows optional leading whitespace/emojis/symbols
+  // 2. Matches anywhere in the text (not just line start for some patterns)
+  // 3. Captures until end of line or next field
+  
+  // Domain - look for "Domain:" pattern anywhere
+  const domainMatch = prompt.match(/(?:^|\n)\s*Domain\s*:\s*([^\n]+)/i);
+  if (domainMatch?.[1]) {
+    out.domain = domainMatch[1].trim();
+    console.log(`[extractBranding] Found Domain: "${out.domain}"`);
+  }
+  
+  // Phone - look for "Phone:" pattern anywhere
+  const phoneMatch = prompt.match(/(?:^|\n)\s*Phone\s*:\s*([^\n]+)/i);
+  if (phoneMatch?.[1]) {
+    out.phone = phoneMatch[1].trim();
+    console.log(`[extractBranding] Found Phone: "${out.phone}"`);
+  }
+  
+  // Address - look for "Address:" pattern anywhere
+  const addressMatch = prompt.match(/(?:^|\n)\s*Address\s*:\s*([^\n]+)/i);
+  if (addressMatch?.[1]) {
+    out.address = addressMatch[1].trim();
+    console.log(`[extractBranding] Found Address: "${out.address}"`);
+  }
+  
+  // Name / Business Name - look for "Name:" pattern anywhere
+  const nameMatch = prompt.match(/(?:^|\n)\s*(?:Name|Business Name|SITE_NAME)\s*:\s*([^\n]+)/i);
+  if (nameMatch?.[1]) {
+    out.siteName = nameMatch[1].trim();
+    console.log(`[extractBranding] Found Name: "${out.siteName}"`);
+  }
 
-  const phoneMatch = prompt.match(/^(?:Phone|PHONE)\s*:\s*(.+)$/mi);
-  if (phoneMatch?.[1]) out.phone = phoneMatch[1].trim();
-
-  const addressMatch = prompt.match(/^(?:Address|ADDRESS)\s*:\s*(.+)$/mi);
-  if (addressMatch?.[1]) out.address = addressMatch[1].trim();
-
-  const domainMatch = prompt.match(/^(?:Domain|DOMAIN)\s*:\s*(.+)$/mi);
-  if (domainMatch?.[1]) out.domain = domainMatch[1].trim();
-
-  // Fallback: CONTACT block: "- phone: ..."
+  // Fallback: CONTACT block format "- phone: ..."
   if (!out.phone) {
     const phoneMatch2 = prompt.match(/^\s*-\s*phone\s*:\s*(.+)$/mi);
-    if (phoneMatch2?.[1]) out.phone = phoneMatch2[1].trim();
+    if (phoneMatch2?.[1]) {
+      out.phone = phoneMatch2[1].trim();
+      console.log(`[extractBranding] Found Phone (fallback): "${out.phone}"`);
+    }
   }
+  
+  // Log summary
+  const foundFields = Object.entries(out).filter(([_, v]) => v).map(([k]) => k);
+  console.log(`[extractBranding] Extracted ${foundFields.length} fields: ${foundFields.join(', ') || 'none'}`);
 
   return out;
 }

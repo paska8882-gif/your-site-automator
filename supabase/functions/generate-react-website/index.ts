@@ -246,19 +246,50 @@ function fixPhoneNumbersInFiles(files: Array<{ path: string; content: string }>,
   return { files: fixedFiles, totalFixed };
 }
 
-// Extract explicit SITE NAME / PHONE from VIP prompt (or other structured prompts)
-function extractExplicitBrandingFromPrompt(prompt: string): { siteName?: string; phone?: string } {
-  const out: { siteName?: string; phone?: string } = {};
-  const nameMatch = prompt.match(/^(?:Name|SITE_NAME)\s*:\s*(.+)$/mi);
-  if (nameMatch?.[1]) out.siteName = nameMatch[1].trim();
+// Extract explicit SITE NAME / PHONE / ADDRESS / DOMAIN from VIP prompt (or other structured prompts)
+function extractExplicitBrandingFromPrompt(prompt: string): { siteName?: string; phone?: string; address?: string; domain?: string } {
+  const out: { siteName?: string; phone?: string; address?: string; domain?: string } = {};
 
-  const phoneMatch = prompt.match(/^(?:Phone|PHONE)\s*:\s*(.+)$/mi);
-  if (phoneMatch?.[1]) out.phone = phoneMatch[1].trim();
+  // Domain - look for "Domain:" pattern anywhere
+  const domainMatch = prompt.match(/(?:^|\n)\s*Domain\s*:\s*([^\n]+)/i);
+  if (domainMatch?.[1]) {
+    out.domain = domainMatch[1].trim();
+    console.log(`[extractBranding] Found Domain: "${out.domain}"`);
+  }
+  
+  // Phone - look for "Phone:" pattern anywhere
+  const phoneMatch = prompt.match(/(?:^|\n)\s*Phone\s*:\s*([^\n]+)/i);
+  if (phoneMatch?.[1]) {
+    out.phone = phoneMatch[1].trim();
+    console.log(`[extractBranding] Found Phone: "${out.phone}"`);
+  }
+  
+  // Address - look for "Address:" pattern anywhere
+  const addressMatch = prompt.match(/(?:^|\n)\s*Address\s*:\s*([^\n]+)/i);
+  if (addressMatch?.[1]) {
+    out.address = addressMatch[1].trim();
+    console.log(`[extractBranding] Found Address: "${out.address}"`);
+  }
+  
+  // Name / Business Name - look for "Name:" pattern anywhere
+  const nameMatch = prompt.match(/(?:^|\n)\s*(?:Name|Business Name|SITE_NAME)\s*:\s*([^\n]+)/i);
+  if (nameMatch?.[1]) {
+    out.siteName = nameMatch[1].trim();
+    console.log(`[extractBranding] Found Name: "${out.siteName}"`);
+  }
 
+  // Fallback: CONTACT block format "- phone: ..."
   if (!out.phone) {
     const phoneMatch2 = prompt.match(/^\s*-\s*phone\s*:\s*(.+)$/mi);
-    if (phoneMatch2?.[1]) out.phone = phoneMatch2[1].trim();
+    if (phoneMatch2?.[1]) {
+      out.phone = phoneMatch2[1].trim();
+      console.log(`[extractBranding] Found Phone (fallback): "${out.phone}"`);
+    }
   }
+  
+  // Log summary
+  const foundFields = Object.entries(out).filter(([_, v]) => v).map(([k]) => k);
+  console.log(`[extractBranding] Extracted ${foundFields.length} fields: ${foundFields.join(', ') || 'none'}`);
 
   return out;
 }
@@ -316,6 +347,95 @@ function enforcePhoneInFiles(
         content += phoneBlock;
       }
     }
+
+    return { ...f, content };
+  });
+}
+
+// ============ ADDRESS ENFORCEMENT FOR VIP (React) ============
+function enforceAddressInFiles(
+  files: Array<{ path: string; content: string }>,
+  desiredAddress: string | undefined
+): Array<{ path: string; content: string }> {
+  if (!desiredAddress) return files;
+
+  const address = desiredAddress.trim();
+  console.log(`[enforceAddressInFiles] Enforcing VIP address: "${address}"`);
+
+  // Common address patterns to replace (generic placeholders)
+  const genericAddressPatterns = [
+    /\d{1,5}\s+(?:Main|Oak|Elm|Pine|Cedar|Maple|First|Second|Third)\s+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr|Way|Court|Ct)[,.]?\s*(?:#\d+|Suite\s*\d+|Apt\.?\s*\d+)?[,.]?\s*[A-Za-z\s]+[,.]?\s*(?:[A-Z]{2}\s*)?\d{5}(?:-\d{4})?/gi,
+    /123\s+(?:Main|Example|Sample|Test)\s+(?:Street|St)[^\n<]{0,50}/gi,
+    /456\s+(?:Main|Example|Sample|Test)\s+(?:Street|St)[^\n<]{0,50}/gi,
+    /789\s+(?:Main|Example|Sample|Test)\s+(?:Street|St)[^\n<]{0,50}/gi,
+    /100\s+Main\s+Street[^\n<]{0,50}/gi,
+  ];
+
+  return files.map((f) => {
+    if (!/\.(html?|php|jsx?|tsx?)$/i.test(f.path)) return f;
+
+    let content = f.content;
+    let replaced = false;
+
+    // Replace generic address patterns
+    for (const pattern of genericAddressPatterns) {
+      if (pattern.test(content)) {
+        content = content.replace(pattern, address);
+        replaced = true;
+        pattern.lastIndex = 0;
+      }
+    }
+
+    // Replace "Address:" labels with generic addresses
+    content = content.replace(
+      /(Address|Адреса|Adresse|Dirección|Indirizzo|Endereço|Adres)\s*:\s*[^<\n]{10,80}/gi,
+      (m) => {
+        const label = m.split(":")[0];
+        replaced = true;
+        return `${label}: ${address}`;
+      }
+    );
+
+    if (replaced) {
+      console.log(`[enforceAddressInFiles] Updated address in ${f.path}`);
+    }
+
+    return { ...f, content };
+  });
+}
+
+// ============ DOMAIN ENFORCEMENT FOR VIP (React) ============
+function enforceDomainInFiles(
+  files: Array<{ path: string; content: string }>,
+  desiredDomain: string | undefined
+): Array<{ path: string; content: string }> {
+  if (!desiredDomain) return files;
+
+  const domain = desiredDomain.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const canonicalUrl = `https://${domain}`;
+  
+  console.log(`[enforceDomainInFiles] Enforcing VIP domain: "${domain}" (canonical: ${canonicalUrl})`);
+
+  return files.map((f) => {
+    if (!/\.(html?|php|jsx?|tsx?)$/i.test(f.path)) return f;
+
+    let content = f.content;
+    
+    // Update canonical URLs
+    content = content.replace(
+      /<link[^>]*rel=["']canonical["'][^>]*href=["'][^"']*["'][^>]*>/gi,
+      `<link rel="canonical" href="${canonicalUrl}/${f.path.replace(/^\//, '')}">`
+    );
+
+    // Update og:url meta tag
+    content = content.replace(
+      /<meta[^>]*property=["']og:url["'][^>]*content=["'][^"']*["'][^>]*>/gi,
+      `<meta property="og:url" content="${canonicalUrl}/${f.path.replace(/^\//, '')}">`
+    );
+
+    // Update JSON-LD @id and url fields
+    content = content.replace(/"@id"\s*:\s*"[^"]*"/gi, `"@id": "${canonicalUrl}"`);
+    content = content.replace(/"url"\s*:\s*"https?:\/\/[^"]*"/gi, `"url": "${canonicalUrl}"`);
 
     return { ...f, content };
   });
@@ -2662,8 +2782,16 @@ async function runBackgroundGeneration(
       const explicit = extractExplicitBrandingFromPrompt(prompt);
       const desiredSiteName = explicit.siteName || siteName;
       const desiredPhone = explicit.phone;
+      const desiredAddress = explicit.address;
+      const desiredDomain = explicit.domain;
       
-      console.log(`[BG] React - Extracted branding - siteName: "${desiredSiteName}", phone: "${desiredPhone}"`);
+      console.log(`[BG] React - Extracted branding - siteName: "${desiredSiteName}", phone: "${desiredPhone}", address: "${desiredAddress}", domain: "${desiredDomain}"`);
+      
+      // Check if this is a VIP generation (has explicit VIP data)
+      const isVipGeneration = !!(desiredPhone && desiredAddress);
+      if (isVipGeneration) {
+        console.log(`[BG] React VIP DATA DETECTED - will enforce phone "${desiredPhone}", address "${desiredAddress}", domain "${desiredDomain}"`);
+      }
       
       // CRITICAL behavior:
       // - If phone is explicitly provided in prompt -> enforce EXACTLY that phone and DO NOT "fix" it.
@@ -2687,6 +2815,14 @@ async function runBackgroundGeneration(
 
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceEmailInFiles(enforcedFiles, desiredSiteName);
+      
+      // VIP-specific enforcement: Address and Domain
+      if (isVipGeneration) {
+        enforcedFiles = enforceAddressInFiles(enforcedFiles, desiredAddress);
+        enforcedFiles = enforceDomainInFiles(enforcedFiles, desiredDomain);
+        console.log(`[BG] React VIP: Enforced address "${desiredAddress}" and domain "${desiredDomain}" across all files`);
+      }
+      
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
       enforcedFiles = ensureReactFaviconAndLogoInFiles(enforcedFiles, desiredSiteName);
       
