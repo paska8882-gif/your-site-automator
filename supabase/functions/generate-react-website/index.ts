@@ -294,6 +294,111 @@ function extractExplicitBrandingFromPrompt(prompt: string): { siteName?: string;
   return out;
 }
 
+// ============ VIP DATA VALIDATION ============
+interface VipValidationResult {
+  isValid: boolean;
+  phone: { found: boolean; occurrences: number; files: string[] };
+  address: { found: boolean; occurrences: number; files: string[] };
+  domain: { found: boolean; occurrences: number; files: string[] };
+  warnings: string[];
+}
+
+function validateVipDataInFiles(
+  files: Array<{ path: string; content: string }>,
+  expectedPhone?: string,
+  expectedAddress?: string,
+  expectedDomain?: string
+): VipValidationResult {
+  const result: VipValidationResult = {
+    isValid: true,
+    phone: { found: false, occurrences: 0, files: [] },
+    address: { found: false, occurrences: 0, files: [] },
+    domain: { found: false, occurrences: 0, files: [] },
+    warnings: []
+  };
+
+  if (!expectedPhone && !expectedAddress && !expectedDomain) {
+    console.log(`[VIP Validation] No VIP data to validate - skipping`);
+    return result;
+  }
+
+  console.log(`[VIP Validation] Starting validation...`);
+  console.log(`[VIP Validation] Expected phone: "${expectedPhone}"`);
+  console.log(`[VIP Validation] Expected address: "${expectedAddress}"`);
+  console.log(`[VIP Validation] Expected domain: "${expectedDomain}"`);
+
+  const contentFiles = files.filter(f => /\.(html?|jsx?|tsx?)$/i.test(f.path));
+
+  for (const file of contentFiles) {
+    const content = file.content;
+
+    if (expectedPhone) {
+      const phoneDigits = expectedPhone.replace(/[^\d]/g, '');
+      const phonePattern = new RegExp(expectedPhone.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      const telPattern = new RegExp(`tel:[+]?${phoneDigits}`, 'gi');
+      const phoneMatches = (content.match(phonePattern) || []).length;
+      const telMatches = (content.match(telPattern) || []).length;
+      if (phoneMatches > 0 || telMatches > 0) {
+        result.phone.found = true;
+        result.phone.occurrences += phoneMatches + telMatches;
+        result.phone.files.push(file.path);
+      }
+    }
+
+    if (expectedAddress) {
+      const addressParts = expectedAddress.split(',').map(p => p.trim()).filter(p => p.length > 3);
+      let addressFound = false;
+      for (const part of addressParts) {
+        if (/^(street|avenue|road|drive|lane|st|ave|rd|dr|ln)$/i.test(part)) continue;
+        const partPattern = new RegExp(part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        const matches = (content.match(partPattern) || []).length;
+        if (matches > 0) {
+          addressFound = true;
+          result.address.occurrences += matches;
+          break;
+        }
+      }
+      if (addressFound && !result.address.files.includes(file.path)) {
+        result.address.found = true;
+        result.address.files.push(file.path);
+      }
+    }
+
+    if (expectedDomain) {
+      const domainPattern = new RegExp(expectedDomain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      const domainMatches = (content.match(domainPattern) || []).length;
+      if (domainMatches > 0) {
+        result.domain.found = true;
+        result.domain.occurrences += domainMatches;
+        result.domain.files.push(file.path);
+      }
+    }
+  }
+
+  if (expectedPhone && !result.phone.found) {
+    result.isValid = false;
+    result.warnings.push(`⚠️ VIP Phone "${expectedPhone}" NOT found in any React files!`);
+  } else if (expectedPhone) {
+    console.log(`[VIP Validation] ✅ Phone found ${result.phone.occurrences} times in: ${result.phone.files.join(', ')}`);
+  }
+
+  if (expectedAddress && !result.address.found) {
+    result.isValid = false;
+    result.warnings.push(`⚠️ VIP Address "${expectedAddress}" NOT found in any React files!`);
+  } else if (expectedAddress) {
+    console.log(`[VIP Validation] ✅ Address found ${result.address.occurrences} times in: ${result.address.files.join(', ')}`);
+  }
+
+  if (expectedDomain && !result.domain.found) {
+    result.warnings.push(`⚠️ VIP Domain "${expectedDomain}" not found in meta/canonical tags`);
+  } else if (expectedDomain) {
+    console.log(`[VIP Validation] ✅ Domain found ${result.domain.occurrences} times in: ${result.domain.files.join(', ')}`);
+  }
+
+  console.log(`[VIP Validation] Result: ${result.isValid ? '✅ VALID' : '❌ INVALID'}`);
+  return result;
+}
+
 function enforcePhoneInFiles(
   files: Array<{ path: string; content: string }>,
   desiredPhoneRaw: string | undefined
@@ -2825,6 +2930,49 @@ async function runBackgroundGeneration(
       
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
       enforcedFiles = ensureReactFaviconAndLogoInFiles(enforcedFiles, desiredSiteName);
+
+      // ============ VIP DATA FINAL VALIDATION ============
+      if (isVipGeneration) {
+        const vipValidation = validateVipDataInFiles(
+          enforcedFiles,
+          desiredPhone,
+          desiredAddress,
+          desiredDomain
+        );
+        
+        console.log(`[BG] React VIP Validation complete - Valid: ${vipValidation.isValid}`);
+        
+        if (!vipValidation.isValid) {
+          console.error(`[BG] ❌ React VIP DATA VALIDATION FAILED!`);
+          for (const warning of vipValidation.warnings) {
+            console.error(`[BG] ${warning}`);
+          }
+          
+          console.log(`[BG] Attempting force re-enforcement of VIP data...`);
+          
+          if (!vipValidation.phone.found && desiredPhone) {
+            console.log(`[BG] Force re-enforcing phone: ${desiredPhone}`);
+            enforcedFiles = enforcePhoneInFiles(enforcedFiles, desiredPhone);
+          }
+          
+          if (!vipValidation.address.found && desiredAddress) {
+            console.log(`[BG] Force re-enforcing address: ${desiredAddress}`);
+            enforcedFiles = enforceAddressInFiles(enforcedFiles, desiredAddress);
+          }
+          
+          if (!vipValidation.domain.found && desiredDomain) {
+            console.log(`[BG] Force re-enforcing domain: ${desiredDomain}`);
+            enforcedFiles = enforceDomainInFiles(enforcedFiles, desiredDomain);
+          }
+          
+          const reValidation = validateVipDataInFiles(enforcedFiles, desiredPhone, desiredAddress, desiredDomain);
+          if (!reValidation.isValid) {
+            console.error(`[BG] ❌ React VIP DATA STILL MISSING AFTER RE-ENFORCEMENT!`);
+          } else {
+            console.log(`[BG] ✅ React VIP data successfully enforced after re-validation`);
+          }
+        }
+      }
       
       // Create zip base64 with fixed files
       const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");
