@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { generateBrandingSync, type BrandingConfig } from "../_shared/branding.ts";
+import { generateBranding, generateBrandingSync, type BrandingConfig } from "../_shared/branding.ts";
 
 declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void };
 
@@ -2318,13 +2318,14 @@ function enforceUiUxBaselineInFiles(
   });
 }
 
-function ensureFaviconAndLogoInFiles(
+async function ensureFaviconAndLogoInFilesAsync(
   files: Array<{ path: string; content: string }>,
   siteNameRaw?: string,
   brandColors?: { primary: string; accent: string },
   layoutStyle?: string,
-  topic?: string
-): Array<{ path: string; content: string }> {
+  topic?: string,
+  useAI: boolean = false
+): Promise<Array<{ path: string; content: string }>> {
   const siteName = (siteNameRaw || "Website").trim() || "Website";
   
   const safeText = (s: string) =>
@@ -2339,8 +2340,21 @@ function ensureFaviconAndLogoInFiles(
     layoutStyle: layoutStyle || "classic",
   };
 
-  const branding = generateBrandingSync(brandingConfig);
-  console.log(`[Branding] Generated ${branding.source} branding for "${siteName}" with style "${layoutStyle || 'classic'}"`);
+  // For VIP mode, try AI generation with LOVABLE_API_KEY
+  let branding;
+  if (useAI) {
+    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    if (apiKey) {
+      console.log(`[Branding] VIP mode - attempting AI logo generation for "${siteName}"`);
+      branding = await generateBranding(brandingConfig, apiKey);
+    } else {
+      console.log(`[Branding] VIP mode but no API key - falling back to templates`);
+      branding = generateBrandingSync(brandingConfig);
+    }
+  } else {
+    branding = generateBrandingSync(brandingConfig);
+  }
+  console.log(`[Branding] Generated ${branding.source} branding for "${siteName}" with style "${layoutStyle || 'classic'}"${useAI ? " (VIP)" : ""}"`);
 
   const hasLogo = files.some((f) => f.path.toLowerCase() === "logo.svg");
   const hasFaviconSvg = files.some((f) => f.path.toLowerCase() === "favicon.svg");
@@ -2372,6 +2386,67 @@ function ensureFaviconAndLogoInFiles(
     }
 
     // Replace common text logo anchors with an <img> (only if there isn't already an <img>)
+    content = content.replace(
+      /<a([^>]*\bclass=["'][^"']*(?:nav-logo|logo|brand)[^"']*["'][^>]*)>(?!\s*<img\b)[\s\S]*?<\/a>/gi,
+      (_m, aAttrs) =>
+        `<a${aAttrs}><img src="logo.svg" alt="${safeText(siteName)} logo" style="height:40px;width:auto;display:block" loading="eager"></a>`
+    );
+
+    return { ...f, content };
+  });
+}
+
+// Synchronous version for non-VIP mode (uses template-based branding only)
+function ensureFaviconAndLogoInFiles(
+  files: Array<{ path: string; content: string }>,
+  siteNameRaw?: string,
+  brandColors?: { primary: string; accent: string },
+  layoutStyle?: string,
+  topic?: string
+): Array<{ path: string; content: string }> {
+  const siteName = (siteNameRaw || "Website").trim() || "Website";
+  
+  const safeText = (s: string) =>
+    s.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c] as string));
+
+  const brandingConfig: BrandingConfig = {
+    siteName,
+    topic: topic || "",
+    primaryColor: brandColors?.primary || "#10b981",
+    accentColor: brandColors?.accent || "#047857",
+    layoutStyle: layoutStyle || "classic",
+  };
+
+  const branding = generateBrandingSync(brandingConfig);
+  console.log(`[Branding] Generated ${branding.source} branding for "${siteName}" with style "${layoutStyle || 'classic'}"`);
+
+  const hasLogo = files.some((f) => f.path.toLowerCase() === "logo.svg");
+  const hasFaviconSvg = files.some((f) => f.path.toLowerCase() === "favicon.svg");
+  const hasFaviconIco = files.some((f) => f.path.toLowerCase() === "favicon.ico");
+
+  const withAssets = [...files];
+  if (!hasLogo) withAssets.push({ path: "logo.svg", content: branding.logoSvg });
+  if (!hasFaviconSvg) withAssets.push({ path: "favicon.svg", content: branding.faviconSvg });
+  if (!hasFaviconIco) withAssets.push({ path: "favicon.ico", content: branding.faviconIcoBase64 });
+
+  return withAssets.map((f) => {
+    if (!/\.(html?|php)$/i.test(f.path)) return f;
+    let content = f.content;
+
+    if (!/rel=["']icon["']/i.test(content)) {
+      const link = `\n<link rel="icon" href="favicon.ico" type="image/x-icon">\n<link rel="icon" href="favicon.svg" type="image/svg+xml">\n`;
+      content = /<\/head>/i.test(content)
+        ? content.replace(/<\/head>/i, `${link}</head>`)
+        : `${link}${content}`;
+    } else {
+      if (!/href=["']favicon\.ico["']/i.test(content)) {
+        const link = `\n<link rel="icon" href="favicon.ico" type="image/x-icon">\n`;
+        content = /<\/head>/i.test(content)
+          ? content.replace(/<\/head>/i, `${link}</head>`)
+          : `${link}${content}`;
+      }
+    }
+
     content = content.replace(
       /<a([^>]*\bclass=["'][^"']*(?:nav-logo|logo|brand)[^"']*["'][^>]*)>(?!\s*<img\b)[\s\S]*?<\/a>/gi,
       (_m, aAttrs) =>
@@ -9699,7 +9774,8 @@ async function runBackgroundGeneration(
   geo?: string,
   bilingualLanguages?: string[] | null,
   bundleImages: boolean = true, // Whether to bundle external images into ZIP
-  colorScheme?: string | null // User-selected color scheme
+  colorScheme?: string | null, // User-selected color scheme
+  isVip: boolean = false // VIP mode - enables AI logo generation
 ) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -9777,8 +9853,14 @@ async function runBackgroundGeneration(
 
        // Ensure branding assets exist AND are linked in ALL html pages (including 200/404 added above)
        // Use selected color scheme for logo/favicon colors + layout style for logo template selection
+       // For VIP mode, use AI-generated logos
        const brandColorsForLogo = getBrandColors(colorScheme || undefined);
-       enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName, brandColorsForLogo, layoutStyle || undefined);
+       if (isVip) {
+         console.log(`[BG] VIP mode enabled - using AI logo generation`);
+         enforcedFiles = await ensureFaviconAndLogoInFilesAsync(enforcedFiles, desiredSiteName, brandColorsForLogo, layoutStyle || undefined, undefined, true);
+       } else {
+         enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName, brandColorsForLogo, layoutStyle || undefined);
+       }
       
        // CRITICAL: Enforce business hours in footer
        
@@ -10526,6 +10608,8 @@ ${promptForGeneration}`;
     // Pass salePrice and teamId for potential refund on error
     // IMPORTANT: Use promptForGeneration which includes language and geo instructions
     // Use effectiveColorScheme and effectiveLayoutStyle to ensure retry gets correct params
+    // Pass isVip flag to enable AI logo generation for VIP requests
+    const isVipRequest = !!vipPrompt;
     EdgeRuntime.waitUntil(
       runBackgroundGeneration(
         historyId,
@@ -10541,7 +10625,8 @@ ${promptForGeneration}`;
         geo,
         bilingualLanguages || null,
         bundleImages,
-        effectiveColorScheme
+        effectiveColorScheme,
+        isVipRequest
       )
     );
 

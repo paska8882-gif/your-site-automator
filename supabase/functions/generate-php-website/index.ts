@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { generateBrandingSync, type BrandingConfig } from "../_shared/branding.ts";
+import { generateBranding, generateBrandingSync, type BrandingConfig } from "../_shared/branding.ts";
 
 declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void };
 
@@ -2119,6 +2119,81 @@ function enforceResponsiveImagesInFiles(
   });
 }
 
+// Async version for VIP mode (uses AI logo generation)
+async function ensureFaviconAndLogoInFilesAsync(
+  files: Array<{ path: string; content: string }>,
+  siteNameRaw?: string,
+  brandColors?: { primary: string; accent: string },
+  layoutStyle?: string,
+  topic?: string,
+  useAI: boolean = false
+): Promise<Array<{ path: string; content: string }>> {
+  const siteName = (siteNameRaw || "Website").trim() || "Website";
+  
+  const safeText = (s: string) =>
+    s.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c] as string));
+
+  const brandingConfig: BrandingConfig = {
+    siteName,
+    topic: topic || "",
+    primaryColor: brandColors?.primary || "#10b981",
+    accentColor: brandColors?.accent || "#047857",
+    layoutStyle: layoutStyle || "classic",
+  };
+
+  let branding;
+  if (useAI) {
+    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    if (apiKey) {
+      console.log(`[Branding] VIP mode - attempting AI logo generation for "${siteName}"`);
+      branding = await generateBranding(brandingConfig, apiKey);
+    } else {
+      console.log(`[Branding] VIP mode but no API key - falling back to templates`);
+      branding = generateBrandingSync(brandingConfig);
+    }
+  } else {
+    branding = generateBrandingSync(brandingConfig);
+  }
+  console.log(`[Branding] Generated ${branding.source} branding for "${siteName}" with style "${layoutStyle || 'classic'}"${useAI ? " (VIP)" : ""}`);
+
+  const hasLogo = files.some((f) => f.path.toLowerCase() === "logo.svg");
+  const hasFaviconSvg = files.some((f) => f.path.toLowerCase() === "favicon.svg");
+  const hasFaviconIco = files.some((f) => f.path.toLowerCase() === "favicon.ico");
+
+  const withAssets = [...files];
+  if (!hasLogo) withAssets.push({ path: "logo.svg", content: branding.logoSvg });
+  if (!hasFaviconSvg) withAssets.push({ path: "favicon.svg", content: branding.faviconSvg });
+  if (!hasFaviconIco) withAssets.push({ path: "favicon.ico", content: branding.faviconIcoBase64 });
+
+  return withAssets.map((f) => {
+    if (!/\.(html?|php)$/i.test(f.path)) return f;
+    let content = f.content;
+
+    if (!/rel=["']icon["']/i.test(content)) {
+      const link = `\n<link rel="icon" href="favicon.ico" type="image/x-icon">\n<link rel="icon" href="favicon.svg" type="image/svg+xml">\n`;
+      content = /<\/head>/i.test(content)
+        ? content.replace(/<\/head>/i, `${link}</head>`)
+        : `${link}${content}`;
+    } else {
+      if (!/href=["']favicon\.ico["']/i.test(content)) {
+        const link = `\n<link rel="icon" href="favicon.ico" type="image/x-icon">\n`;
+        content = /<\/head>/i.test(content)
+          ? content.replace(/<\/head>/i, `${link}</head>`)
+          : `${link}${content}`;
+      }
+    }
+
+    content = content.replace(
+      /<a([^>]*\bclass=["'][^"']*(?:nav-logo|logo|brand)[^"']*["'][^>]*)>(?!\s*<img\b)[\s\S]*?<\/a>/gi,
+      (_m, aAttrs) =>
+        `<a${aAttrs}><img src="logo.svg" alt="${safeText(siteName)} logo" style="height:40px;width:auto;display:block" loading="eager"></a>`
+    );
+
+    return { ...f, content };
+  });
+}
+
+// Synchronous version for non-VIP mode
 function ensureFaviconAndLogoInFiles(
   files: Array<{ path: string; content: string }>,
   siteNameRaw?: string,
@@ -2131,7 +2206,6 @@ function ensureFaviconAndLogoInFiles(
   const safeText = (s: string) =>
     s.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c] as string));
 
-  // Use the new branding module for diverse logo generation
   const brandingConfig: BrandingConfig = {
     siteName,
     topic: topic || "",
