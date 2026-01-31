@@ -544,55 +544,158 @@ iframe[src*="google.com/maps"], iframe[src*="maps.google"] {
   }
 }
 
+/* ===== HAMBURGER MENU SYSTEM ===== */
+/* Menu toggle button - hidden on desktop, visible on mobile */
+.mobile-menu-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: space-around;
+  width: 30px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  z-index: 1001;
+  position: relative;
+}
+
+.mobile-menu-toggle span {
+  display: block;
+  width: 100%;
+  height: 3px;
+  background-color: currentColor;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+  transform-origin: center;
+}
+
+/* Hamburger animation when open */
+.mobile-menu-toggle.active span:nth-child(1) {
+  transform: rotate(45deg) translate(5px, 5px);
+}
+.mobile-menu-toggle.active span:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(0);
+}
+.mobile-menu-toggle.active span:nth-child(3) {
+  transform: rotate(-45deg) translate(6px, -6px);
+}
+
+/* Mobile navigation container */
+.mobile-nav-menu {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 1000;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0;
+  padding: 60px 20px 40px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  overflow-y: auto;
+}
+
+.mobile-nav-menu.active {
+  display: flex;
+  opacity: 1;
+  visibility: visible;
+}
+
+.mobile-nav-menu a {
+  color: #ffffff;
+  font-size: 1.5rem;
+  font-weight: 500;
+  padding: 1rem 2rem;
+  text-decoration: none;
+  transition: color 0.2s ease, transform 0.2s ease;
+  text-align: center;
+  width: 100%;
+  max-width: 280px;
+}
+
+.mobile-nav-menu a:hover {
+  color: #3b82f6;
+  transform: scale(1.05);
+}
+
+/* Close button for mobile menu */
+.mobile-menu-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 1.5rem;
+  transition: all 0.2s ease;
+}
+
+.mobile-menu-close:hover {
+  background: #ffffff;
+  color: #000000;
+}
+
 /* ===== RESPONSIVE - MOBILE LARGE (481px - 767px) ===== */
 @media (max-width: 767px) {
-  /* Header becomes stacked */
+  /* Show hamburger menu button */
+  .mobile-menu-toggle {
+    display: flex !important;
+    order: 10;
+  }
+  
+  /* Hide desktop navigation */
+  nav, .nav, .navigation, .main-nav, .site-nav, .navbar,
+  header nav, header .nav, header .navigation,
+  .header nav, .header .nav, .site-header nav {
+    display: none !important;
+  }
+  
+  /* But show our mobile nav overlay */
+  .mobile-nav-menu {
+    display: none; /* Will be shown via JS when .active is added */
+  }
+  .mobile-nav-menu.active {
+    display: flex !important;
+  }
+  
+  /* Header layout for mobile with hamburger */
   header .container, .header .container, .site-header .container,
   .main-header .container, header > .wrapper {
-    flex-direction: column !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    justify-content: space-between !important;
     align-items: center !important;
-    text-align: center;
-    gap: 1rem;
-    padding: 1rem;
+    padding: 0.75rem 1rem;
+    gap: 0.5rem;
   }
   
-  /* Logo centered */
+  /* Logo stays left */
   .logo, .site-logo, .brand, .navbar-brand {
     order: 0;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0;
+    flex-shrink: 0;
   }
   
-  /* Navigation stacked */
-  nav, .nav, .navigation, .main-nav, .site-nav {
-    width: 100%;
-    order: 1;
-    justify-content: center !important;
-  }
-  
-  nav ul, .nav ul, .menu, .nav-links, .nav-menu {
-    flex-direction: column !important;
-    align-items: center !important;
-    width: 100%;
-    gap: 0.5rem !important;
-  }
-  
-  nav li, .nav li, .menu li {
-    width: 100%;
-    text-align: center;
-  }
-  
-  nav a, .nav a, .menu a, .nav-links a {
-    width: 100%;
-    justify-content: center !important;
-    padding: 0.75rem 1rem !important;
-  }
-  
-  /* Header actions centered */
+  /* Header CTA/phone between logo and hamburger */
   .header-cta, .header-buttons, .nav-cta, .header-right, .header-actions {
-    margin-left: 0 !important;
-    width: 100%;
-    justify-content: center !important;
-    order: 2;
+    margin-left: auto !important;
+    order: 5;
+    display: none !important; /* Hide on mobile - will be in mobile menu */
   }
   
   /* Top bar stacked */
@@ -601,7 +704,8 @@ iframe[src*="google.com/maps"], iframe[src*="maps.google"] {
     align-items: center !important;
     text-align: center;
     gap: 0.5rem !important;
-    padding: 0.75rem !important;
+    padding: 0.5rem !important;
+    font-size: 0.875rem;
   }
   
   /* All grids become single column */
@@ -789,6 +893,130 @@ img, video, iframe, embed, object {
   min-width: 0;
 }
 </style>
+
+<script data-hamburger-menu>
+(function() {
+  // Wait for DOM to be ready
+  function initHamburgerMenu() {
+    // Find the header
+    var header = document.querySelector('header, .header, .site-header, .main-header');
+    if (!header) return;
+    
+    // Find navigation inside header
+    var nav = header.querySelector('nav, .nav, .navigation, .main-nav, .site-nav, .navbar');
+    if (!nav) return;
+    
+    // Check if hamburger already exists
+    if (document.querySelector('.mobile-menu-toggle')) return;
+    
+    // Get all nav links
+    var navLinks = nav.querySelectorAll('a');
+    if (navLinks.length === 0) return;
+    
+    // Create hamburger button
+    var hamburger = document.createElement('button');
+    hamburger.className = 'mobile-menu-toggle';
+    hamburger.setAttribute('aria-label', 'Toggle menu');
+    hamburger.setAttribute('aria-expanded', 'false');
+    hamburger.innerHTML = '<span></span><span></span><span></span>';
+    
+    // Create mobile menu overlay
+    var mobileMenu = document.createElement('div');
+    mobileMenu.className = 'mobile-nav-menu';
+    
+    // Create close button
+    var closeBtn = document.createElement('button');
+    closeBtn.className = 'mobile-menu-close';
+    closeBtn.setAttribute('aria-label', 'Close menu');
+    closeBtn.innerHTML = '×';
+    mobileMenu.appendChild(closeBtn);
+    
+    // Clone nav links into mobile menu
+    navLinks.forEach(function(link) {
+      var clone = link.cloneNode(true);
+      clone.addEventListener('click', function() {
+        closeMobileMenu();
+      });
+      mobileMenu.appendChild(clone);
+    });
+    
+    // Add phone/CTA if exists
+    var headerPhone = header.querySelector('a[href^="tel:"], .header-phone, .phone-number');
+    if (headerPhone) {
+      var phoneClone = headerPhone.cloneNode(true);
+      phoneClone.style.marginTop = '2rem';
+      phoneClone.style.color = '#3b82f6';
+      phoneClone.addEventListener('click', function() {
+        closeMobileMenu();
+      });
+      mobileMenu.appendChild(phoneClone);
+    }
+    
+    // Append to document
+    var headerContainer = header.querySelector('.container, .wrapper') || header;
+    headerContainer.appendChild(hamburger);
+    document.body.appendChild(mobileMenu);
+    
+    // Toggle function
+    function toggleMobileMenu() {
+      var isActive = mobileMenu.classList.contains('active');
+      if (isActive) {
+        closeMobileMenu();
+      } else {
+        openMobileMenu();
+      }
+    }
+    
+    function openMobileMenu() {
+      mobileMenu.classList.add('active');
+      hamburger.classList.add('active');
+      hamburger.setAttribute('aria-expanded', 'true');
+      document.body.style.overflow = 'hidden';
+    }
+    
+    function closeMobileMenu() {
+      mobileMenu.classList.remove('active');
+      hamburger.classList.remove('active');
+      hamburger.setAttribute('aria-expanded', 'false');
+      document.body.style.overflow = '';
+    }
+    
+    // Event listeners
+    hamburger.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleMobileMenu();
+    });
+    
+    closeBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeMobileMenu();
+    });
+    
+    // Close on escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && mobileMenu.classList.contains('active')) {
+        closeMobileMenu();
+      }
+    });
+    
+    // Close when clicking outside menu
+    mobileMenu.addEventListener('click', function(e) {
+      if (e.target === mobileMenu) {
+        closeMobileMenu();
+      }
+    });
+  }
+  
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initHamburgerMenu);
+  } else {
+    initHamburgerMenu();
+  }
+})();
+</script>
 `;
 
   // Insert before </head> tag
