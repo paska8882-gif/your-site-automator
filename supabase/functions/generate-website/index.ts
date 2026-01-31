@@ -10299,12 +10299,15 @@ async function runBackgroundGeneration(
         if (match) retryCount = parseInt(match[1], 10);
       }
       
+      // Store enforcedFiles (with external Pexels/Picsum URLs) in files_data for preview
+      // The ZIP contains zipTextFiles (with local paths) + zipBinaryFiles (actual images)
+      // This way: preview works with external URLs, download works with bundled images
       await supabase
         .from("generation_history")
         .update({
           status: "completed",
-          files_data: enforcedFiles,
-          zip_data: zipBase64,
+          files_data: enforcedFiles, // Keep external URLs for preview (they work in browser)
+          zip_data: zipBase64, // ZIP has local paths + bundled images
           generation_cost: generationCost,
           total_generation_cost: newTotalCost,
           retry_count: retryCount,
