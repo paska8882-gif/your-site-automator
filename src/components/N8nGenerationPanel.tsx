@@ -13,7 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { SimplePreview } from "./SimplePreview";
 import { GeneratedFile } from "@/lib/websiteGenerator";
-
+import { N8nGenerationHistory } from "./N8nGenerationHistory";
 // Languages
 const languages = [
   { value: "en", label: "🇬🇧 English" },
@@ -599,6 +599,9 @@ export function N8nGenerationPanel() {
           </CardContent>
         </Card>
       </div>
+
+      {/* History Section */}
+      <N8nGenerationHistory />
     </div>
   );
 }
