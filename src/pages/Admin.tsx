@@ -18,6 +18,7 @@ import { AdminTasksTab } from "@/components/AdminTasksTab";
 import { AdminDatabaseTab } from "@/components/AdminDatabaseTab";
 import { ManualRequestsTab } from "@/components/ManualRequestsTab";
 import { AdminMaintenanceToggle } from "@/components/AdminMaintenanceToggle";
+import { N8nGenerationPanel } from "@/components/N8nGenerationPanel";
 import { AppLayout } from "@/components/AppLayout";
 
 const Admin = () => {
@@ -61,6 +62,8 @@ const Admin = () => {
         return <AdminSitesTab />;
       case "manual-requests":
         return <ManualRequestsTab />;
+      case "n8n-generator":
+        return <N8nGenerationPanel />;
       case "users":
         return <AdminUsersManager />;
       case "appeals":
