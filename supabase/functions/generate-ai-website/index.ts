@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -321,69 +322,104 @@ violation = invalid output
 ---
 
 ## footer rules (mandatory)
-- phone → \`contact.html#contacts\`
-- email → \`contact.html#contacts\`
-- physical address
-- current year
-- legal links:
-  - terms
-  - privacy
-  - cookies
-  - refund policy
-  - disclaimer
+- always at page bottom
+- nav: home, about, services, blog, faq, contact
+- legal links: terms, privacy, cookies, refund-policy, disclaimer
+- social icons (svg inline, aria-labels, links=#)
+- copyright with dynamic year via js
 
 ---
 
-## blog requirements (critical)
-- blog.html lists all five posts as cards (blog.html must show 5 cards linking to post1–post5)
-- each post:
-  - 400–800 words
-  - h1 → h2 → h3 structure
-  - technical, neutral tone
-  - no marketing
-  - no prohibited words
+## favicon rules (mandatory)
+\`\`\`html
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+\`\`\`
+- all 3 files must exist
+- all pages must include these exact links
 
 ---
 
-## legal pages — depth (mandatory)
-- terms: exactly 14 sections
-- privacy: at least 10 sections (data collection, usage, storage, user rights, contact)
-- cookies: table (name, provider, type, purpose, duration)
-- refund policy: at least 10 sections, no prices or currency
-- disclaimer: no guarantees, no responsibility, no professional advice
+## blog rules (mandatory)
+- blog.html lists 5 posts
+- 5 individual pages: post1.html–post5.html
+- bilingual titles, excerpts, full content
+- no images, no author, no comments
+- breadcrumb on post pages
 
 ---
 
-## sitemap & robots (mandatory)
-- sitemap.xml lists all pages
-- robots.txt references sitemap
+## faq rules (mandatory)
+- accordion: click expands, re-click collapses
+- 10 questions minimum
+- pure css + minimal js (no jquery)
+- fully bilingual
 
 ---
 
-## head requirements (mandatory)
-- meta charset
-- meta viewport
-- title via i18n
-- meta description via i18n
-- favicon links
-- apple-touch-icon
+## thank-you.html (mandatory)
+- displays after form submit
+- bilingual text
+- link back to contact page
+- no scripts except language toggle
 
 ---
 
-## final validation rule (critical)
-if anything is missing or violated → output is invalid and must be regenerated
-- you must output the website files, even if it requires multiple consecutive assistant messages.
-- never ask to narrow/stage the request. never refuse. never explain limits.
+## 404.html (mandatory)
+- custom design
+- link to homepage
+- bilingual content
 
 ---
 
-## end of generation prompt`;
+## robots.txt (mandatory)
+\`\`\`
+User-agent: *
+Disallow:
+Sitemap: https://[domain]/sitemap.xml
+\`\`\`
 
-// Другий промпт для безпосередньої генерації сайту
-const GENERATOR_PROMPT = `You are a professional website generator. You receive a technical specification and generate all required files.
+---
+
+## sitemap.xml (mandatory)
+- all html pages listed
+- absolute urls: https://[domain]/page.html
+- standard xml format
+
+---
+
+## ssl.txt (mandatory)
+- static file content: "ssl certificate installed and verified for [domain]"
+
+---
+
+## final validation checklist
+before submitting, verify:
+1. ✅ all required pages exist
+2. ✅ styles.css exists and is linked on all pages
+3. ✅ script.js exists and is linked on all pages
+4. ✅ i18n object covers all visible text
+5. ✅ no prohibited words anywhere
+6. ✅ cookie banner is fully functional
+7. ✅ contact form submits to thank-you.html
+8. ✅ favicons are present and linked
+9. ✅ sitemap.xml includes all pages
+10. ✅ robots.txt is correct
+11. ✅ images are only from picsum.photos with onerror fallback
+12. ✅ blog and faq are complete
+13. ✅ no inline styles, no external frameworks
+
+---
+
+## end of generation prompt
+`;
+
+// Промпт для генератора сайту
+const GENERATOR_PROMPT = `You are an expert web developer. Generate a complete static website based on the technical requirements provided.
 
 CRITICAL RULES:
-1. Output ONLY valid JSON with this exact structure:
+1. Return ONLY valid JSON in this exact format:
 {
   "files": [
     { "path": "index.html", "content": "..." },
@@ -392,30 +428,15 @@ CRITICAL RULES:
   ]
 }
 
-2. Generate ALL required files from the specification
-3. Each file must have complete, production-ready content
-4. No placeholders, no "// TODO", no incomplete sections
-5. All HTML must be valid and complete
-6. CSS must be substantial (500+ lines minimum)
-7. JavaScript must include full i18n system
-8. All pages must be interconnected with working navigation
+2. NO markdown code fences - just raw JSON
+3. Include ALL required files from the specification
+4. Ensure styles.css is substantial (5000+ chars minimum)
+5. Ensure script.js includes complete i18n system
+6. All content must be bilingual via the i18n system
+7. Images ONLY from picsum.photos with unique seeds and onerror fallback
+8. NO external dependencies or frameworks`;
 
-RESPOND ONLY WITH THE JSON OBJECT. NO OTHER TEXT.`;
-
-// Обов'язкові файли
-const REQUIRED_HTML_FILES = [
-  'index.html', 'services.html', 'about.html', 'blog.html',
-  'post1.html', 'post2.html', 'post3.html', 'post4.html', 'post5.html',
-  'contact.html', 'faq.html', 'terms.html', 'privacy.html',
-  'cookies.html', 'refund-policy.html', 'disclaimer.html',
-  'thank-you.html', '404.html'
-];
-
-const REQUIRED_TECHNICAL_FILES = [
-  'styles.css', 'script.js', 'sitemap.xml', 'robots.txt'
-];
-
-// Валідація файлів
+// Типи
 interface FileItem {
   path: string;
   content: string;
@@ -427,76 +448,76 @@ interface ValidationResult {
   warnings: string[];
 }
 
+interface JobRecord {
+  id: string;
+  user_id: string;
+  status: string;
+  domain: string;
+  geo?: string;
+  languages: string[];
+  theme?: string;
+  keywords?: string;
+  prohibited_words?: string;
+  technical_prompt?: string;
+  files_data?: { files: FileItem[] };
+  validation?: ValidationResult & { attempts: number };
+  error_message?: string;
+}
+
+// Функція валідації згенерованих файлів
 function validateGeneratedFiles(files: FileItem[]): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
-  const filePaths = files.map(f => f.path.toLowerCase());
-
-  // Перевірка наявності всіх HTML файлів
-  for (const requiredFile of REQUIRED_HTML_FILES) {
-    if (!filePaths.includes(requiredFile)) {
-      errors.push(`Missing required file: ${requiredFile}`);
+  
+  const requiredFiles = [
+    'index.html', 'styles.css', 'script.js', 'about.html', 'services.html',
+    'contact.html', 'blog.html', 'faq.html', 'terms.html', 'privacy.html',
+    'cookies.html', 'refund-policy.html', 'disclaimer.html', 'thank-you.html',
+    '404.html', 'sitemap.xml', 'robots.txt'
+  ];
+  
+  const filePaths = files.map(f => f.path);
+  
+  // Перевірка наявності обов'язкових файлів
+  for (const required of requiredFiles) {
+    if (!filePaths.includes(required)) {
+      errors.push(`Missing required file: ${required}`);
     }
   }
-
-  // Перевірка наявності технічних файлів
-  for (const requiredFile of REQUIRED_TECHNICAL_FILES) {
-    if (!filePaths.includes(requiredFile)) {
-      errors.push(`Missing required file: ${requiredFile}`);
+  
+  // Перевірка styles.css
+  const stylesFile = files.find(f => f.path === 'styles.css');
+  if (stylesFile) {
+    if (stylesFile.content.length < 3000) {
+      warnings.push(`styles.css is too short (${stylesFile.content.length} chars), should be 5000+ for premium design`);
+    }
+    if (stylesFile.content.includes('```')) {
+      errors.push('styles.css contains markdown code fences');
     }
   }
-
-  // Перевірка контенту файлів
+  
+  // Перевірка script.js
+  const scriptFile = files.find(f => f.path === 'script.js');
+  if (scriptFile) {
+    if (!scriptFile.content.includes('I18N') && !scriptFile.content.includes('i18n')) {
+      errors.push('script.js missing i18n system');
+    }
+    if (scriptFile.content.includes('```')) {
+      errors.push('script.js contains markdown code fences');
+    }
+  }
+  
+  // Перевірка HTML файлів
   for (const file of files) {
-    const content = file.content || '';
-    const fileName = file.path.toLowerCase();
-
-    // Перевірка HTML файлів
-    if (fileName.endsWith('.html')) {
-      if (content.length < 500) {
-        errors.push(`File ${file.path} is too short (${content.length} chars, minimum 500)`);
+    if (file.path.endsWith('.html')) {
+      if (!file.content.includes('styles.css')) {
+        warnings.push(`${file.path} does not link to styles.css`);
       }
-      if (!content.includes('<!DOCTYPE html>') && !content.includes('<!doctype html>')) {
-        warnings.push(`File ${file.path} missing DOCTYPE declaration`);
+      if (!file.content.includes('script.js')) {
+        warnings.push(`${file.path} does not link to script.js`);
       }
-      if (!content.includes('<html')) {
-        errors.push(`File ${file.path} missing <html> tag`);
-      }
-      if (!content.includes('data-i18n')) {
-        warnings.push(`File ${file.path} missing i18n attributes`);
-      }
-      // Перевірка навігації
-      if (!content.includes('href="index.html"') && fileName !== 'index.html') {
-        warnings.push(`File ${file.path} missing link to index.html`);
-      }
-    }
-
-    // Перевірка CSS
-    if (fileName === 'styles.css') {
-      if (content.length < 2000) {
-        errors.push(`CSS file is too short (${content.length} chars, minimum 2000)`);
-      }
-    }
-
-    // Перевірка JS
-    if (fileName === 'script.js') {
-      if (!content.includes('I18N') && !content.includes('i18n')) {
-        errors.push('script.js missing i18n system');
-      }
-      if (!content.includes('localStorage')) {
-        warnings.push('script.js missing localStorage for language persistence');
-      }
-    }
-  }
-
-  // Перевірка навігаційних посилань між сторінками
-  const indexFile = files.find(f => f.path.toLowerCase() === 'index.html');
-  if (indexFile) {
-    const content = indexFile.content;
-    const navLinks = ['services.html', 'about.html', 'blog.html', 'contact.html', 'faq.html'];
-    for (const link of navLinks) {
-      if (!content.includes(`href="${link}"`)) {
-        warnings.push(`index.html missing navigation link to ${link}`);
+      if (file.content.includes('```')) {
+        errors.push(`${file.path} contains markdown code fences`);
       }
     }
   }
@@ -532,52 +553,56 @@ Please regenerate or fix the files to address ALL errors. Return the complete fi
 CRITICAL: Include ALL required files, not just the ones with errors.`;
 }
 
-serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
+// Фонова функція генерації
+async function processGenerationJob(
+  jobId: string,
+  supabaseUrl: string,
+  supabaseServiceKey: string,
+  openaiApiKey: string
+) {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  
   try {
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY is not configured');
+    // Отримуємо дані job
+    const { data: job, error: jobError } = await supabase
+      .from('ai_generation_jobs')
+      .select('*')
+      .eq('id', jobId)
+      .single();
+    
+    if (jobError || !job) {
+      console.error('Job not found:', jobId, jobError);
+      return;
     }
-
-    const { 
-      domain, 
-      geo, 
-      languages, 
-      keyword, 
-      businessDescription, 
-      services, 
-      phone, 
-      email, 
-      prohibitedWords 
-    } = await req.json();
-
-    console.log('Received generation request:', { domain, geo, languages, keyword });
-
+    
+    // Оновлюємо статус на processing
+    await supabase
+      .from('ai_generation_jobs')
+      .update({ status: 'processing', started_at: new Date().toISOString() })
+      .eq('id', jobId);
+    
+    console.log(`[Job ${jobId}] Started processing...`);
+    
     // Формуємо користувацький ввід для першого етапу
     const userInput = `
-domain: ${domain}
-geo: ${geo}
-language: ${languages.join(', ')}
-keyword: ${keyword}
-business: ${businessDescription}
-services: ${services}
-phone: ${phone || 'generate belgian format'}
-email: ${email || `contact@${domain}`}
-prohibited words: ${prohibitedWords || 'none'}
+domain: ${job.domain}
+geo: ${job.geo || 'BE'}
+language: ${job.languages?.join(', ') || 'en'}
+keyword: ${job.theme || ''}
+business: ${job.theme || ''}
+services: ${job.theme || ''}
+phone: generate belgian format
+email: contact@${job.domain}
+prohibited words: ${job.prohibited_words || 'none'}
     `.trim();
 
-    console.log('Step 1: Generating technical prompt...');
+    console.log(`[Job ${jobId}] Step 1: Generating technical prompt...`);
 
-    // Етап 1: Генеруємо технічний промпт через Chat Completions API (gpt-4o для швидкості)
+    // Етап 1: Генеруємо технічний промпт через Chat Completions API
     const promptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -592,24 +617,28 @@ prohibited words: ${prohibitedWords || 'none'}
 
     if (!promptResponse.ok) {
       const errorText = await promptResponse.text();
-      console.error('OpenAI prompt generation error:', errorText);
+      console.error(`[Job ${jobId}] OpenAI prompt generation error:`, errorText);
       throw new Error(`OpenAI API error: ${promptResponse.status}`);
     }
 
     const promptData = await promptResponse.json();
-    console.log('Prompt response structure:', JSON.stringify(Object.keys(promptData)));
-    
     const technicalPrompt = promptData.choices?.[0]?.message?.content;
 
     if (!technicalPrompt) {
-      console.error('No technical prompt in response:', JSON.stringify(promptData).substring(0, 500));
       throw new Error('Failed to generate technical prompt');
     }
 
-    console.log('Technical prompt generated, length:', technicalPrompt.length);
-    console.log('Step 2: Generating website files...');
+    console.log(`[Job ${jobId}] Technical prompt generated, length: ${technicalPrompt.length}`);
+    
+    // Зберігаємо технічний промпт
+    await supabase
+      .from('ai_generation_jobs')
+      .update({ technical_prompt: technicalPrompt })
+      .eq('id', jobId);
 
-    // Етап 2: Генеруємо сайт на основі технічного промпту
+    console.log(`[Job ${jobId}] Step 2: Generating website files with gpt-5-codex...`);
+
+    // Етап 2: Генеруємо сайт через Responses API (gpt-5-codex)
     let files: FileItem[] = [];
     let attempts = 0;
     const maxAttempts = 3;
@@ -617,7 +646,7 @@ prohibited words: ${prohibitedWords || 'none'}
 
     while (attempts < maxAttempts) {
       attempts++;
-      console.log(`Generation attempt ${attempts}/${maxAttempts}...`);
+      console.log(`[Job ${jobId}] Generation attempt ${attempts}/${maxAttempts}...`);
 
       // Будуємо input для Responses API
       const generatorInput = attempts === 1 
@@ -635,7 +664,7 @@ prohibited words: ${prohibitedWords || 'none'}
       const generatorResponse = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Authorization': `Bearer ${openaiApiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -643,10 +672,9 @@ prohibited words: ${prohibitedWords || 'none'}
           metadata: {
             requestId: String(Date.now()),
             source: 'lovable-ai-editor',
-            domain: domain || '',
+            domain: job.domain || '',
           },
           input: generatorInput,
-          // gpt-5-codex не потребує обмеження токенів
           text: {
             format: { type: 'json_object' }
           }
@@ -655,7 +683,7 @@ prohibited words: ${prohibitedWords || 'none'}
 
       if (!generatorResponse.ok) {
         const errorText = await generatorResponse.text();
-        console.error('OpenAI generation error:', errorText);
+        console.error(`[Job ${jobId}] OpenAI generation error:`, errorText);
         if (attempts === maxAttempts) {
           throw new Error(`OpenAI API error after ${maxAttempts} attempts: ${generatorResponse.status}`);
         }
@@ -663,81 +691,172 @@ prohibited words: ${prohibitedWords || 'none'}
       }
 
       const generatorData = await generatorResponse.json();
+      console.log(`[Job ${jobId}] Generator response keys:`, Object.keys(generatorData));
+      
       // Responses API: output[0].content[0].text або fallback на choices
       const filesJson = generatorData.output?.[0]?.content?.[0]?.text || generatorData.choices?.[0]?.message?.content;
       const finishReason = generatorData.output?.[0]?.stop_reason || generatorData.choices?.[0]?.finish_reason;
 
       if (!filesJson) {
-        console.error('Empty response from generator');
+        console.error(`[Job ${jobId}] Empty response from generator, data:`, JSON.stringify(generatorData).substring(0, 500));
         continue;
       }
 
       // Check if response was truncated
       if (finishReason === 'length') {
-        console.warn('Response was truncated due to length limit, retrying...');
+        console.warn(`[Job ${jobId}] Response was truncated due to length limit, retrying...`);
         continue;
       }
 
-      console.log(`Files JSON received (${filesJson.length} chars), finish_reason: ${finishReason}, parsing...`);
+      console.log(`[Job ${jobId}] Files JSON received (${filesJson.length} chars), finish_reason: ${finishReason}, parsing...`);
 
       try {
         const parsedFiles = JSON.parse(filesJson);
         files = parsedFiles.files || [];
       } catch (parseError) {
-        console.error('Failed to parse files JSON:', parseError);
-        // Try to extract partial files if JSON is truncated
-        try {
-          const partialMatch = filesJson.match(/"files"\s*:\s*\[[\s\S]*?\{[\s\S]*?"path"[\s\S]*?"content"/);
-          if (partialMatch) {
-            console.log('Response was truncated, will retry...');
-          }
-        } catch (_) {
-          // Ignore
-        }
+        console.error(`[Job ${jobId}] Failed to parse files JSON:`, parseError);
         continue;
       }
 
-      console.log(`Parsed ${files.length} files, validating...`);
+      console.log(`[Job ${jobId}] Parsed ${files.length} files, validating...`);
 
       // Валідація
       validation = validateGeneratedFiles(files);
       
-      console.log('Validation result:', {
+      console.log(`[Job ${jobId}] Validation result:`, {
         isValid: validation.isValid,
         errorsCount: validation.errors.length,
         warningsCount: validation.warnings.length
       });
 
       if (validation.isValid) {
-        console.log('Validation passed!');
+        console.log(`[Job ${jobId}] Validation passed!`);
         break;
       }
 
-      console.log('Validation failed, errors:', validation.errors);
+      console.log(`[Job ${jobId}] Validation failed, errors:`, validation.errors);
       
       if (attempts < maxAttempts) {
-        console.log('Attempting to fix...');
+        console.log(`[Job ${jobId}] Attempting to fix...`);
       }
     }
 
-    // Якщо після всіх спроб валідація не пройшла, все одно повертаємо результат з попередженнями
+    // Фінальна валідація
     const finalValidation = validateGeneratedFiles(files);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        files,
-        technicalPrompt,
+    // Оновлюємо job з результатом
+    await supabase
+      .from('ai_generation_jobs')
+      .update({
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        files_data: { files },
         validation: {
           isValid: finalValidation.isValid,
           errors: finalValidation.errors,
           warnings: finalValidation.warnings,
           attempts
-        },
-        usage: {
-          promptTokens: promptData.usage?.total_tokens || 0,
-          attempts
-        },
+        }
+      })
+      .eq('id', jobId);
+
+    console.log(`[Job ${jobId}] Completed successfully with ${files.length} files`);
+
+  } catch (error) {
+    console.error(`[Job ${jobId}] Processing error:`, error);
+    
+    // Оновлюємо job з помилкою
+    await supabase
+      .from('ai_generation_jobs')
+      .update({
+        status: 'failed',
+        completed_at: new Date().toISOString(),
+        error_message: error instanceof Error ? error.message : 'Unknown error'
+      })
+      .eq('id', jobId);
+  }
+}
+
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY is not configured');
+    }
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error('Supabase credentials not configured');
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    
+    // Отримуємо user_id з auth header
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      throw new Error('Authorization header required');
+    }
+    
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    
+    if (userError || !user) {
+      throw new Error('Invalid token');
+    }
+
+    const { 
+      domain, 
+      geo, 
+      languages, 
+      theme, 
+      keywords, 
+      prohibitedWords 
+    } = await req.json();
+
+    console.log('Received generation request:', { domain, geo, languages });
+
+    // Створюємо job у базі
+    const { data: job, error: insertError } = await supabase
+      .from('ai_generation_jobs')
+      .insert({
+        user_id: user.id,
+        domain: domain || 'example.com',
+        geo: geo || 'BE',
+        languages: languages || ['en'],
+        theme,
+        keywords,
+        prohibited_words: prohibitedWords,
+        status: 'pending'
+      })
+      .select()
+      .single();
+
+    if (insertError || !job) {
+      console.error('Failed to create job:', insertError);
+      throw new Error('Failed to create generation job');
+    }
+
+    console.log('Created job:', job.id);
+
+    // Запускаємо обробку у фоні (використовуємо глобальний EdgeRuntime)
+    // @ts-ignore - EdgeRuntime доступний у Supabase Edge Functions
+    (globalThis as any).EdgeRuntime?.waitUntil?.(
+      processGenerationJob(job.id, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY)
+    ) ?? processGenerationJob(job.id, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY);
+
+    // Одразу повертаємо jobId
+    return new Response(
+      JSON.stringify({
+        success: true,
+        jobId: job.id,
+        status: 'pending',
+        message: 'Generation started in background'
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -746,7 +865,7 @@ prohibited words: ${prohibitedWords || 'none'}
     );
 
   } catch (error) {
-    console.error('Generation error:', error);
+    console.error('Request error:', error);
     return new Response(
       JSON.stringify({
         success: false,

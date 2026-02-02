@@ -64,6 +64,63 @@ export type Database = {
           },
         ]
       }
+      ai_generation_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          domain: string
+          error_message: string | null
+          files_data: Json | null
+          geo: string | null
+          id: string
+          keywords: string | null
+          languages: string[]
+          prohibited_words: string | null
+          started_at: string | null
+          status: string
+          technical_prompt: string | null
+          theme: string | null
+          user_id: string
+          validation: Json | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          domain: string
+          error_message?: string | null
+          files_data?: Json | null
+          geo?: string | null
+          id?: string
+          keywords?: string | null
+          languages?: string[]
+          prohibited_words?: string | null
+          started_at?: string | null
+          status?: string
+          technical_prompt?: string | null
+          theme?: string | null
+          user_id: string
+          validation?: Json | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          domain?: string
+          error_message?: string | null
+          files_data?: Json | null
+          geo?: string | null
+          id?: string
+          keywords?: string | null
+          languages?: string[]
+          prohibited_words?: string | null
+          started_at?: string | null
+          status?: string
+          technical_prompt?: string | null
+          theme?: string | null
+          user_id?: string
+          validation?: Json | null
+        }
+        Relationships: []
+      }
       appeals: {
         Row: {
           admin_comment: string | null
