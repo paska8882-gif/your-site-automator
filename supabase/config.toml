@@ -60,3 +60,7 @@ verify_jwt = false
 
 [functions.get-storage-stats]
 verify_jwt = false
+
+[functions.generate-ai-website]
+verify_jwt = false
+max_duration_seconds = 300
