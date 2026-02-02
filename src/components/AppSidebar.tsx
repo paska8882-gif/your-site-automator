@@ -47,7 +47,8 @@ import {
   Wrench,
   AlertTriangle,
   Loader2,
-  Database
+  Database,
+  Bot
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -80,6 +81,7 @@ const getAdminNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.sites"), tab: "sites", icon: FileCode },
   { title: t("sidebar.manualRequests"), tab: "manual-requests", icon: FileCode, highlight: "purple" },
   { title: "n8n Генератор", tab: "n8n-generator", icon: Sparkles, highlight: "cyan" },
+  { title: "AI Редактор", tab: "ai-editor", icon: Bot, highlight: "violet" },
   { title: t("sidebar.users"), tab: "users", icon: UserCog },
   { title: t("sidebar.appeals"), tab: "appeals", icon: MessageSquare },
   { title: t("sidebar.communication"), tab: "communication", icon: MessageCircle },
@@ -304,6 +306,7 @@ export function AppSidebar() {
                   const isManualRequestsItem = item.tab === "manual-requests";
                   const isPurpleItem = (item as any).highlight === "purple";
                   const isCyanItem = (item as any).highlight === "cyan";
+                  const isVioletItem = (item as any).highlight === "violet";
                   const hasTaskIndicator = isTasksItem && (hasProblematic || hasNewTasks);
                   const hasAppealsIndicator = isAppealsItem && hasPendingAppeals;
                   const hasUsersIndicator = isUsersItem && hasPendingUsers;
@@ -323,7 +326,9 @@ export function AppSidebar() {
                           ? "bg-purple-500/20 hover:bg-purple-500/30"
                           : isCyanItem
                             ? "bg-cyan-500/20 hover:bg-cyan-500/30"
-                            : "";
+                            : isVioletItem
+                              ? "bg-violet-500/20 hover:bg-violet-500/30"
+                              : "";
                   
                   const indicatorTextClass = isTasksItem
                     ? hasProblematic
@@ -341,7 +346,9 @@ export function AppSidebar() {
                             ? "text-purple-500 font-semibold"
                             : isCyanItem
                               ? "text-cyan-500 font-semibold"
-                              : "";
+                              : isVioletItem
+                                ? "text-violet-500 font-semibold"
+                                : "";
                   
                   return (
                     <SidebarMenuItem key={item.tab}>
@@ -351,7 +358,7 @@ export function AppSidebar() {
                         tooltip={item.title}
                         className={`transition-colors ${indicatorBgClass}`}
                       >
-                        <item.icon className={`h-4 w-4 ${isPurpleItem || isCyanItem || hasTaskIndicator || hasAppealsIndicator || hasUsersIndicator || hasManualRequestsIndicator ? indicatorTextClass : ""}`} />
+                        <item.icon className={`h-4 w-4 ${isPurpleItem || isCyanItem || isVioletItem || hasTaskIndicator || hasAppealsIndicator || hasUsersIndicator || hasManualRequestsIndicator ? indicatorTextClass : ""}`} />
                         <span className={indicatorTextClass}>{item.title}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
