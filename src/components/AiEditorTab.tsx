@@ -41,10 +41,13 @@ interface GenerationResult {
 const AiEditorTab = () => {
   const { toast } = useToast();
   
-  // Form state - simplified, AI generates details automatically
+  // Form state
   const [domain, setDomain] = useState("");
   const [geo, setGeo] = useState("BE");
-  const [languages, setLanguages] = useState<string[]>(["FR", "EN"]);
+  const [languages, setLanguages] = useState<string[]>([]);
+  const [theme, setTheme] = useState("");
+  const [keywords, setKeywords] = useState("");
+  const [prohibitedWords, setProhibitedWords] = useState("");
   
   // Generation state
   const [result, setResult] = useState<GenerationResult>({
@@ -56,8 +59,8 @@ const AiEditorTab = () => {
   const [isEditing, setIsEditing] = useState(false);
 
   const handleGenerate = async () => {
-    if (!domain.trim()) {
-      toast({ title: "Помилка", description: "Введіть домен", variant: "destructive" });
+    if (!domain.trim() || languages.length === 0) {
+      toast({ title: "Помилка", description: "Вкажіть домен та оберіть мови", variant: "destructive" });
       return;
     }
 
@@ -66,7 +69,7 @@ const AiEditorTab = () => {
     try {
       toast({
         title: "Генерація запущена",
-        description: "Крок 1: Створення технічного промпту...",
+        description: "Створення технічного промпту...",
       });
 
       const { data, error } = await supabase.functions.invoke('generate-ai-website', {
@@ -74,6 +77,9 @@ const AiEditorTab = () => {
           domain,
           geo,
           languages,
+          theme,
+          keywords,
+          prohibitedWords,
         },
       });
 
@@ -178,35 +184,33 @@ const AiEditorTab = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label className="text-xs font-medium">Домен *</Label>
-              <Input 
-                value={domain} 
-                onChange={e => setDomain(e.target.value)}
-                placeholder="example.com"
-                className="h-9 text-sm mt-1"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                AI автоматично визначить тип бізнесу, контакти та послуги
-              </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs font-medium">Домен *</Label>
+                <Input 
+                  value={domain} 
+                  onChange={e => setDomain(e.target.value)}
+                  placeholder="example.com"
+                  className="h-9 text-sm mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium">Географія</Label>
+                <Select value={geo} onValueChange={setGeo}>
+                  <SelectTrigger className="h-9 text-sm mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(GEO_MAP).map(([code, label]) => (
+                      <SelectItem key={code} value={code}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div>
-              <Label className="text-xs font-medium">Географія</Label>
-              <Select value={geo} onValueChange={setGeo}>
-                <SelectTrigger className="h-9 text-sm mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(GEO_MAP).map(([code, label]) => (
-                    <SelectItem key={code} value={code}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label className="text-xs font-medium">Мови сайту</Label>
+              <Label className="text-xs font-medium">Мови сайту *</Label>
               <div className="flex flex-wrap gap-2 mt-1">
                 {Object.entries(LANGUAGES_MAP).map(([code, label]) => (
                   <Badge
@@ -215,9 +219,7 @@ const AiEditorTab = () => {
                     className="cursor-pointer text-xs"
                     onClick={() => {
                       if (languages.includes(code)) {
-                        if (languages.length > 1) {
-                          setLanguages(languages.filter(l => l !== code));
-                        }
+                        setLanguages(languages.filter(l => l !== code));
                       } else {
                         setLanguages([...languages, code]);
                       }
@@ -229,9 +231,39 @@ const AiEditorTab = () => {
               </div>
             </div>
 
+            <div>
+              <Label className="text-xs font-medium">Тема</Label>
+              <Input 
+                value={theme} 
+                onChange={e => setTheme(e.target.value)}
+                placeholder="Digital Wayfinding & Spatial Orientation"
+                className="h-9 text-sm mt-1"
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs font-medium">Ключові слова</Label>
+              <Textarea 
+                value={keywords} 
+                onChange={e => setKeywords(e.target.value)}
+                placeholder="Orientation spatiale, Signalétique numérique, Navigation intérieure..."
+                className="text-sm min-h-[60px] mt-1"
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs font-medium">Заборонені слова</Label>
+              <Textarea 
+                value={prohibitedWords} 
+                onChange={e => setProhibitedWords(e.target.value)}
+                placeholder="Crypto, Bitcoin, NFT, Casino..."
+                className="text-sm min-h-[40px] mt-1"
+              />
+            </div>
+
             <Button 
               onClick={handleGenerate} 
-              disabled={result.status === "generating" || !domain.trim()}
+              disabled={result.status === "generating" || !domain.trim() || languages.length === 0}
               className="w-full"
               size="lg"
             >
