@@ -637,7 +637,7 @@ prohibited words: ${prohibitedWords || 'none'}
                 { role: 'user', content: createFixPrompt(files, validation) }
               ],
           temperature: 0.2,
-          max_tokens: 16000,
+          max_completion_tokens: 128000, // Increased for large multi-file output
           response_format: { type: 'json_object' },
         }),
       });
@@ -653,19 +653,35 @@ prohibited words: ${prohibitedWords || 'none'}
 
       const generatorData = await generatorResponse.json();
       const filesJson = generatorData.choices?.[0]?.message?.content;
+      const finishReason = generatorData.choices?.[0]?.finish_reason;
 
       if (!filesJson) {
         console.error('Empty response from generator');
         continue;
       }
 
-      console.log('Files JSON received, parsing...');
+      // Check if response was truncated
+      if (finishReason === 'length') {
+        console.warn('Response was truncated due to length limit, retrying...');
+        continue;
+      }
+
+      console.log(`Files JSON received (${filesJson.length} chars), finish_reason: ${finishReason}, parsing...`);
 
       try {
         const parsedFiles = JSON.parse(filesJson);
         files = parsedFiles.files || [];
       } catch (parseError) {
         console.error('Failed to parse files JSON:', parseError);
+        // Try to extract partial files if JSON is truncated
+        try {
+          const partialMatch = filesJson.match(/"files"\s*:\s*\[[\s\S]*?\{[\s\S]*?"path"[\s\S]*?"content"/);
+          if (partialMatch) {
+            console.log('Response was truncated, will retry...');
+          }
+        } catch (_) {
+          // Ignore
+        }
         continue;
       }
 
