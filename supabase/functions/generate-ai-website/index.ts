@@ -573,19 +573,20 @@ prohibited words: ${prohibitedWords || 'none'}
 
     console.log('Step 1: Generating technical prompt...');
 
-    // Етап 1: Генеруємо технічний промпт через Responses API
-    const promptResponse = await fetch('https://api.openai.com/v1/responses', {
+    // Етап 1: Генеруємо технічний промпт через Chat Completions API (gpt-4o для швидкості)
+    const promptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-codex',
-        input: [
+        model: 'gpt-4o',
+        messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userInput }
         ],
+        temperature: 0.3,
       }),
     });
 
@@ -596,10 +597,12 @@ prohibited words: ${prohibitedWords || 'none'}
     }
 
     const promptData = await promptResponse.json();
-    // Responses API returns output array instead of choices
-    const technicalPrompt = promptData.output?.[0]?.content?.[0]?.text || promptData.choices?.[0]?.message?.content;
+    console.log('Prompt response structure:', JSON.stringify(Object.keys(promptData)));
+    
+    const technicalPrompt = promptData.choices?.[0]?.message?.content;
 
     if (!technicalPrompt) {
+      console.error('No technical prompt in response:', JSON.stringify(promptData).substring(0, 500));
       throw new Error('Failed to generate technical prompt');
     }
 
