@@ -143,7 +143,7 @@ serve(async (req) => {
   }
 
   try {
-    const { topic, siteName, geo, phone, language } = await req.json();
+    const { topic, siteName, geo, phone, language, batchIndex, batchTotal } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
@@ -157,10 +157,15 @@ serve(async (req) => {
       );
     }
 
+    const isBatch = batchIndex && batchTotal && batchTotal > 1;
+    
     console.log("Generating structured brief for topic:", topic);
     console.log("Site name:", siteName || "auto-generate");
     console.log("Geo:", geo || "USA");
     console.log("Language:", language || "auto-detect");
+    if (isBatch) {
+      console.log(`Batch generation: ${batchIndex}/${batchTotal}`);
+    }
 
     // Get niche-specific data
     const nicheData = getNicheData(topic);
@@ -168,6 +173,16 @@ serve(async (req) => {
     const generatedAddress = generateAddressByGeo(geo || "USA");
     const suggestedDomain = generateDomainFromNiche(topic);
     const paletteString = nicheData.palette.map(c => `${c.name} (${c.hex})`).join(", ");
+    
+    // Add batch uniqueness instruction
+    const batchInstruction = isBatch 
+      ? `\n\nIMPORTANT: This is generation ${batchIndex} of ${batchTotal} in a batch. Create a COMPLETELY UNIQUE and DIFFERENT version:
+- Invent a DIFFERENT company name (not similar to others)
+- Use a DIFFERENT tagline and messaging angle
+- Change the visual direction - pick DIFFERENT colors from the niche palette options
+- Vary the business positioning and unique value proposition
+- Make it feel like a completely independent brand in the same niche`
+      : "";
 
     const systemPrompt = `You are an expert website brief writer. Create a STRUCTURED, COMPACT website brief for the given niche.
 
@@ -214,7 +229,7 @@ RULES:
 - Be specific to the "${topic}" niche
 - Use the exact phone and address provided
 - The tagline must be catchy and memorable
-- Write in ${language || "the same language as the niche"}`;
+- Write in ${language || "the same language as the niche"}${batchInstruction}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -226,10 +241,10 @@ RULES:
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Create a complete structured website brief for this niche: "${topic}"${siteName ? `\nBusiness name: ${siteName}` : ''}` },
+          { role: "user", content: `Create a complete structured website brief for this niche: "${topic}"${siteName ? `\nBusiness name: ${siteName}` : ''}${isBatch ? `\n\nThis is variant ${batchIndex} of ${batchTotal} - make it completely unique and different!` : ''}` },
         ],
         max_tokens: 2000,
-        temperature: 0.7,
+        temperature: isBatch ? 0.9 : 0.7, // Higher temperature for batch to ensure variety
       }),
     });
 
