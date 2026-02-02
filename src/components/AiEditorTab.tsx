@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,10 +32,12 @@ interface GeneratedFile {
 }
 
 interface GenerationResult {
-  status: "idle" | "generating" | "completed" | "failed";
+  status: "idle" | "generating" | "polling" | "completed" | "failed";
   files: GeneratedFile[];
   error?: string;
   technicalPrompt?: string;
+  jobId?: string;
+  progress?: string;
 }
 
 const AiEditorTab = () => {
@@ -54,9 +56,84 @@ const AiEditorTab = () => {
     status: "idle",
     files: [],
   });
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [editedContent, setEditedContent] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [pollingInterval]);
+
+  // Polling function to check job status
+  const pollJobStatus = async (jobId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('ai_generation_jobs')
+        .select('*')
+        .eq('id', jobId)
+        .single();
+
+      if (error) {
+        console.error('Polling error:', error);
+        return;
+      }
+
+      if (data.status === 'completed') {
+        // Stop polling
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          setPollingInterval(null);
+        }
+        
+        const filesData = data.files_data as { files?: GeneratedFile[] } | null;
+        const files = filesData?.files || [];
+        setResult({
+          status: "completed",
+          files,
+          technicalPrompt: data.technical_prompt,
+          jobId: data.id,
+        });
+
+        toast({
+          title: "Генерація завершена",
+          description: `Створено ${files.length} файлів`,
+        });
+      } else if (data.status === 'failed') {
+        // Stop polling
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          setPollingInterval(null);
+        }
+        
+        setResult({
+          status: "failed",
+          files: [],
+          error: data.error_message || 'Unknown error',
+          jobId: data.id,
+        });
+
+        toast({
+          title: "Помилка генерації",
+          description: data.error_message || 'Unknown error',
+          variant: "destructive",
+        });
+      } else {
+        // Still processing - update progress
+        setResult(prev => ({
+          ...prev,
+          progress: data.status === 'processing' ? 'Генерація файлів...' : 'Очікування...',
+        }));
+      }
+    } catch (error) {
+      console.error('Polling error:', error);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!domain.trim() || languages.length === 0) {
@@ -64,14 +141,15 @@ const AiEditorTab = () => {
       return;
     }
 
-    setResult({ status: "generating", files: [] });
+    // Clear previous polling
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      setPollingInterval(null);
+    }
+
+    setResult({ status: "generating", files: [], progress: "Запуск генерації..." });
 
     try {
-      toast({
-        title: "Генерація запущена",
-        description: "Створення технічного промпту...",
-      });
-
       const { data, error } = await supabase.functions.invoke('generate-ai-website', {
         body: {
           domain,
@@ -91,16 +169,26 @@ const AiEditorTab = () => {
         throw new Error(data.error || 'Generation failed');
       }
 
-      setResult({
-        status: "completed",
-        files: data.files,
-        technicalPrompt: data.technicalPrompt,
+      // Start polling for job status
+      const jobId = data.jobId;
+      setResult({ 
+        status: "polling", 
+        files: [], 
+        jobId,
+        progress: "Генерація технічного промпту..." 
       });
 
       toast({
-        title: "Генерація завершена",
-        description: `Створено ${data.files.length} файлів`,
+        title: "Генерація запущена",
+        description: "Процес може зайняти 2-5 хвилин...",
       });
+
+      // Poll every 3 seconds
+      const interval = setInterval(() => pollJobStatus(jobId), 3000);
+      setPollingInterval(interval);
+      
+      // Also poll immediately
+      pollJobStatus(jobId);
 
     } catch (error) {
       console.error("Generation error:", error);
@@ -263,14 +351,14 @@ const AiEditorTab = () => {
 
             <Button 
               onClick={handleGenerate} 
-              disabled={result.status === "generating" || !domain.trim() || languages.length === 0}
+              disabled={result.status === "generating" || result.status === "polling" || !domain.trim() || languages.length === 0}
               className="w-full"
               size="lg"
             >
-              {result.status === "generating" ? (
+              {(result.status === "generating" || result.status === "polling") ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Генерація...
+                  {result.progress || "Генерація..."}
                 </>
               ) : (
                 <>
@@ -310,10 +398,13 @@ const AiEditorTab = () => {
               </div>
             )}
 
-            {result.status === "generating" && (
+            {(result.status === "generating" || result.status === "polling") && (
               <div className="text-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin mx-auto text-purple-500" />
-                <p className="text-sm text-muted-foreground mt-2">Генерація...</p>
+                <p className="text-sm text-muted-foreground mt-2">{result.progress || "Генерація..."}</p>
+                {result.jobId && (
+                  <p className="text-xs text-muted-foreground mt-1">Job ID: {result.jobId.substring(0, 8)}...</p>
+                )}
               </div>
             )}
 
