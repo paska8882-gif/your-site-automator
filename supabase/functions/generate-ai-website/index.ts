@@ -624,7 +624,7 @@ prohibited words: ${prohibitedWords || 'none'}
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o',
+          model: 'gpt-4o-mini', // Faster model to avoid timeouts
           messages: attempts === 1 
             ? [
                 { role: 'system', content: GENERATOR_PROMPT },
@@ -637,7 +637,7 @@ prohibited words: ${prohibitedWords || 'none'}
                 { role: 'user', content: createFixPrompt(files, validation) }
               ],
           temperature: 0.2,
-          // No token limits - prioritize complete output over cost
+          max_tokens: 100000, // Large but defined limit to avoid infinite generation
           response_format: { type: 'json_object' },
         }),
       });
