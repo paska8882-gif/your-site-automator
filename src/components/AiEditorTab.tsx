@@ -41,16 +41,10 @@ interface GenerationResult {
 const AiEditorTab = () => {
   const { toast } = useToast();
   
-  // Form state
+  // Form state - simplified, AI generates details automatically
   const [domain, setDomain] = useState("");
   const [geo, setGeo] = useState("BE");
   const [languages, setLanguages] = useState<string[]>(["FR", "EN"]);
-  const [keyword, setKeyword] = useState("");
-  const [businessDescription, setBusinessDescription] = useState("");
-  const [services, setServices] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [prohibitedWords, setProhibitedWords] = useState("");
   
   // Generation state
   const [result, setResult] = useState<GenerationResult>({
@@ -80,12 +74,6 @@ const AiEditorTab = () => {
           domain,
           geo,
           languages,
-          keyword,
-          businessDescription,
-          services,
-          phone,
-          email,
-          prohibitedWords,
         },
       });
 
@@ -189,97 +177,63 @@ const AiEditorTab = () => {
               Параметри генерації
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Домен *</Label>
-                <Input 
-                  value={domain} 
-                  onChange={e => setDomain(e.target.value)}
-                  placeholder="example.com"
-                  className="h-8 text-sm"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Гео</Label>
-                <Select value={geo} onValueChange={setGeo}>
-                  <SelectTrigger className="h-8 text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(GEO_MAP).map(([code, label]) => (
-                      <SelectItem key={code} value={code}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
+          <CardContent className="space-y-4">
             <div>
-              <Label className="text-xs">Ключове слово / Бренд</Label>
+              <Label className="text-xs font-medium">Домен *</Label>
               <Input 
-                value={keyword} 
-                onChange={e => setKeyword(e.target.value)}
-                placeholder="Brand Name"
-                className="h-8 text-sm"
+                value={domain} 
+                onChange={e => setDomain(e.target.value)}
+                placeholder="example.com"
+                className="h-9 text-sm mt-1"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                AI автоматично визначить тип бізнесу, контакти та послуги
+              </p>
             </div>
 
             <div>
-              <Label className="text-xs">Опис бізнесу</Label>
-              <Textarea 
-                value={businessDescription} 
-                onChange={e => setBusinessDescription(e.target.value)}
-                placeholder="Технічний опис діяльності..."
-                className="text-sm min-h-[60px]"
-              />
+              <Label className="text-xs font-medium">Географія</Label>
+              <Select value={geo} onValueChange={setGeo}>
+                <SelectTrigger className="h-9 text-sm mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(GEO_MAP).map(([code, label]) => (
+                    <SelectItem key={code} value={code}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
-              <Label className="text-xs">Послуги (через кому)</Label>
-              <Input 
-                value={services} 
-                onChange={e => setServices(e.target.value)}
-                placeholder="Service 1, Service 2, Service 3"
-                className="h-8 text-sm"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Телефон</Label>
-                <Input 
-                  value={phone} 
-                  onChange={e => setPhone(e.target.value)}
-                  placeholder="+32 xxx xxx xxx"
-                  className="h-8 text-sm"
-                />
+              <Label className="text-xs font-medium">Мови сайту</Label>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {Object.entries(LANGUAGES_MAP).map(([code, label]) => (
+                  <Badge
+                    key={code}
+                    variant={languages.includes(code) ? "default" : "outline"}
+                    className="cursor-pointer text-xs"
+                    onClick={() => {
+                      if (languages.includes(code)) {
+                        if (languages.length > 1) {
+                          setLanguages(languages.filter(l => l !== code));
+                        }
+                      } else {
+                        setLanguages([...languages, code]);
+                      }
+                    }}
+                  >
+                    {label}
+                  </Badge>
+                ))}
               </div>
-              <div>
-                <Label className="text-xs">Email</Label>
-                <Input 
-                  value={email} 
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="contact@..."
-                  className="h-8 text-sm"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label className="text-xs">Заборонені слова</Label>
-              <Input 
-                value={prohibitedWords} 
-                onChange={e => setProhibitedWords(e.target.value)}
-                placeholder="word1, word2, word3"
-                className="h-8 text-sm"
-              />
             </div>
 
             <Button 
               onClick={handleGenerate} 
-              disabled={result.status === "generating"}
+              disabled={result.status === "generating" || !domain.trim()}
               className="w-full"
+              size="lg"
             >
               {result.status === "generating" ? (
                 <>
@@ -288,8 +242,8 @@ const AiEditorTab = () => {
                 </>
               ) : (
                 <>
-                  <Send className="h-4 w-4 mr-2" />
-                  Згенерувати через AI
+                  <Wand2 className="h-4 w-4 mr-2" />
+                  Згенерувати сайт
                 </>
               )}
             </Button>
