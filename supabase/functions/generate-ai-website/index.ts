@@ -15,7 +15,6 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
     
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error('Supabase credentials not configured');
@@ -70,25 +69,33 @@ serve(async (req) => {
 
     console.log('Created job:', job.id);
 
-    // Викликаємо process-ai-job функцію асинхронно (fire and forget)
-    // Використовуємо fetch без await для non-blocking виклику
+    // Викликаємо process-ai-job функцію синхронно з таймаутом
+    // Сама process-ai-job функція буде швидко повертати 200 і працювати в фоні
     const processUrl = `${SUPABASE_URL}/functions/v1/process-ai-job`;
     
     console.log('Triggering process-ai-job for:', job.id);
     
-    // Fire and forget - не чекаємо відповіді
-    fetch(processUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      },
-      body: JSON.stringify({ jobId: job.id }),
-    }).then(res => {
-      console.log(`Process job response status: ${res.status}`);
-    }).catch(err => {
-      console.error('Error triggering process job:', err);
-    });
+    try {
+      // Синхронний виклик з коротким таймаутом через AbortController
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 секунд таймаут
+      
+      const processResponse = await fetch(processUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+        body: JSON.stringify({ jobId: job.id }),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      console.log(`Process job triggered, status: ${processResponse.status}`);
+    } catch (fetchError) {
+      // Якщо таймаут або помилка - це нормально, бо process-ai-job працює довго
+      console.log('Process trigger completed or timed out (expected):', fetchError instanceof Error ? fetchError.message : 'timeout');
+    }
 
     // Одразу повертаємо jobId
     return new Response(
