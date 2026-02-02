@@ -587,7 +587,7 @@ prohibited words: ${prohibitedWords || 'none'}
           { role: 'user', content: userInput }
         ],
         temperature: 0.3,
-        max_tokens: 8000,
+        // No token limits - prioritize complete output
       }),
     });
 
@@ -637,7 +637,7 @@ prohibited words: ${prohibitedWords || 'none'}
                 { role: 'user', content: createFixPrompt(files, validation) }
               ],
           temperature: 0.2,
-          max_completion_tokens: 128000, // Increased for large multi-file output
+          // No token limits - prioritize complete output over cost
           response_format: { type: 'json_object' },
         }),
       });
