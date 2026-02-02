@@ -15,6 +15,7 @@ import { SimplePreview } from "./SimplePreview";
 import { GeneratedFile } from "@/lib/websiteGenerator";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { getLanguageLabel, getGeoLabel } from "@/lib/filterConstants";
 
 interface HistoryItem {
   id: string;
@@ -358,9 +359,13 @@ export function N8nGenerationHistory() {
                           </Badge>
                         )}
                         <span className="text-muted-foreground">{format(new Date(item.created_at), "dd.MM.yy HH:mm")}</span>
-                        {item.geo && <Badge variant="secondary" className="text-[10px] px-1 py-0">{item.geo}</Badge>}
+                        {item.geo && (
+                          <span className="text-muted-foreground">{getGeoLabel(item.geo)}</span>
+                        )}
                         {item.language && (
-                          <span className="text-muted-foreground truncate max-w-[60px]">{item.language}</span>
+                          <span className="text-muted-foreground truncate max-w-[120px]">
+                            {item.language.split(",").map(l => getLanguageLabel(l.trim())).join(", ")}
+                          </span>
                         )}
                         {getDuration(item) && (
                           <span className="text-green-600">⏱ {getDuration(item)}</span>
