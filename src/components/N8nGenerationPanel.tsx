@@ -269,7 +269,7 @@ export function N8nGenerationPanel() {
             <Badge variant="secondary" className="ml-2">Beta</Badge>
           </CardTitle>
           <CardDescription>
-            Відправте запит на генерацію через зовнішнього n8n бота. Можна запускати кілька генерацій паралельно.
+            Відправте запит на генерацію через зовнішнього n8n бота. Час очікування — до 20 хвилин. Можна запускати кілька генерацій паралельно.
           </CardDescription>
         </CardHeader>
       </Card>
