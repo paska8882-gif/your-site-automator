@@ -342,119 +342,114 @@ export function N8nGenerationHistory() {
                   return (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                      className="flex items-center justify-between py-1.5 px-2 border rounded hover:bg-muted/50 transition-colors text-xs"
                     >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono text-xs text-muted-foreground">
-                            #{item.number}
-                          </span>
-                          <span className="font-medium truncate max-w-[200px]">
-                            {item.site_name || "Без назви"}
-                          </span>
-                          {getStatusBadge(item.status)}
-                          {item.website_type && (
-                            <Badge variant="outline" className="text-xs">
-                              {item.website_type.toUpperCase()}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground flex-wrap">
-                          <span>{format(new Date(item.created_at), "dd.MM.yy HH:mm")}</span>
-                          {item.geo && <Badge variant="secondary" className="text-xs">{item.geo}</Badge>}
-                          {item.language && (
-                            <span className="truncate max-w-[100px]">{item.language}</span>
-                          )}
-                          {getDuration(item) && (
-                            <span className="text-green-600">⏱ {getDuration(item)}</span>
-                          )}
-                          {existingAppeal && (
-                            <Badge 
-                              variant={existingAppeal.status === "approved" ? "default" : existingAppeal.status === "rejected" ? "destructive" : "secondary"}
-                              className="text-xs"
-                            >
-                              {existingAppeal.status === "approved" ? "✓ Схвалено" : 
-                               existingAppeal.status === "rejected" ? "✗ Відхилено" : "⏳ На розгляді"}
-                            </Badge>
-                          )}
-                        </div>
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <span className="font-mono text-muted-foreground w-12 shrink-0">
+                          #{item.number}
+                        </span>
+                        <span className="font-medium truncate max-w-[140px]">
+                          {item.site_name || "—"}
+                        </span>
+                        {getStatusBadge(item.status)}
+                        {item.website_type && (
+                          <Badge variant="outline" className="text-[10px] px-1 py-0">
+                            {item.website_type.toUpperCase()}
+                          </Badge>
+                        )}
+                        <span className="text-muted-foreground">{format(new Date(item.created_at), "dd.MM.yy HH:mm")}</span>
+                        {item.geo && <Badge variant="secondary" className="text-[10px] px-1 py-0">{item.geo}</Badge>}
+                        {item.language && (
+                          <span className="text-muted-foreground truncate max-w-[60px]">{item.language}</span>
+                        )}
+                        {getDuration(item) && (
+                          <span className="text-green-600">⏱ {getDuration(item)}</span>
+                        )}
+                        {existingAppeal && (
+                          <Badge 
+                            variant={existingAppeal.status === "approved" ? "default" : existingAppeal.status === "rejected" ? "destructive" : "secondary"}
+                            className="text-[10px] px-1 py-0"
+                          >
+                            {existingAppeal.status === "approved" ? "✓" : 
+                             existingAppeal.status === "rejected" ? "✗" : "⏳"}
+                          </Badge>
+                        )}
                       </div>
 
-                      <div className="flex items-center gap-1">
-                        {/* Preview button */}
+                      <div className="flex items-center gap-0.5 shrink-0">
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
+                                className="h-6 w-6"
                                 onClick={() => {
                                   setSelectedItem(item);
                                   setShowPreview(true);
                                 }}
                                 disabled={!isCompleted || !item.files_data}
                               >
-                                <Eye className="h-4 w-4" />
+                                <Eye className="h-3.5 w-3.5" />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>Превью</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
 
-                        {/* Download button */}
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
+                                className="h-6 w-6"
                                 onClick={() => handleDownload(item)}
                                 disabled={!isCompleted || !hasFiles || downloadingId === item.id}
                               >
                                 {downloadingId === item.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : (
-                                  <Download className="h-4 w-4" />
+                                  <Download className="h-3.5 w-3.5" />
                                 )}
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Завантажити ZIP</TooltipContent>
+                            <TooltipContent>ZIP</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
 
-                        {/* Edit button */}
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
+                                className="h-6 w-6"
                                 onClick={() => handleEdit(item)}
                                 disabled={!isCompleted || !item.files_data}
                               >
-                                <Pencil className="h-4 w-4" />
+                                <Pencil className="h-3.5 w-3.5" />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>Редагувати</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
 
-                        {/* Appeal button */}
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
+                                className={`h-6 w-6 ${existingAppeal ? "text-muted-foreground" : "text-orange-500 hover:text-orange-600"}`}
                                 onClick={() => handleAppealOpen(item)}
                                 disabled={!isCompleted || !!existingAppeal}
-                                className={existingAppeal ? "text-muted-foreground" : "text-orange-500 hover:text-orange-600"}
                               >
-                                <AlertTriangle className="h-4 w-4" />
+                                <AlertTriangle className="h-3.5 w-3.5" />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>
-                              {existingAppeal ? "Апеляція вже подана" : "Подати апеляцію"}
+                              {existingAppeal ? "Апеляція подана" : "Апеляція"}
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
