@@ -513,26 +513,18 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[Process] Received job: ${jobId}`);
+    console.log(`[Process] Received job: ${jobId}, starting SYNCHRONOUS processing...`);
 
-    // ВАЖЛИВО: Одразу повертаємо 200 і обробляємо job у фоні
-    // Використовуємо EdgeRuntime.waitUntil якщо доступний, інакше просто запускаємо
-    const processPromise = processJob(jobId, supabase, OPENAI_API_KEY);
-    
-    // @ts-ignore - EdgeRuntime може бути недоступним
-    if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
-      // @ts-ignore
-      EdgeRuntime.waitUntil(processPromise);
-    } else {
-      // Fallback - не чекаємо завершення, просто запускаємо
-      processPromise.catch(err => console.error('Background processing error:', err));
-    }
+    // СИНХРОННА ОБРОБКА - чекаємо завершення перед return
+    // Edge Functions підтримують до 400 секунд таймауту
+    await processJob(jobId, supabase, OPENAI_API_KEY);
 
-    // Одразу повертаємо успішну відповідь
+    console.log(`[Process] Job ${jobId} completed!`);
+
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Job processing started',
+        message: 'Job processing completed',
         jobId
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -69,33 +69,25 @@ serve(async (req) => {
 
     console.log('Created job:', job.id);
 
-    // Викликаємо process-ai-job функцію синхронно з таймаутом
-    // Сама process-ai-job функція буде швидко повертати 200 і працювати в фоні
+    // Викликаємо process-ai-job функцію АСИНХРОННО (fire-and-forget)
+    // process-ai-job тепер працює СИНХРОННО всередині і чекає завершення
     const processUrl = `${SUPABASE_URL}/functions/v1/process-ai-job`;
     
     console.log('Triggering process-ai-job for:', job.id);
     
-    try {
-      // Синхронний виклик з коротким таймаутом через AbortController
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 секунд таймаут
-      
-      const processResponse = await fetch(processUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        },
-        body: JSON.stringify({ jobId: job.id }),
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      console.log(`Process job triggered, status: ${processResponse.status}`);
-    } catch (fetchError) {
-      // Якщо таймаут або помилка - це нормально, бо process-ai-job працює довго
-      console.log('Process trigger completed or timed out (expected):', fetchError instanceof Error ? fetchError.message : 'timeout');
-    }
+    // Fire-and-forget - не чекаємо відповіді
+    fetch(processUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify({ jobId: job.id }),
+    }).then(res => {
+      console.log(`process-ai-job finished with status: ${res.status}`);
+    }).catch(err => {
+      console.error('process-ai-job call failed:', err);
+    });
 
     // Одразу повертаємо jobId
     return new Response(
