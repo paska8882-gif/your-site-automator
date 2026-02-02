@@ -573,21 +573,19 @@ prohibited words: ${prohibitedWords || 'none'}
 
     console.log('Step 1: Generating technical prompt...');
 
-    // Етап 1: Генеруємо технічний промпт
-    const promptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Етап 1: Генеруємо технічний промпт через Responses API
+    const promptResponse = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
+        model: 'gpt-5-codex',
+        input: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userInput }
         ],
-        temperature: 0.3,
-        // No token limits - prioritize complete output
       }),
     });
 
@@ -598,7 +596,8 @@ prohibited words: ${prohibitedWords || 'none'}
     }
 
     const promptData = await promptResponse.json();
-    const technicalPrompt = promptData.choices?.[0]?.message?.content;
+    // Responses API returns output array instead of choices
+    const technicalPrompt = promptData.output?.[0]?.content?.[0]?.text || promptData.choices?.[0]?.message?.content;
 
     if (!technicalPrompt) {
       throw new Error('Failed to generate technical prompt');
@@ -617,28 +616,37 @@ prohibited words: ${prohibitedWords || 'none'}
       attempts++;
       console.log(`Generation attempt ${attempts}/${maxAttempts}...`);
 
-      const generatorResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      // Будуємо input для Responses API
+      const generatorInput = attempts === 1 
+        ? [
+            { role: 'system', content: GENERATOR_PROMPT },
+            { role: 'user', content: technicalPrompt }
+          ]
+        : [
+            { role: 'system', content: GENERATOR_PROMPT },
+            { role: 'user', content: technicalPrompt },
+            { role: 'assistant', content: JSON.stringify({ files }) },
+            { role: 'user', content: createFixPrompt(files, validation) }
+          ];
+
+      const generatorResponse = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${OPENAI_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini', // Faster model to avoid timeouts
-          messages: attempts === 1 
-            ? [
-                { role: 'system', content: GENERATOR_PROMPT },
-                { role: 'user', content: technicalPrompt }
-              ]
-            : [
-                { role: 'system', content: GENERATOR_PROMPT },
-                { role: 'user', content: technicalPrompt },
-                { role: 'assistant', content: JSON.stringify({ files }) },
-                { role: 'user', content: createFixPrompt(files, validation) }
-              ],
-          temperature: 0.2,
-          max_tokens: 100000, // Large but defined limit to avoid infinite generation
-          response_format: { type: 'json_object' },
+          model: 'gpt-5-codex',
+          metadata: {
+            requestId: String(Date.now()),
+            source: 'lovable-ai-editor',
+            domain: domain || '',
+          },
+          input: generatorInput,
+          // gpt-5-codex не потребує обмеження токенів
+          text: {
+            format: { type: 'json_object' }
+          }
         }),
       });
 
@@ -652,8 +660,9 @@ prohibited words: ${prohibitedWords || 'none'}
       }
 
       const generatorData = await generatorResponse.json();
-      const filesJson = generatorData.choices?.[0]?.message?.content;
-      const finishReason = generatorData.choices?.[0]?.finish_reason;
+      // Responses API: output[0].content[0].text або fallback на choices
+      const filesJson = generatorData.output?.[0]?.content?.[0]?.text || generatorData.choices?.[0]?.message?.content;
+      const finishReason = generatorData.output?.[0]?.stop_reason || generatorData.choices?.[0]?.finish_reason;
 
       if (!filesJson) {
         console.error('Empty response from generator');
