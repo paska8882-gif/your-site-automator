@@ -11,19 +11,19 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Bot, 
-  Send, 
   FileCode, 
   Eye, 
   Download, 
-  RefreshCw, 
   CheckCircle2, 
   AlertCircle,
   Loader2,
   Wand2,
-  Files
+  Files,
+  History
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LANGUAGES_MAP, GEO_MAP } from "@/lib/filterConstants";
+import { AiEditorHistory } from "./AiEditorHistory";
 import JSZip from "jszip";
 
 interface GeneratedFile {
@@ -449,6 +449,9 @@ const AiEditorTab = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Історія генерацій */}
+      <AiEditorHistory />
     </div>
   );
 };
