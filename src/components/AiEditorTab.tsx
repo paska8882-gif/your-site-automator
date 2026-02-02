@@ -57,18 +57,30 @@ const AiEditorTab = () => {
     files: [],
   });
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [editedContent, setEditedContent] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
-  // Cleanup polling on unmount
+  // Cleanup polling and timer on unmount
   useEffect(() => {
     return () => {
       if (pollingInterval) {
         clearInterval(pollingInterval);
       }
+      if (timerInterval) {
+        clearInterval(timerInterval);
+      }
     };
-  }, [pollingInterval]);
+  }, [pollingInterval, timerInterval]);
+
+  // Format elapsed time as MM:SS
+  const formatElapsedTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Polling function to check job status
   const pollJobStatus = async (jobId: string) => {
@@ -85,10 +97,14 @@ const AiEditorTab = () => {
       }
 
       if (data.status === 'completed') {
-        // Stop polling
+        // Stop polling and timer
         if (pollingInterval) {
           clearInterval(pollingInterval);
           setPollingInterval(null);
+        }
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          setTimerInterval(null);
         }
         
         const filesData = data.files_data as { files?: GeneratedFile[] } | null;
@@ -102,13 +118,17 @@ const AiEditorTab = () => {
 
         toast({
           title: "Генерація завершена",
-          description: `Створено ${files.length} файлів`,
+          description: `Створено ${files.length} файлів за ${formatElapsedTime(elapsedTime)}`,
         });
       } else if (data.status === 'failed') {
-        // Stop polling
+        // Stop polling and timer
         if (pollingInterval) {
           clearInterval(pollingInterval);
           setPollingInterval(null);
+        }
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          setTimerInterval(null);
         }
         
         setResult({
@@ -141,13 +161,24 @@ const AiEditorTab = () => {
       return;
     }
 
-    // Clear previous polling
+    // Clear previous polling and timer
     if (pollingInterval) {
       clearInterval(pollingInterval);
       setPollingInterval(null);
     }
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      setTimerInterval(null);
+    }
 
+    setElapsedTime(0);
     setResult({ status: "generating", files: [], progress: "Запуск генерації..." });
+
+    // Start elapsed time timer
+    const timer = setInterval(() => {
+      setElapsedTime(prev => prev + 1);
+    }, 1000);
+    setTimerInterval(timer);
 
     try {
       const { data, error } = await supabase.functions.invoke('generate-ai-website', {
@@ -180,7 +211,7 @@ const AiEditorTab = () => {
 
       toast({
         title: "Генерація запущена",
-        description: "Процес може зайняти 2-5 хвилин...",
+        description: "Процес може зайняти 15-25 хвилин...",
       });
 
       // Poll every 3 seconds
@@ -192,6 +223,10 @@ const AiEditorTab = () => {
 
     } catch (error) {
       console.error("Generation error:", error);
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        setTimerInterval(null);
+      }
       setResult({
         status: "failed",
         files: [],
@@ -401,7 +436,9 @@ const AiEditorTab = () => {
             {(result.status === "generating" || result.status === "polling") && (
               <div className="text-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin mx-auto text-purple-500" />
+                <p className="text-lg font-mono text-purple-600 mt-3">{formatElapsedTime(elapsedTime)}</p>
                 <p className="text-sm text-muted-foreground mt-2">{result.progress || "Генерація..."}</p>
+                <p className="text-xs text-muted-foreground mt-1">Орієнтовний час: 15-25 хвилин</p>
                 {result.jobId && (
                   <p className="text-xs text-muted-foreground mt-1">Job ID: {result.jobId.substring(0, 8)}...</p>
                 )}
