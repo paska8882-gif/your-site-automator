@@ -513,18 +513,43 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[Process] Received job: ${jobId}, starting SYNCHRONOUS processing...`);
+    console.log(`[Process] Received job: ${jobId}, starting processing...`);
 
-    // СИНХРОННА ОБРОБКА - чекаємо завершення перед return
-    // Edge Functions підтримують до 400 секунд таймауту
-    await processJob(jobId, supabase, OPENAI_API_KEY);
-
-    console.log(`[Process] Job ${jobId} completed!`);
+    // Одразу повертаємо 200 і обробляємо у фоні через waitUntil
+    const processPromise = (async () => {
+      try {
+        await processJob(jobId, supabase, OPENAI_API_KEY);
+        console.log(`[Process] Job ${jobId} completed successfully!`);
+      } catch (err) {
+        console.error(`[Process] Job ${jobId} failed:`, err);
+        // Помічаємо job як failed
+        await supabase
+          .from('ai_generation_jobs')
+          .update({
+            status: 'failed',
+            error_message: err instanceof Error ? err.message : 'Unknown error',
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', jobId);
+      }
+    })();
+    
+    // Використовуємо waitUntil для фонового виконання
+    // @ts-ignore
+    if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(processPromise);
+      console.log(`[Process] Job ${jobId} - using EdgeRuntime.waitUntil`);
+    } else {
+      // Fallback - не чекаємо, але логуємо
+      processPromise.catch(e => console.error('Background error:', e));
+      console.log(`[Process] Job ${jobId} - no waitUntil, fire-and-forget`);
+    }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Job processing completed',
+        message: 'Job processing started',
         jobId
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -69,27 +69,30 @@ serve(async (req) => {
 
     console.log('Created job:', job.id);
 
-    // Викликаємо process-ai-job функцію АСИНХРОННО (fire-and-forget)
-    // process-ai-job тепер працює СИНХРОННО всередині і чекає завершення
+    // Викликаємо process-ai-job функцію і ЧЕКАЄМО початок обробки
     const processUrl = `${SUPABASE_URL}/functions/v1/process-ai-job`;
     
     console.log('Triggering process-ai-job for:', job.id);
     
-    // Fire-and-forget - не чекаємо відповіді
-    fetch(processUrl, {
+    // Синхронний виклик - чекаємо щоб переконатись що функція запустилась
+    // Але не чекаємо завершення (process-ai-job працює довго)
+    const processResponse = await fetch(processUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
       },
       body: JSON.stringify({ jobId: job.id }),
-    }).then(res => {
-      console.log(`process-ai-job finished with status: ${res.status}`);
-    }).catch(err => {
-      console.error('process-ai-job call failed:', err);
     });
+    
+    console.log(`process-ai-job triggered, status: ${processResponse.status}`);
+    
+    if (!processResponse.ok) {
+      const errorText = await processResponse.text();
+      console.error('process-ai-job error:', errorText);
+    }
 
-    // Одразу повертаємо jobId
+    // Повертаємо jobId
     return new Response(
       JSON.stringify({
         success: true,
