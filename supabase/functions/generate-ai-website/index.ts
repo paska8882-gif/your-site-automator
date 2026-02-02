@@ -402,6 +402,136 @@ CRITICAL RULES:
 
 RESPOND ONLY WITH THE JSON OBJECT. NO OTHER TEXT.`;
 
+// Обов'язкові файли
+const REQUIRED_HTML_FILES = [
+  'index.html', 'services.html', 'about.html', 'blog.html',
+  'post1.html', 'post2.html', 'post3.html', 'post4.html', 'post5.html',
+  'contact.html', 'faq.html', 'terms.html', 'privacy.html',
+  'cookies.html', 'refund-policy.html', 'disclaimer.html',
+  'thank-you.html', '404.html'
+];
+
+const REQUIRED_TECHNICAL_FILES = [
+  'styles.css', 'script.js', 'sitemap.xml', 'robots.txt'
+];
+
+// Валідація файлів
+interface FileItem {
+  path: string;
+  content: string;
+}
+
+interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+function validateGeneratedFiles(files: FileItem[]): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const filePaths = files.map(f => f.path.toLowerCase());
+
+  // Перевірка наявності всіх HTML файлів
+  for (const requiredFile of REQUIRED_HTML_FILES) {
+    if (!filePaths.includes(requiredFile)) {
+      errors.push(`Missing required file: ${requiredFile}`);
+    }
+  }
+
+  // Перевірка наявності технічних файлів
+  for (const requiredFile of REQUIRED_TECHNICAL_FILES) {
+    if (!filePaths.includes(requiredFile)) {
+      errors.push(`Missing required file: ${requiredFile}`);
+    }
+  }
+
+  // Перевірка контенту файлів
+  for (const file of files) {
+    const content = file.content || '';
+    const fileName = file.path.toLowerCase();
+
+    // Перевірка HTML файлів
+    if (fileName.endsWith('.html')) {
+      if (content.length < 500) {
+        errors.push(`File ${file.path} is too short (${content.length} chars, minimum 500)`);
+      }
+      if (!content.includes('<!DOCTYPE html>') && !content.includes('<!doctype html>')) {
+        warnings.push(`File ${file.path} missing DOCTYPE declaration`);
+      }
+      if (!content.includes('<html')) {
+        errors.push(`File ${file.path} missing <html> tag`);
+      }
+      if (!content.includes('data-i18n')) {
+        warnings.push(`File ${file.path} missing i18n attributes`);
+      }
+      // Перевірка навігації
+      if (!content.includes('href="index.html"') && fileName !== 'index.html') {
+        warnings.push(`File ${file.path} missing link to index.html`);
+      }
+    }
+
+    // Перевірка CSS
+    if (fileName === 'styles.css') {
+      if (content.length < 2000) {
+        errors.push(`CSS file is too short (${content.length} chars, minimum 2000)`);
+      }
+    }
+
+    // Перевірка JS
+    if (fileName === 'script.js') {
+      if (!content.includes('I18N') && !content.includes('i18n')) {
+        errors.push('script.js missing i18n system');
+      }
+      if (!content.includes('localStorage')) {
+        warnings.push('script.js missing localStorage for language persistence');
+      }
+    }
+  }
+
+  // Перевірка навігаційних посилань між сторінками
+  const indexFile = files.find(f => f.path.toLowerCase() === 'index.html');
+  if (indexFile) {
+    const content = indexFile.content;
+    const navLinks = ['services.html', 'about.html', 'blog.html', 'contact.html', 'faq.html'];
+    for (const link of navLinks) {
+      if (!content.includes(`href="${link}"`)) {
+        warnings.push(`index.html missing navigation link to ${link}`);
+      }
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings
+  };
+}
+
+// Промпт для фіксу помилок
+function createFixPrompt(files: FileItem[], validation: ValidationResult): string {
+  return `The generated website has the following issues that MUST be fixed:
+
+ERRORS (must fix):
+${validation.errors.map(e => `- ${e}`).join('\n')}
+
+WARNINGS (should fix):
+${validation.warnings.map(w => `- ${w}`).join('\n')}
+
+Current files:
+${files.map(f => `- ${f.path} (${f.content.length} chars)`).join('\n')}
+
+Please regenerate or fix the files to address ALL errors. Return the complete fixed files in the same JSON format:
+{
+  "files": [
+    { "path": "filename.html", "content": "..." },
+    ...
+  ]
+}
+
+CRITICAL: Include ALL required files, not just the ones with errors.`;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -478,58 +608,107 @@ prohibited words: ${prohibitedWords || 'none'}
     console.log('Step 2: Generating website files...');
 
     // Етап 2: Генеруємо сайт на основі технічного промпту
-    const generatorResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          { role: 'system', content: GENERATOR_PROMPT },
-          { role: 'user', content: technicalPrompt }
-        ],
-        temperature: 0.2,
-        max_tokens: 16000,
-        response_format: { type: 'json_object' },
-      }),
-    });
+    let files: FileItem[] = [];
+    let attempts = 0;
+    const maxAttempts = 3;
+    let validation: ValidationResult = { isValid: false, errors: [], warnings: [] };
 
-    if (!generatorResponse.ok) {
-      const errorText = await generatorResponse.text();
-      console.error('OpenAI generation error:', errorText);
-      throw new Error(`OpenAI API error: ${generatorResponse.status}`);
+    while (attempts < maxAttempts) {
+      attempts++;
+      console.log(`Generation attempt ${attempts}/${maxAttempts}...`);
+
+      const generatorResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: attempts === 1 
+            ? [
+                { role: 'system', content: GENERATOR_PROMPT },
+                { role: 'user', content: technicalPrompt }
+              ]
+            : [
+                { role: 'system', content: GENERATOR_PROMPT },
+                { role: 'user', content: technicalPrompt },
+                { role: 'assistant', content: JSON.stringify({ files }) },
+                { role: 'user', content: createFixPrompt(files, validation) }
+              ],
+          temperature: 0.2,
+          max_tokens: 16000,
+          response_format: { type: 'json_object' },
+        }),
+      });
+
+      if (!generatorResponse.ok) {
+        const errorText = await generatorResponse.text();
+        console.error('OpenAI generation error:', errorText);
+        if (attempts === maxAttempts) {
+          throw new Error(`OpenAI API error after ${maxAttempts} attempts: ${generatorResponse.status}`);
+        }
+        continue;
+      }
+
+      const generatorData = await generatorResponse.json();
+      const filesJson = generatorData.choices?.[0]?.message?.content;
+
+      if (!filesJson) {
+        console.error('Empty response from generator');
+        continue;
+      }
+
+      console.log('Files JSON received, parsing...');
+
+      try {
+        const parsedFiles = JSON.parse(filesJson);
+        files = parsedFiles.files || [];
+      } catch (parseError) {
+        console.error('Failed to parse files JSON:', parseError);
+        continue;
+      }
+
+      console.log(`Parsed ${files.length} files, validating...`);
+
+      // Валідація
+      validation = validateGeneratedFiles(files);
+      
+      console.log('Validation result:', {
+        isValid: validation.isValid,
+        errorsCount: validation.errors.length,
+        warningsCount: validation.warnings.length
+      });
+
+      if (validation.isValid) {
+        console.log('Validation passed!');
+        break;
+      }
+
+      console.log('Validation failed, errors:', validation.errors);
+      
+      if (attempts < maxAttempts) {
+        console.log('Attempting to fix...');
+      }
     }
 
-    const generatorData = await generatorResponse.json();
-    const filesJson = generatorData.choices?.[0]?.message?.content;
-
-    if (!filesJson) {
-      throw new Error('Failed to generate website files');
-    }
-
-    console.log('Files JSON received, parsing...');
-
-    let parsedFiles;
-    try {
-      parsedFiles = JSON.parse(filesJson);
-    } catch (parseError) {
-      console.error('Failed to parse files JSON:', parseError);
-      throw new Error('Invalid JSON response from generator');
-    }
-
-    const files = parsedFiles.files || [];
-    console.log(`Generated ${files.length} files`);
+    // Якщо після всіх спроб валідація не пройшла, все одно повертаємо результат з попередженнями
+    const finalValidation = validateGeneratedFiles(files);
 
     return new Response(
       JSON.stringify({
         success: true,
         files,
         technicalPrompt,
+        validation: {
+          isValid: finalValidation.isValid,
+          errors: finalValidation.errors,
+          warnings: finalValidation.warnings,
+          attempts
+        },
         usage: {
           promptTokens: promptData.usage?.total_tokens || 0,
-          generatorTokens: generatorData.usage?.total_tokens || 0,
+          attempts
         },
       }),
       { 
