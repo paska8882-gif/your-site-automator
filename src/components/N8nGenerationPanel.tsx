@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Send, Bot, Sparkles, Globe, Wand2 } from "lucide-react";
+import { Loader2, Send, Bot, Sparkles, Globe, Wand2, Layers } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -76,8 +76,12 @@ export function N8nGenerationPanel() {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedTopic, setSelectedTopic] = useState<string>("");
   
+  // Quantity state
+  const [siteCount, setSiteCount] = useState(1);
+  
   // Submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionProgress, setSubmissionProgress] = useState({ current: 0, total: 0 });
   const [historyKey, setHistoryKey] = useState(0);
 
   const toggleLanguage = (lang: string) => {
@@ -114,6 +118,104 @@ export function N8nGenerationPanel() {
     return result;
   };
 
+  // Generate a single site with unique prompt
+  const generateSingleSite = async (index: number, session: any): Promise<boolean> => {
+    try {
+      let finalPrompt: string;
+      let siteName: string;
+      let themeGeneratedPrompt: string | null = null;
+
+      if (promptMode === "theme" && selectedTopic) {
+        // Generate unique prompt from theme using edge function
+        const geoName = geoOptions.find(g => g.value === geo)?.geoName || "USA";
+        
+        const { data, error } = await supabase.functions.invoke('generate-theme-prompt', {
+          body: { 
+            topic: selectedTopic,
+            geo: geoName,
+            language: selectedLanguages[0] || "en",
+            // Add uniqueness hint for batch generation
+            batchIndex: siteCount > 1 ? index + 1 : undefined,
+            batchTotal: siteCount > 1 ? siteCount : undefined,
+          },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+
+        if (error) throw error;
+        
+        if (data.generatedPrompt) {
+          themeGeneratedPrompt = data.generatedPrompt;
+          finalPrompt = `[Тема: ${selectedTopic}]\n\n${themeGeneratedPrompt}`;
+          
+          // Generate unique site name for batch
+          const baseName = domain 
+            ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "")
+            : selectedTopic.slice(0, 40);
+          siteName = siteCount > 1 ? `${baseName} (${index + 1})` : baseName;
+        } else {
+          throw new Error("Не вдалось згенерувати промпт");
+        }
+      } else {
+        // Manual mode - use user's prompt with variation for batch
+        const basePrompt = buildFullPrompt();
+        finalPrompt = siteCount > 1 
+          ? `${basePrompt}\n\n[Варіація ${index + 1} з ${siteCount} - зроби унікальний дизайн та контент]`
+          : basePrompt;
+        
+        const baseName = domain 
+          ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "")
+          : prompt.slice(0, 40);
+        siteName = siteCount > 1 ? `${baseName} (${index + 1})` : baseName;
+      }
+
+      // Create generation history record
+      const { data: historyData, error: historyError } = await supabase
+        .from("generation_history")
+        .insert({
+          user_id: user!.id,
+          prompt: promptMode === "theme" ? `Тематика: ${selectedTopic}` : prompt.slice(0, 200),
+          improved_prompt: themeGeneratedPrompt,
+          language: selectedLanguages.join(", "),
+          site_name: siteName,
+          geo: geo.toUpperCase(),
+          status: "pending",
+          ai_model: "senior",
+          website_type: "html",
+          image_source: "n8n-bot",
+        })
+        .select("id")
+        .single();
+
+      if (historyError) throw historyError;
+
+      // Call n8n-async-proxy
+      const response = await supabase.functions.invoke("n8n-async-proxy", {
+        body: { 
+          historyId: historyData.id,
+          fullPrompt: finalPrompt,
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      console.log(`📤 n8n request ${index + 1}/${siteCount} sent:`, response.data);
+      return true;
+    } catch (error: any) {
+      console.error(`Error generating site ${index + 1}:`, error);
+      toast.error(`Помилка генерації ${index + 1}`, {
+        description: error.message,
+      });
+      return false;
+    }
+  };
+
   const handleSubmit = async () => {
     if (!user) {
       toast.error("Потрібна авторизація");
@@ -139,98 +241,47 @@ export function N8nGenerationPanel() {
     }
 
     setIsSubmitting(true);
+    setSubmissionProgress({ current: 0, total: siteCount });
 
     try {
-      let finalPrompt: string;
-      let siteName: string;
-      let themeGeneratedPrompt: string | null = null;
-
-      if (promptMode === "theme" && selectedTopic) {
-        // Generate prompt from theme using edge function
-        const geoName = geoOptions.find(g => g.value === geo)?.geoName || "USA";
-        
-        const { data: session } = await supabase.auth.getSession();
-        if (!session?.session) {
-          toast.error("Сесія закінчилась, увійдіть знову");
-          setIsSubmitting(false);
-          return;
-        }
-
-        const { data, error } = await supabase.functions.invoke('generate-theme-prompt', {
-          body: { 
-            topic: selectedTopic,
-            geo: geoName,
-            language: selectedLanguages[0] || "en",
-          },
-          headers: {
-            Authorization: `Bearer ${session.session.access_token}`,
-          },
-        });
-
-        if (error) throw error;
-        
-        if (data.generatedPrompt) {
-          themeGeneratedPrompt = data.generatedPrompt;
-          // User sees only the topic, not the AI-generated prompt
-          finalPrompt = `[Тема: ${selectedTopic}]\n\n${themeGeneratedPrompt}`;
-          siteName = domain 
-            ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "")
-            : selectedTopic.slice(0, 50);
-        } else {
-          throw new Error("Не вдалось згенерувати промпт");
-        }
-      } else {
-        // Manual mode - use user's prompt
-        finalPrompt = buildFullPrompt();
-        siteName = domain 
-          ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "")
-          : prompt.slice(0, 50);
-      }
-
-      // Create generation history record
-      const { data: historyData, error: historyError } = await supabase
-        .from("generation_history")
-        .insert({
-          user_id: user.id,
-          prompt: promptMode === "theme" ? `Тематика: ${selectedTopic}` : prompt.slice(0, 200), // User-visible prompt
-          improved_prompt: themeGeneratedPrompt, // Hidden system prompt (only for admins)
-          language: selectedLanguages.join(", "),
-          site_name: siteName,
-          geo: geo.toUpperCase(),
-          status: "pending",
-          ai_model: "senior",
-          website_type: "html",
-          image_source: "n8n-bot",
-        })
-        .select("id")
-        .single();
-
-      if (historyError) throw historyError;
-
-      // Call n8n-async-proxy with the full prompt (including system prompt if theme mode)
       const { data: session } = await supabase.auth.getSession();
-      const response = await supabase.functions.invoke("n8n-async-proxy", {
-        body: { 
-          historyId: historyData.id,
-          // Pass the full prompt to n8n (includes theme-generated content)
-          fullPrompt: finalPrompt,
-        },
-        headers: {
-          Authorization: `Bearer ${session.session?.access_token}`,
-        },
-      });
-
-      if (response.error) {
-        throw new Error(response.error.message);
+      if (!session?.session) {
+        toast.error("Сесія закінчилась, увійдіть знову");
+        setIsSubmitting(false);
+        return;
       }
 
-      console.log("📤 n8n request sent:", response.data);
+      let successCount = 0;
+
+      // Generate sites sequentially with unique prompts
+      for (let i = 0; i < siteCount; i++) {
+        setSubmissionProgress({ current: i + 1, total: siteCount });
+        
+        const success = await generateSingleSite(i, session.session);
+        if (success) {
+          successCount++;
+        }
+        
+        // Trigger history refresh after each successful generation
+        setHistoryKey(prev => prev + 1);
+        
+        // Small delay between requests to avoid rate limiting
+        if (i < siteCount - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
       
-      toast.success("🚀 Запит відправлено", {
-        description: promptMode === "theme" 
-          ? `AI згенерував опис для "${selectedTopic}". Очікуйте результат.`
-          : "Генерація додана в історію. Очікуйте результат.",
-      });
+      if (successCount === siteCount) {
+        toast.success(`🚀 ${siteCount > 1 ? `${siteCount} запитів відправлено` : "Запит відправлено"}`, {
+          description: promptMode === "theme" 
+            ? `AI згенерував ${siteCount > 1 ? "унікальні описи" : "опис"} для "${selectedTopic}". Очікуйте результат.`
+            : `${siteCount > 1 ? "Генерації додані" : "Генерація додана"} в історію. Очікуйте результат.`,
+        });
+      } else if (successCount > 0) {
+        toast.warning(`Частково успішно`, {
+          description: `Відправлено ${successCount} з ${siteCount} запитів`,
+        });
+      }
 
       // Reset form for next generation
       setPrompt("");
@@ -239,9 +290,7 @@ export function N8nGenerationPanel() {
       setForbiddenWords("");
       setSelectedCategory("");
       setSelectedTopic("");
-      
-      // Trigger history refresh
-      setHistoryKey(prev => prev + 1);
+      setSiteCount(1);
 
     } catch (error: any) {
       console.error("Submit error:", error);
@@ -250,6 +299,7 @@ export function N8nGenerationPanel() {
       });
     } finally {
       setIsSubmitting(false);
+      setSubmissionProgress({ current: 0, total: 0 });
     }
   };
 
@@ -423,6 +473,35 @@ export function N8nGenerationPanel() {
 
             {/* Right column */}
             <div className="space-y-4">
+              {/* Site count selector */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Layers className="h-4 w-4" />
+                  Кількість сайтів
+                </Label>
+                <Select 
+                  value={siteCount.toString()} 
+                  onValueChange={(v) => setSiteCount(parseInt(v))} 
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                      <SelectItem key={n} value={n.toString()}>
+                        {n} {n === 1 ? "сайт" : n < 5 ? "сайти" : "сайтів"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {siteCount > 1 && (
+                  <p className="text-xs text-muted-foreground">
+                    Кожен сайт отримає унікальний AI-промпт. Відправка послідовна.
+                  </p>
+                )}
+              </div>
+
               {/* Keywords */}
               <div className="space-y-2">
                 <Label htmlFor="keywords">Ключові слова</Label>
@@ -432,7 +511,7 @@ export function N8nGenerationPanel() {
                   value={keywords}
                   onChange={(e) => setKeywords(e.target.value)}
                   disabled={isSubmitting}
-                  className="min-h-[100px]"
+                  className="min-h-[80px]"
                 />
               </div>
 
@@ -445,7 +524,7 @@ export function N8nGenerationPanel() {
                   value={forbiddenWords}
                   onChange={(e) => setForbiddenWords(e.target.value)}
                   disabled={isSubmitting}
-                  className="min-h-[100px]"
+                  className="min-h-[80px]"
                 />
               </div>
 
@@ -459,12 +538,16 @@ export function N8nGenerationPanel() {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    {promptMode === "theme" ? "Генерація опису..." : "Відправка..."}
+                    {submissionProgress.total > 1 
+                      ? `Відправка ${submissionProgress.current}/${submissionProgress.total}...`
+                      : promptMode === "theme" ? "Генерація опису..." : "Відправка..."}
                   </>
                 ) : (
                   <>
                     <Send className="h-4 w-4 mr-2" />
-                    Відправити на генерацію
+                    {siteCount > 1 
+                      ? `Відправити ${siteCount} сайтів`
+                      : "Відправити на генерацію"}
                   </>
                 )}
               </Button>
