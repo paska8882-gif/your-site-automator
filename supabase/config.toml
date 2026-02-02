@@ -1,5 +1,8 @@
 project_id = "qqnekbzcgqvpgcyqlbcr"
 
+[functions.process-ai-job]
+verify_jwt = false
+
 [functions.generate-website]
 verify_jwt = false
 max_duration_seconds = 600
