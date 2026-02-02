@@ -1,14 +1,20 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Eye, Clock, CheckCircle2, XCircle, Bot, FileCode2, RefreshCw } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Loader2, Eye, Clock, CheckCircle2, XCircle, Bot, FileCode2, RefreshCw, Download, Pencil, AlertTriangle, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { SimplePreview } from "./SimplePreview";
 import { GeneratedFile } from "@/lib/websiteGenerator";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 interface HistoryItem {
   id: string;
@@ -19,23 +25,45 @@ interface HistoryItem {
   created_at: string;
   completed_at: string | null;
   files_data: GeneratedFile[] | null;
+  zip_data: string | null;
   error_message: string | null;
   geo: string | null;
   language: string;
+  website_type: string | null;
+  ai_model: string | null;
+  sale_price: number | null;
+  team_id: string | null;
+}
+
+interface Appeal {
+  id: string;
+  status: string;
+  reason: string;
+  admin_comment: string | null;
 }
 
 export function N8nGenerationHistory() {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  
+  // Appeal state
+  const [appealItem, setAppealItem] = useState<HistoryItem | null>(null);
+  const [appealReason, setAppealReason] = useState("");
+  const [appealScreenshots, setAppealScreenshots] = useState<File[]>([]);
+  const [submittingAppeal, setSubmittingAppeal] = useState(false);
+  const [appeals, setAppeals] = useState<Map<string, Appeal>>(new Map());
 
   const fetchHistory = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from("generation_history")
-        .select("id, number, site_name, prompt, status, created_at, completed_at, files_data, error_message, geo, language")
+        .select("id, number, site_name, prompt, status, created_at, completed_at, files_data, zip_data, error_message, geo, language, website_type, ai_model, sale_price, team_id")
         .eq("image_source", "n8n-bot")
         .order("created_at", { ascending: false })
         .limit(50);
@@ -48,6 +76,28 @@ export function N8nGenerationHistory() {
       }));
 
       setHistory(mapped);
+      
+      // Fetch appeals for completed items
+      const completedIds = mapped.filter(i => i.status === "completed").map(i => i.id);
+      if (completedIds.length > 0) {
+        const { data: appealsData } = await supabase
+          .from("appeals")
+          .select("id, status, reason, admin_comment, generation_id")
+          .in("generation_id", completedIds);
+        
+        if (appealsData) {
+          const appealsMap = new Map<string, Appeal>();
+          appealsData.forEach((a: any) => {
+            appealsMap.set(a.generation_id, {
+              id: a.id,
+              status: a.status,
+              reason: a.reason,
+              admin_comment: a.admin_comment,
+            });
+          });
+          setAppeals(appealsMap);
+        }
+      }
     } catch (error) {
       console.error("Error fetching n8n history:", error);
     } finally {
@@ -58,7 +108,6 @@ export function N8nGenerationHistory() {
   useEffect(() => {
     fetchHistory();
 
-    // Realtime subscription for new generations
     const channel = supabase
       .channel("n8n-history")
       .on(
@@ -129,6 +178,135 @@ export function N8nGenerationHistory() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const handleDownload = async (item: HistoryItem) => {
+    if (!item.zip_data && !item.files_data) {
+      toast({
+        title: "Помилка",
+        description: "Немає даних для завантаження",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setDownloadingId(item.id);
+    try {
+      let blob: Blob;
+      
+      if (item.zip_data) {
+        // Use existing zip_data
+        const binary = atob(item.zip_data);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        blob = new Blob([bytes], { type: "application/zip" });
+      } else if (item.files_data) {
+        // Generate zip from files_data
+        const { default: JSZip } = await import("jszip");
+        const zip = new JSZip();
+        item.files_data.forEach((file) => zip.file(file.path, file.content));
+        blob = await zip.generateAsync({ type: "blob" });
+      } else {
+        throw new Error("No data available");
+      }
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${item.site_name || `site-${item.number}`}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Завантажено",
+        description: `${item.site_name || `Site ${item.number}`}.zip`,
+      });
+    } catch (error) {
+      console.error("Download error:", error);
+      toast({
+        title: "Помилка завантаження",
+        description: "Не вдалося завантажити архів",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const handleEdit = (item: HistoryItem) => {
+    navigate(`/edit/${item.id}`);
+  };
+
+  const handleAppealOpen = (item: HistoryItem) => {
+    setAppealItem(item);
+    setAppealReason("");
+    setAppealScreenshots([]);
+  };
+
+  const handleAppealSubmit = async () => {
+    if (!appealItem || !appealReason.trim()) return;
+
+    setSubmittingAppeal(true);
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Upload screenshots if any
+      let screenshotUrls: string[] = [];
+      if (appealScreenshots.length > 0) {
+        for (const file of appealScreenshots) {
+          const fileName = `${appealItem.id}/${Date.now()}-${file.name}`;
+          const { error: uploadError } = await supabase.storage
+            .from("appeal-screenshots")
+            .upload(fileName, file);
+          
+          if (!uploadError) {
+            const { data: urlData } = supabase.storage
+              .from("appeal-screenshots")
+              .getPublicUrl(fileName);
+            screenshotUrls.push(urlData.publicUrl);
+          }
+        }
+      }
+
+      // Create appeal
+      const { error } = await supabase.from("appeals").insert({
+        generation_id: appealItem.id,
+        user_id: user.id,
+        team_id: appealItem.team_id,
+        reason: appealReason,
+        amount_to_refund: appealItem.sale_price || 0,
+        screenshot_urls: screenshotUrls.length > 0 ? screenshotUrls : null,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Апеляцію подано",
+        description: "Адміністратор розгляне вашу апеляцію найближчим часом",
+      });
+
+      setAppealItem(null);
+      fetchHistory();
+    } catch (error) {
+      console.error("Appeal error:", error);
+      toast({
+        title: "Помилка",
+        description: "Не вдалося подати апеляцію",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmittingAppeal(false);
+    }
+  };
+
+  const getAppealStatus = (itemId: string) => {
+    return appeals.get(itemId);
+  };
+
   return (
     <>
       <Card>
@@ -154,48 +332,136 @@ export function N8nGenerationHistory() {
               <p>Ще немає генерацій через n8n</p>
             </div>
           ) : (
-            <ScrollArea className="h-[400px] pr-4">
+            <ScrollArea className="h-[500px] pr-4">
               <div className="space-y-2">
-                {history.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-muted-foreground">
-                          #{item.number}
-                        </span>
-                        <span className="font-medium truncate">
-                          {item.site_name || "Без назви"}
-                        </span>
-                        {getStatusBadge(item.status)}
+                {history.map((item) => {
+                  const existingAppeal = getAppealStatus(item.id);
+                  const isCompleted = item.status === "completed";
+                  const hasFiles = !!item.files_data || !!item.zip_data;
+                  
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-xs text-muted-foreground">
+                            #{item.number}
+                          </span>
+                          <span className="font-medium truncate max-w-[200px]">
+                            {item.site_name || "Без назви"}
+                          </span>
+                          {getStatusBadge(item.status)}
+                          {item.website_type && (
+                            <Badge variant="outline" className="text-xs">
+                              {item.website_type.toUpperCase()}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground flex-wrap">
+                          <span>{format(new Date(item.created_at), "dd.MM.yy HH:mm")}</span>
+                          {item.geo && <Badge variant="secondary" className="text-xs">{item.geo}</Badge>}
+                          {item.language && (
+                            <span className="truncate max-w-[100px]">{item.language}</span>
+                          )}
+                          {getDuration(item) && (
+                            <span className="text-green-600">⏱ {getDuration(item)}</span>
+                          )}
+                          {existingAppeal && (
+                            <Badge 
+                              variant={existingAppeal.status === "approved" ? "default" : existingAppeal.status === "rejected" ? "destructive" : "secondary"}
+                              className="text-xs"
+                            >
+                              {existingAppeal.status === "approved" ? "✓ Схвалено" : 
+                               existingAppeal.status === "rejected" ? "✗ Відхилено" : "⏳ На розгляді"}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                        <span>{format(new Date(item.created_at), "dd.MM.yy HH:mm")}</span>
-                        {item.geo && <Badge variant="secondary" className="text-xs">{item.geo}</Badge>}
-                        {item.language && (
-                          <span className="truncate max-w-[100px]">{item.language}</span>
-                        )}
-                        {getDuration(item) && (
-                          <span className="text-green-600">⏱ {getDuration(item)}</span>
-                        )}
+
+                      <div className="flex items-center gap-1">
+                        {/* Preview button */}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedItem(item);
+                                  setShowPreview(true);
+                                }}
+                                disabled={!isCompleted || !item.files_data}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Превью</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+
+                        {/* Download button */}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDownload(item)}
+                                disabled={!isCompleted || !hasFiles || downloadingId === item.id}
+                              >
+                                {downloadingId === item.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Download className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Завантажити ZIP</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+
+                        {/* Edit button */}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(item)}
+                                disabled={!isCompleted || !item.files_data}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Редагувати</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+
+                        {/* Appeal button */}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleAppealOpen(item)}
+                                disabled={!isCompleted || !!existingAppeal}
+                                className={existingAppeal ? "text-muted-foreground" : "text-orange-500 hover:text-orange-600"}
+                              >
+                                <AlertTriangle className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {existingAppeal ? "Апеляція вже подана" : "Подати апеляцію"}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                     </div>
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedItem(item);
-                        setShowPreview(true);
-                      }}
-                      disabled={item.status !== "completed" || !item.files_data}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </ScrollArea>
           )}
@@ -224,7 +490,7 @@ export function N8nGenerationHistory() {
             <div className="flex-1 h-[calc(90vh-100px)] border rounded-lg overflow-hidden">
               <SimplePreview
                 files={selectedItem.files_data}
-                websiteType="html"
+                websiteType={selectedItem.website_type as "html" | "react" | "php" || "html"}
               />
             </div>
           ) : (
@@ -232,6 +498,84 @@ export function N8nGenerationHistory() {
               Дані недоступні
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Appeal Dialog */}
+      <Dialog open={!!appealItem} onOpenChange={(open) => !open && setAppealItem(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              Подати апеляцію
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label>Генерація</Label>
+              <p className="text-sm text-muted-foreground">
+                #{appealItem?.number} - {appealItem?.site_name || "Без назви"}
+              </p>
+            </div>
+            
+            <div>
+              <Label htmlFor="reason">Причина апеляції *</Label>
+              <Textarea
+                id="reason"
+                placeholder="Опишіть проблему з генерацією..."
+                value={appealReason}
+                onChange={(e) => setAppealReason(e.target.value)}
+                rows={4}
+              />
+            </div>
+
+            <div>
+              <Label>Скріншоти (необов'язково)</Label>
+              <Input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => {
+                  if (e.target.files) {
+                    setAppealScreenshots(Array.from(e.target.files));
+                  }
+                }}
+              />
+              {appealScreenshots.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Вибрано: {appealScreenshots.length} файл(ів)
+                </p>
+              )}
+            </div>
+
+            {appealItem?.sale_price && appealItem.sale_price > 0 && (
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm">
+                  Сума до повернення: <strong>${appealItem.sale_price.toFixed(2)}</strong>
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAppealItem(null)}>
+              Скасувати
+            </Button>
+            <Button 
+              onClick={handleAppealSubmit} 
+              disabled={!appealReason.trim() || submittingAppeal}
+            >
+              {submittingAppeal ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Відправка...
+                </>
+              ) : (
+                "Подати апеляцію"
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
