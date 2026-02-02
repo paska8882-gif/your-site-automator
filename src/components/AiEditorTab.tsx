@@ -35,7 +35,7 @@ interface GenerationResult {
   status: "idle" | "generating" | "completed" | "failed";
   files: GeneratedFile[];
   error?: string;
-  generatedPrompt?: string;
+  technicalPrompt?: string;
 }
 
 const AiEditorTab = () => {
@@ -61,17 +61,6 @@ const AiEditorTab = () => {
   const [editedContent, setEditedContent] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
-  // Системний промпт (спрощена версія для тесту)
-  const SYSTEM_PROMPT = `# 🧠 AI AGENT — REQUIREMENTS TRANSMISSION & VALIDATION PROMPT
-## ROLE: REQUIREMENTS PASS-THROUGH CONTROLLER FOR FULLY STATIC MULTI-PAGE WEBSITES
-
-You are a requirements transmission agent. Your job:
-1) Extract structured facts from user input
-2) Generate a strict, technical generation prompt
-3) Validate that output includes every required block
-
-...`; // Тут буде повний промпт
-
   const handleGenerate = async () => {
     if (!domain.trim()) {
       toast({ title: "Помилка", description: "Введіть домен", variant: "destructive" });
@@ -81,44 +70,42 @@ You are a requirements transmission agent. Your job:
     setResult({ status: "generating", files: [] });
 
     try {
-      // Формуємо запит до n8n або напряму до AI
-      const userInput = `
-domain: ${domain}
-geo: ${geo}
-language: ${languages.join(", ")}
-keyword: ${keyword}
-business: ${businessDescription}
-services: ${services}
-phone: ${phone || "generate belgian format"}
-email: ${email || `contact@${domain}`}
-prohibited words: ${prohibitedWords}
-      `.trim();
-
       toast({
         title: "Генерація запущена",
-        description: "Очікуємо відповідь від AI...",
+        description: "Крок 1: Створення технічного промпту...",
       });
 
-      // TODO: Тут буде виклик edge function для генерації
-      // Поки що симулюємо результат
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const { data, error } = await supabase.functions.invoke('generate-ai-website', {
+        body: {
+          domain,
+          geo,
+          languages,
+          keyword,
+          businessDescription,
+          services,
+          phone,
+          email,
+          prohibitedWords,
+        },
+      });
 
-      // Тестові файли
-      const testFiles: GeneratedFile[] = [
-        { path: "index.html", content: `<!DOCTYPE html>\n<html lang="fr">\n<head>\n  <meta charset="UTF-8">\n  <title>${keyword || domain}</title>\n  <link rel="stylesheet" href="styles.css">\n</head>\n<body>\n  <header>\n    <h1>${keyword || domain}</h1>\n    <nav><!-- nav here --></nav>\n  </header>\n  <main>\n    <section class="hero">\n      <h2>Welcome</h2>\n    </section>\n  </main>\n  <script src="script.js" defer></script>\n</body>\n</html>` },
-        { path: "styles.css", content: `/* Main styles */\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: sans-serif; }` },
-        { path: "script.js", content: `// Main script\nconst I18N = {\n  fr: { welcome: "Bienvenue" },\n  en: { welcome: "Welcome" }\n};` },
-      ];
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Generation failed');
+      }
 
       setResult({
         status: "completed",
-        files: testFiles,
-        generatedPrompt: userInput,
+        files: data.files,
+        technicalPrompt: data.technicalPrompt,
       });
 
       toast({
         title: "Генерація завершена",
-        description: `Створено ${testFiles.length} файлів`,
+        description: `Створено ${data.files.length} файлів`,
       });
 
     } catch (error) {
