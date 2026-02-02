@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Send, Bot, Sparkles, Globe } from "lucide-react";
+import { Loader2, Send, Bot, Sparkles, Globe, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { N8nGenerationHistory } from "./N8nGenerationHistory";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 // Languages
 const languages = [
@@ -27,19 +28,41 @@ const languages = [
 
 // Geo options
 const geoOptions = [
-  { value: "be", label: "🇧🇪 Бельгія" },
-  { value: "nl", label: "🇳🇱 Нідерланди" },
-  { value: "de", label: "🇩🇪 Німеччина" },
-  { value: "fr", label: "🇫🇷 Франція" },
-  { value: "uk", label: "🇬🇧 Великобританія" },
-  { value: "us", label: "🇺🇸 США" },
-  { value: "pl", label: "🇵🇱 Польща" },
-  { value: "it", label: "🇮🇹 Італія" },
-  { value: "es", label: "🇪🇸 Іспанія" },
+  { value: "be", label: "🇧🇪 Бельгія", geoName: "Belgium" },
+  { value: "nl", label: "🇳🇱 Нідерланди", geoName: "Netherlands" },
+  { value: "de", label: "🇩🇪 Німеччина", geoName: "Germany" },
+  { value: "fr", label: "🇫🇷 Франція", geoName: "France" },
+  { value: "uk", label: "🇬🇧 Великобританія", geoName: "UK" },
+  { value: "us", label: "🇺🇸 США", geoName: "USA" },
+  { value: "pl", label: "🇵🇱 Польща", geoName: "Poland" },
+  { value: "it", label: "🇮🇹 Італія", geoName: "Italy" },
+  { value: "es", label: "🇪🇸 Іспанія", geoName: "Spain" },
 ];
+
+// Topic categories (same as in WebsiteGenerator)
+const TOPIC_CATEGORIES: Record<string, string[]> = {
+  "💰 Фінанси (Освіта)": ["Ведення бюджету", "Інвестування", "Робота з криптовалютами", "Фінансова грамотність", "Побудова бізнесу", "Краудфандинг", "Фінансовий аналітик", "Трейдинг", "Машинне навчання у фінансах"],
+  "❤️ Здоров'я (Освіта)": ["Здоровий спосіб життя", "Правильне харчування", "Гімнастика", "Йога", "Вегетаріанство", "Кросфіт"],
+  "💄 Краса (Освіта)": ["Манікюр", "Візажист", "Стиліст", "Перукар"],
+  "🌍 Вивчення мов": ["Англійська мова", "Польська мова", "Німецька мова", "Іспанська мова", "Французька мова", "Італійська мова", "Португальська мова", "Арабська мова", "Японська мова"],
+  "🧠 Саморозвиток": ["Підвищення мотивації", "Медитація", "Особистісний ріст", "Психологія", "Коучинг", "Сімейні відносини", "Вивчення релігій", "Побудова командної роботи", "Астрологія", "Дейтинг", "Креативність"],
+  "📈 Кар'єрний ріст": ["Туроператор", "Маркетолог", "Дизайнер", "Менеджмент", "Журналістика", "Флорист", "Організатор свят", "Акторська майстерність", "Кіберспорт", "Туристичний гід", "Торгівля на маркетплейсах", "Еколог", "Юрист", "Ріелтор", "Соціальний працівник", "Стрімінг", "Нафта", "Газ", "Енергетика"],
+  "🎨 Творчість": ["Письменництво", "Кулінарія", "Малювання", "Фотограф", "Музика", "Танці"],
+  "💻 IT (Освіта)": ["Розробка мобільних ігор", "Програмування", "Відеомонтаж", "Основи блокчейну", "Веб-дизайн", "Системний адміністратор", "SEO-спеціаліст", "Розробник AR/VR ігор", "3D-дизайн для ігор", "ШІ (штучний інтелект)", "Кібербезпека"],
+  "🏦 Фінанси (Послуги)": ["Побудова бізнесу", "Управління бюджетом", "Фінансове консультування", "Фінансова підтримка", "Бухгалтерський облік", "Фінансовий аудит", "Автоматизація фінансових процесів", "ШІ-рішення для управління фінансами"],
+  "🩺 Здоров'я (Послуги)": ["Йога", "Гімнастика", "Кросфіт", "Нутриціологія", "Здоров'я людей похилого віку", "Масаж та релаксація", "Антистрес-терапія"],
+  "🧘 Саморозвиток (Послуги)": ["Лайф-коучинг", "Психологія", "Сімейне консультування", "Медитація", "Розвиток лідерства"],
+  "💅 Краса (Послуги)": ["Манікюр", "Візажист", "Стиліст", "Перукар"],
+  "👔 Професійні послуги": ["Туроператор", "Цифровий маркетинг", "Графічний дизайн", "Проектне управління", "Журналістика", "Флористика", "Івент-менеджмент", "Актор", "Торгівля на маркетплейсах", "Екологічне консультування", "Соціальна робота", "Перекладач", "Таргетована реклама", "Контент-менеджмент"],
+  "🎭 Креативність (Послуги)": ["Копірайтер", "Кулінар", "Художник", "Фотограф", "Музикант"],
+  "🖥️ IT (Послуги)": ["Розробка мобільних додатків", "Програмування", "Відеомонтаж", "Веб-дизайн", "SEO", "Системне адміністрування", "AR/VR розробка", "3D-дизайн", "ШІ (штучний інтелект)", "Кібербезпека", "Розробка ігор", "Тестування ПЗ", "Блокчейн-розробка", "Розробка чат-ботів", "Управління базами даних"]
+};
 
 export function N8nGenerationPanel() {
   const { user } = useAuth();
+  
+  // Prompt mode: manual or theme-based
+  const [promptMode, setPromptMode] = useState<"manual" | "theme">("manual");
   
   // Form state
   const [prompt, setPrompt] = useState("");
@@ -48,6 +71,10 @@ export function N8nGenerationPanel() {
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["fr", "en"]);
   const [keywords, setKeywords] = useState("");
   const [forbiddenWords, setForbiddenWords] = useState("");
+  
+  // Theme selection state
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedTopic, setSelectedTopic] = useState<string>("");
   
   // Submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -93,9 +120,17 @@ export function N8nGenerationPanel() {
       return;
     }
 
-    if (!prompt.trim()) {
-      toast.error("Введіть тему сайту");
-      return;
+    // Validation based on mode
+    if (promptMode === "manual") {
+      if (!prompt.trim()) {
+        toast.error("Введіть тему сайту");
+        return;
+      }
+    } else {
+      if (!selectedTopic) {
+        toast.error("Оберіть тематику для генерації");
+        return;
+      }
     }
 
     if (selectedLanguages.length === 0) {
@@ -106,20 +141,59 @@ export function N8nGenerationPanel() {
     setIsSubmitting(true);
 
     try {
-      // Build site name from domain or prompt
-      const siteName = domain 
-        ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "")
-        : prompt.slice(0, 50);
+      let finalPrompt: string;
+      let siteName: string;
+      let themeGeneratedPrompt: string | null = null;
 
-      // Build full prompt with all parameters
-      const fullPrompt = buildFullPrompt();
+      if (promptMode === "theme" && selectedTopic) {
+        // Generate prompt from theme using edge function
+        const geoName = geoOptions.find(g => g.value === geo)?.geoName || "USA";
+        
+        const { data: session } = await supabase.auth.getSession();
+        if (!session?.session) {
+          toast.error("Сесія закінчилась, увійдіть знову");
+          setIsSubmitting(false);
+          return;
+        }
+
+        const { data, error } = await supabase.functions.invoke('generate-theme-prompt', {
+          body: { 
+            topic: selectedTopic,
+            geo: geoName,
+            language: selectedLanguages[0] || "en",
+          },
+          headers: {
+            Authorization: `Bearer ${session.session.access_token}`,
+          },
+        });
+
+        if (error) throw error;
+        
+        if (data.generatedPrompt) {
+          themeGeneratedPrompt = data.generatedPrompt;
+          // User sees only the topic, not the AI-generated prompt
+          finalPrompt = `[Тема: ${selectedTopic}]\n\n${themeGeneratedPrompt}`;
+          siteName = domain 
+            ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "")
+            : selectedTopic.slice(0, 50);
+        } else {
+          throw new Error("Не вдалось згенерувати промпт");
+        }
+      } else {
+        // Manual mode - use user's prompt
+        finalPrompt = buildFullPrompt();
+        siteName = domain 
+          ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "")
+          : prompt.slice(0, 50);
+      }
 
       // Create generation history record
       const { data: historyData, error: historyError } = await supabase
         .from("generation_history")
         .insert({
           user_id: user.id,
-          prompt: fullPrompt,
+          prompt: promptMode === "theme" ? `Тематика: ${selectedTopic}` : prompt.slice(0, 200), // User-visible prompt
+          improved_prompt: themeGeneratedPrompt, // Hidden system prompt (only for admins)
           language: selectedLanguages.join(", "),
           site_name: siteName,
           geo: geo.toUpperCase(),
@@ -133,10 +207,14 @@ export function N8nGenerationPanel() {
 
       if (historyError) throw historyError;
 
-      // Call n8n-async-proxy
+      // Call n8n-async-proxy with the full prompt (including system prompt if theme mode)
       const { data: session } = await supabase.auth.getSession();
       const response = await supabase.functions.invoke("n8n-async-proxy", {
-        body: { historyId: historyData.id },
+        body: { 
+          historyId: historyData.id,
+          // Pass the full prompt to n8n (includes theme-generated content)
+          fullPrompt: finalPrompt,
+        },
         headers: {
           Authorization: `Bearer ${session.session?.access_token}`,
         },
@@ -149,7 +227,9 @@ export function N8nGenerationPanel() {
       console.log("📤 n8n request sent:", response.data);
       
       toast.success("🚀 Запит відправлено", {
-        description: "Генерація додана в історію. Очікуйте результат.",
+        description: promptMode === "theme" 
+          ? `AI згенерував опис для "${selectedTopic}". Очікуйте результат.`
+          : "Генерація додана в історію. Очікуйте результат.",
       });
 
       // Reset form for next generation
@@ -157,6 +237,8 @@ export function N8nGenerationPanel() {
       setDomain("");
       setKeywords("");
       setForbiddenWords("");
+      setSelectedCategory("");
+      setSelectedTopic("");
       
       // Trigger history refresh
       setHistoryKey(prev => prev + 1);
@@ -169,6 +251,11 @@ export function N8nGenerationPanel() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    setSelectedTopic(""); // Reset topic when category changes
   };
 
   return (
@@ -196,21 +283,93 @@ export function N8nGenerationPanel() {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Prompt Mode Selector */}
+          <div className="mb-6">
+            <Label className="mb-3 block">Режим опису</Label>
+            <RadioGroup 
+              value={promptMode} 
+              onValueChange={(v) => setPromptMode(v as "manual" | "theme")}
+              className="flex gap-4"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="manual" id="manual" />
+                <Label htmlFor="manual" className="cursor-pointer">Написати вручну</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="theme" id="theme" />
+                <Label htmlFor="theme" className="cursor-pointer flex items-center gap-1">
+                  <Wand2 className="h-4 w-4" />
+                  Обрати тематику (AI)
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Left column */}
             <div className="space-y-4">
-              {/* Topic/Theme */}
-              <div className="space-y-2">
-                <Label htmlFor="prompt">Тема сайту *</Label>
-                <Textarea
-                  id="prompt"
-                  placeholder="Digital Wayfinding & Spatial Orientation"
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  disabled={isSubmitting}
-                  className="min-h-[80px]"
-                />
-              </div>
+              {promptMode === "manual" ? (
+                /* Manual prompt input */
+                <div className="space-y-2">
+                  <Label htmlFor="prompt">Тема сайту *</Label>
+                  <Textarea
+                    id="prompt"
+                    placeholder="Digital Wayfinding & Spatial Orientation"
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    disabled={isSubmitting}
+                    className="min-h-[80px]"
+                  />
+                </div>
+              ) : (
+                /* Theme-based selection */
+                <>
+                  <div className="space-y-2">
+                    <Label>Категорія *</Label>
+                    <Select 
+                      value={selectedCategory} 
+                      onValueChange={handleCategoryChange}
+                      disabled={isSubmitting}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Оберіть категорію" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.keys(TOPIC_CATEGORIES).map((category) => (
+                          <SelectItem key={category} value={category}>{category}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Тематика *</Label>
+                    <Select 
+                      value={selectedTopic} 
+                      onValueChange={setSelectedTopic}
+                      disabled={isSubmitting || !selectedCategory}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={selectedCategory ? "Оберіть тематику" : "Спочатку оберіть категорію"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectedCategory && TOPIC_CATEGORIES[selectedCategory]?.map((topic) => (
+                          <SelectItem key={topic} value={topic}>{topic}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {selectedTopic && (
+                    <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                      <p className="text-sm text-muted-foreground">
+                        <Wand2 className="h-4 w-4 inline mr-1" />
+                        AI автоматично згенерує детальний опис для <strong>{selectedTopic}</strong>
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
 
               {/* Domain */}
               <div className="space-y-2">
@@ -293,14 +452,14 @@ export function N8nGenerationPanel() {
               {/* Submit button */}
               <Button
                 onClick={handleSubmit}
-                disabled={isSubmitting || !prompt.trim()}
+                disabled={isSubmitting || (promptMode === "manual" ? !prompt.trim() : !selectedTopic)}
                 className="w-full"
                 size="lg"
               >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Відправка...
+                    {promptMode === "theme" ? "Генерація опису..." : "Відправка..."}
                   </>
                 ) : (
                   <>
