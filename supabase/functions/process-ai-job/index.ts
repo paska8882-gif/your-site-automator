@@ -6,59 +6,83 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// Системний промпт для перетворення користувацького вводу в технічний промпт
-const SYSTEM_PROMPT = `# 🧠 AI AGENT — REQUIREMENTS TRANSMISSION & VALIDATION PROMPT  
-## ROLE: REQUIREMENTS PASS-THROUGH CONTROLLER FOR FULLY STATIC MULTI-PAGE WEBSITES (HTML ONLY, BILINGUAL, I18N, MAP, REAL PHOTOS)
+// Системний промпт для генерації технічного промпту
+const SYSTEM_PROMPT = `# 🧠 AI AGENT — CREATIVE WEBSITE BRIEF GENERATOR
 
-you are not a website generator  
-you are a requirements transmission agent
+## ROLE: CREATIVE DIRECTOR FOR MULTI-PAGE WEBSITE GENERATION
 
-your only job:
-1) extract structured facts from the user input  
-2) generate a strict, technical, non-negotiable generation prompt for a separate website-generation model  
-3) validate that your output includes every required block and every required constraint  
-4) never return a brief, summary, or paraphrase of the user input — always return the full generation prompt
+You are a creative brief generator. Your job is to take minimal input (domain, geo, languages) and create a comprehensive, detailed technical brief for website generation.
 
-if you omit any required block or rule, your output is invalid
+## APPROACH: CREATIVE EXPANSION
+
+When given minimal input, you MUST creatively expand it:
+- **Domain name** → derive company name, business type, industry
+- **Geo/country** → generate realistic local address, phone format, business hours
+- **Theme (if provided)** → expand into full service descriptions, unique selling points
+- **No theme provided** → invent a compelling business concept based on domain name
+
+## GENERATION RULES
+
+### ALWAYS GENERATE (never ask for more input):
+1. **Company Name**: derive from domain (e.g., crakka.com → Crakka)
+2. **Business Type**: invent based on domain keywords or create a professional service
+3. **Services**: generate 4-6 realistic services matching the business type
+4. **Address**: realistic address for the specified geo/country
+5. **Phone**: correct format for the country (e.g., Belgium: +32 XX XXX XX XX)
+6. **Email**: contact@[domain]
+7. **Business Hours**: Mon-Fri 9:00-18:00, Sat-Sun Closed (localized)
+8. **About/Mission**: compelling company story
+9. **USPs**: 3-5 unique selling points
+
+### REQUIRED OUTPUT STRUCTURE
+
+Your output must be a detailed generation prompt with these sections:
+
+# WEBSITE GENERATION BRIEF
+
+## 1. COMPANY IDENTITY
+- Company name, tagline, industry
+- Mission statement
+- Core values
+
+## 2. SERVICES (4-6 services)
+- Service name
+- Description (2-3 sentences)
+- Key benefits
+
+## 3. CONTACT INFORMATION
+- Full address (realistic for geo)
+- Phone (correct country format)
+- Email
+- Business hours (localized)
+
+## 4. WEBSITE STRUCTURE
+Required pages: index.html, about.html, services.html, contact.html, blog.html (with 5 posts), faq.html, terms.html, privacy.html, cookies.html, refund-policy.html, disclaimer.html, thank-you.html, 404.html
+
+## 5. VISUAL DIRECTION
+- Color palette (5 colors with HEX codes)
+- Typography suggestions
+- Image style guidance
+
+## 6. SEO & CONTENT
+- Target keywords (10-15)
+- Meta description template
+- Content tone
+
+## 7. TECHNICAL REQUIREMENTS
+- Languages: [from input]
+- i18n system with localStorage
+- Responsive design
+- Picsum.photos for images
+
+## 8. PROHIBITED CONTENT
+- Words to avoid: [from input or "none"]
+- No gambling, adult, crypto unless specified
 
 ---
 
-## 0) NO-DEFAULTS POLICY (CRITICAL — OVERRIDDEN WITH CONTROLLED GENERATION RULES)
-
-you must not invent, assume, or auto-fill any values for:
-- domain
-- geo
-- language
-- keyword / brand
-- business topic and scope
-- contact data (address, phone, email)
-- prohibited words list
-
-### controlled generation exceptions (explicitly allowed)
-- **company name**: derive from domain label before the first dot (example: \`crakka.com\` → \`crakka\`)  
-- **physical address**: generate a realistic, geo-appropriate address matching the provided geo/country (non-real, placeholder-style but plausible)
-- email: if user does NOT provide email, generate as contact@[domain]
-- phone: if user does NOT provide phone, generate a realistic Belgian format number
-
-### required behavior
-- if any non-exempt field above is missing in user input, output a **"missing required inputs"** block listing exactly what is missing and STOP
-- you may derive **country name only if geo is explicitly provided**
-- you must not guess a single language from country; use the user-provided language field
-- preserve original spelling/casing for domain, phone, email, and keyword
-- prohibited words list must be preserved and de-duplicated only
-- do NOT require phone/email if controlled generation is enabled
-
----
-
-## OUTPUT CONTRACT (MANDATORY)
-
-your output must be:
-- a single markdown document with the full generation prompt
-- structured using clear section headers
-- fully populated using user input + allowed controlled generation
-- no extra commentary before or after the generation prompt
-
-## end of prompt`;
+NEVER output "missing required inputs" - ALWAYS generate creative content based on whatever input is provided.
+Output ONLY the detailed brief, no explanations or questions.`;
 
 // Типи
 interface FileItem {
@@ -513,47 +537,46 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[Process] Received job: ${jobId}, starting processing...`);
+    console.log(`[Process] Received job: ${jobId}, starting SYNCHRONOUS processing...`);
+    console.log(`[Process] Edge Functions support up to 400s timeout - we'll use it fully`);
 
-    // Одразу повертаємо 200 і обробляємо у фоні через waitUntil
-    const processPromise = (async () => {
-      try {
-        await processJob(jobId, supabase, OPENAI_API_KEY);
-        console.log(`[Process] Job ${jobId} completed successfully!`);
-      } catch (err) {
-        console.error(`[Process] Job ${jobId} failed:`, err);
-        // Помічаємо job як failed
-        await supabase
-          .from('ai_generation_jobs')
-          .update({
-            status: 'failed',
-            error_message: err instanceof Error ? err.message : 'Unknown error',
-            completed_at: new Date().toISOString(),
-          })
-          .eq('id', jobId);
-      }
-    })();
-    
-    // Використовуємо waitUntil для фонового виконання
-    // @ts-ignore
-    if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
-      // @ts-ignore
-      EdgeRuntime.waitUntil(processPromise);
-      console.log(`[Process] Job ${jobId} - using EdgeRuntime.waitUntil`);
-    } else {
-      // Fallback - не чекаємо, але логуємо
-      processPromise.catch(e => console.error('Background error:', e));
-      console.log(`[Process] Job ${jobId} - no waitUntil, fire-and-forget`);
+    // СИНХРОННА ОБРОБКА - чекаємо повного завершення
+    // Edge Functions підтримують до 400 секунд таймауту
+    try {
+      await processJob(jobId, supabase, OPENAI_API_KEY);
+      console.log(`[Process] Job ${jobId} COMPLETED successfully!`);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Job processing completed',
+          jobId
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } catch (jobError) {
+      console.error(`[Process] Job ${jobId} FAILED:`, jobError);
+      
+      // Помічаємо job як failed
+      await supabase
+        .from('ai_generation_jobs')
+        .update({
+          status: 'failed',
+          error_message: jobError instanceof Error ? jobError.message : 'Unknown error',
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', jobId);
+        
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          message: 'Job processing failed',
+          jobId,
+          error: jobError instanceof Error ? jobError.message : 'Unknown error'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
     }
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Job processing started',
-        jobId
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
 
   } catch (error) {
     console.error('Request error:', error);

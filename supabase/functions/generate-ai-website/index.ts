@@ -69,28 +69,28 @@ serve(async (req) => {
 
     console.log('Created job:', job.id);
 
-    // Викликаємо process-ai-job функцію і ЧЕКАЄМО початок обробки
+    // Викликаємо process-ai-job АСИНХРОННО (fire-and-forget)
+    // process-ai-job працює синхронно і може зайняти до 5 хвилин
     const processUrl = `${SUPABASE_URL}/functions/v1/process-ai-job`;
     
     console.log('Triggering process-ai-job for:', job.id);
     
-    // Синхронний виклик - чекаємо щоб переконатись що функція запустилась
-    // Але не чекаємо завершення (process-ai-job працює довго)
-    const processResponse = await fetch(processUrl, {
+    // Fire-and-forget - НЕ чекаємо відповіді
+    // Це дозволяє швидко повернути jobId користувачу
+    fetch(processUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
       },
       body: JSON.stringify({ jobId: job.id }),
+    }).then(res => {
+      console.log(`process-ai-job returned status: ${res.status}`);
+    }).catch(err => {
+      console.error('process-ai-job trigger error:', err);
     });
     
-    console.log(`process-ai-job triggered, status: ${processResponse.status}`);
-    
-    if (!processResponse.ok) {
-      const errorText = await processResponse.text();
-      console.error('process-ai-job error:', errorText);
-    }
+    console.log('process-ai-job triggered (fire-and-forget)');
 
     // Повертаємо jobId
     return new Response(
