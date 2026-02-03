@@ -16,19 +16,15 @@ import { getLanguageLabel, getGeoLabel } from "@/lib/filterConstants";
 
 interface HistoryItem {
   id: string;
-  number: number;
-  site_name: string | null;
-  prompt: string;
+  domain: string;
   status: string;
   created_at: string;
   completed_at: string | null;
   files_data: GeneratedFile[] | null;
-  zip_data: string | null;
   error_message: string | null;
   geo: string | null;
-  language: string;
-  website_type: string | null;
-  ai_model: string | null;
+  languages: string[];
+  theme: string | null;
 }
 
 export function AiEditorHistory() {
@@ -44,9 +40,8 @@ export function AiEditorHistory() {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from("generation_history")
-        .select("id, number, site_name, prompt, status, created_at, completed_at, files_data, zip_data, error_message, geo, language, website_type, ai_model")
-        .eq("ai_model", "openai")
+        .from("ai_generation_jobs")
+        .select("id, domain, status, created_at, completed_at, files_data, error_message, geo, languages, theme")
         .order("created_at", { ascending: false })
         .limit(50);
 
@@ -75,8 +70,7 @@ export function AiEditorHistory() {
         {
           event: "*",
           schema: "public",
-          table: "generation_history",
-          filter: "ai_model=eq.openai",
+          table: "ai_generation_jobs",
         },
         () => {
           fetchHistory();
@@ -135,7 +129,7 @@ export function AiEditorHistory() {
   };
 
   const handleDownload = async (item: HistoryItem) => {
-    if (!item.zip_data && !item.files_data) {
+    if (!item.files_data) {
       toast({
         title: "Помилка",
         description: "Немає даних для завантаження",
@@ -146,28 +140,15 @@ export function AiEditorHistory() {
 
     setDownloadingId(item.id);
     try {
-      let blob: Blob;
-      
-      if (item.zip_data) {
-        const binary = atob(item.zip_data);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) {
-          bytes[i] = binary.charCodeAt(i);
-        }
-        blob = new Blob([bytes], { type: "application/zip" });
-      } else if (item.files_data) {
-        const { default: JSZip } = await import("jszip");
-        const zip = new JSZip();
-        item.files_data.forEach((file) => zip.file(file.path, file.content));
-        blob = await zip.generateAsync({ type: "blob" });
-      } else {
-        throw new Error("No data available");
-      }
+      const { default: JSZip } = await import("jszip");
+      const zip = new JSZip();
+      item.files_data.forEach((file) => zip.file(file.path, file.content));
+      const blob = await zip.generateAsync({ type: "blob" });
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${item.site_name || `site-${item.number}`}.zip`;
+      a.download = `${item.domain || item.id.slice(0, 8)}.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -175,7 +156,7 @@ export function AiEditorHistory() {
 
       toast({
         title: "Завантажено",
-        description: `${item.site_name || `Site ${item.number}`}.zip`,
+        description: `${item.domain}.zip`,
       });
     } catch (error) {
       console.error("Download error:", error);
@@ -219,9 +200,9 @@ export function AiEditorHistory() {
           ) : (
             <ScrollArea className="h-[350px] pr-2">
               <div className="space-y-1.5">
-                {history.map((item) => {
+              {history.map((item) => {
                   const isCompleted = item.status === "completed";
-                  const hasFiles = !!item.files_data || !!item.zip_data;
+                  const hasFiles = !!item.files_data;
                   
                   return (
                     <div
@@ -229,11 +210,8 @@ export function AiEditorHistory() {
                       className="flex items-center justify-between py-1.5 px-2 border rounded hover:bg-muted/50 transition-colors text-xs"
                     >
                       <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <span className="font-mono text-muted-foreground w-10 shrink-0">
-                          #{item.number}
-                        </span>
-                        <span className="font-medium truncate max-w-[120px]" title={item.site_name || "—"}>
-                          {item.site_name || "—"}
+                        <span className="font-medium truncate max-w-[150px]" title={item.domain}>
+                          {item.domain}
                         </span>
                         {getStatusBadge(item.status)}
                         <span className="text-muted-foreground">
@@ -242,9 +220,9 @@ export function AiEditorHistory() {
                         {item.geo && (
                           <span className="text-muted-foreground text-[10px]">{getGeoLabel(item.geo)}</span>
                         )}
-                        {item.language && (
+                        {item.languages && item.languages.length > 0 && (
                           <span className="text-muted-foreground truncate max-w-[100px] text-[10px]">
-                            {item.language.split(",").map(l => getLanguageLabel(l.trim())).join(", ")}
+                            {item.languages.map(l => getLanguageLabel(l)).join(", ")}
                           </span>
                         )}
                         {getDuration(item) && (
@@ -326,7 +304,7 @@ export function AiEditorHistory() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="h-5 w-5" />
-              {selectedItem?.site_name || `Сайт #${selectedItem?.number}`}
+              {selectedItem?.domain || selectedItem?.id.slice(0, 8)}
               {selectedItem?.geo && (
                 <Badge variant="outline" className="text-xs">{getGeoLabel(selectedItem.geo)}</Badge>
               )}
