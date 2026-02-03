@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,8 @@ import {
   Loader2,
   Wand2,
   Files,
-  History
+  History,
+  ChevronLeft
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LANGUAGES_MAP, GEO_MAP } from "@/lib/filterConstants";
@@ -38,6 +39,160 @@ interface GenerationResult {
   technicalPrompt?: string;
   jobId?: string;
   progress?: string;
+}
+
+// ========== PREVIEW WITH NAVIGATION ==========
+function AiPreviewWithNav({ files }: { files: GeneratedFile[] }) {
+  const [currentPage, setCurrentPage] = useState("index.html");
+  const [history, setHistory] = useState<string[]>(["index.html"]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+
+  const htmlPages = files.filter(f => f.path.endsWith('.html')).map(f => f.path);
+
+  const handleNavigate = useCallback((page: string) => {
+    if (htmlPages.includes(page)) {
+      const newHistory = [...history.slice(0, historyIndex + 1), page];
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+      setCurrentPage(page);
+    }
+  }, [htmlPages, history, historyIndex]);
+
+  const canGoBack = historyIndex > 0;
+
+  const handleBack = () => {
+    if (canGoBack) {
+      setHistoryIndex(historyIndex - 1);
+      setCurrentPage(history[historyIndex - 1]);
+    }
+  };
+
+  // Listen for navigation from iframe
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'preview-navigate' && e.data.page) {
+        handleNavigate(e.data.page);
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [handleNavigate]);
+
+  const currentFile = files.find(f => f.path === currentPage);
+
+  // Build preview HTML with navigation script
+  const previewHtml = useMemo(() => {
+    if (!currentFile) return '';
+    
+    let html = currentFile.content;
+    
+    const navScript = `
+      <script data-preview-nav>
+        (function() {
+          var availablePages = ${JSON.stringify(htmlPages)};
+          
+          document.addEventListener('click', function(e) {
+            var target = e.target;
+            while (target && target.tagName !== 'A') {
+              target = target.parentElement;
+            }
+            if (!target) return;
+            
+            var href = target.getAttribute('href');
+            if (!href) return;
+            
+            if (href.startsWith('http://') || href.startsWith('https://') || 
+                href.startsWith('#') || href.startsWith('tel:') || 
+                href.startsWith('mailto:') || href.startsWith('javascript:')) {
+              return;
+            }
+            
+            var normalized = href.replace(/^\\.\\//g, '').replace(/^\\//, '').toLowerCase();
+            var found = null;
+            
+            for (var i = 0; i < availablePages.length; i++) {
+              if (availablePages[i].toLowerCase() === normalized) {
+                found = availablePages[i];
+                break;
+              }
+            }
+            
+            if (!found && !normalized.endsWith('.html')) {
+              for (var i = 0; i < availablePages.length; i++) {
+                if (availablePages[i].toLowerCase() === normalized + '.html') {
+                  found = availablePages[i];
+                  break;
+                }
+              }
+            }
+            
+            if (found) {
+              e.preventDefault();
+              window.parent.postMessage({ type: 'preview-navigate', page: found }, '*');
+            }
+          }, true);
+        })();
+      </script>
+    `;
+    
+    if (html.includes('</body>')) {
+      html = html.replace('</body>', navScript + '</body>');
+    } else {
+      html += navScript;
+    }
+    
+    return html;
+  }, [currentFile, htmlPages]);
+
+  if (!currentFile) {
+    return (
+      <div className="border rounded-md h-[300px] flex items-center justify-center text-muted-foreground bg-white">
+        Немає index.html
+      </div>
+    );
+  }
+
+  return (
+    <div className="border rounded-md h-[300px] bg-white flex flex-col">
+      {/* Navigation bar */}
+      <div className="flex items-center gap-2 px-2 py-1 border-b bg-muted/50 shrink-0">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 w-6 p-0"
+          onClick={handleBack}
+          disabled={!canGoBack}
+          title="Назад"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span className="text-xs font-mono text-muted-foreground flex-1 truncate">
+          {currentPage}
+        </span>
+        {htmlPages.length > 1 && (
+          <Select value={currentPage} onValueChange={handleNavigate}>
+            <SelectTrigger className="h-6 w-auto text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {htmlPages.map(page => (
+                <SelectItem key={page} value={page} className="text-xs">
+                  {page}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+      
+      {/* Preview iframe */}
+      <iframe
+        srcDoc={previewHtml}
+        className="flex-1 w-full"
+        sandbox="allow-scripts"
+      />
+    </div>
+  );
 }
 
 const AiEditorTab = () => {
@@ -542,19 +697,7 @@ const AiEditorTab = () => {
                 </TabsContent>
 
                 <TabsContent value="preview" className="mt-2">
-                  <div className="border rounded-md h-[300px] bg-white">
-                    {result.files.find(f => f.path === "index.html") ? (
-                      <iframe
-                        srcDoc={result.files.find(f => f.path === "index.html")?.content}
-                        className="w-full h-full"
-                        sandbox="allow-scripts"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-muted-foreground">
-                        Немає index.html
-                      </div>
-                    )}
-                  </div>
+                  <AiPreviewWithNav files={result.files} />
                 </TabsContent>
               </Tabs>
             )}
