@@ -44,7 +44,7 @@ interface CachedData {
 const CACHE_KEY_PREFIX = "generation_history_cache_";
 const CACHE_MAX_ITEMS = 100;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes - reduced to prevent stale status display
-const CACHE_VERSION = 2; // Increment to invalidate old caches
+const CACHE_VERSION = 3; // Increment to invalidate old caches - v3: fix manual_completed status display
 const PAGE_SIZE = 10; // Load 10 items per page
 
 // Helper to get cache from localStorage
