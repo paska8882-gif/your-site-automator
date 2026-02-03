@@ -750,7 +750,7 @@ export function ManualRequestsTab() {
                 {t("admin.complete")}
               </Button>
             )}
-            {item.status === "completed" && (
+            {["completed", "manual_completed"].includes(item.status) && (
               <Button
                 variant="ghost"
                 size="sm"
