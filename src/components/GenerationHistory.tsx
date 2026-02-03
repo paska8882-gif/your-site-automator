@@ -593,7 +593,7 @@ function SingleHistoryItem({
                       e.stopPropagation();
                       onDownload(item);
                     }}
-                    disabled={item.status !== "completed" || isDownloading}
+                    disabled={!["completed", "manual_completed"].includes(item.status) || isDownloading}
                     title={t("historyExtra.downloadZip")}
                   >
                     {isDownloading ? (
