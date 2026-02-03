@@ -6,6 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// Мінімальний розмір для повторної генерації в Codex (35KB)
+const MIN_SIZE_FOR_CODEX_RETRY = 35 * 1024;
+
 // Системний промпт для генерації технічного промпту
 const SYSTEM_PROMPT = `# 🧠 AI AGENT — CREATIVE WEBSITE BRIEF GENERATOR
 
@@ -161,30 +164,6 @@ function validateGeneratedFiles(files: FileItem[]): ValidationResult {
   };
 }
 
-// Промпт для фіксу помилок
-function createFixPrompt(files: FileItem[], validation: ValidationResult): string {
-  return `The generated website has the following issues that MUST be fixed:
-
-ERRORS (must fix):
-${validation.errors.map(e => `- ${e}`).join('\n')}
-
-WARNINGS (should fix):
-${validation.warnings.map(w => `- ${w}`).join('\n')}
-
-Current files:
-${files.map(f => `- ${f.path} (${f.content.length} chars)`).join('\n')}
-
-Please regenerate or fix the files to address ALL errors. Return the complete fixed files in the same JSON format:
-{
-  "files": [
-    { "path": "filename.html", "content": "..." },
-    ...
-  ]
-}
-
-CRITICAL: Include ALL required files, not just the ones with errors.`;
-}
-
 // Функція парсингу файлів з /* FILE: */ формату
 function parseFilesFromText(text: string): FileItem[] {
   const files: FileItem[] = [];
@@ -228,8 +207,111 @@ function parseFilesFromText(text: string): FileItem[] {
   return files;
 }
 
+// Підрахунок загального розміру файлів
+function calculateTotalSize(files: FileItem[]): number {
+  return files.reduce((sum, f) => sum + f.content.length, 0);
+}
+
+// Функція виправлення через Gemini (Lovable AI)
+async function fixFilesWithGemini(
+  files: FileItem[], 
+  validation: ValidationResult,
+  technicalPrompt: string,
+  lovableApiKey: string,
+  jobId: string
+): Promise<FileItem[]> {
+  console.log(`[Job ${jobId}] Fixing files with Gemini...`);
+  
+  const fixPrompt = `You are a website code fixer. Fix the following issues in the generated website files.
+
+ERRORS TO FIX:
+${validation.errors.map(e => `- ${e}`).join('\n')}
+
+WARNINGS TO CONSIDER:
+${validation.warnings.map(w => `- ${w}`).join('\n')}
+
+ORIGINAL TECHNICAL BRIEF:
+${technicalPrompt}
+
+CURRENT FILES:
+${files.map(f => `/* FILE: ${f.path} */\n${f.content}`).join('\n\n')}
+
+INSTRUCTIONS:
+1. Fix ALL errors listed above
+2. If a file is missing, create it with proper content
+3. Remove any markdown code fences (\`\`\`) from the output
+4. Ensure all HTML files link to styles.css and script.js
+5. Ensure script.js contains i18n system
+6. Output the COMPLETE fixed files using the same format:
+
+/* FILE: filename.ext */
+content here
+
+/* FILE: another.ext */
+content here
+
+CRITICAL: Output ONLY the fixed files, no explanations.`;
+
+  try {
+    const response = await fetch('https://api.lovable.dev/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lovableApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'user', content: fixPrompt }
+        ],
+        temperature: 0.2,
+        max_tokens: 100000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[Job ${jobId}] Gemini fix error:`, response.status, errorText);
+      return files; // Повертаємо оригінальні файли
+    }
+
+    const data = await response.json();
+    const fixedContent = data.choices?.[0]?.message?.content;
+
+    if (!fixedContent) {
+      console.error(`[Job ${jobId}] Empty response from Gemini`);
+      return files;
+    }
+
+    console.log(`[Job ${jobId}] Gemini response received (${fixedContent.length} chars)`);
+
+    const fixedFiles = parseFilesFromText(fixedContent);
+    
+    if (fixedFiles.length === 0) {
+      console.error(`[Job ${jobId}] No files parsed from Gemini response`);
+      return files;
+    }
+
+    console.log(`[Job ${jobId}] Gemini fixed ${fixedFiles.length} files`);
+    
+    // Мерджимо: беремо виправлені файли, а ті що не виправлені — залишаємо оригінальні
+    const mergedFiles: FileItem[] = [...fixedFiles];
+    for (const origFile of files) {
+      if (!fixedFiles.find(f => f.path === origFile.path)) {
+        mergedFiles.push(origFile);
+      }
+    }
+
+    return mergedFiles;
+
+  } catch (error) {
+    console.error(`[Job ${jobId}] Gemini fix failed:`, error);
+    return files;
+  }
+}
+
 // Головна функція обробки job
-async function processJob(jobId: string, supabase: any, openaiKey: string) {
+async function processJob(jobId: string, supabase: any, openaiKey: string, lovableApiKey: string) {
   console.log(`[Job ${jobId}] Starting processing...`);
 
   // Отримуємо дані job
@@ -312,13 +394,7 @@ prohibited words: ${job.prohibited_words || 'none'}
 
     console.log(`[Job ${jobId}] Step 2: Generating website files with gpt-5-codex...`);
 
-    // Етап 2: Генеруємо сайт через Responses API (gpt-5-codex) — формат як у n8n
-    let files: FileItem[] = [];
-    let attempts = 0;
-    const maxAttempts = 3;
-    let validation: ValidationResult = { isValid: false, errors: [], warnings: [] };
-
-    // Будуємо GENERATOR_PROMPT як у n8n — вбудований прямо в content
+    // Етап 2: Генеруємо сайт через Responses API (gpt-5-codex)
     const generatorContent = `🚨🚨 **CRITICAL FIXES REQUIRED: GENERATE CLEAN CODE WITHOUT MARKDOWN FORMATTING** 🚨🚨
 
 ${technicalPrompt}
@@ -372,109 +448,161 @@ body { margin: 0; }
 
 Generate EXCEPTIONAL multi-page website with CLEAN CODE (no markdown) and PROPER CSS inheritance using multiple classes.`;
 
-    while (attempts < maxAttempts) {
-      attempts++;
-      console.log(`[Job ${jobId}] Generation attempt ${attempts}/${maxAttempts}...`);
+    // Формат запиту — input замість messages для Responses API
+    const requestBody = {
+      model: 'gpt-5-codex',
+      metadata: {
+        requestId: String(Date.now()),
+        historyId: String(jobId),
+        source: 'lovable-ai-editor',
+      },
+      input: [{ role: 'user', content: generatorContent }]
+    };
 
-      // Формат запиту як у n8n — input замість messages
-      const requestBody = {
-        model: 'gpt-5-codex',
-        metadata: {
-          requestId: String(Date.now()),
-          historyId: String(jobId),
-          source: 'lovable-ai-editor',
-        },
-        input: attempts === 1 
-          ? [{ role: 'user', content: generatorContent }]
-          : [
-              { role: 'user', content: generatorContent },
-              { role: 'assistant', content: files.map(f => `/* FILE: ${f.path} */\n${f.content}`).join('\n\n') },
-              { role: 'user', content: createFixPrompt(files, validation) }
-            ]
-      };
+    console.log(`[Job ${jobId}] Sending request to /v1/responses (Codex)...`);
 
-      console.log(`[Job ${jobId}] Sending request to /v1/responses...`);
+    const generatorResponse = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
 
-      const generatorResponse = await fetch('https://api.openai.com/v1/responses', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openaiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
+    if (!generatorResponse.ok) {
+      const errorText = await generatorResponse.text();
+      console.error(`[Job ${jobId}] OpenAI generation error:`, generatorResponse.status, errorText);
+      throw new Error(`OpenAI API error: ${generatorResponse.status}`);
+    }
 
-      if (!generatorResponse.ok) {
-        const errorText = await generatorResponse.text();
-        console.error(`[Job ${jobId}] OpenAI generation error:`, generatorResponse.status, errorText);
-        if (attempts === maxAttempts) {
-          throw new Error(`OpenAI API error after ${maxAttempts} attempts: ${generatorResponse.status}`);
-        }
-        continue;
-      }
-
-      const generatorData = await generatorResponse.json();
-      console.log(`[Job ${jobId}] Generator response keys:`, Object.keys(generatorData));
-      
-      // Responses API: витягуємо text з output
-      let responseText = '';
-      if (Array.isArray(generatorData.output)) {
-        for (const item of generatorData.output) {
-          if (item.type === 'message' && Array.isArray(item.content)) {
-            const textItem = item.content.find((c: any) => c.type === 'output_text');
-            if (textItem?.text) {
-              responseText = String(textItem.text);
-              break;
-            }
+    const generatorData = await generatorResponse.json();
+    console.log(`[Job ${jobId}] Generator response keys:`, Object.keys(generatorData));
+    
+    // Responses API: витягуємо text з output
+    let responseText = '';
+    if (Array.isArray(generatorData.output)) {
+      for (const item of generatorData.output) {
+        if (item.type === 'message' && Array.isArray(item.content)) {
+          const textItem = item.content.find((c: any) => c.type === 'output_text');
+          if (textItem?.text) {
+            responseText = String(textItem.text);
+            break;
           }
         }
       }
+    }
+    
+    // Fallback на choices формат
+    if (!responseText && generatorData.choices?.[0]?.message?.content) {
+      responseText = generatorData.choices[0].message.content;
+    }
+
+    if (!responseText) {
+      throw new Error('Empty response from Codex generator');
+    }
+
+    console.log(`[Job ${jobId}] Codex response received (${responseText.length} chars), parsing files...`);
+
+    // Парсимо файли
+    let files = parseFilesFromText(responseText);
+    
+    console.log(`[Job ${jobId}] Parsed ${files.length} files:`, files.map(f => f.path));
+
+    if (files.length === 0) {
+      throw new Error('No files parsed from Codex response');
+    }
+
+    // Підраховуємо загальний розмір
+    const totalSize = calculateTotalSize(files);
+    console.log(`[Job ${jobId}] Total size: ${totalSize} bytes (${Math.round(totalSize / 1024)}KB)`);
+
+    // Валідація
+    let validation = validateGeneratedFiles(files);
+    
+    console.log(`[Job ${jobId}] Initial validation:`, {
+      isValid: validation.isValid,
+      errorsCount: validation.errors.length,
+      warningsCount: validation.warnings.length
+    });
+
+    // НОВА ЛОГІКА: Якщо результат < 35KB — повторний запит в Codex, інакше — Gemini виправляє
+    let fixAttempts = 0;
+    const maxFixAttempts = 2;
+    let fixedByModel = 'none';
+
+    while (!validation.isValid && fixAttempts < maxFixAttempts) {
+      fixAttempts++;
+      const currentSize = calculateTotalSize(files);
       
-      // Fallback на choices формат
-      if (!responseText && generatorData.choices?.[0]?.message?.content) {
-        responseText = generatorData.choices[0].message.content;
+      if (currentSize < MIN_SIZE_FOR_CODEX_RETRY) {
+        // Результат занадто малий — потрібна повна перегенерація через Codex
+        console.log(`[Job ${jobId}] Size ${currentSize} < ${MIN_SIZE_FOR_CODEX_RETRY}, requesting Codex regeneration (attempt ${fixAttempts})...`);
+        
+        const retryResponse = await fetch('https://api.openai.com/v1/responses', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openaiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-5-codex',
+            metadata: {
+              requestId: String(Date.now()),
+              historyId: String(jobId),
+              source: 'lovable-ai-editor-retry',
+            },
+            input: [{ role: 'user', content: generatorContent }]
+          }),
+        });
+
+        if (retryResponse.ok) {
+          const retryData = await retryResponse.json();
+          let retryText = '';
+          if (Array.isArray(retryData.output)) {
+            for (const item of retryData.output) {
+              if (item.type === 'message' && Array.isArray(item.content)) {
+                const textItem = item.content.find((c: any) => c.type === 'output_text');
+                if (textItem?.text) {
+                  retryText = String(textItem.text);
+                  break;
+                }
+              }
+            }
+          }
+          if (!retryText && retryData.choices?.[0]?.message?.content) {
+            retryText = retryData.choices[0].message.content;
+          }
+          
+          if (retryText) {
+            const retryFiles = parseFilesFromText(retryText);
+            if (retryFiles.length > 0) {
+              files = retryFiles;
+              fixedByModel = 'codex-retry';
+              console.log(`[Job ${jobId}] Codex retry successful, ${retryFiles.length} files`);
+            }
+          }
+        }
+      } else {
+        // Результат достатнього розміру — Gemini виправляє
+        console.log(`[Job ${jobId}] Size ${currentSize} >= ${MIN_SIZE_FOR_CODEX_RETRY}, using Gemini to fix (attempt ${fixAttempts})...`);
+        
+        files = await fixFilesWithGemini(files, validation, technicalPrompt, lovableApiKey, jobId);
+        fixedByModel = 'gemini';
       }
-
-      if (!responseText) {
-        console.error(`[Job ${jobId}] Empty response from generator`);
-        continue;
-      }
-
-      console.log(`[Job ${jobId}] Response received (${responseText.length} chars), parsing files...`);
-
-      // Парсимо файли
-      files = parseFilesFromText(responseText);
       
-      console.log(`[Job ${jobId}] Parsed ${files.length} files:`, files.map(f => f.path));
-
-      if (files.length === 0) {
-        console.error(`[Job ${jobId}] No files parsed from response`);
-        continue;
-      }
-
-      // Валідація
+      // Повторна валідація
       validation = validateGeneratedFiles(files);
-      
-      console.log(`[Job ${jobId}] Validation result:`, {
+      console.log(`[Job ${jobId}] After fix attempt ${fixAttempts}:`, {
         isValid: validation.isValid,
         errorsCount: validation.errors.length,
-        warningsCount: validation.warnings.length
+        fixedByModel
       });
-
-      if (validation.isValid) {
-        console.log(`[Job ${jobId}] Validation passed!`);
-        break;
-      }
-
-      console.log(`[Job ${jobId}] Validation failed, errors:`, validation.errors);
-      
-      if (attempts < maxAttempts) {
-        console.log(`[Job ${jobId}] Attempting to fix...`);
-      }
     }
 
     // Фінальна валідація
     const finalValidation = validateGeneratedFiles(files);
+    const finalSize = calculateTotalSize(files);
 
     // Оновлюємо job з результатом
     await supabase
@@ -487,12 +615,14 @@ Generate EXCEPTIONAL multi-page website with CLEAN CODE (no markdown) and PROPER
           isValid: finalValidation.isValid,
           errors: finalValidation.errors,
           warnings: finalValidation.warnings,
-          attempts
+          fixAttempts,
+          fixedByModel,
+          totalSizeBytes: finalSize
         }
       })
       .eq('id', jobId);
 
-    console.log(`[Job ${jobId}] Completed successfully with ${files.length} files`);
+    console.log(`[Job ${jobId}] Completed successfully with ${files.length} files (${Math.round(finalSize / 1024)}KB), fixedBy: ${fixedByModel}`);
 
   } catch (error) {
     console.error(`[Job ${jobId}] Processing error:`, error);
@@ -520,6 +650,7 @@ serve(async (req) => {
   }
 
   const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   
@@ -528,6 +659,10 @@ serve(async (req) => {
       JSON.stringify({ error: 'Missing environment variables' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
+  }
+
+  if (!LOVABLE_API_KEY) {
+    console.warn('[Process] LOVABLE_API_KEY not set, Gemini fixes will be skipped');
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -550,7 +685,7 @@ serve(async (req) => {
       (async () => {
         try {
           console.log(`[Background] Starting processJob for ${jobId}...`);
-          await processJob(jobId, supabase, OPENAI_API_KEY);
+          await processJob(jobId, supabase, OPENAI_API_KEY, LOVABLE_API_KEY || '');
           console.log(`[Background] Job ${jobId} COMPLETED successfully!`);
         } catch (error) {
           console.error(`[Background] Job ${jobId} FAILED:`, error);
