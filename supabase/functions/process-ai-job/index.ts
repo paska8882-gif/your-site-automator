@@ -508,6 +508,11 @@ Generate EXCEPTIONAL multi-page website with CLEAN CODE (no markdown) and PROPER
   }
 }
 
+// Declare EdgeRuntime for TypeScript
+declare const EdgeRuntime: {
+  waitUntil: (promise: Promise<unknown>) => void;
+};
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -537,46 +542,41 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[Process] Received job: ${jobId}, starting SYNCHRONOUS processing...`);
-    console.log(`[Process] Edge Functions support up to 400s timeout - we'll use it fully`);
+    console.log(`[Process] Received job: ${jobId}, starting ASYNC background processing...`);
 
-    // СИНХРОННА ОБРОБКА - чекаємо повного завершення
-    // Edge Functions підтримують до 400 секунд таймауту
-    try {
-      await processJob(jobId, supabase, OPENAI_API_KEY);
-      console.log(`[Process] Job ${jobId} COMPLETED successfully!`);
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'Job processing completed',
-          jobId
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    } catch (jobError) {
-      console.error(`[Process] Job ${jobId} FAILED:`, jobError);
-      
-      // Помічаємо job як failed
-      await supabase
-        .from('ai_generation_jobs')
-        .update({
-          status: 'failed',
-          error_message: jobError instanceof Error ? jobError.message : 'Unknown error',
-          completed_at: new Date().toISOString(),
-        })
-        .eq('id', jobId);
-        
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          message: 'Job processing failed',
-          jobId,
-          error: jobError instanceof Error ? jobError.message : 'Unknown error'
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
-    }
+    // ✅ АСИНХРОННА АРХІТЕКТУРА: waitUntil дозволяє фоновій задачі працювати
+    // після того як ми повернемо відповідь клієнту
+    EdgeRuntime.waitUntil(
+      (async () => {
+        try {
+          console.log(`[Background] Starting processJob for ${jobId}...`);
+          await processJob(jobId, supabase, OPENAI_API_KEY);
+          console.log(`[Background] Job ${jobId} COMPLETED successfully!`);
+        } catch (error) {
+          console.error(`[Background] Job ${jobId} FAILED:`, error);
+          // Помічаємо job як failed
+          await supabase
+            .from('ai_generation_jobs')
+            .update({
+              status: 'failed',
+              error_message: error instanceof Error ? error.message : 'Unknown error',
+              completed_at: new Date().toISOString(),
+            })
+            .eq('id', jobId);
+        }
+      })()
+    );
+
+    // ✅ Миттєво повертаємо відповідь - клієнт отримує "accepted"
+    // і чекає результат через Realtime підписку
+    return new Response(
+      JSON.stringify({ 
+        accepted: true, 
+        message: 'Job started in background',
+        jobId
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
   } catch (error) {
     console.error('Request error:', error);
@@ -589,4 +589,10 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
+});
+
+// Логуємо shutdown причину для дебагу
+addEventListener('beforeunload', (ev: Event) => {
+  const reason = (ev as CustomEvent).detail?.reason || 'unknown';
+  console.log(`[Process] Function shutdown, reason: ${reason}`);
 });

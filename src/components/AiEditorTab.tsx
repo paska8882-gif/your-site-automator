@@ -56,24 +56,115 @@ const AiEditorTab = () => {
     status: "idle",
     files: [],
   });
-  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [editedContent, setEditedContent] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
-  // Cleanup polling and timer on unmount
+  // Cleanup timer on unmount
   useEffect(() => {
     return () => {
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-      }
       if (timerInterval) {
         clearInterval(timerInterval);
       }
     };
-  }, [pollingInterval, timerInterval]);
+  }, [timerInterval]);
+
+  // ✅ REALTIME ПІДПИСКА - замість polling, реагуємо на зміни в БД миттєво
+  useEffect(() => {
+    if (!currentJobId) return;
+
+    console.log(`[Realtime] Subscribing to job: ${currentJobId}`);
+
+    const channel = supabase
+      .channel(`ai-job-${currentJobId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'ai_generation_jobs',
+          filter: `id=eq.${currentJobId}`
+        },
+        (payload) => {
+          console.log('[Realtime] Job update received:', payload.new);
+          const data = payload.new as {
+            id: string;
+            status: string;
+            files_data: { files?: GeneratedFile[] } | null;
+            technical_prompt?: string;
+            error_message?: string;
+          };
+
+          if (data.status === 'completed') {
+            // Stop timer
+            if (timerInterval) {
+              clearInterval(timerInterval);
+              setTimerInterval(null);
+            }
+            
+            const files = data.files_data?.files || [];
+            setResult({
+              status: "completed",
+              files,
+              technicalPrompt: data.technical_prompt,
+              jobId: data.id,
+            });
+
+            toast({
+              title: "Генерація завершена",
+              description: `Створено ${files.length} файлів`,
+            });
+            
+            // Unsubscribe after completion
+            supabase.removeChannel(channel);
+            setCurrentJobId(null);
+            
+          } else if (data.status === 'failed') {
+            // Stop timer
+            if (timerInterval) {
+              clearInterval(timerInterval);
+              setTimerInterval(null);
+            }
+            
+            setResult({
+              status: "failed",
+              files: [],
+              error: data.error_message || 'Unknown error',
+              jobId: data.id,
+            });
+
+            toast({
+              title: "Помилка генерації",
+              description: data.error_message || 'Unknown error',
+              variant: "destructive",
+            });
+            
+            // Unsubscribe after failure
+            supabase.removeChannel(channel);
+            setCurrentJobId(null);
+            
+          } else if (data.status === 'processing') {
+            setResult(prev => ({
+              ...prev,
+              progress: data.technical_prompt 
+                ? 'Генерація файлів сайту...' 
+                : 'Генерація технічного промпту...',
+            }));
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log(`[Realtime] Subscription status: ${status}`);
+      });
+
+    return () => {
+      console.log(`[Realtime] Unsubscribing from job: ${currentJobId}`);
+      supabase.removeChannel(channel);
+    };
+  }, [currentJobId, timerInterval, toast]);
 
   // Format elapsed time as MM:SS
   const formatElapsedTime = (seconds: number) => {
@@ -81,79 +172,7 @@ const AiEditorTab = () => {
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
-
-  // Polling function to check job status
-  const pollJobStatus = async (jobId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('ai_generation_jobs')
-        .select('*')
-        .eq('id', jobId)
-        .single();
-
-      if (error) {
-        console.error('Polling error:', error);
-        return;
-      }
-
-      if (data.status === 'completed') {
-        // Stop polling and timer
-        if (pollingInterval) {
-          clearInterval(pollingInterval);
-          setPollingInterval(null);
-        }
-        if (timerInterval) {
-          clearInterval(timerInterval);
-          setTimerInterval(null);
-        }
-        
-        const filesData = data.files_data as { files?: GeneratedFile[] } | null;
-        const files = filesData?.files || [];
-        setResult({
-          status: "completed",
-          files,
-          technicalPrompt: data.technical_prompt,
-          jobId: data.id,
-        });
-
-        toast({
-          title: "Генерація завершена",
-          description: `Створено ${files.length} файлів за ${formatElapsedTime(elapsedTime)}`,
-        });
-      } else if (data.status === 'failed') {
-        // Stop polling and timer
-        if (pollingInterval) {
-          clearInterval(pollingInterval);
-          setPollingInterval(null);
-        }
-        if (timerInterval) {
-          clearInterval(timerInterval);
-          setTimerInterval(null);
-        }
-        
-        setResult({
-          status: "failed",
-          files: [],
-          error: data.error_message || 'Unknown error',
-          jobId: data.id,
-        });
-
-        toast({
-          title: "Помилка генерації",
-          description: data.error_message || 'Unknown error',
-          variant: "destructive",
-        });
-      } else {
-        // Still processing - update progress
-        setResult(prev => ({
-          ...prev,
-          progress: data.status === 'processing' ? 'Генерація файлів...' : 'Очікування...',
-        }));
-      }
-    } catch (error) {
-      console.error('Polling error:', error);
-    }
-  };
+  // ✅ pollJobStatus видалено - тепер використовуємо Realtime підписку вище
 
   const handleGenerate = async () => {
     if (!domain.trim() || languages.length === 0) {
@@ -161,17 +180,14 @@ const AiEditorTab = () => {
       return;
     }
 
-    // Clear previous polling and timer
-    if (pollingInterval) {
-      clearInterval(pollingInterval);
-      setPollingInterval(null);
-    }
+    // Clear previous timer
     if (timerInterval) {
       clearInterval(timerInterval);
       setTimerInterval(null);
     }
 
     setElapsedTime(0);
+    setCurrentJobId(null);
     setResult({ status: "generating", files: [], progress: "Запуск генерації..." });
 
     // Start elapsed time timer
@@ -200,26 +216,21 @@ const AiEditorTab = () => {
         throw new Error(data.error || 'Generation failed');
       }
 
-      // Start polling for job status
+      // ✅ Отримали jobId - підписуємось на Realtime оновлення
       const jobId = data.jobId;
+      setCurrentJobId(jobId);
+      
       setResult({ 
         status: "polling", 
         files: [], 
         jobId,
-        progress: "Генерація технічного промпту..." 
+        progress: "Очікування на генерацію..." 
       });
 
       toast({
         title: "Генерація запущена",
-        description: "Процес може зайняти 15-25 хвилин...",
+        description: "Результат прийде через Realtime коли буде готовий",
       });
-
-      // Poll every 3 seconds
-      const interval = setInterval(() => pollJobStatus(jobId), 3000);
-      setPollingInterval(interval);
-      
-      // Also poll immediately
-      pollJobStatus(jobId);
 
     } catch (error) {
       console.error("Generation error:", error);
