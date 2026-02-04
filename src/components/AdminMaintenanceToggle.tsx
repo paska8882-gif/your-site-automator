@@ -67,8 +67,8 @@ export function AdminMaintenanceToggle() {
       setEnabled(newValue);
       toast.success(
         newValue 
-          ? "⚠️ Режим технічних робіт УВІМКНЕНО" 
-          : "✅ Режим технічних робіт вимкнено"
+          ? "⚠️ Глобальний техрежим УВІМКНЕНО (для користувачів)" 
+          : "✅ Глобальний техрежим вимкнено"
       );
     } catch (error) {
       console.error("Error toggling maintenance mode:", error);
@@ -96,11 +96,11 @@ export function AdminMaintenanceToggle() {
         )}
         <div>
           <Label className="text-sm font-medium">
-            Режим технічних робіт
+            Глобальний техрежим
           </Label>
           <p className="text-xs text-muted-foreground">
             {enabled 
-              ? "Користувачі бачать сторінку з повідомленням" 
+              ? "Користувачі бачать сторінку з повідомленням (адміни мають доступ)" 
               : "Сайт працює в нормальному режимі"
             }
           </p>
