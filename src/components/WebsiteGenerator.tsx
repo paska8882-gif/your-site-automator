@@ -1486,6 +1486,16 @@ export function WebsiteGenerator() {
   const wouldExceedLimit = totalGenerations > availableSlots;
 
   const handleGenerateClick = async () => {
+    // Check generation maintenance mode for non-admins - show toast instead of blocking UI
+    if (!isAdmin && generationDisabled) {
+      toast({
+        title: "🔧 Технічне обслуговування",
+        description: generationMessage || "Генерація тимчасово недоступна. Напишіть у підтримку для уточнень.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const siteNames = getAllSiteNames();
     if (siteNames.length === 0) {
       toast({
@@ -1836,6 +1846,16 @@ export function WebsiteGenerator() {
 
   // Handle manual request - opens VIP dialog
   const handleManualRequest = () => {
+    // Check generation maintenance mode for non-admins
+    if (!isAdmin && generationDisabled) {
+      toast({
+        title: "🔧 Технічне обслуговування",
+        description: generationMessage || "Генерація тимчасово недоступна. Напишіть у підтримку для уточнень.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const siteNames = getAllSiteNames();
     if (siteNames.length === 0) {
       toast({
@@ -2144,10 +2164,7 @@ export function WebsiteGenerator() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-4 lg:p-6 max-w-4xl lg:max-w-5xl xl:max-w-6xl">
-        {/* Generation Maintenance Banner - show for non-admins when generation is disabled */}
-        {generationDisabled && !isAdmin && (
-          <GenerationMaintenanceBanner message={generationMessage} />
-        )}
+        {/* Generation Maintenance Banner removed - users now get toast on click instead */}
 
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
@@ -3554,8 +3571,7 @@ export function WebsiteGenerator() {
                     selectedWebsiteTypes.length === 0 || 
                     selectedImageSources.length === 0 || 
                     insufficientBalance || 
-                    (isAdmin && !selectedAdminTeamId) ||
-                    (!isAdmin && generationDisabled)
+                    (isAdmin && !selectedAdminTeamId)
                   }
                   className="h-9 text-sm"
                 >
@@ -3588,7 +3604,7 @@ export function WebsiteGenerator() {
                   <Button
                     variant="outline"
                     onClick={handleManualRequest}
-                    disabled={siteNames.length === 0 || !prompt.trim() || isSubmitting || generationDisabled}
+                    disabled={siteNames.length === 0 || !prompt.trim() || isSubmitting}
                     className="h-9 text-sm border-purple-500/50 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950"
                     title={t("generator.manualRequestDesc")}
                   >
