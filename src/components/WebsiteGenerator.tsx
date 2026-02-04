@@ -3594,7 +3594,7 @@ export function WebsiteGenerator() {
                   <Button
                     variant="outline"
                     onClick={handleManualRequest}
-                    disabled={siteNames.length === 0 || !prompt.trim() || isSubmitting || generationDisabled}
+                    disabled={siteNames.length === 0 || !prompt.trim() || isSubmitting}
                     className="h-9 text-sm border-purple-500/50 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950"
                     title={t("generator.manualRequestDesc")}
                   >
