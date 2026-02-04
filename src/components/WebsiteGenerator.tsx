@@ -3561,8 +3561,7 @@ export function WebsiteGenerator() {
                     selectedWebsiteTypes.length === 0 || 
                     selectedImageSources.length === 0 || 
                     insufficientBalance || 
-                    (isAdmin && !selectedAdminTeamId) ||
-                    (!isAdmin && generationDisabled)
+                    (isAdmin && !selectedAdminTeamId)
                   }
                   className="h-9 text-sm"
                 >
