@@ -43,6 +43,7 @@ import { useTeamOwner } from "@/hooks/useTeamOwner";
 import { useBalanceSound } from "@/hooks/useBalanceSound";
 import { useAdminMode } from "@/contexts/AdminModeContext";
 import { useGenerationMaintenance } from "@/hooks/useGenerationMaintenance";
+import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
 
 // News images
 import newsAiNeuralNetwork from "@/assets/news/ai-neural-network.jpg";
@@ -483,7 +484,13 @@ export function WebsiteGenerator() {
   const { isTeamOwner } = useTeamOwner();
   const { isAdminModeEnabled } = useAdminMode();
   const { generationDisabled, generationMessage } = useGenerationMaintenance();
+  const { maintenance } = useMaintenanceMode();
   const navigate = useNavigate();
+
+  const isGenerationBlocked = maintenance.enabled || generationDisabled;
+  const generationBlockedMessage = maintenance.enabled
+    ? (maintenance.message || generationMessage)
+    : (generationMessage || maintenance.message);
   
   // Effective isAdmin: only true when user is admin AND admin mode is enabled
   const isAdmin = isAdminRole && isAdminModeEnabled;
@@ -1448,6 +1455,11 @@ export function WebsiteGenerator() {
   useEffect(() => {
     const fetchActiveGenerations = async () => {
       if (!user) return;
+      if (isGenerationBlocked) {
+        // During maintenance we don't show active generations at all
+        setActiveGenerationsCount(0);
+        return;
+      }
       if (fetchActiveGenerationsInFlight.current) return;
 
       fetchActiveGenerationsInFlight.current = true;
@@ -1479,18 +1491,18 @@ export function WebsiteGenerator() {
     // Poll every 20 seconds - reduces Cloud costs while keeping UI responsive
     const interval = setInterval(fetchActiveGenerations, 20_000);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user, isGenerationBlocked]);
 
   // Calculate available slots
   const availableSlots = userMaxGenerations - activeGenerationsCount;
   const wouldExceedLimit = totalGenerations > availableSlots;
 
   const handleGenerateClick = async () => {
-    // Check generation maintenance mode for non-admins - show toast instead of blocking UI
-    if (!isAdmin && generationDisabled) {
+    // If maintenance is enabled (global or generation), do not start anything (no optimistic items, no DB writes)
+    if (isGenerationBlocked) {
       toast({
         title: "🔧 Технічне обслуговування",
-        description: generationMessage || "Генерація тимчасово недоступна. Напишіть у підтримку для уточнень.",
+        description: generationBlockedMessage || "Генерація тимчасово недоступна. Спробуйте пізніше.",
         variant: "destructive",
       });
       return;
@@ -1749,23 +1761,6 @@ export function WebsiteGenerator() {
         const promptForDisplay = originalPromptSnapshot || promptSnapshot;
         const geoToUse = isOtherGeoSelected && customGeo ? customGeo : (selectedGeo && selectedGeo !== "none" ? selectedGeo : undefined);
         
-        // Add optimistic item IMMEDIATELY before API call for instant UI feedback
-        const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-        if (addOptimisticItemRef.current) {
-          addOptimisticItemRef.current({
-            id: optimisticId,
-            site_name: currentSiteName,
-            prompt: promptForDisplay,
-            language: lang,
-            status: "pending",
-            ai_model: model,
-            website_type: wType,
-            image_source: iSource,
-            geo: geoToUse || null,
-            created_at: new Date().toISOString(),
-          });
-        }
-        
         const result = await startGeneration(
           promptForDisplay,
           lang,
@@ -1784,6 +1779,23 @@ export function WebsiteGenerator() {
           bundleImages, // Whether to bundle images into ZIP
           selectedColorScheme // Pass color scheme selection
         );
+
+        // Only add optimistic UI item AFTER we know a generation actually started and we have a real historyId.
+        if (result?.success && result.historyId && addOptimisticItemRef.current) {
+          addOptimisticItemRef.current({
+            id: result.historyId,
+            site_name: currentSiteName,
+            prompt: promptForDisplay,
+            language: lang,
+            status: "pending",
+            ai_model: model,
+            website_type: wType,
+            image_source: iSource,
+            geo: geoToUse || null,
+            created_at: new Date().toISOString(),
+          });
+        }
+
         setGenerationProgress((prev) => ({ ...prev, completed: prev.completed + 1 }));
         return result;
       };
@@ -1846,11 +1858,11 @@ export function WebsiteGenerator() {
 
   // Handle manual request - opens VIP dialog
   const handleManualRequest = () => {
-    // Check generation maintenance mode for non-admins
-    if (!isAdmin && generationDisabled) {
+    // Check maintenance mode (global or generation)
+    if (isGenerationBlocked) {
       toast({
         title: "🔧 Технічне обслуговування",
-        description: generationMessage || "Генерація тимчасово недоступна. Напишіть у підтримку для уточнень.",
+        description: generationBlockedMessage || "Генерація тимчасово недоступна. Спробуйте пізніше.",
         variant: "destructive",
       });
       return;
@@ -3488,6 +3500,15 @@ export function WebsiteGenerator() {
             {isAdmin && adminGenerationMode === "senior_direct" && (
               <Button
                 onClick={async () => {
+                  if (isGenerationBlocked) {
+                    toast({
+                      title: "🔧 Технічне обслуговування",
+                      description: generationBlockedMessage || "Генерація тимчасово недоступна. Спробуйте пізніше.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+
                   if (siteNames.length === 0 || !prompt.trim() || !seniorMode) {
                     toast({
                       title: t("genForm.fillFields"),
@@ -3538,7 +3559,7 @@ export function WebsiteGenerator() {
                   }
                   setIsSubmitting(false);
                 }}
-                disabled={siteNames.length === 0 || !prompt.trim() || !seniorMode}
+                disabled={isGenerationBlocked || siteNames.length === 0 || !prompt.trim() || !seniorMode}
                 className="w-full h-9 text-sm"
               >
                 {isSubmitting ? (
@@ -3564,6 +3585,7 @@ export function WebsiteGenerator() {
                 <Button
                   onClick={handleGenerateClick}
                   disabled={
+                    isGenerationBlocked ||
                     siteNames.length === 0 || 
                     (promptMode === "theme" ? !selectedTopic : !prompt.trim()) || 
                     (isBilingualMode ? (!bilingualLang1 || !bilingualLang2) : getAllSelectedLanguages().length === 0) || 

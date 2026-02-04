@@ -11,6 +11,25 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+async function isGenerationBlocked(supabase: SupabaseClient): Promise<{ blocked: boolean; message: string }> {
+  try {
+    const { data, error } = await supabase
+      .from("maintenance_mode")
+      .select("enabled, message, generation_disabled, generation_message")
+      .eq("id", "global")
+      .maybeSingle();
+
+    if (error || !data) return { blocked: false, message: "" };
+    const blocked = !!data.enabled || !!data.generation_disabled;
+    const message = data.enabled
+      ? (data.message || data.generation_message || "Ведуться технічні роботи. Спробуйте пізніше.")
+      : (data.generation_message || data.message || "Ведеться технічне обслуговування. Генерація тимчасово недоступна.");
+    return { blocked, message };
+  } catch {
+    return { blocked: false, message: "" };
+  }
+}
+
 // Model pricing (per 1M tokens)
 const MODEL_PRICE_PER_MILLION: Record<string, { input: number; output: number }> = {
   "gpt-5-2025-08-07": { input: 5.0, output: 15.0 },
@@ -553,6 +572,15 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
+    // Hard-stop: do not run any generation during maintenance
+    const block = await isGenerationBlocked(authed as unknown as SupabaseClient);
+    if (block.blocked) {
+      return new Response(JSON.stringify({ error: block.message || "Технічне обслуговування" }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
+      });
+    }
+
     const { data: history, error: historyErr } = await (authed as any)
       .from("generation_history")
       .select("prompt, language, site_name")
@@ -577,6 +605,15 @@ serve(async (req) => {
     EdgeRuntime.waitUntil(
       (async () => {
         try {
+          const sys = createClient(supabaseUrl, serviceRoleKey) as unknown as SupabaseClient;
+          const block2 = await isGenerationBlocked(sys);
+          if (block2.blocked) {
+            await (sys as any)
+              .from("generation_history")
+              .update({ status: "failed", error_message: block2.message, sale_price: 0 })
+              .eq("id", historyId);
+            return;
+          }
           await runCodexGeneration(prompt, language, siteName, historyId, supabaseUrl, serviceRoleKey);
         } catch (e) {
           const msg = e instanceof Error ? e.message : "Unknown error";
