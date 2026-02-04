@@ -6105,10 +6105,262 @@ Include in footer, adapted to site's industry/theme.
 - terms.html (EXACTLY 14 sections - Acceptance, Definitions, Services, User Accounts, Acceptable Use, Intellectual Property, User Content, Privacy, Disclaimers, Limitation of Liability, Indemnification, Termination, Changes, Governing Law)
 - cookie-policy.html (What Are Cookies, Types We Use, Cookie Table with ALL cookies listed, How to Manage, Third-Party Cookies, Policy Updates)
 - styles.css (600+ lines, premium design system with CSS variables, animations, responsive breakpoints)
-- script.js (mobile menu, cookie banner, scroll animations, form validation)
+- script.js (mobile menu, cookie banner, scroll animations, REALISTIC form validation with mock submission)
 - cookie-banner.js (separate file for cookie consent logic)
 - robots.txt
 - sitemap.xml
+
+**📝 FORM VALIDATION - MANDATORY REALISTIC IMPLEMENTATION:**
+
+Every form on the website MUST have professional client-side validation with realistic mock submission behavior.
+This creates a realistic user experience even though forms don't connect to a real backend.
+
+**REQUIRED VALIDATION RULES (implement in script.js):**
+
+1. **Name Field Validation:**
+   - Minimum 2 characters
+   - Only letters, spaces, hyphens, apostrophes allowed
+   - Show error: "Please enter a valid name (at least 2 characters)"
+
+2. **Email Field Validation:**
+   - Must match email pattern with @ and domain
+   - Show error: "Please enter a valid email address"
+   - Pattern: /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/
+
+3. **Phone Field Validation (if present):**
+   - Minimum 10 digits (excluding spaces, dashes, parentheses)
+   - Allow +, spaces, dashes, parentheses
+   - Show error: "Please enter a valid phone number"
+   - Pattern: /^[\\+]?[(]?[0-9]{1,3}[)]?[-\\s\\.]?[0-9]{1,4}[-\\s\\.]?[0-9]{1,4}[-\\s\\.]?[0-9]{1,9}$/
+
+4. **Message/Textarea Validation:**
+   - Minimum 10 characters
+   - Show error: "Please enter at least 10 characters"
+
+5. **Checkbox Validation (for terms/privacy acceptance):**
+   - Must be checked before submission
+   - Show error: "You must accept the terms and conditions"
+
+**FORM SUBMISSION BEHAVIOR - MOCK REALISTIC FLOW:**
+
+\`\`\`javascript
+// In script.js - REALISTIC form handling with mock submission
+function initFormValidation() {
+  const forms = document.querySelectorAll('form');
+  
+  forms.forEach(form => {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      // Clear previous errors
+      clearFormErrors(form);
+      
+      // Validate all fields
+      let isValid = true;
+      const formData = {};
+      
+      // Name validation
+      const nameInput = form.querySelector('input[name="name"], input[type="text"]');
+      if (nameInput) {
+        const name = nameInput.value.trim();
+        if (name.length < 2 || !/^[a-zA-ZÀ-ÿ\\s\\-\\']+$/.test(name)) {
+          showFieldError(nameInput, 'Please enter a valid name (at least 2 characters)');
+          isValid = false;
+        } else {
+          formData.name = name;
+        }
+      }
+      
+      // Email validation
+      const emailInput = form.querySelector('input[type="email"], input[name="email"]');
+      if (emailInput) {
+        const email = emailInput.value.trim();
+        const emailPattern = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+        if (!emailPattern.test(email)) {
+          showFieldError(emailInput, 'Please enter a valid email address');
+          isValid = false;
+        } else {
+          formData.email = email;
+        }
+      }
+      
+      // Phone validation (optional field)
+      const phoneInput = form.querySelector('input[type="tel"], input[name="phone"]');
+      if (phoneInput && phoneInput.value.trim()) {
+        const phone = phoneInput.value.trim();
+        const digits = phone.replace(/\\D/g, '');
+        if (digits.length < 10) {
+          showFieldError(phoneInput, 'Please enter a valid phone number');
+          isValid = false;
+        } else {
+          formData.phone = phone;
+        }
+      }
+      
+      // Message validation
+      const messageInput = form.querySelector('textarea, input[name="message"]');
+      if (messageInput) {
+        const message = messageInput.value.trim();
+        if (message.length < 10) {
+          showFieldError(messageInput, 'Please enter at least 10 characters');
+          isValid = false;
+        } else {
+          formData.message = message;
+        }
+      }
+      
+      // Checkbox validation (terms acceptance)
+      const termsCheckbox = form.querySelector('input[type="checkbox"][name*="terms"], input[type="checkbox"][name*="agree"], input[type="checkbox"][name*="privacy"]');
+      if (termsCheckbox && !termsCheckbox.checked) {
+        showFieldError(termsCheckbox, 'You must accept the terms and conditions');
+        isValid = false;
+      }
+      
+      if (isValid) {
+        // Show loading state
+        const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+        const originalText = submitBtn.textContent || submitBtn.value;
+        submitBtn.disabled = true;
+        if (submitBtn.tagName === 'BUTTON') {
+          submitBtn.innerHTML = '<span class="spinner"></span> Sending...';
+        } else {
+          submitBtn.value = 'Sending...';
+        }
+        
+        // Simulate API call with realistic delay (1-2 seconds)
+        setTimeout(function() {
+          // Log form data (for demo purposes)
+          console.log('Form submitted:', formData);
+          
+          // Redirect to thank you page OR show success message
+          if (document.querySelector('a[href="thank-you.html"]') || window.location.href.includes('contact')) {
+            window.location.href = 'thank-you.html';
+          } else {
+            showFormSuccess(form);
+            form.reset();
+          }
+          
+          // Restore button
+          submitBtn.disabled = false;
+          if (submitBtn.tagName === 'BUTTON') {
+            submitBtn.textContent = originalText;
+          } else {
+            submitBtn.value = originalText;
+          }
+        }, 1500);
+      } else {
+        // Scroll to first error
+        const firstError = form.querySelector('.field-error');
+        if (firstError) {
+          firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    });
+  });
+}
+
+function showFieldError(input, message) {
+  input.classList.add('input-error');
+  const errorDiv = document.createElement('div');
+  errorDiv.className = 'field-error';
+  errorDiv.textContent = message;
+  errorDiv.style.cssText = 'color: #dc2626; font-size: 0.85rem; margin-top: 4px;';
+  input.parentNode.appendChild(errorDiv);
+}
+
+function clearFormErrors(form) {
+  form.querySelectorAll('.field-error').forEach(el => el.remove());
+  form.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
+}
+
+function showFormSuccess(form) {
+  const successDiv = document.createElement('div');
+  successDiv.className = 'form-success';
+  successDiv.innerHTML = '<div style="text-align:center;padding:20px;background:#dcfce7;border-radius:8px;"><strong>✓ Thank you!</strong><br>Your message has been sent successfully.</div>';
+  form.parentNode.insertBefore(successDiv, form.nextSibling);
+  setTimeout(() => successDiv.remove(), 5000);
+}
+
+// Initialize on DOM ready
+document.addEventListener('DOMContentLoaded', initFormValidation);
+\`\`\`
+
+**CSS FOR FORM VALIDATION (add to styles.css):**
+\`\`\`css
+/* Form validation styles */
+.input-error {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1) !important;
+}
+
+.field-error {
+  color: #dc2626;
+  font-size: 0.85rem;
+  margin-top: 4px;
+  animation: fadeIn 0.3s ease;
+}
+
+.form-success {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Loading spinner for submit button */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 0.8s linear infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+button[disabled], input[type="submit"][disabled] {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+\`\`\`
+
+**CONTACT FORM HTML STRUCTURE (use this pattern):**
+\`\`\`html
+<form class="contact-form" id="contact-form">
+  <div class="form-group">
+    <label for="name">Your Name *</label>
+    <input type="text" id="name" name="name" required placeholder="John Smith">
+  </div>
+  <div class="form-group">
+    <label for="email">Email Address *</label>
+    <input type="email" id="email" name="email" required placeholder="john@example.com">
+  </div>
+  <div class="form-group">
+    <label for="phone">Phone Number</label>
+    <input type="tel" id="phone" name="phone" placeholder="+49 30 1234 5678">
+  </div>
+  <div class="form-group">
+    <label for="message">Your Message *</label>
+    <textarea id="message" name="message" rows="5" required placeholder="How can we help you?"></textarea>
+  </div>
+  <div class="form-group checkbox-group">
+    <input type="checkbox" id="terms" name="terms" required>
+    <label for="terms">I agree to the <a href="privacy.html">Privacy Policy</a> and <a href="terms.html">Terms of Service</a></label>
+  </div>
+  <button type="submit" class="submit-button">Send Message</button>
+</form>
+\`\`\`
+
+⚠️ **CRITICAL:** Form must NOT have action attribute (JavaScript handles submission)!
+⚠️ **CRITICAL:** All validation messages must be in the SAME LANGUAGE as the website!
 
 **QUALITY STANDARDS:**
 - Each page must be SUBSTANTIAL - no empty or minimal pages
@@ -6124,7 +6376,7 @@ Include in footer, adapted to site's industry/theme.
 - Premium footer styles
 - Mobile responsive breakpoints
 - Card hover effects
-- Form styling
+- Form styling with validation states
 - Cookie banner
 - Smooth transitions
 
