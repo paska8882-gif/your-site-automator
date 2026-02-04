@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
+import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
+import { useGenerationMaintenance } from "@/hooks/useGenerationMaintenance";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Bot, 
@@ -197,6 +199,8 @@ function AiPreviewWithNav({ files }: { files: GeneratedFile[] }) {
 
 const AiEditorTab = () => {
   const { toast } = useToast();
+  const { maintenance } = useMaintenanceMode();
+  const { generationDisabled, generationMessage } = useGenerationMaintenance();
   
   // Form state
   const [domain, setDomain] = useState("");
@@ -332,6 +336,19 @@ const AiEditorTab = () => {
   const handleGenerate = async () => {
     if (!domain.trim() || languages.length === 0) {
       toast({ title: "Помилка", description: "Вкажіть домен та оберіть мови", variant: "destructive" });
+      return;
+    }
+
+    // Block ALL generations during maintenance (global or generation-only)
+    if (maintenance.enabled || generationDisabled) {
+      const msg = maintenance.enabled
+        ? (maintenance.message || generationMessage)
+        : (generationMessage || maintenance.message);
+      toast({
+        title: "🔧 Технічне обслуговування",
+        description: msg || "Генерація тимчасово недоступна. Спробуйте пізніше.",
+        variant: "destructive",
+      });
       return;
     }
 
