@@ -37,57 +37,7 @@ function AppContent() {
   const roleReady = !authLoading && !adminLoading;
   const canBypassMaintenance = roleReady && !!user && isAdmin;
 
-  // During maintenance mode, only allow access to /admin-login
-  // All other routes are completely blocked - no exceptions
-  if (!maintenanceLoading && maintenance?.enabled) {
-    // Avoid flashing the maintenance screen for admins while role is still loading.
-    if (!roleReady) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-background">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      );
-    }
-
-    // Admins bypass global maintenance overlay.
-    if (canBypassMaintenance) {
-      return (
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/edit/:id" element={<Edit />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="/admin-login" element={<AdminLogin />} />
-            <Route path="/admin/team/:teamId" element={<AdminTeamDetails />} />
-            <Route path="/team" element={<Team />} />
-            <Route path="/history" element={<History />} />
-            <Route path="/balance" element={<Balance />} />
-            <Route path="/spends" element={<Spends />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      );
-    }
-
-    return (
-      <BrowserRouter>
-        <Routes>
-          <Route path="/admin-login" element={<AdminLogin />} />
-          <Route path="*" element={
-            <MaintenanceOverlay 
-              message={maintenance.message} 
-              supportLink={maintenance.support_link} 
-            />
-          } />
-        </Routes>
-      </BrowserRouter>
-    );
-  }
-
-  return (
+  const mainApp = (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Index />} />
@@ -106,6 +56,40 @@ function AppContent() {
       </Routes>
     </BrowserRouter>
   );
+
+  // During maintenance mode, only allow access to /admin-login
+  // All other routes are completely blocked - no exceptions
+  if (!maintenanceLoading && maintenance?.enabled) {
+    // Avoid flashing the maintenance screen for admins while role is still loading.
+    if (!roleReady) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      );
+    }
+
+    // Admins bypass global maintenance overlay.
+    if (canBypassMaintenance) {
+      return mainApp;
+    }
+
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="/admin-login" element={<AdminLogin />} />
+          <Route path="*" element={
+            <MaintenanceOverlay 
+              message={maintenance.message} 
+              supportLink={maintenance.support_link} 
+            />
+          } />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
+
+  return mainApp;
 }
 
 const App = () => (
