@@ -311,14 +311,29 @@ export async function startGeneration(
     }
 
     if (!resp.ok) {
-      const errText = await resp.text().catch(() => "");
-      
       // Check for specific auth errors after retry
       if (resp.status === 401) {
         return { success: false, error: "Сесія закінчилась. Будь ласка, увійдіть знову." };
       }
+
+      const errText = await resp.text().catch(() => "");
+      let errorMessage = errText || `HTTP ${resp.status}`;
       
-      return { success: false, error: errText || `HTTP ${resp.status}` };
+      // Prefer structured backend error payloads: { error, message }
+      if (errText) {
+        try {
+          const parsed = JSON.parse(errText);
+          if (typeof parsed?.message === "string" && parsed.message.trim()) {
+            errorMessage = parsed.message;
+          } else if (typeof parsed?.error === "string" && parsed.error.trim()) {
+            errorMessage = parsed.error;
+          }
+        } catch {
+          // keep text as-is
+        }
+      }
+
+      return { success: false, error: errorMessage };
     }
 
     const data = await resp.json();
