@@ -97,6 +97,7 @@ const Admin = () => {
     <AppLayout>
       <div className="p-4">
         <AdminMaintenanceToggle />
+        <AdminGenerationMaintenanceToggle />
         {renderContent()}
       </div>
     </AppLayout>
