@@ -1455,6 +1455,11 @@ export function WebsiteGenerator() {
   useEffect(() => {
     const fetchActiveGenerations = async () => {
       if (!user) return;
+      if (isGenerationBlocked) {
+        // During maintenance we don't show active generations at all
+        setActiveGenerationsCount(0);
+        return;
+      }
       if (fetchActiveGenerationsInFlight.current) return;
 
       fetchActiveGenerationsInFlight.current = true;
@@ -1486,7 +1491,7 @@ export function WebsiteGenerator() {
     // Poll every 20 seconds - reduces Cloud costs while keeping UI responsive
     const interval = setInterval(fetchActiveGenerations, 20_000);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user, isGenerationBlocked]);
 
   // Calculate available slots
   const availableSlots = userMaxGenerations - activeGenerationsCount;
