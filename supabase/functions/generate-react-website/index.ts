@@ -1134,14 +1134,24 @@ FOOTER STRUCTURE:
 ];
 
 const REACT_GENERATION_PROMPT = `
-🚨🚨🚨 CDN-BASED REACT - NO BUILD STEP - READ THIS FIRST! 🚨🚨🚨
+🚨🚨🚨 ABSOLUTE CRITICAL RULES - VIOLATION = BROKEN SITE 🚨🚨🚨
+
+**FORBIDDEN - WILL BREAK THE WEBSITE:**
+❌ NO import statements (import React from 'react' = BROKEN!)
+❌ NO export statements (export default App = BROKEN!)
+❌ NO package.json file
+❌ NO src/ folder
+❌ NO .jsx or .js files - all code goes in HTML files
+❌ NO React Router (BrowserRouter, Routes, Route = BROKEN!)
+❌ NO npm dependencies or modules
+❌ NO build step or bundler references
+❌ NO require() statements
 
 **ARCHITECTURE: STANDALONE HTML FILES WITH INLINE REACT VIA CDN**
 
-You are generating a static website that uses React components loaded via CDN.
-Each HTML file is completely self-contained and works WITHOUT any build process.
+This is a static website with React loaded from CDN. Each HTML file works independently.
 
-**FILE STRUCTURE (generate these exact files):**
+**FILE STRUCTURE (GENERATE EXACTLY THESE FILES):**
 - index.html (homepage)
 - about.html (about page) 
 - services.html (services page)
@@ -1150,14 +1160,14 @@ Each HTML file is completely self-contained and works WITHOUT any build process.
 - terms.html (terms of service)
 - thank-you.html (form submission success)
 - 404.html (error page)
-- styles.css (all styles in one file)
-- favicon.svg (simple SVG favicon)
-- netlify.toml (static deploy config)
-- vercel.json (static deploy config)
+- styles.css (all styles - MUST BE 400+ lines)
+- favicon.svg
+- netlify.toml
+- vercel.json
 - robots.txt
 - _redirects
 
-**CRITICAL: EACH HTML FILE MUST HAVE THIS EXACT STRUCTURE:**
+**EXACT HTML TEMPLATE - COPY THIS STRUCTURE FOR EVERY PAGE:**
 \`\`\`html
 <!DOCTYPE html>
 <html lang="en">
@@ -1165,10 +1175,9 @@ Each HTML file is completely self-contained and works WITHOUT any build process.
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Page Title - Site Name</title>
-  <meta name="description" content="Page description for SEO">
+  <meta name="description" content="SEO description">
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <!-- React via CDN -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -1176,9 +1185,9 @@ Each HTML file is completely self-contained and works WITHOUT any build process.
 <body>
   <div id="root"></div>
   <script type="text/babel">
+    // DEFINE ALL COMPONENTS HERE - NO IMPORTS!
     const { useState, useEffect } = React;
     
-    // Define ALL components inline in this file
     function Header() {
       return (
         <header className="header">
@@ -1200,22 +1209,23 @@ Each HTML file is completely self-contained and works WITHOUT any build process.
         <footer className="footer">
           <div className="footer-content">
             <div className="footer-contact">
-              <h5>Contact Us</h5>
+              <h5>Contact</h5>
               <p><a href="tel:+491234567890">+49 123 456 7890</a></p>
-              <p><a href="mailto:info@sitename.com">info@sitename.com</a></p>
+              <p><a href="mailto:info@example.com">info@example.com</a></p>
             </div>
             <div className="footer-hours">
-              <h5>Working Hours</h5>
-              <p>Monday - Friday: 9:00 AM - 6:00 PM</p>
-              <p>Saturday - Sunday: Closed</p>
+              <h5>Hours</h5>
+              <p>Mon-Fri: 9AM-6PM</p>
+              <p>Sat-Sun: Closed</p>
             </div>
             <div className="footer-links">
-              <a href="privacy.html">Privacy Policy</a>
-              <a href="terms.html">Terms of Service</a>
+              <a href="privacy.html">Privacy</a>
+              <a href="terms.html">Terms</a>
             </div>
           </div>
           <div className="footer-bottom">
             <p>&copy; 2024 Site Name. All rights reserved.</p>
+            <p className="disclaimer">Content is for information only.</p>
           </div>
         </footer>
       );
@@ -1235,40 +1245,28 @@ Each HTML file is completely self-contained and works WITHOUT any build process.
         setVisible(false);
       };
       
-      const decline = () => {
-        localStorage.setItem('cookieConsent', 'declined');
-        setVisible(false);
-      };
-      
       if (!visible) return null;
       
       return (
         <div className="cookie-banner">
-          <p>We use cookies to enhance your experience. By continuing, you agree to our cookie policy.</p>
-          <div className="cookie-buttons">
-            <button onClick={decline} className="btn-decline">Decline</button>
-            <button onClick={accept} className="btn-accept">Accept All</button>
-          </div>
+          <p>We use cookies. By continuing, you agree.</p>
+          <button onClick={accept} className="btn-accept">Accept</button>
         </div>
       );
     }
     
-    // PAGE-SPECIFIC CONTENT COMPONENT
     function PageContent() {
       return (
         <main>
-          {/* Page-specific sections here */}
           <section className="hero">
-            <h1>Welcome to Our Website</h1>
-            <p>Professional services you can trust</p>
-            <a href="contact.html" className="btn-primary">Get Started</a>
+            <h1>Welcome</h1>
+            <p>Description text</p>
+            <a href="contact.html" className="btn-primary">Contact Us</a>
           </section>
-          {/* More sections... */}
         </main>
       );
     }
     
-    // Main App combining all components
     function App() {
       return (
         <div className="app">
@@ -1280,7 +1278,6 @@ Each HTML file is completely self-contained and works WITHOUT any build process.
       );
     }
     
-    // Render the App
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
@@ -1288,153 +1285,41 @@ Each HTML file is completely self-contained and works WITHOUT any build process.
 </html>
 \`\`\`
 
-**MANDATORY REQUIREMENTS:**
-1. Each HTML file contains ALL React components inline (Header, Footer, CookieBanner, page content)
-2. Components are DUPLICATED across files (each file is self-contained)
-3. Navigation uses regular <a href="page.html"> links (NOT React Router)
-4. Forms redirect using window.location.href = 'thank-you.html'
-5. Cookie consent uses localStorage (same logic in each file)
-6. All styles in single styles.css file (linked from each HTML)
+**KEY RULES:**
+1. EVERY HTML file has complete Header, Footer, CookieBanner inline
+2. Navigation uses <a href="page.html"> - NOT React Router
+3. const { useState, useEffect } = React; - at top of script
+4. All components defined as function ComponentName() {}
+5. Forms redirect: window.location.href = 'thank-you.html'
 
-**NAVIGATION BETWEEN PAGES:**
-- Use standard HTML links: <a href="about.html">About</a>
-- Current page can be highlighted with a class check or inline style
-- DO NOT use React Router or any routing library
+🌐 LANGUAGE - CRITICAL:
+Generate ALL content in the language specified. If "en" = English, if "de" = German, etc.
 
-**FORM HANDLING:**
-\`\`\`jsx
-function ContactForm() {
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Redirect to thank you page
-    window.location.href = 'thank-you.html';
-  };
-  
-  return (
-    <form onSubmit={handleSubmit}>
-      <input type="text" name="name" placeholder="Your Name" required />
-      <input type="email" name="email" placeholder="Your Email" required />
-      <textarea name="message" placeholder="Your Message" required></textarea>
-      <button type="submit" className="btn-primary">Send Message</button>
-    </form>
-  );
-}
-\`\`\`
+📞 PHONE/EMAIL IN FOOTER:
+- Phone: <a href="tel:+491234567890">+49 123 456 7890</a>
+- Email: <a href="mailto:info@domain.com">info@domain.com</a>
 
-**DEPLOYMENT FILES:**
-netlify.toml:
-\`\`\`toml
-[build]
-  publish = "."
-\`\`\`
+🚫 NO NUMBERS (except phone/year):
+Use "Contact for pricing", not "$99". Use "Many clients", not "500+ clients".
 
-vercel.json:
-\`\`\`json
-{
-  "cleanUrls": true
-}
-\`\`\`
-
-🌐🌐🌐 LANGUAGE - FIRST PRIORITY! 🌐🌐🌐
-**THE WEBSITE LANGUAGE IS SPECIFIED IN THE "TARGET WEBSITE LANGUAGE" SECTION BELOW!**
-YOU MUST GENERATE ALL CONTENT IN THAT EXACT LANGUAGE - THIS IS THE #1 PRIORITY!
-
-⏰ BUSINESS HOURS - MANDATORY IN EVERY FOOTER!
-Monday - Friday: 9:00 AM - 6:00 PM
-Saturday - Sunday: Closed
-
-⛔ LANGUAGE VIOLATIONS - THESE BREAK THE WEBSITE:
-- Generating in Ukrainian when English was requested = BROKEN!
-- Generating in English when German was requested = BROKEN!
-- Mixing languages = BROKEN!
-
-✅ CORRECT BEHAVIOR:
-- If language = "en" → ALL text in English
-- If language = "de" → ALL text in German
-- If language = "uk" → ALL text in Ukrainian
-- If language = "pl" → ALL text in Polish
-
-⛔ TEXT CONTRAST - ABSOLUTELY CRITICAL!
-- Light backgrounds: Use DARK text (#333, #222)
-- Dark backgrounds: Use WHITE text (#fff, #f5f5f5)
-- Hero with images: ALWAYS add dark overlay before white text
-
-👤 TEAM/STAFF PORTRAITS - USE REAL PHOTOS FROM PEXELS:
-MALE:
-- https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-- https://images.pexels.com/photos/2182970/pexels-photo-2182970.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-- https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-
-FEMALE:
-- https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-- https://images.pexels.com/photos/1065084/pexels-photo-1065084.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-- https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-
-📞 PHONE & EMAIL - MANDATORY IN FOOTER:
-- Phone: Realistic for country with +country code, clickable: <a href="tel:+491234567890">+49 123 456 7890</a>
-- Email: Use site domain: <a href="mailto:info@sitename.com">info@sitename.com</a>
-- NEVER use fake numbers like 555-1234 or duplicate country codes like +49+49
-
-🚫 NUMBERS PROHIBITION:
-NEVER include prices, statistics, percentages, years of experience, client counts.
-Use descriptive text instead: "Contact us for pricing", "Years of experience", "Many satisfied clients"
-
-ALLOWED numbers: Phone numbers, postal codes, copyright year
-
-📋 CONTENT REQUIREMENTS:
-- Each main page (index, about, services): AT LEAST 5 full-screen sections
-- Privacy policy: 10+ legal sections with detailed text
-- Terms of service: 14 sections with legal text  
-- Contact page: Form + Google Maps iframe + office info
-
-🍪 COOKIE BANNER - MANDATORY:
-Every page must include the CookieBanner component that:
-1. Checks localStorage on mount
-2. Shows banner if no consent saved
-3. Accept: saves 'accepted' to localStorage
-4. Decline: saves 'declined' to localStorage
-5. Never shows again after any choice
-
-📜 DISCLAIMER - MANDATORY IN FOOTER:
-Add a disclaimer adapted to the website's theme/industry above copyright.
-Example: "The content of this website is for general information only and does not constitute professional advice."
-
-**CSS REQUIREMENTS (styles.css must be 400+ lines):**
-- CSS reset and variables
-- Header with sticky navigation
-- Hero section with background image and overlay
-- Multiple section styles with alternating backgrounds
-- Card grids for services/features
-- Testimonial cards
-- Contact form styling
-- Footer multi-column layout
-- Cookie banner (fixed bottom, z-index: 9999)
-- Responsive breakpoints (768px, 480px)
-- Hover states and transitions
-
-**FILE OUTPUT FORMAT - USE EXACTLY THIS:**
+**FILE OUTPUT FORMAT:**
 <!-- FILE: index.html -->
-[full HTML content]
+[complete HTML]
 
 <!-- FILE: about.html -->
-[full HTML content]
+[complete HTML]
 
 <!-- FILE: styles.css -->
-[full CSS content]
+[complete CSS - 400+ lines]
 
 <!-- FILE: netlify.toml -->
-[config content]
+[build]
+  publish = "."
 
-etc.
-
-🚨 CRITICAL: DO NOT GENERATE:
-- package.json (not needed)
-- src/ folder (not needed)
-- .js or .jsx files (all code goes in HTML <script type="text/babel">)
-- React Router imports (use regular <a href> links)
-- Any npm dependencies
-
-THIS IS A STATIC SITE THAT WORKS BY DROPPING FILES ON NETLIFY/VERCEL - NO BUILD!`.trim();
+<!-- FILE: vercel.json -->
+{
+  "cleanUrls": true
+}`.trim();
 
 
 // Image strategy - Basic (reliable random photos)
@@ -2353,6 +2238,98 @@ Allow: /`
     return generatedFiles;
   };
 
+  // CRITICAL: Validate and fix React CDN syntax issues
+  // This catches common AI mistakes that break CDN-based React
+  const validateAndFixReactSyntax = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
+    return generatedFiles.map(file => {
+      if (!/\.html?$/i.test(file.path)) return file;
+      
+      let content = file.content;
+      let fixCount = 0;
+      
+      // Check 1: Remove import statements (AI often adds these despite instructions)
+      const importPattern = /^\s*import\s+[\s\S]*?from\s+['"][^'"]+['"];?\s*$/gm;
+      const importMatches = content.match(importPattern);
+      if (importMatches) {
+        content = content.replace(importPattern, '// [REMOVED INVALID IMPORT]');
+        fixCount += importMatches.length;
+        console.log(`⚠️ Removed ${importMatches.length} import statement(s) from ${file.path}`);
+      }
+      
+      // Check 2: Remove export statements
+      const exportPattern = /^\s*export\s+(default\s+)?(function|const|class|let|var)\s+/gm;
+      if (exportPattern.test(content)) {
+        content = content.replace(/export\s+default\s+function/g, 'function');
+        content = content.replace(/export\s+default\s+/g, '');
+        content = content.replace(/export\s+function/g, 'function');
+        content = content.replace(/export\s+const/g, 'const');
+        fixCount++;
+        console.log(`⚠️ Removed export statements from ${file.path}`);
+      }
+      
+      // Check 3: Ensure type="text/babel" on script tags with JSX
+      if (content.includes('function App()') || content.includes('const App =')) {
+        if (!content.includes('type="text/babel"') && !content.includes("type='text/babel'")) {
+          // Add type="text/babel" to the main script tag
+          content = content.replace(
+            /(<script>)([\s\S]*?(?:function App|const App))/,
+            '<script type="text/babel">$2'
+          );
+          fixCount++;
+          console.log(`⚠️ Added type="text/babel" to script in ${file.path}`);
+        }
+      }
+      
+      // Check 4: Ensure React/ReactDOM CDN scripts are present
+      const hasReactCdn = content.includes('unpkg.com/react@') || content.includes('cdnjs.cloudflare.com/ajax/libs/react');
+      const hasReactDomCdn = content.includes('unpkg.com/react-dom@') || content.includes('cdnjs.cloudflare.com/ajax/libs/react-dom');
+      const hasBabelCdn = content.includes('unpkg.com/@babel/standalone') || content.includes('babel.min.js');
+      
+      if (!hasReactCdn || !hasReactDomCdn || !hasBabelCdn) {
+        // If any CDN is missing, ensure they're all there
+        const cdnScripts = `
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>`;
+        
+        if (content.includes('</head>')) {
+          content = content.replace('</head>', cdnScripts + '\n</head>');
+          fixCount++;
+          console.log(`⚠️ Added missing React CDN scripts to ${file.path}`);
+        }
+      }
+      
+      // Check 5: Fix React.createRoot pattern if using old ReactDOM.render
+      if (content.includes('ReactDOM.render(') && !content.includes('ReactDOM.createRoot')) {
+        content = content.replace(
+          /ReactDOM\.render\(\s*<App\s*\/>\s*,\s*document\.getElementById\(['"]root['"]\)\s*\)/g,
+          "const root = ReactDOM.createRoot(document.getElementById('root'));\n    root.render(<App />)"
+        );
+        fixCount++;
+        console.log(`⚠️ Updated to ReactDOM.createRoot in ${file.path}`);
+      }
+      
+      // Check 6: Ensure useState/useEffect are destructured from React
+      if ((content.includes('useState(') || content.includes('useEffect(')) && 
+          !content.includes('const { useState') && !content.includes('const {useState') &&
+          !content.includes('React.useState')) {
+        // Add destructuring at the top of the babel script
+        content = content.replace(
+          /(<script\s+type=["']text\/babel["'][^>]*>)/i,
+          '$1\n    const { useState, useEffect, useRef, useCallback } = React;'
+        );
+        fixCount++;
+        console.log(`⚠️ Added React hooks destructuring to ${file.path}`);
+      }
+      
+      if (fixCount > 0) {
+        console.log(`✅ Fixed ${fixCount} React CDN compatibility issue(s) in ${file.path}`);
+      }
+      
+      return { ...file, content };
+    });
+  };
+
   // Fix broken JSX/HTML syntax - common AI generation issues
   const fixBrokenJsxSyntax = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
     return generatedFiles.map(file => {
@@ -2506,8 +2483,9 @@ Allow: /`
     });
   };
 
-  // Apply all fixes in order
-  const withFixedJsx = fixBrokenJsxSyntax(files);
+  // Apply all fixes in order (React validation FIRST, then JSX fixes)
+  const withReactValidation = validateAndFixReactSyntax(files);
+  const withFixedJsx = fixBrokenJsxSyntax(withReactValidation);
   const withoutEmojis = removeEmojisFromContent(withFixedJsx);
   const finalFiles = ensureMandatoryFiles(withoutEmojis);
   console.log(`📁 Final files count (with mandatory files): ${finalFiles.length}`);
