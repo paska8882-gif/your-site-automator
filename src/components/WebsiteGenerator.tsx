@@ -1846,6 +1846,16 @@ export function WebsiteGenerator() {
 
   // Handle manual request - opens VIP dialog
   const handleManualRequest = () => {
+    // Check generation maintenance mode for non-admins
+    if (!isAdmin && generationDisabled) {
+      toast({
+        title: "🔧 Технічне обслуговування",
+        description: generationMessage || "Генерація тимчасово недоступна. Напишіть у підтримку для уточнень.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const siteNames = getAllSiteNames();
     if (siteNames.length === 0) {
       toast({
