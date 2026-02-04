@@ -1534,5 +1534,6 @@ export const ru = {
     themePromptCostAuto: "Описание будет сгенерировано автоматически",
     themeSelected: "Выбранная тематика",
     colorScheme: "Цветовая гамма",
+    comingSoon: "Скоро",
   },
 } as const;
