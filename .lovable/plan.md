@@ -1,81 +1,110 @@
 
-# План: Виправлення превью React сайтів
+# Проблема з Senior AI React генерацією
 
-## Виявлена проблема
+## Діагноз
 
-`FilePreview.tsx` використовує застарілу логіку `buildReactPreviewHtml` яка:
-1. Шукає `App.js` / `.jsx` файли - яких немає в CDN React
-2. Видобуває код компонентів з окремих JS файлів - яких немає
-3. Намагається запустити `window.App` - який не існує
-4. Виводить "App component not found" замість контенту
+Після детального аналізу коду виявлено **кілька критичних проблем**:
 
-CDN-based React сайти мають:
-- `index.html` з інлайн `<script type="text/babel">` блоками
-- Все працює одразу без трансформацій
-- Ніяких окремих `.js`/`.jsx` файлів
+### 1. Архітектура CDN-based React (головна проблема)
 
-## Технічне рішення
+**Поточний підхід** (`generate-react-website/index.ts`, рядки 1136-1437):
+- AI генерує HTML-файли з інлайновим React кодом
+- React/ReactDOM/Babel завантажуються через CDN (unpkg.com)
+- Весь JSX компілюється **в браузері на льоту**
 
-### Файл 1: `src/components/FilePreview.tsx`
+**Чому це ламається:**
+1. **Babel у браузері** - повільно і ненадійно
+2. **CDN залежності** - якщо unpkg.com гальмує, сайт не рендериться
+3. **Синтаксичні помилки AI** - найменша помилка в JSX = білий екран
+4. **Відсутність error handling** - помилки Babel "з'їдаються" без логів
 
-Переписати функцію `buildReactPreviewHtml` з повною підтримкою CDN-based React:
+### 2. Дублювання компонентів
 
-```typescript
-function buildReactPreviewHtml(files: GeneratedFile[]): string {
-  // Check for CDN-based React - standalone HTML with inline React
-  const htmlFile = files.find(f => f.path === "index.html") ||
-                   files.find(f => f.path.endsWith(".html"));
-  
-  if (!htmlFile) {
-    return buildLegacyReactPreview(files);
-  }
-  
-  // Check if this is CDN React (has unpkg.com/react or text/babel)
-  const isCdnReact = htmlFile.content.includes('unpkg.com/react') || 
-                     htmlFile.content.includes('text/babel');
-  
-  if (isCdnReact) {
-    // CDN React: return HTML as-is with CSS injected
-    let html = htmlFile.content;
-    
-    // Inject styles.css if exists and not already in HTML
-    const cssFile = files.find(f => f.path === "styles.css");
-    if (cssFile && !html.includes('<link rel="stylesheet" href="styles.css"')) {
-      // Inline the CSS
-      const styleTag = `<style>${cssFile.content}</style>`;
-      html = html.replace('</head>', `${styleTag}</head>`);
-    }
-    
-    return html;
-  }
-  
-  // Legacy CRA-style React
-  return buildLegacyReactPreview(files);
-}
-
-// Move current logic to buildLegacyReactPreview (for backwards compatibility)
-function buildLegacyReactPreview(files: GeneratedFile[]): string {
-  // ... existing code that handles App.js etc
-}
+Кожна HTML-сторінка містить **повну копію** Header, Footer, CookieBanner (рядки 1292-1295):
+```
+Components are DUPLICATED across files (each file is self-contained)
 ```
 
-Також в `getPreviewContent()`:
-- Для CDN React сайтів: просто повертати HTML файл з інлайновим CSS
-- Не намагатися "збирати" React компоненти
+Це означає ~300-400 рядків дублікату на кожній сторінці. AI часто робить помилки при копіюванні.
 
-## Очікуваний результат
+### 3. Gemini 2.5 Pro ігнорує інструкції
 
-1. CDN-based React сайти відображаються коректно в превью
-2. Backward compatibility з CRA-style React проєктами
-3. Коректна робота CSS стилів
-4. Усунення помилки "App component not found"
+Senior AI використовує `google/gemini-2.5-pro` (рядок 2087). Ця модель:
+- Часто генерує стандартний React проект з `import/export`
+- Ігнорує інструкцію "NO build step"
+- Створює `package.json`, `src/` папку, які потім **видаляються** валідатором (рядки 2231-2244)
 
-## Файли для редагування
+### 4. Preview система не обробляє помилки
 
-| Файл | Зміна |
-|------|-------|
-| `src/components/FilePreview.tsx` | Переписати `buildReactPreviewHtml` + оновити `getPreviewContent` |
+`FilePreview.tsx` просто рендерить HTML в iframe. Якщо Babel не може скомпілювати JSX - білий екран без повідомлення про помилку.
 
-## Обсяг роботи
+---
 
-~30 хвилин на переписання логіки та тестування
+## План виправлення
+
+### Фаза 1: Покращення помилок та логування
+
+**Файл: `src/components/FilePreview.tsx`**
+- Додати перехоплення помилок Babel в iframe
+- Показувати зрозуміле повідомлення замість білого екрану
+- Логувати помилки JSX для дебагу
+
+### Фаза 2: Виправлення промпту генерації
+
+**Файл: `supabase/functions/generate-react-website/index.ts`**
+
+Оновити `REACT_GENERATION_PROMPT`:
+1. Додати явний приклад повного index.html (не скорочений)
+2. Додати **перевірку синтаксису** перед відправкою
+3. Посилити інструкції про заборону `import/export`
+4. Додати fallback структуру при помилках
+
+### Фаза 3: Валідація React-коду
+
+**Файл: `supabase/functions/generate-react-website/index.ts`**
+
+Додати функцію `validateReactSyntax()`:
+1. Перевіряти наявність `type="text/babel"` в кожному HTML
+2. Перевіряти відсутність `import`/`export` statements
+3. Перевіряти закриті теги в JSX
+4. Автоматично виправляти типові помилки
+
+### Фаза 4: Альтернативний підхід (запасний)
+
+Якщо CDN-React не працює після виправлень, розглянути:
+1. **Vanilla HTML/JS** замість React для Senior AI
+2. **Переключення на HTML генерацію** з інтерактивністю через vanilla JS
+
+---
+
+## Технічні деталі
+
+### Нові/змінені файли:
+
+1. `supabase/functions/generate-react-website/index.ts`
+   - Оновити REACT_GENERATION_PROMPT (~100 рядків)
+   - Додати validateReactSyntax() (~50 рядків)
+   - Покращити fixBrokenJsxSyntax() (~30 рядків)
+
+2. `src/components/FilePreview.tsx`
+   - Додати error boundary для iframe (~40 рядків)
+   - Інжектити error handler script в preview (~30 рядків)
+
+3. `src/components/SimplePreview.tsx`
+   - Аналогічні зміни для error handling
+
+### Орієнтовний час: 30-45 хвилин
+
+---
+
+## Альтернатива (якщо React залишається проблемним)
+
+**Тимчасово вимкнути React для Senior AI:**
+- Залишити тільки HTML генерацію
+- React зробити "Coming Soon" (вже частково зроблено)
+- Сфокусуватись на стабільній HTML генерації
+
+Це дозволить:
+- Не блокувати користувачів
+- Мати час на якісне виправлення React
+- Зберегти репутацію Senior AI
