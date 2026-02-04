@@ -2521,29 +2521,19 @@ export function WebsiteGenerator() {
                     {isVipMode && <span className="ml-1">✓</span>}
                   </Button>
                   
-                  {/* Bilingual mode toggle */}
+                  {/* Bilingual mode toggle - COMING SOON */}
                   <Button
-                    variant={isBilingualMode ? "default" : "outline"}
+                    variant="outline"
                     size="sm"
-                    onClick={() => {
-                      setIsBilingualMode(!isBilingualMode);
-                      if (!isBilingualMode) {
-                        // When activating bilingual mode, clear regular language selection
-                        setSelectedLanguages([]);
-                        setIsOtherSelected(false);
-                        setCustomLanguage("");
-                      } else {
-                        // When deactivating, clear bilingual languages
-                        setBilingualLang1("");
-                        setBilingualLang2("");
-                      }
-                    }}
-                    disabled={isImproving || isGeneratingVip}
-                    className={`h-7 text-xs px-2 ${isBilingualMode ? "bg-blue-500 hover:bg-blue-600" : ""}`}
+                    disabled={true}
+                    className="h-7 text-xs px-2 opacity-60 cursor-not-allowed"
+                    title={t("genForm.comingSoon")}
                   >
-                    <Languages className={`mr-1 h-3 w-3`} />
-                    {t("genForm.bilingualMode")} (+$3)
-                    {isBilingualMode && <span className="ml-1">✓</span>}
+                    <Languages className="mr-1 h-3 w-3" />
+                    {t("genForm.bilingualMode")}
+                    <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0 h-4">
+                      {t("genForm.comingSoon")}
+                    </Badge>
                   </Button>
                 </div>
                 
@@ -3394,10 +3384,13 @@ export function WebsiteGenerator() {
                         <span>HTML/CSS</span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="react">
-                      <div className="flex items-center gap-2">
+                    <SelectItem value="react" disabled>
+                      <div className="flex items-center gap-2 opacity-60">
                         <Layers className="h-4 w-4 text-cyan-500" />
                         <span>React</span>
+                        <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0 h-4">
+                          {t("genForm.comingSoon")}
+                        </Badge>
                       </div>
                     </SelectItem>
                     <SelectItem value="php">

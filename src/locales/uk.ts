@@ -1554,5 +1554,6 @@ export const uk = {
     themePromptCostAuto: "Опис буде згенерований автоматично",
     themeSelected: "Обрана тематика",
     colorScheme: "Кольорова гама",
+    comingSoon: "Незабаром",
   },
 } as const;
