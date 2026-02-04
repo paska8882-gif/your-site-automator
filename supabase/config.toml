@@ -67,3 +67,6 @@ verify_jwt = false
 [functions.generate-ai-website]
 verify_jwt = false
 max_duration_seconds = 300
+
+[functions.n8n-callback]
+verify_jwt = false
