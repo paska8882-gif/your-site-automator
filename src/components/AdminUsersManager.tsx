@@ -35,6 +35,7 @@ type TeamRole = "owner" | "team_lead" | "buyer" | "tech_dev";
 interface UserProfile {
   user_id: string;
   display_name: string | null;
+  email?: string;
   created_at: string;
   is_blocked: boolean;
   max_concurrent_generations: number;
@@ -118,6 +119,27 @@ export const AdminUsersManager = () => {
     fetchData();
   }, []);
 
+  // Fetch user emails from edge function
+  const fetchUserEmails = async (userIds: string[]): Promise<Record<string, string>> => {
+    if (userIds.length === 0) return {};
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("get-user-emails", {
+        body: { user_ids: userIds }
+      });
+      
+      if (error) {
+        console.error("Error fetching emails:", error);
+        return {};
+      }
+      
+      return data?.emails || {};
+    } catch (e) {
+      console.error("Failed to fetch emails:", e);
+      return {};
+    }
+  };
+
   const fetchData = async () => {
     setLoading(true);
     
@@ -158,7 +180,6 @@ export const AdminUsersManager = () => {
     
     // Fetch invite codes for pending members
     const pendingUserIds = pendingData?.map(p => p.user_id) || [];
-    const pendingTeamIds = pendingData?.map(p => p.team_id) || [];
     
     const { data: inviteCodesData } = await supabase
       .from("invite_codes")
@@ -172,6 +193,10 @@ export const AdminUsersManager = () => {
         inviteCodeMap.set(`${ic.used_by}_${ic.team_id}`, ic.code);
       }
     });
+
+    // Fetch emails for all users
+    const allUserIds = profilesData?.map(p => p.user_id) || [];
+    const emailsMap = await fetchUserEmails(allUserIds);
 
     // Build pending members list
     const pendingMembersList: PendingMember[] = (pendingData || []).map(pm => ({
@@ -200,6 +225,7 @@ export const AdminUsersManager = () => {
 
     const usersWithRoles: UserWithRoles[] = (profilesData || []).map(profile => ({
       ...profile,
+      email: emailsMap[profile.user_id] || undefined,
       max_concurrent_generations: (profile as any).max_concurrent_generations ?? 30,
       isAdmin: adminUserIds.has(profile.user_id),
       teams: userMemberships[profile.user_id] || []
@@ -784,7 +810,7 @@ export const AdminUsersManager = () => {
                           </div>
                         )}
                         <div className="text-[10px] text-muted-foreground">
-                          {user.user_id.slice(0, 8)}...
+                          {user.email || user.user_id.slice(0, 8) + "..."}
                         </div>
                       </div>
                     </TableCell>
