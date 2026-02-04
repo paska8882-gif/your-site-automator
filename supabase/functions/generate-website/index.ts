@@ -10458,40 +10458,36 @@ serve(async (req) => {
     
     console.log("Authenticated request from user:", userId);
 
-    // ============ CHECK GENERATION MAINTENANCE MODE ============
-    // Check if generation is disabled (maintenance mode for generation only)
-    // Admins can bypass this check
+    // ============ CHECK MAINTENANCE MODE (GLOBAL OR GENERATION) ============
     const { data: maintenanceData, error: maintenanceError } = await supabase
       .from("maintenance_mode")
-      .select("generation_disabled, generation_message")
+      .select("enabled, message, support_link, generation_disabled, generation_message")
       .eq("id", "global")
       .maybeSingle();
-    
+
     if (maintenanceError) {
       console.error("Failed to check maintenance mode:", maintenanceError);
       // Don't block on error - just log and continue
     }
-    
-    if (maintenanceData?.generation_disabled) {
-      // Check if user is admin - admins can bypass
-      const { data: userRoles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId);
-      
-      const isAdmin = userRoles?.some(r => r.role === "admin" || r.role === "super_admin");
-      
-      if (!isAdmin) {
-        console.log("🚫 Generation blocked: maintenance mode active for user:", userId);
-        return new Response(JSON.stringify({ 
-          error: "maintenance_mode", 
-          message: maintenanceData.generation_message || "Система на технічному обслуговуванні. Спробуйте пізніше." 
-        }), {
+
+    const isGenerationBlocked = !!maintenanceData?.enabled || !!maintenanceData?.generation_disabled;
+    if (isGenerationBlocked) {
+      const messageToShow = maintenanceData?.generation_disabled
+        ? (maintenanceData.generation_message || "Система на технічному обслуговуванні. Спробуйте пізніше.")
+        : (maintenanceData?.message || "Система на технічному обслуговуванні. Спробуйте пізніше.");
+
+      console.log("🚫 Generation blocked: maintenance mode active for user:", userId);
+      return new Response(
+        JSON.stringify({
+          error: "maintenance_mode",
+          message: messageToShow,
+          support_link: maintenanceData?.support_link || null,
+        }),
+        {
           status: 503,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      console.log("⚠️ Maintenance mode active but user is admin, proceeding:", userId);
+        }
+      );
     }
     // ============ END MAINTENANCE CHECK ============
 
