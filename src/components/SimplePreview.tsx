@@ -11,6 +11,50 @@ interface SimplePreviewProps {
   websiteType?: string;
 }
 
+// ========== BABEL ERROR HANDLER FOR CDN-BASED REACT ==========
+// This script catches JSX/Babel compilation errors and displays them nicely
+function createBabelErrorHandler(): string {
+  return `
+<script>
+(function() {
+  window.onerror = function(message, source, lineno, colno, error) {
+    var errorContainer = document.getElementById('__babel_error_container');
+    if (!errorContainer) {
+      errorContainer = document.createElement('div');
+      errorContainer.id = '__babel_error_container';
+      errorContainer.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:#1e1e2e;color:#fff;padding:20px;font-family:monospace;z-index:99999;overflow:auto;';
+      document.body.innerHTML = '';
+      document.body.appendChild(errorContainer);
+    }
+    
+    errorContainer.innerHTML = 
+      '<div style="max-width:800px;margin:0 auto;">' +
+      '<h2 style="color:#ff6b6b;margin-bottom:16px;">⚠️ React/JSX Compilation Error</h2>' +
+      '<div style="background:#2d2d3d;padding:16px;border-radius:8px;margin-bottom:16px;">' +
+      '<p style="color:#ffd93d;font-size:14px;margin:0;word-break:break-word;">' + message + '</p>' +
+      '</div>' +
+      '<p style="color:#888;font-size:12px;">Line: ' + (lineno || 'unknown') + '</p>' +
+      '<p style="color:#888;font-size:12px;margin-top:20px;">The AI generated invalid JSX. Please try regenerating.</p>' +
+      '</div>';
+    
+    window.parent.postMessage({ type: 'babel-error', error: { message: message, line: lineno } }, '*');
+    return true;
+  };
+  
+  var originalConsoleError = console.error;
+  console.error = function() {
+    var args = Array.prototype.slice.call(arguments);
+    var errorText = args.join(' ');
+    if (errorText.includes('SyntaxError') || errorText.includes('Unexpected token') || errorText.includes('babel')) {
+      window.onerror(errorText, '', 0, 0, null);
+    }
+    originalConsoleError.apply(console, arguments);
+  };
+})();
+</script>
+`;
+}
+
 // ========== REACT PREVIEW BUILDER ==========
 // CDN-based React sites are already static HTML files with inline React
 // We just need to render the HTML directly
@@ -32,8 +76,19 @@ function buildReactPreviewHtml(files: GeneratedFile[], currentPage: string): str
                      htmlFile.content.includes('text/babel');
   
   if (isCdnReact) {
-    // It's already a complete standalone page, just return it
-    return htmlFile.content;
+    let html = htmlFile.content;
+    
+    // Inject Babel error handler in <head>
+    const errorHandler = createBabelErrorHandler();
+    if (html.includes('</head>')) {
+      html = html.replace('</head>', errorHandler + '</head>');
+    } else if (html.includes('<body')) {
+      html = html.replace('<body', errorHandler + '<body');
+    } else {
+      html = errorHandler + html;
+    }
+    
+    return html;
   }
   
   // If it doesn't look like CDN React, try legacy approach

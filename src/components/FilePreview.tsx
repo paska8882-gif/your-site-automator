@@ -282,6 +282,59 @@ function buildReactPreviewHtml(files: GeneratedFile[], targetFile?: GeneratedFil
   return buildLegacyReactPreviewHtml(files);
 }
 
+// Script to handle Babel/JSX compilation errors in CDN-based React
+function createBabelErrorHandler(): string {
+  return `
+<script>
+(function() {
+  // Catch Babel/JSX compilation errors
+  window.onerror = function(message, source, lineno, colno, error) {
+    var errorContainer = document.getElementById('__babel_error_container');
+    if (!errorContainer) {
+      errorContainer = document.createElement('div');
+      errorContainer.id = '__babel_error_container';
+      errorContainer.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:#1e1e2e;color:#fff;padding:20px;font-family:monospace;z-index:99999;overflow:auto;';
+      document.body.innerHTML = '';
+      document.body.appendChild(errorContainer);
+    }
+    
+    errorContainer.innerHTML = 
+      '<div style="max-width:800px;margin:0 auto;">' +
+      '<h2 style="color:#ff6b6b;margin-bottom:16px;">⚠️ React/JSX Compilation Error</h2>' +
+      '<div style="background:#2d2d3d;padding:16px;border-radius:8px;margin-bottom:16px;">' +
+      '<p style="color:#ffd93d;font-size:14px;margin:0;">' + message + '</p>' +
+      '</div>' +
+      '<p style="color:#888;font-size:12px;">Line: ' + (lineno || 'unknown') + ', Column: ' + (colno || 'unknown') + '</p>' +
+      '<p style="color:#888;font-size:12px;margin-top:20px;">This usually means the AI generated invalid JSX syntax. Please try regenerating or check the code.</p>' +
+      '</div>';
+    
+    // Report error to parent
+    window.parent.postMessage({ 
+      type: 'babel-error', 
+      error: { message: message, line: lineno, column: colno }
+    }, '*');
+    
+    return true; // Prevent default error handling
+  };
+  
+  // Override console.error to catch Babel errors
+  var originalConsoleError = console.error;
+  console.error = function() {
+    var args = Array.prototype.slice.call(arguments);
+    var errorText = args.join(' ');
+    
+    // Check if this is a Babel/JSX error
+    if (errorText.includes('SyntaxError') || errorText.includes('Unexpected token') || errorText.includes('babel')) {
+      window.onerror(errorText, '', 0, 0, null);
+    }
+    
+    originalConsoleError.apply(console, arguments);
+  };
+})();
+</script>
+`;
+}
+
 // Script to track image loading and report to parent - accepts frameId as parameter
 function createImageTrackingScript(frameId: string): string {
   return `
@@ -359,11 +412,20 @@ export function FilePreview({ file, cssFile, allFiles, websiteType, viewMode }: 
 
   const getPreviewContent = () => {
     const trackingScript = createImageTrackingScript(frameId);
+    const babelErrorHandler = createBabelErrorHandler();
     
     // For React projects, build a standalone HTML preview
     if (isReact && allFiles && allFiles.length > 0) {
       // Pass the current file as target for CDN-based React (allows viewing specific pages)
       let html = buildReactPreviewHtml(allFiles, file);
+      
+      // Inject Babel error handler in <head> (before Babel loads)
+      if (html.includes('</head>')) {
+        html = html.replace('</head>', babelErrorHandler + '</head>');
+      } else if (html.includes('<body')) {
+        html = html.replace('<body', babelErrorHandler + '<body');
+      }
+      
       // Inject tracking script before </body>
       if (html.includes('</body>')) {
         html = html.replace('</body>', trackingScript + '</body>');
