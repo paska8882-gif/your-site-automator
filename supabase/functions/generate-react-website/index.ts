@@ -2696,6 +2696,39 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // ============ CHECK MAINTENANCE MODE (GLOBAL OR GENERATION) ============
+    const { data: maintenanceData, error: maintenanceError } = await supabase
+      .from("maintenance_mode")
+      .select("enabled, message, support_link, generation_disabled, generation_message")
+      .eq("id", "global")
+      .maybeSingle();
+
+    if (maintenanceError) {
+      console.error("Failed to check maintenance mode:", maintenanceError);
+      // Don't block on error - just log and continue
+    }
+
+    const isGenerationBlocked = !!maintenanceData?.enabled || !!maintenanceData?.generation_disabled;
+    if (isGenerationBlocked) {
+      const messageToShow = maintenanceData?.generation_disabled
+        ? (maintenanceData.generation_message || "Система на технічному обслуговуванні. Спробуйте пізніше.")
+        : (maintenanceData?.message || "Система на технічному обслуговуванні. Спробуйте пізніше.");
+
+      console.log("🚫 [React] Generation blocked: maintenance mode active");
+      return new Response(
+        JSON.stringify({
+          error: "maintenance_mode",
+          message: messageToShow,
+          support_link: maintenanceData?.support_link || null,
+        }),
+        {
+          status: 503,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+    // ============ END MAINTENANCE CHECK ============
+
     const token = authHeader.replace("Bearer ", "");
     
     // Read body first to check for retryHistoryId (needed for service key auth bypass)
