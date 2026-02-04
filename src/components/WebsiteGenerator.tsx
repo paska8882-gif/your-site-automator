@@ -3554,7 +3554,8 @@ export function WebsiteGenerator() {
                     selectedWebsiteTypes.length === 0 || 
                     selectedImageSources.length === 0 || 
                     insufficientBalance || 
-                    (isAdmin && !selectedAdminTeamId)
+                    (isAdmin && !selectedAdminTeamId) ||
+                    (!isAdmin && generationDisabled)
                   }
                   className="h-9 text-sm"
                 >
@@ -3587,7 +3588,7 @@ export function WebsiteGenerator() {
                   <Button
                     variant="outline"
                     onClick={handleManualRequest}
-                    disabled={siteNames.length === 0 || !prompt.trim() || isSubmitting}
+                    disabled={siteNames.length === 0 || !prompt.trim() || isSubmitting || generationDisabled}
                     className="h-9 text-sm border-purple-500/50 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950"
                     title={t("generator.manualRequestDesc")}
                   >
