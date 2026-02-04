@@ -2144,10 +2144,7 @@ export function WebsiteGenerator() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-4 lg:p-6 max-w-4xl lg:max-w-5xl xl:max-w-6xl">
-        {/* Generation Maintenance Banner - show for non-admins when generation is disabled */}
-        {generationDisabled && !isAdmin && (
-          <GenerationMaintenanceBanner message={generationMessage} />
-        )}
+        {/* Generation Maintenance Banner removed - users now get toast on click instead */}
 
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
