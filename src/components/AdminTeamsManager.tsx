@@ -23,7 +23,8 @@ import {
   Search,
   Crown,
   UserPlus,
-  Ticket
+  Ticket,
+  Star
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -80,6 +81,10 @@ export const AdminTeamsManager = () => {
   const { t } = useLanguage();
   const [teams, setTeams] = useState<Team[]>([]);
   const [admins, setAdmins] = useState<Admin[]>([]);
+  const [favoriteTeams, setFavoriteTeams] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem("admin-favorite-teams");
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newTeamName, setNewTeamName] = useState("");
@@ -112,9 +117,28 @@ export const AdminTeamsManager = () => {
   const [generatingInvite, setGeneratingInvite] = useState(false);
   const [generatedInviteCode, setGeneratedInviteCode] = useState<string | null>(null);
 
-  const filteredTeams = teams.filter(team => 
-    team.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredTeams = teams
+    .filter(team => team.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      const aFav = favoriteTeams.has(a.id);
+      const bFav = favoriteTeams.has(b.id);
+      if (aFav && !bFav) return -1;
+      if (!aFav && bFav) return 1;
+      return 0;
+    });
+
+  const toggleFavorite = (teamId: string) => {
+    setFavoriteTeams(prev => {
+      const next = new Set(prev);
+      if (next.has(teamId)) {
+        next.delete(teamId);
+      } else {
+        next.add(teamId);
+      }
+      localStorage.setItem("admin-favorite-teams", JSON.stringify([...next]));
+      return next;
+    });
+  };
 
   useEffect(() => {
     fetchTeams();
@@ -635,9 +659,18 @@ export const AdminTeamsManager = () => {
           ) : (
             <div className="space-y-1.5 flex-1 overflow-y-auto">
               {filteredTeams.map((team) => (
-                <div key={team.id} className="p-2 rounded-md border bg-card space-y-1">
+                <div key={team.id} className={`p-2 rounded-md border bg-card space-y-1 ${favoriteTeams.has(team.id) ? "border-amber-500/50 bg-amber-500/5" : ""}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => toggleFavorite(team.id)}
+                        className="p-0.5 hover:bg-muted rounded transition-colors"
+                        title={favoriteTeams.has(team.id) ? "Видалити з улюблених" : "Додати до улюблених"}
+                      >
+                        <Star 
+                          className={`h-3.5 w-3.5 ${favoriteTeams.has(team.id) ? "fill-amber-500 text-amber-500" : "text-muted-foreground"}`} 
+                        />
+                      </button>
                       <span className="font-medium text-xs">{team.name}</span>
                       <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{team.members_count} {t("admin.teamsMembers")}</Badge>
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0">
