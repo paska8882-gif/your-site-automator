@@ -36,11 +36,13 @@ import { GenerationHistory } from "./GenerationHistory";
 import { LazyHistorySection } from "./LazyHistorySection";
 import { DebtNotificationPopup } from "./DebtNotificationPopup";
 import { AdminTeamsDashboard } from "./AdminTeamsDashboard";
+import { GenerationMaintenanceBanner } from "./GenerationMaintenanceBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
 import { useBalanceSound } from "@/hooks/useBalanceSound";
 import { useAdminMode } from "@/contexts/AdminModeContext";
+import { useGenerationMaintenance } from "@/hooks/useGenerationMaintenance";
 
 // News images
 import newsAiNeuralNetwork from "@/assets/news/ai-neural-network.jpg";
