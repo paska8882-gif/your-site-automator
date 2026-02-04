@@ -186,276 +186,6 @@ function calculateTotalSize(files: FileItem[]): number {
   return files.reduce((sum, f) => sum + f.content.length, 0);
 }
 
-// ============= FIX WITH GEMINI =============
-async function fixFilesWithGemini(
-  files: FileItem[], 
-  validation: ValidationResult,
-  technicalPrompt: string,
-  lovableApiKey: string,
-  jobId: string
-): Promise<FileItem[]> {
-  console.log(`[${jobId}] Fixing with Gemini...`);
-  
-  const fixPrompt = `Fix these issues in the website files:
-
-ERRORS: ${validation.errors.join(', ')}
-WARNINGS: ${validation.warnings.join(', ')}
-
-BRIEF: ${technicalPrompt.substring(0, 2000)}...
-
-CURRENT FILES:
-${files.slice(0, 5).map(f => `/* FILE: ${f.path} */\n${f.content.substring(0, 1000)}...`).join('\n\n')}
-
-Fix ALL errors. Output using /* FILE: filename */ markers. No markdown.`;
-
-  try {
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [{ role: 'user', content: fixPrompt }],
-        temperature: 0.2,
-        max_tokens: 50000,
-      }),
-    });
-
-    if (!response.ok) {
-      console.error(`[${jobId}] Gemini error:`, response.status);
-      return files;
-    }
-
-    const data = await response.json();
-    const fixedContent = data.choices?.[0]?.message?.content;
-    if (!fixedContent) return files;
-
-    const fixedFiles = parseFilesFromText(fixedContent);
-    if (fixedFiles.length === 0) return files;
-
-    // Merge fixed files with original
-    const mergedFiles: FileItem[] = [...fixedFiles];
-    for (const origFile of files) {
-      if (!fixedFiles.find(f => f.path === origFile.path)) {
-        mergedFiles.push(origFile);
-      }
-    }
-
-    console.log(`[${jobId}] Gemini fixed ${fixedFiles.length} files`);
-    return mergedFiles;
-
-  } catch (error) {
-    console.error(`[${jobId}] Gemini fix failed:`, error);
-    return files;
-  }
-}
-
-// ============= MAIN PROCESSOR =============
-async function processGeneration(
-  jobId: string, 
-  job: any, 
-  supabase: any, 
-  openaiKey: string, 
-  lovableApiKey: string
-) {
-  console.log(`[${jobId}] === STARTING GENERATION ===`);
-
-  try {
-    // Update status to processing
-    await supabase
-      .from('ai_generation_jobs')
-      .update({ status: 'processing', started_at: new Date().toISOString() })
-      .eq('id', jobId);
-
-    // ============= STEP 1: Generate Technical Prompt =============
-    const userInput = `
-domain: ${job.domain}
-geo: ${job.geo || 'BE'}
-language: ${job.languages?.join(', ') || 'en'}
-theme: ${job.theme || ''}
-keywords: ${job.keywords || ''}
-prohibited words: ${job.prohibited_words || 'none'}
-    `.trim();
-
-    console.log(`[${jobId}] Step 1: Generating technical prompt with GPT-4o...`);
-
-    const promptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: userInput }
-        ],
-        temperature: 0.3,
-      }),
-    });
-
-    if (!promptResponse.ok) {
-      const errorText = await promptResponse.text();
-      console.error(`[${jobId}] GPT-4o error:`, errorText);
-      throw new Error(`GPT-4o API error: ${promptResponse.status}`);
-    }
-
-    const promptData = await promptResponse.json();
-    const technicalPrompt = promptData.choices?.[0]?.message?.content;
-
-    if (!technicalPrompt) {
-      throw new Error('Failed to generate technical prompt');
-    }
-
-    console.log(`[${jobId}] Technical prompt: ${technicalPrompt.length} chars`);
-    
-    // Save technical prompt
-    await supabase
-      .from('ai_generation_jobs')
-      .update({ technical_prompt: technicalPrompt })
-      .eq('id', jobId);
-
-    // ============= STEP 2: Generate Files with GPT-5-Codex =============
-    console.log(`[${jobId}] Step 2: Generating files with GPT-5-Codex...`);
-
-    const generatorContent = `🚨 GENERATE CLEAN CODE WITHOUT MARKDOWN 🚨
-
-${technicalPrompt}
-
-**REQUIREMENTS:**
-- NO markdown fences (\`\`\`html, \`\`\`css)
-- Use Picsum.photos for images: https://picsum.photos/seed/<SEED>/<W>/<H>
-- Include onerror fallback on all images
-- Use multiple CSS classes for inheritance (NOT composes:)
-- Include Recommendations + Testimonials on index.html
-- Provide favicon.svg, sitemap.xml, robots.txt
-
-**OUTPUT FORMAT:**
-/* FILE: index.html */
-content...
-
-/* FILE: styles.css */
-content...
-
-/* FILE: script.js */
-content...
-
-Generate ALL ${job.languages?.length > 1 ? 'multi-language' : ''} pages: index, about, services, contact, blog (5 posts), faq, terms, privacy, cookies, refund-policy, disclaimer, thank-you, 404.`;
-
-    const codexResponse = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-5-codex',
-        metadata: {
-          requestId: String(Date.now()),
-          historyId: String(jobId),
-          source: 'lovable-ai-editor',
-        },
-        input: [{ role: 'user', content: generatorContent }]
-      }),
-    });
-
-    if (!codexResponse.ok) {
-      const errorText = await codexResponse.text();
-      console.error(`[${jobId}] Codex error:`, codexResponse.status, errorText);
-      throw new Error(`Codex API error: ${codexResponse.status}`);
-    }
-
-    const codexData = await codexResponse.json();
-    console.log(`[${jobId}] Codex response keys:`, Object.keys(codexData));
-    
-    // Extract text from Responses API format
-    let responseText = '';
-    if (Array.isArray(codexData.output)) {
-      for (const item of codexData.output) {
-        if (item.type === 'message' && Array.isArray(item.content)) {
-          const textItem = item.content.find((c: any) => c.type === 'output_text');
-          if (textItem?.text) {
-            responseText = String(textItem.text);
-            break;
-          }
-        }
-      }
-    }
-    
-    // Fallback to choices format
-    if (!responseText && codexData.choices?.[0]?.message?.content) {
-      responseText = codexData.choices[0].message.content;
-    }
-
-    if (!responseText) {
-      throw new Error('Empty response from Codex');
-    }
-
-    console.log(`[${jobId}] Codex response: ${responseText.length} chars`);
-
-    // ============= STEP 3: Parse Files =============
-    let files = parseFilesFromText(responseText);
-    console.log(`[${jobId}] Parsed ${files.length} files:`, files.map(f => f.path).join(', '));
-
-    if (files.length === 0) {
-      throw new Error('No files parsed from Codex response');
-    }
-
-    // ============= STEP 4: Validate & Fix =============
-    let validation = validateGeneratedFiles(files);
-    console.log(`[${jobId}] Validation: ${validation.isValid ? 'PASS' : 'FAIL'}, errors: ${validation.errors.length}`);
-
-    // Try to fix with Gemini if validation fails and we have enough content
-    if (!validation.isValid && lovableApiKey && calculateTotalSize(files) > 35000) {
-      console.log(`[${jobId}] Attempting Gemini fix...`);
-      files = await fixFilesWithGemini(files, validation, technicalPrompt, lovableApiKey, jobId);
-      validation = validateGeneratedFiles(files);
-      console.log(`[${jobId}] After fix: ${validation.isValid ? 'PASS' : 'FAIL'}`);
-    }
-
-    // ============= STEP 5: Save Result =============
-    const finalSize = calculateTotalSize(files);
-    
-    await supabase
-      .from('ai_generation_jobs')
-      .update({
-        status: 'completed',
-        completed_at: new Date().toISOString(),
-        files_data: files,
-        validation: {
-          isValid: validation.isValid,
-          errors: validation.errors,
-          warnings: validation.warnings,
-          totalSizeBytes: finalSize,
-          filesCount: files.length
-        }
-      })
-      .eq('id', jobId);
-
-    console.log(`[${jobId}] === COMPLETED: ${files.length} files, ${Math.round(finalSize / 1024)}KB ===`);
-
-  } catch (error) {
-    console.error(`[${jobId}] === FAILED:`, error);
-    
-    await supabase
-      .from('ai_generation_jobs')
-      .update({
-        status: 'failed',
-        completed_at: new Date().toISOString(),
-        error_message: error instanceof Error ? error.message : 'Unknown error'
-      })
-      .eq('id', jobId);
-  }
-}
-
-// ============= EDGE RUNTIME DECLARATION =============
-declare const EdgeRuntime: {
-  waitUntil: (promise: Promise<unknown>) => void;
-};
-
 // ============= MAIN HANDLER =============
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -516,20 +246,98 @@ serve(async (req) => {
       throw new Error('Failed to create generation job');
     }
 
-    console.log(`[Job ${job.id}] Created, starting background processing...`);
+    console.log(`[Job ${job.id}] Created, starting Stage 1 (GPT-4o)...`);
 
-    // ✅ ASYNC BACKGROUND PROCESSING with waitUntil
-    EdgeRuntime.waitUntil(
-      processGeneration(job.id, job, supabase, OPENAI_API_KEY, LOVABLE_API_KEY || '')
-    );
+    // ============= STAGE 1: Generate Technical Prompt (fast, ~30 seconds) =============
+    const userInput = `
+domain: ${job.domain}
+geo: ${job.geo || 'BE'}
+language: ${job.languages?.join(', ') || 'en'}
+theme: ${job.theme || ''}
+keywords: ${job.keywords || ''}
+prohibited words: ${job.prohibited_words || 'none'}
+    `.trim();
+
+    const promptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: userInput }
+        ],
+        temperature: 0.3,
+      }),
+    });
+
+    if (!promptResponse.ok) {
+      const errorText = await promptResponse.text();
+      console.error(`[${job.id}] GPT-4o error:`, errorText);
+      
+      await supabase.from('ai_generation_jobs').update({
+        status: 'failed',
+        error_message: `GPT-4o API error: ${promptResponse.status}`
+      }).eq('id', job.id);
+      
+      throw new Error(`GPT-4o API error: ${promptResponse.status}`);
+    }
+
+    const promptData = await promptResponse.json();
+    const technicalPrompt = promptData.choices?.[0]?.message?.content;
+
+    if (!technicalPrompt) {
+      await supabase.from('ai_generation_jobs').update({
+        status: 'failed',
+        error_message: 'Failed to generate technical prompt'
+      }).eq('id', job.id);
+      
+      throw new Error('Failed to generate technical prompt');
+    }
+
+    console.log(`[${job.id}] Stage 1 complete: ${technicalPrompt.length} chars`);
+    
+    // Save technical prompt and update status to ready for Stage 2
+    await supabase.from('ai_generation_jobs').update({
+      technical_prompt: technicalPrompt,
+      status: 'prompt_ready',
+      started_at: new Date().toISOString()
+    }).eq('id', job.id);
+
+    // ============= STAGE 2: Start Codex generation via callback =============
+    // Instead of waiting synchronously, we'll trigger a separate call
+    // that will use the codex-generation-worker function
+    
+    const workerUrl = `${SUPABASE_URL}/functions/v1/codex-generation-worker`;
+    
+    console.log(`[${job.id}] Triggering Stage 2 worker...`);
+    
+    // Fire and forget - don't await
+    fetch(workerUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify({
+        jobId: job.id,
+        technicalPrompt,
+        languages: job.languages,
+      }),
+    }).catch(err => {
+      console.error(`[${job.id}] Failed to trigger worker:`, err);
+    });
 
     // Return immediately with jobId
     return new Response(
       JSON.stringify({
         success: true,
         jobId: job.id,
-        status: 'pending',
-        message: 'Generation started. Files will be ready in 15-25 minutes.'
+        status: 'prompt_ready',
+        message: 'Technical prompt generated. File generation started in background (15-25 minutes).'
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -550,10 +358,4 @@ serve(async (req) => {
       }
     );
   }
-});
-
-// Log shutdown reason
-addEventListener('beforeunload', (ev: Event) => {
-  const reason = (ev as CustomEvent).detail?.reason || 'unknown';
-  console.log(`[Shutdown] reason: ${reason}`);
 });

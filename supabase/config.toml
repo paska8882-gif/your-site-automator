@@ -63,7 +63,11 @@ verify_jwt = false
 
 [functions.generate-ai-website]
 verify_jwt = false
-max_duration_seconds = 600
+max_duration_seconds = 300
+
+[functions.codex-generation-worker]
+verify_jwt = false
+max_duration_seconds = 1800
 
 [functions.n8n-callback]
 verify_jwt = false
