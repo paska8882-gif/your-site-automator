@@ -1486,6 +1486,16 @@ export function WebsiteGenerator() {
   const wouldExceedLimit = totalGenerations > availableSlots;
 
   const handleGenerateClick = async () => {
+    // Check generation maintenance mode for non-admins - show toast instead of blocking UI
+    if (!isAdmin && generationDisabled) {
+      toast({
+        title: "🔧 Технічне обслуговування",
+        description: generationMessage || "Генерація тимчасово недоступна. Напишіть у підтримку для уточнень.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const siteNames = getAllSiteNames();
     if (siteNames.length === 0) {
       toast({
