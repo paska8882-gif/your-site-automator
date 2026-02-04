@@ -482,6 +482,7 @@ export function WebsiteGenerator() {
   const { isAdmin: isAdminRole, loading: adminLoading } = useAdmin();
   const { isTeamOwner } = useTeamOwner();
   const { isAdminModeEnabled } = useAdminMode();
+  const { generationDisabled, generationMessage } = useGenerationMaintenance();
   const navigate = useNavigate();
   
   // Effective isAdmin: only true when user is admin AND admin mode is enabled
