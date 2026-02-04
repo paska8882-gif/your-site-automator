@@ -6141,123 +6141,139 @@ This creates a realistic user experience even though forms don't connect to a re
    - Must be checked before submission
    - Show error: "You must accept the terms and conditions"
 
-**FORM SUBMISSION BEHAVIOR - MOCK REALISTIC FLOW:**
+**⚠️ CRITICAL: FORM SUBMISSION BEHAVIOR - VALIDATION MUST BLOCK REDIRECT:**
+
+The form MUST validate FIRST. If validation fails, the form MUST NOT redirect to thank-you.html!
+The redirect to thank-you.html can ONLY happen AFTER all fields pass validation.
+
+**THIS IS THE EXACT script.js CODE YOU MUST USE - COPY EXACTLY:**
 
 \`\`\`javascript
-// In script.js - REALISTIC form handling with mock submission
+// CRITICAL: Form validation MUST prevent submission if invalid!
+// The thank-you page redirect can ONLY happen after ALL validation passes.
+
 function initFormValidation() {
-  const forms = document.querySelectorAll('form');
-  
-  forms.forEach(form => {
+  document.querySelectorAll('form').forEach(function(form) {
+    // CRITICAL: Remove any existing action to prevent native form submission
+    form.removeAttribute('action');
+    form.setAttribute('novalidate', 'true');
+    
     form.addEventListener('submit', function(e) {
+      // ALWAYS prevent default first!
       e.preventDefault();
+      e.stopPropagation();
       
-      // Clear previous errors
-      clearFormErrors(form);
+      // Clear ALL previous errors
+      form.querySelectorAll('.field-error').forEach(function(el) { el.remove(); });
+      form.querySelectorAll('.input-error').forEach(function(el) { el.classList.remove('input-error'); });
       
-      // Validate all fields
-      let isValid = true;
-      const formData = {};
+      var hasErrors = false;
       
-      // Name validation
-      const nameInput = form.querySelector('input[name="name"], input[type="text"]');
+      // 1. Validate NAME field
+      var nameInput = form.querySelector('input[name="name"], input[name="full_name"], input[name="fullname"]');
+      if (!nameInput) nameInput = form.querySelector('input[type="text"]:first-of-type');
       if (nameInput) {
-        const name = nameInput.value.trim();
-        if (name.length < 2 || !/^[a-zA-ZÀ-ÿ\\s\\-\\']+$/.test(name)) {
-          showFieldError(nameInput, 'Please enter a valid name (at least 2 characters)');
-          isValid = false;
-        } else {
-          formData.name = name;
+        var nameVal = nameInput.value.trim();
+        if (nameVal.length < 2) {
+          addError(nameInput, getErrorMessage('name'));
+          hasErrors = true;
         }
       }
       
-      // Email validation
-      const emailInput = form.querySelector('input[type="email"], input[name="email"]');
+      // 2. Validate EMAIL field
+      var emailInput = form.querySelector('input[type="email"], input[name="email"]');
       if (emailInput) {
-        const email = emailInput.value.trim();
-        const emailPattern = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
-        if (!emailPattern.test(email)) {
-          showFieldError(emailInput, 'Please enter a valid email address');
-          isValid = false;
-        } else {
-          formData.email = email;
+        var emailVal = emailInput.value.trim();
+        var emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+        if (!emailRegex.test(emailVal)) {
+          addError(emailInput, getErrorMessage('email'));
+          hasErrors = true;
         }
       }
       
-      // Phone validation (optional field)
-      const phoneInput = form.querySelector('input[type="tel"], input[name="phone"]');
+      // 3. Validate PHONE field (if exists and has value)
+      var phoneInput = form.querySelector('input[type="tel"], input[name="phone"], input[name="telefon"]');
       if (phoneInput && phoneInput.value.trim()) {
-        const phone = phoneInput.value.trim();
-        const digits = phone.replace(/\\D/g, '');
-        if (digits.length < 10) {
-          showFieldError(phoneInput, 'Please enter a valid phone number');
-          isValid = false;
-        } else {
-          formData.phone = phone;
+        var phoneVal = phoneInput.value.replace(/\\D/g, '');
+        if (phoneVal.length < 7) {
+          addError(phoneInput, getErrorMessage('phone'));
+          hasErrors = true;
         }
       }
       
-      // Message validation
-      const messageInput = form.querySelector('textarea, input[name="message"]');
-      if (messageInput) {
-        const message = messageInput.value.trim();
-        if (message.length < 10) {
-          showFieldError(messageInput, 'Please enter at least 10 characters');
-          isValid = false;
-        } else {
-          formData.message = message;
+      // 4. Validate MESSAGE/TEXTAREA field
+      var msgInput = form.querySelector('textarea, input[name="message"], input[name="nachricht"]');
+      if (msgInput) {
+        var msgVal = msgInput.value.trim();
+        if (msgVal.length < 10) {
+          addError(msgInput, getErrorMessage('message'));
+          hasErrors = true;
         }
       }
       
-      // Checkbox validation (terms acceptance)
-      const termsCheckbox = form.querySelector('input[type="checkbox"][name*="terms"], input[type="checkbox"][name*="agree"], input[type="checkbox"][name*="privacy"]');
-      if (termsCheckbox && !termsCheckbox.checked) {
-        showFieldError(termsCheckbox, 'You must accept the terms and conditions');
-        isValid = false;
+      // 5. Validate CHECKBOX (terms/privacy)
+      var checkbox = form.querySelector('input[type="checkbox"]');
+      if (checkbox && !checkbox.checked) {
+        addError(checkbox, getErrorMessage('checkbox'));
+        hasErrors = true;
       }
       
-      if (isValid) {
-        // Show loading state
-        const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
-        const originalText = submitBtn.textContent || submitBtn.value;
-        submitBtn.disabled = true;
-        if (submitBtn.tagName === 'BUTTON') {
-          submitBtn.innerHTML = '<span class="spinner"></span> Sending...';
-        } else {
-          submitBtn.value = 'Sending...';
-        }
-        
-        // Simulate API call with realistic delay (1-2 seconds)
-        setTimeout(function() {
-          // Log form data (for demo purposes)
-          console.log('Form submitted:', formData);
-          
-          // Redirect to thank you page OR show success message
-          if (document.querySelector('a[href="thank-you.html"]') || window.location.href.includes('contact')) {
-            window.location.href = 'thank-you.html';
-          } else {
-            showFormSuccess(form);
-            form.reset();
-          }
-          
-          // Restore button
-          submitBtn.disabled = false;
-          if (submitBtn.tagName === 'BUTTON') {
-            submitBtn.textContent = originalText;
-          } else {
-            submitBtn.value = originalText;
-          }
-        }, 1500);
-      } else {
-        // Scroll to first error
-        const firstError = form.querySelector('.field-error');
-        if (firstError) {
-          firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // ⚠️ CRITICAL: If there are errors, STOP HERE! Do NOT redirect!
+      if (hasErrors) {
+        var firstErr = form.querySelector('.field-error');
+        if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return false; // STOP - do not continue!
+      }
+      
+      // ✅ ONLY if ALL validation passed, show loading and redirect
+      var btn = form.querySelector('button[type="submit"], input[type="submit"], button:not([type])');
+      if (btn) {
+        btn.disabled = true;
+        var origText = btn.textContent || btn.value;
+        if (btn.tagName === 'BUTTON') {
+          btn.innerHTML = '<span class="spinner"></span> Sending...';
         }
       }
+      
+      // Simulate server delay, then redirect
+      setTimeout(function() {
+        window.location.href = 'thank-you.html';
+      }, 1500);
     });
   });
 }
+
+function addError(input, msg) {
+  input.classList.add('input-error');
+  var err = document.createElement('div');
+  err.className = 'field-error';
+  err.textContent = msg;
+  err.style.cssText = 'color:#dc2626;font-size:0.85rem;margin-top:4px;';
+  if (input.type === 'checkbox') {
+    input.closest('label') ? input.closest('label').appendChild(err) : input.parentNode.appendChild(err);
+  } else {
+    input.parentNode.appendChild(err);
+  }
+}
+
+function getErrorMessage(type) {
+  var lang = document.documentElement.lang || 'en';
+  var msgs = {
+    'en': { name: 'Please enter a valid name (min. 2 characters)', email: 'Please enter a valid email address', phone: 'Please enter a valid phone number', message: 'Your message must be at least 10 characters', checkbox: 'You must agree to the terms' },
+    'de': { name: 'Bitte geben Sie einen gültigen Namen ein (mind. 2 Zeichen)', email: 'Bitte geben Sie eine gültige E-Mail-Adresse ein', phone: 'Bitte geben Sie eine gültige Telefonnummer ein', message: 'Ihre Nachricht muss mindestens 10 Zeichen lang sein', checkbox: 'Sie müssen der Datenschutzerklärung zustimmen' },
+    'uk': { name: 'Будь ласка, введіть коректне ім\\'я (мін. 2 символи)', email: 'Будь ласка, введіть коректну email адресу', phone: 'Будь ласка, введіть коректний номер телефону', message: 'Ваше повідомлення має містити щонайменше 10 символів', checkbox: 'Ви повинні погодитися з умовами' },
+    'pl': { name: 'Proszę podać prawidłowe imię (min. 2 znaki)', email: 'Proszę podać prawidłowy adres e-mail', phone: 'Proszę podać prawidłowy numer telefonu', message: 'Wiadomość musi zawierać co najmniej 10 znaków', checkbox: 'Musisz zaakceptować warunki' },
+    'es': { name: 'Por favor, introduzca un nombre válido (mín. 2 caracteres)', email: 'Por favor, introduzca un correo electrónico válido', phone: 'Por favor, introduzca un número de teléfono válido', message: 'Su mensaje debe tener al menos 10 caracteres', checkbox: 'Debe aceptar los términos' },
+    'fr': { name: 'Veuillez entrer un nom valide (min. 2 caractères)', email: 'Veuillez entrer une adresse e-mail valide', phone: 'Veuillez entrer un numéro de téléphone valide', message: 'Votre message doit contenir au moins 10 caractères', checkbox: 'Vous devez accepter les conditions' },
+    'it': { name: 'Inserisci un nome valido (min. 2 caratteri)', email: 'Inserisci un indirizzo email valido', phone: 'Inserisci un numero di telefono valido', message: 'Il messaggio deve contenere almeno 10 caratteri', checkbox: 'Devi accettare i termini' },
+    'ro': { name: 'Vă rugăm să introduceți un nume valid (min. 2 caractere)', email: 'Vă rugăm să introduceți o adresă de email validă', phone: 'Vă rugăm să introduceți un număr de telefon valid', message: 'Mesajul trebuie să conțină cel puțin 10 caractere', checkbox: 'Trebuie să acceptați termenii' }
+  };
+  var m = msgs[lang] || msgs['en'];
+  return m[type] || msgs['en'][type];
+}
+
+document.addEventListener('DOMContentLoaded', initFormValidation);
+\`\`\`
 
 function showFieldError(input, message) {
   input.classList.add('input-error');
