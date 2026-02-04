@@ -202,6 +202,62 @@ async function getFreshAccessToken(): Promise<string | null> {
   }
 }
 
+type MaintenanceModeRow = {
+  enabled?: boolean;
+  message?: string | null;
+  support_link?: string | null;
+  generation_disabled?: boolean;
+  generation_message?: string | null;
+};
+
+type GenerationBlockInfo = {
+  blocked: boolean;
+  message: string;
+  supportLink: string | null;
+};
+
+let generationBlockCache: { at: number; info: GenerationBlockInfo } | null = null;
+const GENERATION_BLOCK_CACHE_MS = 5_000;
+
+async function getGenerationBlockInfo(): Promise<GenerationBlockInfo> {
+  const now = Date.now();
+  if (generationBlockCache && now - generationBlockCache.at < GENERATION_BLOCK_CACHE_MS) {
+    return generationBlockCache.info;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("maintenance_mode")
+      .select("enabled, message, support_link, generation_disabled, generation_message")
+      .eq("id", "global")
+      .maybeSingle();
+
+    if (error || !data) {
+      const info = { blocked: false, message: "", supportLink: null };
+      generationBlockCache = { at: now, info };
+      return info;
+    }
+
+    const row = data as MaintenanceModeRow;
+    const blocked = !!row.enabled || !!row.generation_disabled;
+    const message = row.enabled
+      ? (row.message || row.generation_message || "Ведуться технічні роботи. Спробуйте пізніше.")
+      : (row.generation_message || row.message || "Ведеться технічне обслуговування. Генерація тимчасово недоступна.");
+
+    const info = {
+      blocked,
+      message,
+      supportLink: row.support_link || null,
+    };
+    generationBlockCache = { at: now, info };
+    return info;
+  } catch {
+    const info = { blocked: false, message: "", supportLink: null };
+    generationBlockCache = { at: now, info };
+    return info;
+  }
+}
+
 export async function startGeneration(
   prompt: string,
   language?: string,
@@ -220,6 +276,11 @@ export async function startGeneration(
   bundleImages: boolean = true, // Whether to bundle images into ZIP (slower) or keep as URLs (faster)
   colorScheme?: ColorScheme // Optional color scheme (if 'random' or undefined, use random selection)
 ): Promise<GenerationResult> {
+  const maintenance = await getGenerationBlockInfo();
+  if (maintenance.blocked) {
+    return { success: false, error: maintenance.message };
+  }
+
   // IMPORTANT: seniorMode (codex/reaktiv) only applies to React websites
   // HTML and PHP websites always use their dedicated generation functions
   
