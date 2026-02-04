@@ -7328,6 +7328,40 @@ serve(async (req) => {
     
     console.log("Authenticated PHP generation request from user:", userId);
 
+    // ============ CHECK GENERATION MAINTENANCE MODE ============
+    const { data: maintenanceData, error: maintenanceError } = await supabase
+      .from("maintenance_mode")
+      .select("generation_disabled, generation_message")
+      .eq("id", "global")
+      .maybeSingle();
+    
+    if (maintenanceError) {
+      console.error("Failed to check maintenance mode:", maintenanceError);
+    }
+    
+    if (maintenanceData?.generation_disabled) {
+      // Check if user is admin - admins can bypass
+      const { data: userRoles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId);
+      
+      const isAdmin = userRoles?.some(r => r.role === "admin" || r.role === "super_admin");
+      
+      if (!isAdmin) {
+        console.log("🚫 [PHP] Generation blocked: maintenance mode active for user:", userId);
+        return new Response(JSON.stringify({ 
+          error: "maintenance_mode", 
+          message: maintenanceData.generation_message || "Система на технічному обслуговуванні. Спробуйте пізніше." 
+        }), {
+          status: 503,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      console.log("⚠️ [PHP] Maintenance mode active but user is admin, proceeding:", userId);
+    }
+    // ============ END MAINTENANCE CHECK ============
+
     // Build prompt with language and geo context if provided
     // Priority for retry: vipPrompt > improvedPrompt > prompt (same as startGeneration)
     let promptForGeneration = vipPrompt || improvedPrompt || prompt;
