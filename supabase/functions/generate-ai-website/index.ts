@@ -223,6 +223,33 @@ serve(async (req) => {
 
     const { domain, geo, languages, theme, keywords, prohibitedWords } = await req.json();
 
+    // ============= BLOCK GENERATION DURING MAINTENANCE (HARD STOP) =============
+    // When either global maintenance or generation maintenance is enabled,
+    // we must not create jobs or start any background work.
+    const { data: maintenanceData, error: maintenanceError } = await supabase
+      .from('maintenance_mode')
+      .select('enabled, message, support_link, generation_disabled, generation_message')
+      .eq('id', 'global')
+      .maybeSingle();
+
+    if (!maintenanceError && maintenanceData && (maintenanceData.enabled || maintenanceData.generation_disabled)) {
+      const messageToShow = maintenanceData.enabled
+        ? (maintenanceData.message || maintenanceData.generation_message || 'Ведуться технічні роботи. Спробуйте пізніше.')
+        : (maintenanceData.generation_message || maintenanceData.message || 'Ведеться технічне обслуговування. Генерація тимчасово недоступна.');
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: messageToShow,
+          support_link: maintenanceData.support_link || null,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 503,
+        }
+      );
+    }
+
     console.log(`[New Job] domain=${domain}, geo=${geo}, user=${user.id}`);
 
     // Create job in database
