@@ -18,6 +18,7 @@ import { AdminTasksTab } from "@/components/AdminTasksTab";
 import { AdminDatabaseTab } from "@/components/AdminDatabaseTab";
 import { ManualRequestsTab } from "@/components/ManualRequestsTab";
 import { AdminMaintenanceToggle } from "@/components/AdminMaintenanceToggle";
+import { AdminGenerationMaintenanceToggle } from "@/components/AdminGenerationMaintenanceToggle";
 import { N8nGenerationPanel } from "@/components/N8nGenerationPanel";
 import AiEditorTab from "@/components/AiEditorTab";
 import { AppLayout } from "@/components/AppLayout";
@@ -96,6 +97,7 @@ const Admin = () => {
     <AppLayout>
       <div className="p-4">
         <AdminMaintenanceToggle />
+        <AdminGenerationMaintenanceToggle />
         {renderContent()}
       </div>
     </AppLayout>

@@ -36,11 +36,13 @@ import { GenerationHistory } from "./GenerationHistory";
 import { LazyHistorySection } from "./LazyHistorySection";
 import { DebtNotificationPopup } from "./DebtNotificationPopup";
 import { AdminTeamsDashboard } from "./AdminTeamsDashboard";
+import { GenerationMaintenanceBanner } from "./GenerationMaintenanceBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
 import { useBalanceSound } from "@/hooks/useBalanceSound";
 import { useAdminMode } from "@/contexts/AdminModeContext";
+import { useGenerationMaintenance } from "@/hooks/useGenerationMaintenance";
 
 // News images
 import newsAiNeuralNetwork from "@/assets/news/ai-neural-network.jpg";
@@ -480,6 +482,7 @@ export function WebsiteGenerator() {
   const { isAdmin: isAdminRole, loading: adminLoading } = useAdmin();
   const { isTeamOwner } = useTeamOwner();
   const { isAdminModeEnabled } = useAdminMode();
+  const { generationDisabled, generationMessage } = useGenerationMaintenance();
   const navigate = useNavigate();
   
   // Effective isAdmin: only true when user is admin AND admin mode is enabled
@@ -2141,6 +2144,11 @@ export function WebsiteGenerator() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-4 lg:p-6 max-w-4xl lg:max-w-5xl xl:max-w-6xl">
+        {/* Generation Maintenance Banner - show for non-admins when generation is disabled */}
+        {generationDisabled && !isAdmin && (
+          <GenerationMaintenanceBanner message={generationMessage} />
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-lg font-medium">{t("generator.title")}</h1>
@@ -3546,7 +3554,8 @@ export function WebsiteGenerator() {
                     selectedWebsiteTypes.length === 0 || 
                     selectedImageSources.length === 0 || 
                     insufficientBalance || 
-                    (isAdmin && !selectedAdminTeamId)
+                    (isAdmin && !selectedAdminTeamId) ||
+                    (!isAdmin && generationDisabled)
                   }
                   className="h-9 text-sm"
                 >
@@ -3579,7 +3588,7 @@ export function WebsiteGenerator() {
                   <Button
                     variant="outline"
                     onClick={handleManualRequest}
-                    disabled={siteNames.length === 0 || !prompt.trim() || isSubmitting}
+                    disabled={siteNames.length === 0 || !prompt.trim() || isSubmitting || generationDisabled}
                     className="h-9 text-sm border-purple-500/50 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950"
                     title={t("generator.manualRequestDesc")}
                   >

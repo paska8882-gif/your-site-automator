@@ -530,6 +530,8 @@ export type Database = {
       maintenance_mode: {
         Row: {
           enabled: boolean
+          generation_disabled: boolean
+          generation_message: string | null
           id: string
           message: string | null
           support_link: string | null
@@ -538,6 +540,8 @@ export type Database = {
         }
         Insert: {
           enabled?: boolean
+          generation_disabled?: boolean
+          generation_message?: string | null
           id?: string
           message?: string | null
           support_link?: string | null
@@ -546,6 +550,8 @@ export type Database = {
         }
         Update: {
           enabled?: boolean
+          generation_disabled?: boolean
+          generation_message?: string | null
           id?: string
           message?: string | null
           support_link?: string | null
