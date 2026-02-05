@@ -30,7 +30,7 @@ const N8N_BOTS = [
     name: "Next.js Bot",
     description: "Next.js додатки з React компонентами",
     icon: Code2,
-    webhookUrl: "https://n8n.dragonwhite-n8n.top/webhook/nextjs-generate",
+    webhookUrl: "https://n8n.dragonwhite-n8n.top/webhook/d26af941-69aa-4b93-82f8-fd5cd1d1c5ea",
     defaultLanguages: ["en"],
     outputType: "nextjs",
   },

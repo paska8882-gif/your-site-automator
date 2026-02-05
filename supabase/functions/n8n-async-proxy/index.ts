@@ -9,7 +9,7 @@ const corsHeaders = {
 // Bot webhook configurations
 const BOT_WEBHOOKS: Record<string, string> = {
   "2lang_html": "https://n8n.dragonwhite-n8n.top/webhook/lovable-generate",
-  "nextjs_bot": "https://n8n.dragonwhite-n8n.top/webhook/nextjs-generate",
+  "nextjs_bot": "https://n8n.dragonwhite-n8n.top/webhook/d26af941-69aa-4b93-82f8-fd5cd1d1c5ea",
 };
 
 const DEFAULT_WEBHOOK_URL = "https://n8n.dragonwhite-n8n.top/webhook/lovable-generate";
