@@ -6,7 +6,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const N8N_WEBHOOK_URL = "https://n8n.dragonwhite-n8n.top/webhook/lovable-generate";
+// Bot webhook configurations
+const BOT_WEBHOOKS: Record<string, string> = {
+  "2lang_html": "https://n8n.dragonwhite-n8n.top/webhook/lovable-generate",
+  "nextjs_bot": "https://n8n.dragonwhite-n8n.top/webhook/nextjs-generate",
+};
+
+const DEFAULT_WEBHOOK_URL = "https://n8n.dragonwhite-n8n.top/webhook/lovable-generate";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -15,7 +21,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const { historyId } = body;
+    const { historyId, botId } = body;
 
     if (!historyId || typeof historyId !== "string") {
       return new Response(JSON.stringify({ error: "Missing historyId" }), {
@@ -70,7 +76,13 @@ serve(async (req) => {
     const language: string = history.language || "en";
     const siteName: string = history.site_name || "Website";
 
-    console.log("🚀 Starting n8n generation for:", siteName, "historyId:", historyId);
+    // Determine webhook URL based on botId or image_source
+    let webhookUrl = DEFAULT_WEBHOOK_URL;
+    if (botId && BOT_WEBHOOKS[botId]) {
+      webhookUrl = BOT_WEBHOOKS[botId];
+    }
+
+    console.log("🚀 Starting n8n generation for:", siteName, "historyId:", historyId, "bot:", botId || "default", "webhook:", webhookUrl);
 
     // Build callback URL - n8n will POST result here
     const callbackUrl = `${supabaseUrl}/functions/v1/n8n-callback`;
@@ -92,13 +104,14 @@ serve(async (req) => {
       colorScheme: history.color_scheme,
       layoutStyle: history.layout_style,
       timestamp: new Date().toISOString(),
+      botId: botId || "2lang_html",
     };
 
     console.log("📤 Sending to n8n with callback URL:", callbackUrl);
     console.log("📤 Payload:", JSON.stringify(n8nPayload).substring(0, 500));
 
     // Send request to n8n - they will call us back when done
-    const n8nResponse = await fetch(N8N_WEBHOOK_URL, {
+    const n8nResponse = await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(n8nPayload),

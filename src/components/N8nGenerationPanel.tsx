@@ -6,12 +6,37 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Send, Bot, Sparkles, Globe, Wand2, Layers } from "lucide-react";
+import { Loader2, Send, Bot, Sparkles, Globe, Wand2, Layers, Code2, FileCode } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { N8nGenerationHistory } from "./N8nGenerationHistory";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+// Bot configurations
+const N8N_BOTS = [
+  {
+    id: "2lang_html",
+    name: "2lang HTML",
+    description: "Статичні HTML сайти з 2 мовами",
+    icon: FileCode,
+    webhookUrl: "https://n8n.dragonwhite-n8n.top/webhook/lovable-generate",
+    defaultLanguages: ["fr", "en"],
+    outputType: "html",
+  },
+  {
+    id: "nextjs_bot",
+    name: "Next.js Bot",
+    description: "Next.js додатки з React компонентами",
+    icon: Code2,
+    webhookUrl: "https://n8n.dragonwhite-n8n.top/webhook/nextjs-generate",
+    defaultLanguages: ["en"],
+    outputType: "nextjs",
+  },
+] as const;
+
+type BotId = typeof N8N_BOTS[number]["id"];
 
 // Languages
 const languages = [
@@ -61,6 +86,9 @@ const TOPIC_CATEGORIES: Record<string, string[]> = {
 export function N8nGenerationPanel() {
   const { user } = useAuth();
   
+  // Selected bot
+  const [selectedBot, setSelectedBot] = useState<BotId>("2lang_html");
+  
   // Prompt mode: manual or theme-based
   const [promptMode, setPromptMode] = useState<"manual" | "theme">("manual");
   
@@ -83,6 +111,9 @@ export function N8nGenerationPanel() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionProgress, setSubmissionProgress] = useState({ current: 0, total: 0 });
   const [historyKey, setHistoryKey] = useState(0);
+
+  // Get current bot config
+  const currentBot = N8N_BOTS.find(b => b.id === selectedBot) || N8N_BOTS[0];
 
   const toggleLanguage = (lang: string) => {
     setSelectedLanguages(prev => 
@@ -182,8 +213,8 @@ export function N8nGenerationPanel() {
           geo: geo.toUpperCase(),
           status: "pending",
           ai_model: "senior",
-          website_type: "html",
-          image_source: "n8n-bot",
+          website_type: currentBot.outputType,
+          image_source: `n8n-bot-${currentBot.id}`,
         })
         .select("id")
         .single();
@@ -195,6 +226,7 @@ export function N8nGenerationPanel() {
         body: { 
           historyId: historyData.id,
           fullPrompt: finalPrompt,
+          botId: selectedBot,
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -308,6 +340,15 @@ export function N8nGenerationPanel() {
     setSelectedTopic(""); // Reset topic when category changes
   };
 
+  // Handle bot change - reset languages to bot defaults
+  const handleBotChange = (botId: BotId) => {
+    setSelectedBot(botId);
+    const bot = N8N_BOTS.find(b => b.id === botId);
+    if (bot) {
+      setSelectedLanguages(bot.defaultLanguages as unknown as string[]);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -322,6 +363,27 @@ export function N8nGenerationPanel() {
             Відправте запит на генерацію через зовнішнього n8n бота. Час очікування — до 20 хвилин. Можна запускати кілька генерацій паралельно.
           </CardDescription>
         </CardHeader>
+        <CardContent className="pt-0">
+          {/* Bot Selector */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Оберіть бота</Label>
+            <Tabs value={selectedBot} onValueChange={(v) => handleBotChange(v as BotId)} className="w-full">
+              <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${N8N_BOTS.length}, 1fr)` }}>
+                {N8N_BOTS.map((bot) => {
+                  const Icon = bot.icon;
+                  return (
+                    <TabsTrigger key={bot.id} value={bot.id} className="flex items-center gap-2">
+                      <Icon className="h-4 w-4" />
+                      <span className="hidden sm:inline">{bot.name}</span>
+                      <span className="sm:hidden">{bot.name.split(" ")[0]}</span>
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+            </Tabs>
+            <p className="text-xs text-muted-foreground">{currentBot.description}</p>
+          </div>
+        </CardContent>
       </Card>
 
       {/* Form */}

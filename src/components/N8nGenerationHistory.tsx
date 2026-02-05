@@ -17,6 +17,14 @@ import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { getLanguageLabel, getGeoLabel } from "@/lib/filterConstants";
 
+// Bot options for filtering
+const BOT_OPTIONS = [
+  { id: "all", label: "Всі боти" },
+  { id: "n8n-bot-2lang_html", label: "2lang HTML" },
+  { id: "n8n-bot-nextjs_bot", label: "Next.js" },
+  { id: "n8n-bot", label: "Legacy" },
+] as const;
+
 interface HistoryItem {
   id: string;
   number: number;
@@ -34,6 +42,7 @@ interface HistoryItem {
   ai_model: string | null;
   sale_price: number | null;
   team_id: string | null;
+  image_source: string | null;
 }
 
 interface Appeal {
@@ -51,6 +60,7 @@ export function N8nGenerationHistory() {
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [botFilter, setBotFilter] = useState<string>("all");
   
   // Appeal state
   const [appealItem, setAppealItem] = useState<HistoryItem | null>(null);
@@ -62,12 +72,20 @@ export function N8nGenerationHistory() {
   const fetchHistory = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("generation_history")
-        .select("id, number, site_name, prompt, status, created_at, completed_at, files_data, zip_data, error_message, geo, language, website_type, ai_model, sale_price, team_id")
-        .eq("image_source", "n8n-bot")
+        .select("id, number, site_name, prompt, status, created_at, completed_at, files_data, zip_data, error_message, geo, language, website_type, ai_model, sale_price, team_id, image_source")
         .order("created_at", { ascending: false })
         .limit(50);
+
+      // Filter by bot
+      if (botFilter === "all") {
+        query = query.like("image_source", "n8n-bot%");
+      } else {
+        query = query.eq("image_source", botFilter);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -128,7 +146,20 @@ export function N8nGenerationHistory() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [botFilter]);
+
+  // Refetch when filter changes
+  useEffect(() => {
+    fetchHistory();
+  }, [botFilter]);
+
+  const getBotLabel = (imageSource: string | null) => {
+    if (!imageSource) return null;
+    if (imageSource === "n8n-bot-2lang_html") return "HTML";
+    if (imageSource === "n8n-bot-nextjs_bot") return "Next.js";
+    if (imageSource === "n8n-bot") return "Legacy";
+    return null;
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -317,9 +348,20 @@ export function N8nGenerationHistory() {
               <Bot className="h-4 w-4" />
               Історія n8n генерацій
             </div>
-            <Button variant="ghost" size="sm" onClick={fetchHistory} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            </Button>
+            <div className="flex items-center gap-2">
+              <select 
+                value={botFilter} 
+                onChange={(e) => setBotFilter(e.target.value)}
+                className="text-xs border rounded px-2 py-1 bg-background"
+              >
+                {BOT_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>{opt.label}</option>
+                ))}
+              </select>
+              <Button variant="ghost" size="sm" onClick={fetchHistory} disabled={loading}>
+                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -356,6 +398,11 @@ export function N8nGenerationHistory() {
                         {item.website_type && (
                           <Badge variant="outline" className="text-[10px] px-1 py-0">
                             {item.website_type.toUpperCase()}
+                          </Badge>
+                        )}
+                        {getBotLabel(item.image_source) && (
+                          <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                            {getBotLabel(item.image_source)}
                           </Badge>
                         )}
                         <span className="text-muted-foreground">{format(new Date(item.created_at), "dd.MM.yy HH:mm")}</span>
