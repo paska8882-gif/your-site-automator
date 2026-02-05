@@ -226,6 +226,7 @@ export function N8nGenerationPanel() {
         body: { 
           historyId: historyData.id,
           fullPrompt: finalPrompt,
+          botId: selectedBot,
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
