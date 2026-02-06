@@ -293,9 +293,8 @@ export const AdminTeamsManager = () => {
         ...team,
         owner_code: inviteCodesMap.get(team.id),
         members_count: members.length,
-        assigned_admin_name: team.assigned_admin_id 
-          ? adminProfilesMap.get(team.assigned_admin_id) 
-          : null,
+        assigned_admin_ids: adminsByTeam.get(team.id) || [],
+        assigned_admin_names: (adminsByTeam.get(team.id) || []).map(id => adminProfilesMap.get(id) || "Без імені"),
         owner_name: owner ? ownerProfilesMap.get(owner.user_id) : null,
         has_owner: !!owner
       };
@@ -305,18 +304,28 @@ export const AdminTeamsManager = () => {
     setLoading(false);
   };
 
-  const handleAssignAdmin = async (teamId: string, adminId: string | null) => {
-    const { error } = await supabase
-      .from("teams")
-      .update({ assigned_admin_id: adminId === "none" ? null : adminId })
-      .eq("id", teamId);
-
-    if (error) {
-      toast({ title: t("common.error"), description: t("admin.teamsAssignAdminError"), variant: "destructive" });
+  const handleAssignAdmin = async (teamId: string, adminId: string, add: boolean) => {
+    if (add) {
+      const { error } = await supabase
+        .from("team_admins")
+        .insert({ team_id: teamId, admin_id: adminId });
+      if (error) {
+        toast({ title: t("common.error"), description: t("admin.teamsAssignAdminError"), variant: "destructive" });
+        return;
+      }
     } else {
-      toast({ title: t("common.saved"), description: t("admin.teamsAdminAssigned") });
-      fetchTeams();
+      const { error } = await supabase
+        .from("team_admins")
+        .delete()
+        .eq("team_id", teamId)
+        .eq("admin_id", adminId);
+      if (error) {
+        toast({ title: t("common.error"), description: t("admin.teamsAssignAdminError"), variant: "destructive" });
+        return;
+      }
     }
+    toast({ title: t("common.saved"), description: t("admin.teamsAdminAssigned") });
+    fetchTeams();
   };
 
   const handleUpdateCreditLimit = async (teamId: string, creditLimit: number) => {
