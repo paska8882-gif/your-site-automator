@@ -1045,21 +1045,35 @@ const AdminTeamDetails = () => {
           <CardContent className="px-4 pb-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Призначений адміністратор</label>
+                <label className="text-xs text-muted-foreground mb-1 block">Призначені адміністратори</label>
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {assignedAdmins.map(admin => (
+                    <Badge key={admin.user_id} variant="secondary" className="gap-1">
+                      {admin.display_name || admin.user_id.slice(0, 8)}
+                      <button
+                        className="ml-1 hover:text-destructive"
+                        onClick={() => handleAssignAdmin(admin.user_id, false)}
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
                 <Select
-                  value={team.assigned_admin_id || "none"}
-                  onValueChange={handleAssignAdmin}
+                  value=""
+                  onValueChange={(value) => handleAssignAdmin(value, true)}
                 >
                   <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Не призначено" />
+                    <SelectValue placeholder="+ Додати адміністратора" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Не призначено</SelectItem>
-                    {admins.map((admin) => (
-                      <SelectItem key={admin.user_id} value={admin.user_id}>
-                        {admin.display_name || admin.user_id.slice(0, 8)}
-                      </SelectItem>
-                    ))}
+                    {admins
+                      .filter(a => !team.assigned_admin_ids.includes(a.user_id))
+                      .map((admin) => (
+                        <SelectItem key={admin.user_id} value={admin.user_id}>
+                          {admin.display_name || admin.user_id.slice(0, 8)}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
