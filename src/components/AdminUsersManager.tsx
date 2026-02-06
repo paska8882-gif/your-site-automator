@@ -677,6 +677,34 @@ export const AdminUsersManager = () => {
         </div>
       </div>
 
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={filterTeamId} onValueChange={setFilterTeamId}>
+          <SelectTrigger className="h-7 text-xs w-40">
+            <SelectValue placeholder={t("admin.usersAllTeams")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("admin.usersAllTeams")}</SelectItem>
+            <SelectItem value="no_team">{t("admin.usersNoTeamFilter")}</SelectItem>
+            {teams.map(team => (
+              <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex items-center gap-1.5">
+          <Switch
+            id="group-by-team"
+            checked={groupByTeam}
+            onCheckedChange={setGroupByTeam}
+            className="scale-75"
+          />
+          <label htmlFor="group-by-team" className="text-xs text-muted-foreground cursor-pointer flex items-center gap-1">
+            <LayoutGrid className="h-3 w-3" />
+            {t("admin.usersGroupByTeam")}
+          </label>
+        </div>
+      </div>
+
       {/* Pending Members Section */}
       {pendingMembers.length > 0 && (
         <Card className="border-orange-500/30 bg-orange-500/5">
