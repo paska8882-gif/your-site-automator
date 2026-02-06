@@ -50,8 +50,32 @@ async function createZipBase64(files: GeneratedFile[]): Promise<string> {
   const blobWriter = new zip.BlobWriter("application/zip");
   const zipWriter = new zip.ZipWriter(blobWriter);
   
+  // Дедуплікація файлів - якщо є однакові шляхи, додаємо суфікс
+  const usedPaths = new Set<string>();
+  
   for (const file of files) {
-    await zipWriter.add(file.path, new zip.TextReader(file.content));
+    let finalPath = file.path;
+    
+    // Якщо шлях вже існує, додаємо числовий суфікс
+    if (usedPaths.has(finalPath)) {
+      const ext = finalPath.includes('.') ? finalPath.substring(finalPath.lastIndexOf('.')) : '';
+      const base = finalPath.includes('.') ? finalPath.substring(0, finalPath.lastIndexOf('.')) : finalPath;
+      let counter = 1;
+      while (usedPaths.has(`${base}_${counter}${ext}`)) {
+        counter++;
+      }
+      finalPath = `${base}_${counter}${ext}`;
+      console.log(`⚠️ Duplicate path detected: ${file.path} -> renamed to ${finalPath}`);
+    }
+    
+    usedPaths.add(finalPath);
+    
+    try {
+      await zipWriter.add(finalPath, new zip.TextReader(file.content));
+    } catch (e) {
+      console.error(`Failed to add file ${finalPath}:`, e);
+      // Продовжуємо з іншими файлами
+    }
   }
   
   const zipBlob = await zipWriter.close();
