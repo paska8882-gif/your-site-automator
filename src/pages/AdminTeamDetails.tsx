@@ -747,7 +747,7 @@ const AdminTeamDetails = () => {
     );
   }
 
-  const assignedAdmin = admins.find(a => a.user_id === team.assigned_admin_id);
+  const assignedAdmins = admins.filter(a => team.assigned_admin_ids.includes(a.user_id));
 
   return (
     <AppLayout>
