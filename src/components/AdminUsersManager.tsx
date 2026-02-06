@@ -85,6 +85,8 @@ export const AdminUsersManager = () => {
   const [pendingMembers, setPendingMembers] = useState<PendingMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterTeamId, setFilterTeamId] = useState<string>("all");
+  const [groupByTeam, setGroupByTeam] = useState(false);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   
