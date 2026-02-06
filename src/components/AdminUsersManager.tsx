@@ -572,13 +572,47 @@ export const AdminUsersManager = () => {
   };
 
   const filteredUsers = users.filter(user => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      (user.display_name && user.display_name.toLowerCase().includes(query)) ||
-      user.user_id.toLowerCase().includes(query)
-    );
+    // Team filter
+    if (filterTeamId === "no_team") {
+      if (user.teams.length > 0) return false;
+    } else if (filterTeamId !== "all") {
+      if (!user.teams.some(t => t.team_id === filterTeamId)) return false;
+    }
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      if (
+        !(user.display_name && user.display_name.toLowerCase().includes(query)) &&
+        !user.user_id.toLowerCase().includes(query) &&
+        !(user.email && user.email.toLowerCase().includes(query))
+      ) return false;
+    }
+    return true;
   });
+
+  // Group users by team for grouped view
+  const groupedUsers = groupByTeam ? (() => {
+    const groups: Record<string, { teamName: string; users: UserWithRoles[] }> = {};
+    const noTeamUsers: UserWithRoles[] = [];
+    
+    filteredUsers.forEach(user => {
+      if (user.teams.length === 0) {
+        noTeamUsers.push(user);
+      } else {
+        user.teams.forEach(team => {
+          if (filterTeamId !== "all" && filterTeamId !== "no_team" && team.team_id !== filterTeamId) return;
+          if (!groups[team.team_id]) {
+            groups[team.team_id] = { teamName: team.team_name, users: [] };
+          }
+          if (!groups[team.team_id].users.find(u => u.user_id === user.user_id)) {
+            groups[team.team_id].users.push(user);
+          }
+        });
+      }
+    });
+    
+    return { groups, noTeamUsers };
+  })() : null;
 
   const stats = {
     total: users.length,
