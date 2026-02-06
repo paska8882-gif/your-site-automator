@@ -767,7 +767,7 @@ export const AdminUsersManager = () => {
     </Table>
   );
 
-
+  return (
     <div className="space-y-3">
       <AdminPageHeader 
         icon={UserCog} 
