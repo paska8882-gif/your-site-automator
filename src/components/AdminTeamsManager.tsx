@@ -207,18 +207,15 @@ export const AdminTeamsManager = () => {
     }
 
     const teamIds = teamsData.map(t => t.id);
-    const adminIds = teamsData.map(t => t.assigned_admin_id).filter(Boolean) as string[];
 
     // Batch fetch all data in parallel
     const [
-      adminProfilesResult,
+      teamAdminsResult,
       inviteCodesResult,
       teamMembersResult
     ] = await Promise.all([
-      // Admin profiles
-      adminIds.length > 0 
-        ? supabase.from("profiles").select("user_id, display_name").in("user_id", adminIds)
-        : Promise.resolve({ data: [] }),
+      // Team admins from junction table
+      supabase.from("team_admins").select("team_id, admin_id").in("team_id", teamIds),
       // Invite codes for all teams
       supabase.from("invite_codes")
         .select("team_id, code")
@@ -233,11 +230,26 @@ export const AdminTeamsManager = () => {
         .eq("status", "approved")
     ]);
 
-    // Build maps
-    const adminProfilesMap = new Map<string, string>();
-    (adminProfilesResult.data || []).forEach(p => 
-      adminProfilesMap.set(p.user_id, p.display_name || "Без імені")
-    );
+    // Get admin profiles
+    const allAdminIds = [...new Set((teamAdminsResult.data || []).map(r => r.admin_id))];
+    let adminProfilesMap = new Map<string, string>();
+    if (allAdminIds.length > 0) {
+      const { data: adminProfiles } = await supabase
+        .from("profiles")
+        .select("user_id, display_name")
+        .in("user_id", allAdminIds);
+      (adminProfiles || []).forEach(p =>
+        adminProfilesMap.set(p.user_id, p.display_name || "Без імені")
+      );
+    }
+
+    // Group team admins by team
+    const adminsByTeam = new Map<string, string[]>();
+    (teamAdminsResult.data || []).forEach(r => {
+      const existing = adminsByTeam.get(r.team_id) || [];
+      existing.push(r.admin_id);
+      adminsByTeam.set(r.team_id, existing);
+    });
 
     const inviteCodesMap = new Map<string, string>();
     (inviteCodesResult.data || []).forEach(c => {
