@@ -1028,6 +1028,35 @@ export type Database = {
           },
         ]
       }
+      team_admins: {
+        Row: {
+          admin_id: string
+          created_at: string
+          id: string
+          team_id: string
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string
+          id?: string
+          team_id: string
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string
+          id?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_admins_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_members: {
         Row: {
           approved_at: string | null

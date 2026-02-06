@@ -847,7 +847,18 @@ export function WebsiteGenerator() {
         
         // Super admin sees all teams, regular admins only see assigned teams
         if (!isSuperAdmin) {
-          query = query.eq("assigned_admin_id", user.id);
+          // Get teams where this admin is assigned via team_admins junction table
+          const { data: teamAdminRows } = await supabase
+            .from("team_admins")
+            .select("team_id")
+            .eq("admin_id", user.id);
+          
+          const assignedTeamIds = teamAdminRows?.map(r => r.team_id) || [];
+          if (assignedTeamIds.length === 0) {
+            setAdminTeams([]);
+            return;
+          }
+          query = query.in("id", assignedTeamIds);
         }
         
         const { data: teams } = await query.order("name");

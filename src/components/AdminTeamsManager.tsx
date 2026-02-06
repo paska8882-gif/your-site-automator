@@ -47,8 +47,8 @@ interface Team {
   created_at: string;
   owner_code?: string;
   members_count?: number;
-  assigned_admin_id?: string | null;
-  assigned_admin_name?: string | null;
+  assigned_admin_ids?: string[];
+  assigned_admin_names?: string[];
   owner_name?: string | null;
   has_owner?: boolean;
 }
@@ -207,18 +207,15 @@ export const AdminTeamsManager = () => {
     }
 
     const teamIds = teamsData.map(t => t.id);
-    const adminIds = teamsData.map(t => t.assigned_admin_id).filter(Boolean) as string[];
 
     // Batch fetch all data in parallel
     const [
-      adminProfilesResult,
+      teamAdminsResult,
       inviteCodesResult,
       teamMembersResult
     ] = await Promise.all([
-      // Admin profiles
-      adminIds.length > 0 
-        ? supabase.from("profiles").select("user_id, display_name").in("user_id", adminIds)
-        : Promise.resolve({ data: [] }),
+      // Team admins from junction table
+      supabase.from("team_admins").select("team_id, admin_id").in("team_id", teamIds),
       // Invite codes for all teams
       supabase.from("invite_codes")
         .select("team_id, code")
@@ -233,11 +230,26 @@ export const AdminTeamsManager = () => {
         .eq("status", "approved")
     ]);
 
-    // Build maps
-    const adminProfilesMap = new Map<string, string>();
-    (adminProfilesResult.data || []).forEach(p => 
-      adminProfilesMap.set(p.user_id, p.display_name || "Без імені")
-    );
+    // Get admin profiles
+    const allAdminIds = [...new Set((teamAdminsResult.data || []).map(r => r.admin_id))];
+    let adminProfilesMap = new Map<string, string>();
+    if (allAdminIds.length > 0) {
+      const { data: adminProfiles } = await supabase
+        .from("profiles")
+        .select("user_id, display_name")
+        .in("user_id", allAdminIds);
+      (adminProfiles || []).forEach(p =>
+        adminProfilesMap.set(p.user_id, p.display_name || "Без імені")
+      );
+    }
+
+    // Group team admins by team
+    const adminsByTeam = new Map<string, string[]>();
+    (teamAdminsResult.data || []).forEach(r => {
+      const existing = adminsByTeam.get(r.team_id) || [];
+      existing.push(r.admin_id);
+      adminsByTeam.set(r.team_id, existing);
+    });
 
     const inviteCodesMap = new Map<string, string>();
     (inviteCodesResult.data || []).forEach(c => {
@@ -281,9 +293,8 @@ export const AdminTeamsManager = () => {
         ...team,
         owner_code: inviteCodesMap.get(team.id),
         members_count: members.length,
-        assigned_admin_name: team.assigned_admin_id 
-          ? adminProfilesMap.get(team.assigned_admin_id) 
-          : null,
+        assigned_admin_ids: adminsByTeam.get(team.id) || [],
+        assigned_admin_names: (adminsByTeam.get(team.id) || []).map(id => adminProfilesMap.get(id) || "Без імені"),
         owner_name: owner ? ownerProfilesMap.get(owner.user_id) : null,
         has_owner: !!owner
       };
@@ -293,18 +304,28 @@ export const AdminTeamsManager = () => {
     setLoading(false);
   };
 
-  const handleAssignAdmin = async (teamId: string, adminId: string | null) => {
-    const { error } = await supabase
-      .from("teams")
-      .update({ assigned_admin_id: adminId === "none" ? null : adminId })
-      .eq("id", teamId);
-
-    if (error) {
-      toast({ title: t("common.error"), description: t("admin.teamsAssignAdminError"), variant: "destructive" });
+  const handleAssignAdmin = async (teamId: string, adminId: string, add: boolean) => {
+    if (add) {
+      const { error } = await supabase
+        .from("team_admins")
+        .insert({ team_id: teamId, admin_id: adminId });
+      if (error) {
+        toast({ title: t("common.error"), description: t("admin.teamsAssignAdminError"), variant: "destructive" });
+        return;
+      }
     } else {
-      toast({ title: t("common.saved"), description: t("admin.teamsAdminAssigned") });
-      fetchTeams();
+      const { error } = await supabase
+        .from("team_admins")
+        .delete()
+        .eq("team_id", teamId)
+        .eq("admin_id", adminId);
+      if (error) {
+        toast({ title: t("common.error"), description: t("admin.teamsAssignAdminError"), variant: "destructive" });
+        return;
+      }
     }
+    toast({ title: t("common.saved"), description: t("admin.teamsAdminAssigned") });
+    fetchTeams();
   };
 
   const handleUpdateCreditLimit = async (teamId: string, creditLimit: number) => {
@@ -739,25 +760,39 @@ export const AdminTeamsManager = () => {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-xs">
-                    <UserCog className="h-3 w-3 text-muted-foreground" />
+                  <div className="flex items-start gap-1.5 text-xs">
+                    <UserCog className="h-3 w-3 text-muted-foreground mt-0.5" />
                     <span className="text-muted-foreground">{t("admin.teamsAdmin")}:</span>
-                    <Select
-                      value={team.assigned_admin_id || "none"}
-                      onValueChange={(value) => handleAssignAdmin(team.id, value)}
-                    >
-                      <SelectTrigger className="h-6 w-[140px] text-[10px]">
-                        <SelectValue placeholder={t("admin.teamsNotAssigned")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none" className="text-xs">{t("admin.teamsNotAssigned")}</SelectItem>
-                        {admins.map((admin) => (
-                          <SelectItem key={admin.user_id} value={admin.user_id} className="text-xs">
-                            {admin.display_name || admin.user_id.slice(0, 8)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex flex-wrap gap-1">
+                      {(team.assigned_admin_ids || []).map((adminId, idx) => (
+                        <Badge key={adminId} variant="secondary" className="text-[10px] px-1 py-0 gap-0.5">
+                          {team.assigned_admin_names?.[idx] || adminId.slice(0, 8)}
+                          <button
+                            className="ml-0.5 hover:text-destructive"
+                            onClick={() => handleAssignAdmin(team.id, adminId, false)}
+                          >
+                            ×
+                          </button>
+                        </Badge>
+                      ))}
+                      <Select
+                        value=""
+                        onValueChange={(value) => handleAssignAdmin(team.id, value, true)}
+                      >
+                        <SelectTrigger className="h-5 w-[100px] text-[10px]">
+                          <SelectValue placeholder="+ Додати" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {admins
+                            .filter(a => !(team.assigned_admin_ids || []).includes(a.user_id))
+                            .map((admin) => (
+                              <SelectItem key={admin.user_id} value={admin.user_id} className="text-xs">
+                                {admin.display_name || admin.user_id.slice(0, 8)}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-1.5 text-xs">

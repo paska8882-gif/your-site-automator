@@ -53,7 +53,7 @@ interface Team {
   max_referral_invites: number;
   created_at: string;
   created_by: string;
-  assigned_admin_id: string | null;
+  assigned_admin_ids: string[];
 }
 
 interface TeamMember {
@@ -263,7 +263,16 @@ const AdminTeamDetails = () => {
       .single();
 
     if (!error && data) {
-      setTeam(data);
+      // Fetch assigned admins from junction table
+      const { data: teamAdminRows } = await supabase
+        .from("team_admins")
+        .select("admin_id")
+        .eq("team_id", data.id);
+      
+      setTeam({
+        ...data,
+        assigned_admin_ids: teamAdminRows?.map(r => r.admin_id) || []
+      });
       setCreditLimitInput(data.credit_limit?.toString() || "0");
       setReferralLimitInput(data.max_referral_invites?.toString() || "4");
     }
@@ -453,18 +462,28 @@ const AdminTeamDetails = () => {
     setSavingPricing(false);
   };
 
-  const handleAssignAdmin = async (adminId: string | null) => {
-    const { error } = await supabase
-      .from("teams")
-      .update({ assigned_admin_id: adminId === "none" ? null : adminId })
-      .eq("id", teamId);
-
-    if (error) {
-      toast({ title: "Помилка", description: "Не вдалося призначити адміністратора", variant: "destructive" });
+  const handleAssignAdmin = async (adminId: string, add: boolean) => {
+    if (add) {
+      const { error } = await supabase
+        .from("team_admins")
+        .insert({ team_id: teamId, admin_id: adminId });
+      if (error) {
+        toast({ title: "Помилка", description: "Не вдалося призначити адміністратора", variant: "destructive" });
+        return;
+      }
     } else {
-      toast({ title: "Збережено", description: "Адміністратора призначено" });
-      fetchTeam();
+      const { error } = await supabase
+        .from("team_admins")
+        .delete()
+        .eq("team_id", teamId)
+        .eq("admin_id", adminId);
+      if (error) {
+        toast({ title: "Помилка", description: "Не вдалося зняти адміністратора", variant: "destructive" });
+        return;
+      }
     }
+    toast({ title: "Збережено", description: "Адміністраторів оновлено" });
+    fetchTeam();
   };
 
   const handleUpdateCreditLimit = async () => {
@@ -728,7 +747,7 @@ const AdminTeamDetails = () => {
     );
   }
 
-  const assignedAdmin = admins.find(a => a.user_id === team.assigned_admin_id);
+  const assignedAdmins = admins.filter(a => team.assigned_admin_ids.includes(a.user_id));
 
   return (
     <AppLayout>
@@ -1026,21 +1045,35 @@ const AdminTeamDetails = () => {
           <CardContent className="px-4 pb-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Призначений адміністратор</label>
+                <label className="text-xs text-muted-foreground mb-1 block">Призначені адміністратори</label>
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {assignedAdmins.map(admin => (
+                    <Badge key={admin.user_id} variant="secondary" className="gap-1">
+                      {admin.display_name || admin.user_id.slice(0, 8)}
+                      <button
+                        className="ml-1 hover:text-destructive"
+                        onClick={() => handleAssignAdmin(admin.user_id, false)}
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
                 <Select
-                  value={team.assigned_admin_id || "none"}
-                  onValueChange={handleAssignAdmin}
+                  value=""
+                  onValueChange={(value) => handleAssignAdmin(value, true)}
                 >
                   <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Не призначено" />
+                    <SelectValue placeholder="+ Додати адміністратора" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Не призначено</SelectItem>
-                    {admins.map((admin) => (
-                      <SelectItem key={admin.user_id} value={admin.user_id}>
-                        {admin.display_name || admin.user_id.slice(0, 8)}
-                      </SelectItem>
-                    ))}
+                    {admins
+                      .filter(a => !team.assigned_admin_ids.includes(a.user_id))
+                      .map((admin) => (
+                        <SelectItem key={admin.user_id} value={admin.user_id}>
+                          {admin.display_name || admin.user_id.slice(0, 8)}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
