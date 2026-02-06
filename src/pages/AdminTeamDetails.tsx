@@ -263,7 +263,16 @@ const AdminTeamDetails = () => {
       .single();
 
     if (!error && data) {
-      setTeam(data);
+      // Fetch assigned admins from junction table
+      const { data: teamAdminRows } = await supabase
+        .from("team_admins")
+        .select("admin_id")
+        .eq("team_id", data.id);
+      
+      setTeam({
+        ...data,
+        assigned_admin_ids: teamAdminRows?.map(r => r.admin_id) || []
+      });
       setCreditLimitInput(data.credit_limit?.toString() || "0");
       setReferralLimitInput(data.max_referral_invites?.toString() || "4");
     }
