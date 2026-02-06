@@ -462,18 +462,28 @@ const AdminTeamDetails = () => {
     setSavingPricing(false);
   };
 
-  const handleAssignAdmin = async (adminId: string | null) => {
-    const { error } = await supabase
-      .from("teams")
-      .update({ assigned_admin_id: adminId === "none" ? null : adminId })
-      .eq("id", teamId);
-
-    if (error) {
-      toast({ title: "Помилка", description: "Не вдалося призначити адміністратора", variant: "destructive" });
+  const handleAssignAdmin = async (adminId: string, add: boolean) => {
+    if (add) {
+      const { error } = await supabase
+        .from("team_admins")
+        .insert({ team_id: teamId, admin_id: adminId });
+      if (error) {
+        toast({ title: "Помилка", description: "Не вдалося призначити адміністратора", variant: "destructive" });
+        return;
+      }
     } else {
-      toast({ title: "Збережено", description: "Адміністратора призначено" });
-      fetchTeam();
+      const { error } = await supabase
+        .from("team_admins")
+        .delete()
+        .eq("team_id", teamId)
+        .eq("admin_id", adminId);
+      if (error) {
+        toast({ title: "Помилка", description: "Не вдалося зняти адміністратора", variant: "destructive" });
+        return;
+      }
     }
+    toast({ title: "Збережено", description: "Адміністраторів оновлено" });
+    fetchTeam();
   };
 
   const handleUpdateCreditLimit = async () => {

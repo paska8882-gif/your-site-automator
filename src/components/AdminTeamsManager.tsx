@@ -760,25 +760,39 @@ export const AdminTeamsManager = () => {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-xs">
-                    <UserCog className="h-3 w-3 text-muted-foreground" />
+                  <div className="flex items-start gap-1.5 text-xs">
+                    <UserCog className="h-3 w-3 text-muted-foreground mt-0.5" />
                     <span className="text-muted-foreground">{t("admin.teamsAdmin")}:</span>
-                    <Select
-                      value={team.assigned_admin_id || "none"}
-                      onValueChange={(value) => handleAssignAdmin(team.id, value)}
-                    >
-                      <SelectTrigger className="h-6 w-[140px] text-[10px]">
-                        <SelectValue placeholder={t("admin.teamsNotAssigned")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none" className="text-xs">{t("admin.teamsNotAssigned")}</SelectItem>
-                        {admins.map((admin) => (
-                          <SelectItem key={admin.user_id} value={admin.user_id} className="text-xs">
-                            {admin.display_name || admin.user_id.slice(0, 8)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex flex-wrap gap-1">
+                      {(team.assigned_admin_ids || []).map((adminId, idx) => (
+                        <Badge key={adminId} variant="secondary" className="text-[10px] px-1 py-0 gap-0.5">
+                          {team.assigned_admin_names?.[idx] || adminId.slice(0, 8)}
+                          <button
+                            className="ml-0.5 hover:text-destructive"
+                            onClick={() => handleAssignAdmin(team.id, adminId, false)}
+                          >
+                            ×
+                          </button>
+                        </Badge>
+                      ))}
+                      <Select
+                        value=""
+                        onValueChange={(value) => handleAssignAdmin(team.id, value, true)}
+                      >
+                        <SelectTrigger className="h-5 w-[100px] text-[10px]">
+                          <SelectValue placeholder="+ Додати" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {admins
+                            .filter(a => !(team.assigned_admin_ids || []).includes(a.user_id))
+                            .map((admin) => (
+                              <SelectItem key={admin.user_id} value={admin.user_id} className="text-xs">
+                                {admin.display_name || admin.user_id.slice(0, 8)}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-1.5 text-xs">
