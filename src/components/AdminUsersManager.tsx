@@ -800,225 +800,52 @@ export const AdminUsersManager = () => {
         </Card>
       )}
 
-      {/* Users Table */}
-      <Card>
-        <CardHeader className="py-2 px-3">
-          <CardTitle className="text-xs font-medium">{t("admin.users")} ({filteredUsers.length})</CardTitle>
-        </CardHeader>
-        <CardContent className="px-3 pb-3">
-          <div className="overflow-x-auto">
-            <Table>
-                <TableHeader>
-                <TableRow>
-                  <TableHead className="text-[10px] py-1">{t("admin.usersTableHeaders.user")}</TableHead>
-                  <TableHead className="text-[10px] py-1">{t("admin.usersTableHeaders.teams")}</TableHead>
-                  <TableHead className="text-[10px] py-1">{t("admin.usersTableHeaders.limit")}</TableHead>
-                  <TableHead className="text-[10px] py-1">{t("admin.usersTableHeaders.status")}</TableHead>
-                  <TableHead className="text-[10px] py-1">{t("admin.usersTableHeaders.date")}</TableHead>
-                  <TableHead className="text-[10px] py-1 text-right">{t("admin.usersTableHeaders.actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.map(user => (
-                  <TableRow key={user.user_id}>
-                    <TableCell className="py-1.5">
-                      <div>
-                        {editingUserId === user.user_id ? (
-                          <div className="flex items-center gap-1">
-                            <Input
-                              value={editDisplayName}
-                              onChange={(e) => setEditDisplayName(e.target.value)}
-                              className="h-6 w-32 text-xs"
-                              placeholder="Ім'я"
-                              autoFocus
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") saveDisplayName(user.user_id);
-                                if (e.key === "Escape") cancelEditName();
-                              }}
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-5 w-5 p-0"
-                              onClick={() => saveDisplayName(user.user_id)}
-                              disabled={savingName}
-                            >
-                              {savingName ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <Check className="h-3 w-3 text-green-500" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-5 w-5 p-0"
-                              onClick={cancelEditName}
-                              disabled={savingName}
-                            >
-                              <X className="h-3 w-3 text-destructive" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="font-medium text-xs flex items-center gap-1">
-                            {user.display_name || t("admin.usersNoName")}
-                            {user.isAdmin && (
-                              <Crown className="h-3 w-3 text-yellow-500" />
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-4 w-4 p-0"
-                              onClick={() => startEditName(user)}
-                            >
-                              <Pencil className="h-2.5 w-2.5" />
-                            </Button>
-                          </div>
-                        )}
-                        <div className="text-[10px] text-muted-foreground">
-                          {user.email || user.user_id.slice(0, 8) + "..."}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-1.5">
-                      {user.teams.length > 0 ? (
-                        <div className="flex flex-wrap gap-0.5">
-                          {user.teams.map(team => (
-                            <Badge 
-                              key={team.team_id} 
-                              variant="secondary"
-                              className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground text-[10px] px-1 py-0"
-                              onClick={() => handleRemoveFromTeam(user, team.team_id)}
-                              title="Видалити"
-                            >
-                              {team.team_name}
-                              <span className="ml-0.5 opacity-70">
-                                ({roleLabels[team.role]})
-                              </span>
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-[10px]">{t("admin.usersNoTeams")}</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-1.5">
-                      {editingGenLimitUserId === user.user_id ? (
-                        <div className="flex items-center gap-1">
-                          <Input
-                            type="number"
-                            value={editGenLimit}
-                            onChange={(e) => setEditGenLimit(parseInt(e.target.value) || 1)}
-                            min={1}
-                            max={100}
-                            className="h-6 w-14 text-xs"
-                            autoFocus
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") saveGenLimit(user.user_id);
-                              if (e.key === "Escape") cancelEditGenLimit();
-                            }}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-5 w-5 p-0"
-                            onClick={() => saveGenLimit(user.user_id)}
-                            disabled={savingGenLimit}
-                          >
-                            {savingGenLimit ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Check className="h-3 w-3 text-green-500" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-5 w-5 p-0"
-                            onClick={cancelEditGenLimit}
-                            disabled={savingGenLimit}
-                          >
-                            <X className="h-3 w-3 text-destructive" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <Zap className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-xs font-medium">{user.max_concurrent_generations}</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-4 w-4 p-0"
-                            onClick={() => startEditGenLimit(user)}
-                          >
-                            <Pencil className="h-2.5 w-2.5" />
-                          </Button>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-1.5">
-                      <div className="flex items-center gap-1">
-                        {user.isAdmin && (
-                          <Badge className="bg-yellow-500 text-black text-[10px] px-1 py-0">{t("admin.usersStatusAdmin")}</Badge>
-                        )}
-                        {user.is_blocked && (
-                          <Badge variant="destructive" className="text-[10px] px-1 py-0">{t("admin.usersStatusBlocked")}</Badge>
-                        )}
-                        {!user.isAdmin && !user.is_blocked && (
-                          <Badge variant="outline" className="text-[10px] px-1 py-0">{t("admin.usersStatusActive")}</Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-1.5 text-[10px]">
-                      {new Date(user.created_at).toLocaleDateString("uk-UA")}
-                    </TableCell>
-                    <TableCell className="py-1.5 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 text-[10px] px-1.5"
-                          onClick={() => openResetPasswordDialog(user)}
-                          title={t("admin.usersResetPassword")}
-                        >
-                          <KeyRound className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 text-[10px] px-1.5"
-                          onClick={() => openAssignDialog(user)}
-                        >
-                          <UserPlus className="h-3 w-3 mr-0.5" />
-                          {t("admin.usersTeam")}
-                        </Button>
-                        <Button
-                          variant={user.is_blocked ? "default" : "destructive"}
-                          size="sm"
-                          className="h-6 text-[10px] px-1.5"
-                          onClick={() => toggleBlockUser(user)}
-                        >
-                          {user.is_blocked ? (
-                            <>
-                              <ShieldCheck className="h-3 w-3 mr-0.5" />
-                              {t("admin.usersUnblock")}
-                            </>
-                          ) : (
-                            <>
-                              <Ban className="h-3 w-3 mr-0.5" />
-                              {t("admin.usersBlock")}
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Users Table / Grouped View */}
+      {groupByTeam && groupedUsers ? (
+        <div className="space-y-3">
+          {Object.entries(groupedUsers.groups).map(([teamId, group]) => (
+            <Card key={teamId}>
+              <CardHeader className="py-2 px-3">
+                <CardTitle className="text-xs font-medium flex items-center gap-2">
+                  <Users className="h-3.5 w-3.5 text-primary" />
+                  {group.teamName} ({group.users.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-3 pb-3">
+                <div className="overflow-x-auto">
+                  {renderUsersTable(group.users)}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          {groupedUsers.noTeamUsers.length > 0 && (
+            <Card className="border-dashed">
+              <CardHeader className="py-2 px-3">
+                <CardTitle className="text-xs font-medium flex items-center gap-2 text-muted-foreground">
+                  <UserX className="h-3.5 w-3.5" />
+                  {t("admin.usersNoTeams")} ({groupedUsers.noTeamUsers.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-3 pb-3">
+                <div className="overflow-x-auto">
+                  {renderUsersTable(groupedUsers.noTeamUsers)}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      ) : (
+        <Card>
+          <CardHeader className="py-2 px-3">
+            <CardTitle className="text-xs font-medium">{t("admin.users")} ({filteredUsers.length})</CardTitle>
+          </CardHeader>
+          <CardContent className="px-3 pb-3">
+            <div className="overflow-x-auto">
+              {renderUsersTable(filteredUsers)}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Assign to Team Dialog */}
       <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
