@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Switch } from "@/components/ui/switch";
 import { 
   Users, 
   UserPlus,
@@ -27,7 +28,8 @@ import {
   Clock,
   UserCheck,
   UserX,
-  Ticket
+  Ticket,
+  LayoutGrid
 } from "lucide-react";
 
 type TeamRole = "owner" | "team_lead" | "buyer" | "tech_dev";
