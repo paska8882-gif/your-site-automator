@@ -47,8 +47,8 @@ interface Team {
   created_at: string;
   owner_code?: string;
   members_count?: number;
-  assigned_admin_id?: string | null;
-  assigned_admin_name?: string | null;
+  assigned_admin_ids?: string[];
+  assigned_admin_names?: string[];
   owner_name?: string | null;
   has_owner?: boolean;
 }

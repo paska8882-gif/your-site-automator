@@ -53,7 +53,7 @@ interface Team {
   max_referral_invites: number;
   created_at: string;
   created_by: string;
-  assigned_admin_id: string | null;
+  assigned_admin_ids: string[];
 }
 
 interface TeamMember {
