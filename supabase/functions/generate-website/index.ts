@@ -472,6 +472,350 @@ function generateRealisticPhone(geo?: string): string {
   return `+49 30 ${randomDigits(3)} ${randomDigits(4)}`;
 }
 
+// ============ REALISTIC ADDRESS GENERATION ============
+// Generate a realistic, unique address based on geo/country
+function generateRealisticAddress(geo?: string): string {
+  const geoLower = (geo || '').toLowerCase().trim();
+  const hasGeoCode = (code: string) => geoLower === code || new RegExp(`\\b${code}\\b`, 'i').test(geoLower);
+
+  const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+  const num = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+  // Street data per country: [streets[], cities[], postal format fn]
+  type CountryData = { streets: string[]; cities: string[]; postal: () => string; format: (s: string, n: number, c: string, p: string) => string };
+
+  const countries: Record<string, CountryData> = {
+    de: {
+      streets: ['Friedrichstraße', 'Berliner Allee', 'Hauptstraße', 'Schillerstraße', 'Goethestraße', 'Bahnhofstraße', 'Mozartstraße', 'Gartenstraße', 'Rosenstraße', 'Waldstraße', 'Lindenstraße', 'Kirchstraße', 'Bismarckstraße', 'Kaiserstraße', 'Beethovenstraße'],
+      cities: ['Berlin', 'München', 'Hamburg', 'Köln', 'Frankfurt am Main', 'Stuttgart', 'Düsseldorf', 'Dresden', 'Leipzig', 'Hannover', 'Nürnberg', 'Bremen'],
+      postal: () => `${num(10, 99)}${num(100, 999)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Germany`,
+    },
+    at: {
+      streets: ['Mariahilfer Straße', 'Kärntner Straße', 'Ringstraße', 'Graben', 'Landstraße', 'Hauptplatz', 'Herrengasse', 'Bahnhofstraße'],
+      cities: ['Wien', 'Graz', 'Linz', 'Salzburg', 'Innsbruck', 'Klagenfurt'],
+      postal: () => `${num(1010, 9999)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Austria`,
+    },
+    ch: {
+      streets: ['Bahnhofstrasse', 'Limmatquai', 'Rämistrasse', 'Marktgasse', 'Bundesgasse', 'Kramgasse', 'Spitalgasse'],
+      cities: ['Zürich', 'Bern', 'Basel', 'Genf', 'Lausanne', 'Luzern'],
+      postal: () => `${num(1000, 9999)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Switzerland`,
+    },
+    gb: {
+      streets: ['Baker Street', 'Oxford Street', 'High Street', 'King Street', 'Queen Street', 'Church Road', 'Victoria Road', 'Station Road', 'Park Avenue', 'Mill Lane', 'The Broadway', 'Regent Street'],
+      cities: ['London', 'Manchester', 'Birmingham', 'Leeds', 'Glasgow', 'Liverpool', 'Edinburgh', 'Bristol', 'Cardiff', 'Sheffield'],
+      postal: () => `${pick(['SW', 'SE', 'NW', 'EC', 'WC', 'W', 'E', 'N'])}${num(1, 20)} ${num(1, 9)}${pick(['AB', 'CD', 'EF', 'GH', 'JK', 'LN', 'PQ', 'RS', 'TW'])}`,
+      format: (s, n, c, p) => `${n} ${s}, ${c} ${p}, United Kingdom`,
+    },
+    fr: {
+      streets: ['Rue de Rivoli', 'Avenue des Champs-Élysées', 'Boulevard Saint-Germain', 'Rue du Faubourg Saint-Honoré', 'Avenue Montaigne', 'Rue de la Paix', 'Boulevard Haussmann', 'Rue Saint-Honoré', 'Avenue Victor Hugo', 'Rue de Vaugirard'],
+      cities: ['Paris', 'Lyon', 'Marseille', 'Toulouse', 'Nice', 'Nantes', 'Strasbourg', 'Bordeaux', 'Lille', 'Montpellier'],
+      postal: () => `${num(10, 95)}${num(100, 999)}`,
+      format: (s, n, c, p) => `${n} ${s}, ${p} ${c}, France`,
+    },
+    es: {
+      streets: ['Calle Gran Vía', 'Paseo de la Castellana', 'Calle Serrano', 'Avenida de la Constitución', 'Calle Mayor', 'Rambla de Catalunya', 'Calle Alcalá', 'Paseo de Gracia', 'Calle de Velázquez', 'Avenida Diagonal'],
+      cities: ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Bilbao', 'Málaga', 'Zaragoza', 'Alicante', 'Palma de Mallorca'],
+      postal: () => `${num(10, 52)}${num(100, 999)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Spain`,
+    },
+    it: {
+      streets: ['Via Roma', 'Via Nazionale', 'Corso Vittorio Emanuele', 'Via del Corso', 'Via Torino', 'Via Garibaldi', 'Via Dante', 'Via Manzoni', 'Via Verdi', 'Piazza del Duomo', 'Via della Libertà'],
+      cities: ['Roma', 'Milano', 'Napoli', 'Torino', 'Firenze', 'Bologna', 'Genova', 'Palermo', 'Venezia', 'Verona'],
+      postal: () => `${num(10, 98)}${num(100, 999)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Italy`,
+    },
+    nl: {
+      streets: ['Keizersgracht', 'Herengracht', 'Prinsengracht', 'Damrak', 'Kalverstraat', 'Leidsestraat', 'Utrechtsestraat', 'Singel', 'Vijzelstraat', 'Overtoom'],
+      cities: ['Amsterdam', 'Rotterdam', 'Den Haag', 'Utrecht', 'Eindhoven', 'Groningen', 'Tilburg', 'Breda'],
+      postal: () => `${num(1000, 9999)} ${pick(['AB', 'CD', 'EF', 'GH', 'JK', 'LM', 'NP', 'RS', 'TV', 'WX'])}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Netherlands`,
+    },
+    be: {
+      streets: ['Rue Neuve', 'Avenue Louise', 'Boulevard Anspach', 'Rue de la Loi', 'Chaussée de Waterloo', 'Rue Royale', 'Boulevard du Jardin Botanique', 'Rue du Marché aux Herbes'],
+      cities: ['Bruxelles', 'Antwerpen', 'Gent', 'Liège', 'Charleroi', 'Bruges', 'Namur', 'Leuven'],
+      postal: () => `${num(1000, 9999)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Belgium`,
+    },
+    pl: {
+      streets: ['ul. Marszałkowska', 'ul. Nowy Świat', 'ul. Krakowskie Przedmieście', 'ul. Floriańska', 'ul. Piotrkowska', 'ul. Długa', 'ul. Grodzka', 'ul. Świętojańska', 'Al. Jerozolimskie', 'ul. Lipowa'],
+      cities: ['Warszawa', 'Kraków', 'Wrocław', 'Poznań', 'Gdańsk', 'Łódź', 'Katowice', 'Lublin', 'Szczecin'],
+      postal: () => `${num(10, 99)}-${num(100, 999)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Poland`,
+    },
+    us: {
+      streets: ['Broadway', 'Main Street', 'Oak Avenue', 'Maple Drive', 'Cedar Lane', 'Park Boulevard', 'Elm Street', 'Washington Avenue', 'Lincoln Drive', 'Madison Avenue', 'Sunset Boulevard', 'Pacific Avenue'],
+      cities: ['New York, NY', 'Los Angeles, CA', 'Chicago, IL', 'Houston, TX', 'Phoenix, AZ', 'Philadelphia, PA', 'San Antonio, TX', 'San Diego, CA', 'Dallas, TX', 'Austin, TX', 'San Francisco, CA', 'Seattle, WA', 'Denver, CO', 'Boston, MA'],
+      postal: () => `${num(10001, 99999)}`,
+      format: (s, n, c, p) => `${n} ${s}, ${c} ${p}, USA`,
+    },
+    ca: {
+      streets: ['Yonge Street', 'Bloor Street', 'King Street', 'Queen Street', 'Dundas Street', 'Bay Street', 'Rue Sainte-Catherine', 'Robson Street', 'Jasper Avenue'],
+      cities: ['Toronto, ON', 'Vancouver, BC', 'Montréal, QC', 'Calgary, AB', 'Ottawa, ON', 'Edmonton, AB', 'Winnipeg, MB', 'Halifax, NS'],
+      postal: () => `${pick(['M', 'V', 'H', 'T', 'K', 'R', 'B'])}${num(1, 9)}${pick(['A', 'B', 'C', 'E', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'R', 'S', 'T', 'V', 'W', 'X', 'Y'])} ${num(1, 9)}${pick(['A', 'B', 'C', 'E', 'G', 'H', 'J', 'K'])}${num(1, 9)}`,
+      format: (s, n, c, p) => `${n} ${s}, ${c} ${p}, Canada`,
+    },
+    ua: {
+      streets: ['вул. Хрещатик', 'вул. Грушевського', 'просп. Свободи', 'вул. Дерибасівська', 'вул. Сумська', 'вул. Велика Васильківська', 'просп. Шевченка', 'вул. Соборна', 'вул. Січових Стрільців', 'вул. Богдана Хмельницького'],
+      cities: ['Київ', 'Львів', 'Одеса', 'Харків', 'Дніпро', 'Запоріжжя', 'Вінниця', 'Івано-Франківськ', 'Тернопіль', 'Полтава'],
+      postal: () => `${num(10, 99)}${num(100, 999)}`,
+      format: (s, n, c, p) => `${s}, ${n}, ${c}, ${p}, Україна`,
+    },
+    pt: {
+      streets: ['Rua Augusta', 'Avenida da Liberdade', 'Rua do Ouro', 'Rua de Santa Catarina', 'Avenida dos Aliados', 'Rua Garrett', 'Praça do Comércio', 'Rua da Prata'],
+      cities: ['Lisboa', 'Porto', 'Braga', 'Coimbra', 'Faro', 'Funchal', 'Aveiro', 'Setúbal'],
+      postal: () => `${num(1000, 9999)}-${num(100, 999)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Portugal`,
+    },
+    cz: {
+      streets: ['Václavské náměstí', 'Na Příkopě', 'Národní třída', 'Pařížská', 'Celetná', 'Nerudova', 'Mostecká', 'Karlova'],
+      cities: ['Praha', 'Brno', 'Ostrava', 'Plzeň', 'Liberec', 'Olomouc'],
+      postal: () => `${num(100, 999)} ${num(10, 99)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Czech Republic`,
+    },
+    ro: {
+      streets: ['Calea Victoriei', 'Bulevardul Unirii', 'Strada Lipscani', 'Bulevardul Magheru', 'Strada Franceză', 'Bulevardul Dacia', 'Calea Moșilor', 'Strada Covaci'],
+      cities: ['București', 'Cluj-Napoca', 'Timișoara', 'Iași', 'Constanța', 'Brașov', 'Sibiu', 'Oradea'],
+      postal: () => `${num(100, 999)}${num(100, 999)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Romania`,
+    },
+    ie: {
+      streets: ["O'Connell Street", 'Grafton Street', 'Henry Street', 'Dame Street', "St Stephen's Green", 'Baggot Street', 'Pearse Street', 'Thomas Street'],
+      cities: ['Dublin', 'Cork', 'Galway', 'Limerick', 'Waterford', 'Kilkenny'],
+      postal: () => `${pick(['D', 'T', 'A', 'C', 'V', 'E', 'F', 'H', 'K', 'N', 'P', 'R', 'W', 'X', 'Y'])}${num(10, 99)} ${pick(['A', 'B', 'C', 'D', 'E', 'F', 'H', 'K', 'N', 'P', 'R', 'T', 'V', 'W', 'X', 'Y'])}${pick(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'])}${pick(['A', 'B', 'C', 'D', 'E', 'F'])}${pick(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'])}`,
+      format: (s, n, c, p) => `${n} ${s}, ${c} ${p}, Ireland`,
+    },
+    bg: {
+      streets: ['бул. Витоша', 'ул. Граф Игнатиев', 'бул. Цар Освободител', 'ул. Пиротска', 'бул. Мария Луиза', 'ул. Шишман'],
+      cities: ['София', 'Пловдив', 'Варна', 'Бургас', 'Русе', 'Стара Загора'],
+      postal: () => `${num(1000, 9999)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Bulgaria`,
+    },
+    hu: {
+      streets: ['Andrássy út', 'Váci utca', 'Rákóczi út', 'Kossuth Lajos utca', 'Nagymező utca', 'Bajcsy-Zsilinszky út', 'Dob utca'],
+      cities: ['Budapest', 'Debrecen', 'Szeged', 'Miskolc', 'Pécs', 'Győr'],
+      postal: () => `${num(1000, 9999)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Hungary`,
+    },
+    hr: {
+      streets: ['Ilica', 'Jurišićeva ulica', 'Frankopanska ulica', 'Tkalčićeva ulica', 'Savska cesta', 'Maksimirska cesta'],
+      cities: ['Zagreb', 'Split', 'Rijeka', 'Osijek', 'Zadar', 'Dubrovnik'],
+      postal: () => `${num(10000, 53999)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Croatia`,
+    },
+    tr: {
+      streets: ['İstiklal Caddesi', 'Bağdat Caddesi', 'Atatürk Bulvarı', 'Kızılay Meydanı', 'Cumhuriyet Caddesi', 'Anafartalar Caddesi'],
+      cities: ['İstanbul', 'Ankara', 'İzmir', 'Antalya', 'Bursa', 'Adana'],
+      postal: () => `${num(10, 81)}${num(100, 999)}`,
+      format: (s, n, c, p) => `${s} No:${n}, ${p} ${c}, Turkey`,
+    },
+    ru: {
+      streets: ['ул. Тверская', 'Невский проспект', 'ул. Арбат', 'проспект Мира', 'ул. Ленина', 'Красный проспект', 'ул. Кирова', 'проспект Победы', 'ул. Гагарина', 'ул. Пушкина'],
+      cities: ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Казань', 'Нижний Новгород', 'Самара', 'Ростов-на-Дону'],
+      postal: () => `${num(100, 699)}${num(100, 999)}`,
+      format: (s, n, c, p) => `${s}, д. ${n}, ${c}, ${p}, Россия`,
+    },
+    se: {
+      streets: ['Drottninggatan', 'Kungsgatan', 'Sveavägen', 'Birger Jarlsgatan', 'Strandvägen', 'Hamngatan', 'Vasagatan'],
+      cities: ['Stockholm', 'Göteborg', 'Malmö', 'Uppsala', 'Linköping', 'Västerås'],
+      postal: () => `${num(100, 999)} ${num(10, 99)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Sweden`,
+    },
+    dk: {
+      streets: ['Strøget', 'Nørrebrogade', 'Vesterbrogade', 'Amagerbrogade', 'Østerbrogade', 'Kongens Nytorv', 'Gothersgade'],
+      cities: ['København', 'Aarhus', 'Odense', 'Aalborg', 'Frederiksberg', 'Esbjerg'],
+      postal: () => `${num(1000, 9999)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Denmark`,
+    },
+    no: {
+      streets: ['Karl Johans gate', 'Grünerløkka', 'Bogstadveien', 'Markens gate', 'Strandgaten', 'Torgallmenningen'],
+      cities: ['Oslo', 'Bergen', 'Trondheim', 'Stavanger', 'Tromsø', 'Drammen'],
+      postal: () => `${num(1, 9)}${num(100, 999)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Norway`,
+    },
+    fi: {
+      streets: ['Mannerheimintie', 'Aleksanterinkatu', 'Esplanadi', 'Hämeenkatu', 'Kauppakatu', 'Keskuskatu'],
+      cities: ['Helsinki', 'Espoo', 'Tampere', 'Turku', 'Oulu', 'Jyväskylä'],
+      postal: () => `${num(10, 99)}${num(100, 999)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Finland`,
+    },
+    gr: {
+      streets: ['Ερμού', 'Πανεπιστημίου', 'Σταδίου', 'Ακαδημίας', 'Τσιμισκή', 'Εγνατία', 'Νίκης'],
+      cities: ['Αθήνα', 'Θεσσαλονίκη', 'Πάτρα', 'Ηράκλειο', 'Λάρισα', 'Βόλος'],
+      postal: () => `${num(100, 999)} ${num(10, 99)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Greece`,
+    },
+    sk: {
+      streets: ['Obchodná ulica', 'Štúrova ulica', 'Hlavná ulica', 'Hviezdoslavovo námestie', 'Námestie SNP'],
+      cities: ['Bratislava', 'Košice', 'Prešov', 'Žilina', 'Nitra', 'Banská Bystrica'],
+      postal: () => `${num(10, 99)}${num(1, 9)} ${num(10, 99)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Slovakia`,
+    },
+    si: {
+      streets: ['Čopova ulica', 'Slovenska cesta', 'Trubarjeva cesta', 'Prešernov trg', 'Cankarjeva cesta'],
+      cities: ['Ljubljana', 'Maribor', 'Celje', 'Kranj', 'Koper'],
+      postal: () => `${num(1000, 9999)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Slovenia`,
+    },
+    lt: {
+      streets: ['Gedimino prospektas', 'Vilniaus gatvė', 'Pilies gatvė', 'Laisvės alėja', 'Vokiečių gatvė'],
+      cities: ['Vilnius', 'Kaunas', 'Klaipėda', 'Šiauliai', 'Panevėžys'],
+      postal: () => `LT-${num(10, 99)}${num(100, 999)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Lithuania`,
+    },
+    lv: {
+      streets: ['Brīvības iela', 'Elizabetes iela', 'Krišjāņa Barona iela', 'Čaka iela', 'Tērbatas iela'],
+      cities: ['Rīga', 'Daugavpils', 'Liepāja', 'Jelgava', 'Jūrmala'],
+      postal: () => `LV-${num(1000, 5999)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p}, ${c}, Latvia`,
+    },
+    ee: {
+      streets: ['Viru tänav', 'Narva maantee', 'Pärnu maantee', 'Tartu maantee', 'Liivalaia tänav'],
+      cities: ['Tallinn', 'Tartu', 'Narva', 'Pärnu', 'Kohtla-Järve'],
+      postal: () => `${num(10, 99)}${num(100, 999)}`,
+      format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Estonia`,
+    },
+    jp: {
+      streets: ['丸の内', '銀座', '渋谷', '新宿', '六本木', '表参道', '品川', '日本橋'],
+      cities: ['東京都', '大阪市', '京都市', '横浜市', '名古屋市', '神戸市', '福岡市', '札幌市'],
+      postal: () => `${num(100, 999)}-${num(1000, 9999)}`,
+      format: (s, n, c, p) => `〒${p} ${c}${s}${n}-${num(1, 30)}`,
+    },
+    ae: {
+      streets: ['Sheikh Zayed Road', 'Al Maktoum Road', 'Jumeirah Beach Road', 'Al Wasl Road', 'Corniche Road'],
+      cities: ['Dubai', 'Abu Dhabi', 'Sharjah', 'Ajman'],
+      postal: () => `${num(10000, 99999)}`,
+      format: (s, n, c, p) => `${s}, Building ${n}, ${c} ${p}, UAE`,
+    },
+    vn: {
+      streets: ['Đường Nguyễn Huệ', 'Đường Lê Lợi', 'Đường Đồng Khởi', 'Phố Hàng Bài', 'Đường Trần Hưng Đạo', 'Phố Tràng Tiền'],
+      cities: ['Hà Nội', 'TP. Hồ Chí Minh', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ'],
+      postal: () => `${num(100, 999)}${num(100, 999)}`,
+      format: (s, n, c, p) => `${n} ${s}, ${c} ${p}, Vietnam`,
+    },
+    th: {
+      streets: ['Sukhumvit Road', 'Silom Road', 'Sathorn Road', 'Ratchadaphisek Road', 'Phahonyothin Road', 'Rama IV Road'],
+      cities: ['Bangkok', 'Chiang Mai', 'Phuket', 'Pattaya', 'Nonthaburi'],
+      postal: () => `${num(10, 96)}${num(100, 999)}`,
+      format: (s, n, c, p) => `${n} ${s}, ${c} ${p}, Thailand`,
+    },
+    in: {
+      streets: ['MG Road', 'Brigade Road', 'Park Street', 'Connaught Place', 'Marine Drive', 'Anna Salai', 'FC Road'],
+      cities: ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai', 'Kolkata', 'Pune', 'Ahmedabad'],
+      postal: () => `${num(100, 999)}${num(100, 999)}`,
+      format: (s, n, c, p) => `${n}, ${s}, ${c} ${p}, India`,
+    },
+    id: {
+      streets: ['Jalan Sudirman', 'Jalan Thamrin', 'Jalan Gatot Subroto', 'Jalan Merdeka', 'Jalan Malioboro'],
+      cities: ['Jakarta', 'Surabaya', 'Bandung', 'Medan', 'Semarang', 'Yogyakarta'],
+      postal: () => `${num(10, 99)}${num(100, 999)}`,
+      format: (s, n, c, p) => `${s} No. ${n}, ${c} ${p}, Indonesia`,
+    },
+  };
+
+  // Match geo to country code
+  const geoMapping: [RegExp | string, string][] = [
+    [/germany|deutschland|німеч/i, 'de'], ['de', 'de'],
+    [/austria|österreich|австрі/i, 'at'], ['at', 'at'],
+    [/switzerland|schweiz|швейцар/i, 'ch'], ['ch', 'ch'],
+    [/united kingdom|britain|england|великобритан/i, 'gb'], ['gb', 'gb'], ['uk', 'gb'],
+    [/france|франц/i, 'fr'], ['fr', 'fr'],
+    [/spain|españa|іспан/i, 'es'], ['es', 'es'],
+    [/italy|italia|італ/i, 'it'], ['it', 'it'],
+    [/netherlands|nederland|нідерланд/i, 'nl'], ['nl', 'nl'],
+    [/belgium|belgi|бельгі/i, 'be'], ['be', 'be'],
+    [/poland|polska|польщ/i, 'pl'], ['pl', 'pl'],
+    [/united states|america|сша/i, 'us'], ['us', 'us'],
+    [/canada|канад/i, 'ca'], ['ca', 'ca'],
+    [/ukrain|україн/i, 'ua'], ['ua', 'ua'],
+    [/portugal|portugu|португал/i, 'pt'], ['pt', 'pt'],
+    [/czech|česk|чехі/i, 'cz'], ['cz', 'cz'],
+    [/romania|român|румуні/i, 'ro'], ['ro', 'ro'],
+    [/ireland|éire|ірланд/i, 'ie'], ['ie', 'ie'],
+    [/bulgaria|българ|болгар/i, 'bg'], ['bg', 'bg'],
+    [/hungary|magyar|угорщ/i, 'hu'], ['hu', 'hu'],
+    [/croatia|hrvat|хорват/i, 'hr'], ['hr', 'hr'],
+    [/turkey|türk|туреч/i, 'tr'], ['tr', 'tr'],
+    [/russia|росі|росси/i, 'ru'], ['ru', 'ru'],
+    [/sweden|sverige|швеці/i, 'se'], ['se', 'se'],
+    [/denmark|danmark|данія|дані/i, 'dk'], ['dk', 'dk'],
+    [/norway|norge|норвег/i, 'no'], ['no', 'no'],
+    [/finland|suomi|фінлянд/i, 'fi'], ['fi', 'fi'],
+    [/greece|ελλ|греці/i, 'gr'], ['gr', 'gr'],
+    [/slovakia|slovensk|словаччин/i, 'sk'], ['sk', 'sk'],
+    [/slovenia|slovenij|словені/i, 'si'], ['si', 'si'],
+    [/lithuania|lietuv|литв/i, 'lt'], ['lt', 'lt'],
+    [/latvia|latvij|латві/i, 'lv'], ['lv', 'lv'],
+    [/estonia|eesti|естоні/i, 'ee'], ['ee', 'ee'],
+    [/japan|日本|японі/i, 'jp'], ['jp', 'jp'],
+    [/emirates|uae|оае|емірат/i, 'ae'], ['ae', 'ae'],
+    [/vietnam|việt|в'єтнам/i, 'vn'], ['vn', 'vn'],
+    [/thailand|таїланд|тайланд/i, 'th'], ['th', 'th'],
+    [/india|індія|інді/i, 'in'], ['in', 'in'],
+    [/indonesia|індонез/i, 'id'], ['id', 'id'],
+  ];
+
+  let countryCode = 'de'; // default
+  for (const [pattern, code] of geoMapping) {
+    if (typeof pattern === 'string') {
+      if (hasGeoCode(pattern)) { countryCode = code; break; }
+    } else {
+      if (pattern.test(geoLower)) { countryCode = code; break; }
+    }
+  }
+
+  const data = countries[countryCode] || countries.de;
+  const street = pick(data.streets);
+  const city = pick(data.cities);
+  const streetNum = num(1, 150);
+  const postal = data.postal();
+
+  return data.format(street, streetNum, city, postal);
+}
+
+// Enforce realistic address in generated files
+function enforceAddressInFiles(
+  files: Array<{ path: string; content: string }>,
+  desiredAddress: string
+): Array<{ path: string; content: string }> {
+  if (!desiredAddress) return files;
+
+  // Common placeholder address patterns generated by AI
+  const PLACEHOLDER_ADDRESS_PATTERNS = [
+    /\d{1,5}\s+(?:Main|First|Second|Third|Example|Test|Sample|Demo)\s+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Place|Pl),?\s*(?:Suite|Ste|Apt|Unit|Floor|Fl\.?)?\s*\d*,?\s*(?:Anytown|Springfield|Metropolis|Gotham|Pleasantville|Cityville|Townsville|Exampleville|Sampletown)[^<\n]{0,60}/gi,
+    /123\s+(?:Main|Business|Corporate|Office)\s+(?:Street|St|Avenue|Ave|Road|Rd)[^<\n]{0,80}/gi,
+    /456\s+(?:Business|Corporate|Oak|Elm|Park)\s+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd)[^<\n]{0,80}/gi,
+    /789\s+(?:Business|Corporate|Oak|Elm|Park|Office)\s+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd)[^<\n]{0,80}/gi,
+    /\d{1,5}\s+(?:Lorem|Ipsum|Dolor|Sit)\s+(?:Street|Ave|Road|Blvd)[^<\n]{0,60}/gi,
+    /(?:Address|Adresse|Dirección|Indirizzo|Adres|Адрес|Адреса|Adresa):\s*(?:123|456|789|1234)[^<\n]{0,100}/gi,
+  ];
+
+  return files.map((f) => {
+    if (!/\.(html?|php)$/i.test(f.path)) return f;
+
+    let content = f.content;
+    let replacedCount = 0;
+
+    for (const pattern of PLACEHOLDER_ADDRESS_PATTERNS) {
+      const matches = content.match(pattern);
+      if (matches) {
+        for (const match of matches) {
+          content = content.replace(match, desiredAddress);
+          replacedCount++;
+        }
+      }
+    }
+
+    if (replacedCount > 0) {
+      console.log(`📍 [enforceAddressInFiles] Replaced ${replacedCount} placeholder address(es) in ${f.path}`);
+    }
+
+    return { ...f, content };
+  });
+}
+
 // Fix broken image URLs that contain phone numbers or other non-numeric "IDs" (AI hallucination issue)
 // IMPORTANT: Use a guaranteed image host (picsum.photos) to avoid 404s from random Pexels IDs.
 function fixBrokenImageUrls(content: string): { content: string; fixed: number } {
@@ -7081,6 +7425,7 @@ async function runGeneration({
   siteName,
   bilingualLanguages,
   colorScheme: userColorScheme,
+  geo,
 }: {
   prompt: string;
   language?: string;
@@ -7090,6 +7435,7 @@ async function runGeneration({
   siteName?: string;
   bilingualLanguages?: string[] | null;
   colorScheme?: string | null;
+  geo?: string;
 }): Promise<GenerationResult> {
   const isJunior = aiModel === "junior";
   console.log(`Using ${isJunior ? "Junior AI (OpenAI GPT-4o)" : "Senior AI (Lovable AI)"} for HTML generation`);
@@ -7259,7 +7605,28 @@ ${selectedLayout.description}
       },
       {
         role: "user",
-        content: `${HTML_GENERATION_PROMPT}\n\n${mandatoryColorSection}${imageStrategy}\n\n${IMAGE_CSS}\n\n${mandatoryLayoutSection}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n${bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2 ? `=== BILINGUAL REQUIREMENTS (ONE HTML SET + JS) ===\n- Supported languages: ${bilingualLanguages[0]} and ${bilingualLanguages[1]}\n- Generate ONE set of pages: index.html, about.html, services.html, contact.html, etc. (NO suffixes, NO duplicated pages).\n- Add a visible language switcher in the header on every page (labels: ${bilingualLanguages[0].toUpperCase()} | ${bilingualLanguages[1].toUpperCase()}).\n- Implement i18n via JS (NOT separate pages):\n  * Create i18n/translations.js (window.__SITE_TRANSLATIONS__ = {<lang>: {...}})\n  * Create i18n/i18n.js that picks language by priority: ?lang=xx -> localStorage.siteLang -> browser language -> default lang1\n  * Mark all text with data-i18n keys (and data-i18n-placeholder/title/aria where needed) and have i18n.js replace them at runtime.\n- The site MUST be fully translated (no mixed languages).\n` : `=== TARGET WEBSITE LANGUAGE (CRITICAL - MUST FOLLOW EXACTLY) ===\nALL website content MUST be in: ${language === "uk" ? "UKRAINIAN language" : language === "en" ? "ENGLISH language" : language === "de" ? "GERMAN language" : language === "pl" ? "POLISH language" : language === "ru" ? "RUSSIAN language" : language === "fr" ? "FRENCH language" : language === "es" ? "SPANISH language" : language ? language.toUpperCase() + " language" : "ENGLISH language (default)"}\n\nThis includes: navigation, buttons, headings, paragraphs, footer, cookie banner, ALL text content. DO NOT MIX LANGUAGES.\n`}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`,
+        content: (() => {
+          // Pre-generate realistic contact data to inject into prompt
+          const preGeneratedPhone = generateRealisticPhone(geo);
+          const preGeneratedAddress = generateRealisticAddress(geo);
+          const preGeneratedEmail = siteName ? generateEmailFromSiteName(siteName) : `info@${(prompt.match(/(?:domain|site|website)[:\s]*([a-z0-9.-]+\.[a-z]{2,})/i)?.[1] || 'business.com')}`;
+          
+          const contactDataSection = `
+=== MANDATORY CONTACT DATA (USE THESE EXACT VALUES - DO NOT INVENT YOUR OWN!) ===
+⚠️ YOU MUST USE THESE PRE-GENERATED CONTACT DETAILS IN THE WEBSITE:
+- PHONE: ${preGeneratedPhone}
+- ADDRESS: ${preGeneratedAddress}
+- EMAIL: ${preGeneratedEmail}
+
+These are realistic, verified contact details for the target region. DO NOT replace them with placeholders like "123 Main Street" or "+1 234 567 890". Use them EXACTLY as provided in footer, contact page, and anywhere contact info appears.
+`;
+          
+          console.log(`📞 Pre-generated phone for prompt: ${preGeneratedPhone}`);
+          console.log(`📍 Pre-generated address for prompt: ${preGeneratedAddress}`);
+          console.log(`📧 Pre-generated email for prompt: ${preGeneratedEmail}`);
+          
+          return `${HTML_GENERATION_PROMPT}\n\n${contactDataSection}\n\n${mandatoryColorSection}${imageStrategy}\n\n${IMAGE_CSS}\n\n${mandatoryLayoutSection}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n${bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2 ? `=== BILINGUAL REQUIREMENTS (ONE HTML SET + JS) ===\n- Supported languages: ${bilingualLanguages[0]} and ${bilingualLanguages[1]}\n- Generate ONE set of pages: index.html, about.html, services.html, contact.html, etc. (NO suffixes, NO duplicated pages).\n- Add a visible language switcher in the header on every page (labels: ${bilingualLanguages[0].toUpperCase()} | ${bilingualLanguages[1].toUpperCase()}).\n- Implement i18n via JS (NOT separate pages):\n  * Create i18n/translations.js (window.__SITE_TRANSLATIONS__ = {<lang>: {...}})\n  * Create i18n/i18n.js that picks language by priority: ?lang=xx -> localStorage.siteLang -> browser language -> default lang1\n  * Mark all text with data-i18n keys (and data-i18n-placeholder/title/aria where needed) and have i18n.js replace them at runtime.\n- The site MUST be fully translated (no mixed languages).\n` : `=== TARGET WEBSITE LANGUAGE (CRITICAL - MUST FOLLOW EXACTLY) ===\nALL website content MUST be in: ${language === "uk" ? "UKRAINIAN language" : language === "en" ? "ENGLISH language" : language === "de" ? "GERMAN language" : language === "pl" ? "POLISH language" : language === "ru" ? "RUSSIAN language" : language === "fr" ? "FRENCH language" : language === "es" ? "SPANISH language" : language ? language.toUpperCase() + " language" : "ENGLISH language (default)"}\n\nThis includes: navigation, buttons, headings, paragraphs, footer, cookie banner, ALL text content. DO NOT MIX LANGUAGES.\n`}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`;
+        })(),
       },
     ],
   };
@@ -10079,7 +10446,7 @@ async function runBackgroundGeneration(
       .update({ status: "generating" })
       .eq("id", historyId);
 
-    const result = await runGeneration({ prompt, language, aiModel, layoutStyle, imageSource, siteName, bilingualLanguages, colorScheme });
+    const result = await runGeneration({ prompt, language, aiModel, layoutStyle, imageSource, siteName, bilingualLanguages, colorScheme, geo });
 
     if (result.success && result.files) {
       // Prefer explicit geo passed from client, fallback to extracting from prompt
@@ -10128,6 +10495,10 @@ async function runBackgroundGeneration(
       }
        enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
        enforcedFiles = enforceEmailInFiles(enforcedFiles, desiredSiteName);
+       // Enforce realistic address based on geo (replaces AI-generated placeholder addresses)
+       const autoAddress = generateRealisticAddress(geoToUse);
+       enforcedFiles = enforceAddressInFiles(enforcedFiles, autoAddress);
+       console.log(`[BG] Enforced realistic address "${autoAddress}" (geo: "${geoToUse || 'default'}")`);
        enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
        enforcedFiles = enforceUiUxBaselineInFiles(enforcedFiles);
 
