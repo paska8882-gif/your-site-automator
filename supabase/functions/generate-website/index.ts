@@ -7159,13 +7159,13 @@ type TokenUsage = {
 };
 
 // Retry helper with exponential backoff for AI API calls
-// Optimized: shorter timeout (90s), fewer retries (2) to stay within edge function limits
+// Extended timeout (180s default) to allow large Senior generations to complete fully
 async function fetchWithRetry(
   url: string,
   options: RequestInit,
   maxRetries = 2,
   baseDelay = 1500,
-  timeoutMs = 90000 // 90 seconds default timeout
+  timeoutMs = 180000 // 180 seconds default timeout
 ): Promise<Response> {
   let lastError: Error | null = null;
   
@@ -7632,13 +7632,13 @@ These are realistic, verified contact details for the target region. DO NOT repl
   };
 
   // Set max_tokens for both models to ensure complete generation
-  // Junior: 16000 tokens, Senior: 65536 tokens for comprehensive multi-page websites
+  // Junior: 16000 tokens, Senior: 131072 tokens (128K) to guarantee full multi-page websites
   // CRITICAL: OpenAI GPT-5 series uses max_completion_tokens, not max_tokens
   const isOpenAIGPT5Model = generateModel.includes('gpt-5');
   if (isOpenAIGPT5Model) {
-    websiteRequestBody.max_completion_tokens = isJunior ? 16000 : 65536;
+    websiteRequestBody.max_completion_tokens = isJunior ? 16000 : 131072;
   } else {
-    websiteRequestBody.max_tokens = isJunior ? 16000 : 65536;
+    websiteRequestBody.max_tokens = isJunior ? 16000 : 131072;
   }
   
   console.log(`📊 Prompt length: ${prompt.length} chars, System prompt length: ${HTML_GENERATION_PROMPT.length} chars`);
@@ -7651,10 +7651,10 @@ These are realistic, verified contact details for the target region. DO NOT repl
     const isGPT5Series = modelToUse.includes('gpt-5');
     if (isGPT5Series) {
       delete requestBody.max_tokens;
-      requestBody.max_completion_tokens = isJunior ? 16000 : 65536;
+      requestBody.max_completion_tokens = isJunior ? 16000 : 131072;
     } else if (!requestBody.max_tokens) {
       // Ensure non-GPT5 models have max_tokens set
-      requestBody.max_tokens = isJunior ? 16000 : 65536;
+      requestBody.max_tokens = isJunior ? 16000 : 131072;
     }
     
     console.log(`${isRetry ? '🔄 RETRY with' : '🚀 Attempting'} model: ${modelToUse} (${isGPT5Series ? 'max_completion_tokens' : 'max_tokens'})`);
@@ -7668,7 +7668,7 @@ These are realistic, verified contact details for the target region. DO NOT repl
           "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
-      }, 2, 2000, 180000);
+      }, 2, 2000, 360000); // 6 min timeout for Senior to allow full generation
     } catch (fetchError) {
       const errorMsg = (fetchError as Error)?.message || String(fetchError);
       console.error(`❌ Fetch failed for ${modelToUse}: ${errorMsg}`);

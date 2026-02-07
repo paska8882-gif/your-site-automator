@@ -2,7 +2,7 @@ project_id = "qqnekbzcgqvpgcyqlbcr"
 
 [functions.generate-website]
 verify_jwt = false
-max_duration_seconds = 600
+max_duration_seconds = 900
 
 [functions.generate-react-website]
 verify_jwt = false
