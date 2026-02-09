@@ -100,6 +100,12 @@ export function N8nGenerationPanel() {
   const [keywords, setKeywords] = useState("");
   const [forbiddenWords, setForbiddenWords] = useState("");
   
+  // Next.js bot specific fields
+  const [siteName, setSiteName] = useState("");
+  const [siteTopic, setSiteTopic] = useState("");
+  const [siteType, setSiteType] = useState("");
+  const [siteDescription, setSiteDescription] = useState("");
+  
   // Theme selection state
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedTopic, setSelectedTopic] = useState<string>("");
@@ -124,6 +130,28 @@ export function N8nGenerationPanel() {
   };
 
   const buildFullPrompt = () => {
+    // Next.js bot: structured format matching n8n expectations
+    if (selectedBot === "nextjs_bot") {
+      let result = "";
+      if (domain) result += `Domain: ${domain}\n\n`;
+      if (siteName) result += `Name: ${siteName}\n\n`;
+      
+      const geoOption = geoOptions.find(g => g.value === geo);
+      result += `Geo: ${geoOption?.geoName || geo}\n\n`;
+      
+      const langLabel = languages.find(l => l.value === selectedLanguages[0])?.label?.replace(/^..\s/, "") || selectedLanguages[0];
+      result += `Language: ${langLabel}\n\n`;
+      
+      if (siteTopic) result += `Topic: ${siteTopic}\n\n`;
+      if (siteType) result += `Type: ${siteType}\n\n`;
+      if (siteDescription.trim()) result += `Description:\n\n${siteDescription}\n\n`;
+      if (keywords.trim()) result += `Keywords:\n\n${keywords}\n\n`;
+      if (forbiddenWords.trim()) result += `Banned words:\n\n${forbiddenWords}\n`;
+      
+      return result;
+    }
+
+    // HTML bot: original format
     let result = `Тема: ${prompt}\n`;
     
     if (domain) {
@@ -153,7 +181,7 @@ export function N8nGenerationPanel() {
   const generateSingleSite = async (index: number, session: any): Promise<boolean> => {
     try {
       let finalPrompt: string;
-      let siteName: string;
+      let generatedSiteName: string;
       let themeGeneratedPrompt: string | null = null;
 
       if (promptMode === "theme" && selectedTopic) {
@@ -165,7 +193,6 @@ export function N8nGenerationPanel() {
             topic: selectedTopic,
             geo: geoName,
             language: selectedLanguages[0] || "en",
-            // Add uniqueness hint for batch generation
             batchIndex: siteCount > 1 ? index + 1 : undefined,
             batchTotal: siteCount > 1 ? siteCount : undefined,
           },
@@ -180,25 +207,26 @@ export function N8nGenerationPanel() {
           themeGeneratedPrompt = data.generatedPrompt;
           finalPrompt = `[Тема: ${selectedTopic}]\n\n${themeGeneratedPrompt}`;
           
-          // Generate unique site name for batch
           const baseName = domain 
             ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "")
             : selectedTopic.slice(0, 40);
-          siteName = siteCount > 1 ? `${baseName} (${index + 1})` : baseName;
+          generatedSiteName = siteCount > 1 ? `${baseName} (${index + 1})` : baseName;
         } else {
           throw new Error("Не вдалось згенерувати промпт");
         }
       } else {
-        // Manual mode - use user's prompt with variation for batch
+        // Manual mode
         const basePrompt = buildFullPrompt();
         finalPrompt = siteCount > 1 
           ? `${basePrompt}\n\n[Варіація ${index + 1} з ${siteCount} - зроби унікальний дизайн та контент]`
           : basePrompt;
         
-        const baseName = domain 
-          ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "")
-          : prompt.slice(0, 40);
-        siteName = siteCount > 1 ? `${baseName} (${index + 1})` : baseName;
+        const baseName = selectedBot === "nextjs_bot"
+          ? (siteName || domain || prompt.slice(0, 40))
+          : (domain 
+            ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "")
+            : prompt.slice(0, 40));
+        generatedSiteName = siteCount > 1 ? `${baseName} (${index + 1})` : baseName;
       }
 
       // Create generation history record
@@ -206,15 +234,17 @@ export function N8nGenerationPanel() {
         .from("generation_history")
         .insert({
           user_id: user!.id,
-          prompt: promptMode === "theme" ? `Тематика: ${selectedTopic}` : prompt.slice(0, 200),
+          prompt: selectedBot === "nextjs_bot" 
+            ? finalPrompt 
+            : (promptMode === "theme" ? `Тематика: ${selectedTopic}` : prompt.slice(0, 200)),
           improved_prompt: themeGeneratedPrompt,
           language: selectedLanguages.join(", "),
-          site_name: siteName,
+          site_name: generatedSiteName,
           geo: geo.toUpperCase(),
           status: "pending",
           ai_model: "senior",
           website_type: currentBot.outputType,
-          image_source: `n8n-bot-${currentBot.id}`,
+          image_source: selectedBot === "nextjs_bot" ? "nextjs" : `n8n-bot-${currentBot.id}`,
         })
         .select("id")
         .single();
@@ -254,8 +284,13 @@ export function N8nGenerationPanel() {
       return;
     }
 
-    // Validation based on mode
-    if (promptMode === "manual") {
+    // Validation based on bot and mode
+    if (selectedBot === "nextjs_bot") {
+      if (!domain.trim() || !siteName.trim() || !siteTopic.trim() || !siteDescription.trim()) {
+        toast.error("Заповніть обов'язкові поля: Domain, Name, Topic, Description");
+        return;
+      }
+    } else if (promptMode === "manual") {
       if (!prompt.trim()) {
         toast.error("Введіть тему сайту");
         return;
@@ -323,6 +358,10 @@ export function N8nGenerationPanel() {
       setSelectedCategory("");
       setSelectedTopic("");
       setSiteCount(1);
+      setSiteName("");
+      setSiteTopic("");
+      setSiteType("");
+      setSiteDescription("");
 
     } catch (error: any) {
       console.error("Submit error:", error);
@@ -395,6 +434,194 @@ export function N8nGenerationPanel() {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {selectedBot === "nextjs_bot" ? (
+            /* ===== NEXT.JS BOT FORM ===== */
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Left column */}
+              <div className="space-y-4">
+                {/* Domain */}
+                <div className="space-y-2">
+                  <Label htmlFor="nx-domain">Domain *</Label>
+                  <Input
+                    id="nx-domain"
+                    placeholder="sbofl.pro"
+                    value={domain}
+                    onChange={(e) => setDomain(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+                {/* Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="nx-name">Name *</Label>
+                  <Input
+                    id="nx-name"
+                    placeholder="Systems & Business Operations"
+                    value={siteName}
+                    onChange={(e) => setSiteName(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+                {/* Geo */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Globe className="h-4 w-4" />
+                    Geo
+                  </Label>
+                  <Select value={geo} onValueChange={setGeo} disabled={isSubmitting}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {geoOptions.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Language (single select for Next.js) */}
+                <div className="space-y-2">
+                  <Label>Language</Label>
+                  <Select 
+                    value={selectedLanguages[0] || "en"} 
+                    onValueChange={(v) => setSelectedLanguages([v])} 
+                    disabled={isSubmitting}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {languages.map(lang => (
+                        <SelectItem key={lang.value} value={lang.value}>
+                          {lang.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Topic */}
+                <div className="space-y-2">
+                  <Label htmlFor="nx-topic">Topic *</Label>
+                  <Input
+                    id="nx-topic"
+                    placeholder="Financial Technology Systems"
+                    value={siteTopic}
+                    onChange={(e) => setSiteTopic(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+                {/* Type */}
+                <div className="space-y-2">
+                  <Label htmlFor="nx-type">Type</Label>
+                  <Input
+                    id="nx-type"
+                    placeholder="Enterprise Platform"
+                    value={siteType}
+                    onChange={(e) => setSiteType(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+
+              {/* Right column */}
+              <div className="space-y-4">
+                {/* Description */}
+                <div className="space-y-2">
+                  <Label htmlFor="nx-description">Description *</Label>
+                  <Textarea
+                    id="nx-description"
+                    placeholder="Systems & Business Operations presents comprehensive financial technology systems with enterprise-grade animations..."
+                    value={siteDescription}
+                    onChange={(e) => setSiteDescription(e.target.value)}
+                    disabled={isSubmitting}
+                    className="min-h-[120px]"
+                  />
+                </div>
+
+                {/* Keywords */}
+                <div className="space-y-2">
+                  <Label htmlFor="nx-keywords">Keywords</Label>
+                  <Textarea
+                    id="nx-keywords"
+                    placeholder="business systems, operational technology, financial infrastructure..."
+                    value={keywords}
+                    onChange={(e) => setKeywords(e.target.value)}
+                    disabled={isSubmitting}
+                    className="min-h-[80px]"
+                  />
+                </div>
+
+                {/* Banned words */}
+                <div className="space-y-2">
+                  <Label htmlFor="nx-banned">Banned words</Label>
+                  <Textarea
+                    id="nx-banned"
+                    placeholder="bank, online banking, money, earn..."
+                    value={forbiddenWords}
+                    onChange={(e) => setForbiddenWords(e.target.value)}
+                    disabled={isSubmitting}
+                    className="min-h-[80px]"
+                  />
+                </div>
+
+                {/* Site count */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Layers className="h-4 w-4" />
+                    Кількість сайтів
+                  </Label>
+                  <Select 
+                    value={siteCount.toString()} 
+                    onValueChange={(v) => setSiteCount(parseInt(v))} 
+                    disabled={isSubmitting}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                        <SelectItem key={n} value={n.toString()}>
+                          {n} {n === 1 ? "сайт" : n < 5 ? "сайти" : "сайтів"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Submit */}
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || !domain.trim() || !siteName.trim() || !siteTopic.trim() || !siteDescription.trim()}
+                  className="w-full"
+                  size="lg"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      {submissionProgress.total > 1 
+                        ? `Відправка ${submissionProgress.current}/${submissionProgress.total}...`
+                        : "Відправка..."}
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      {siteCount > 1 
+                        ? `Відправити ${siteCount} сайтів`
+                        : "Відправити на генерацію"}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            /* ===== HTML BOT FORM (original) ===== */
+            <>
           {/* Prompt Mode Selector */}
           <div className="mb-6">
             <Label className="mb-3 block">Режим опису</Label>
@@ -421,7 +648,6 @@ export function N8nGenerationPanel() {
             {/* Left column */}
             <div className="space-y-4">
               {promptMode === "manual" ? (
-                /* Manual prompt input */
                 <div className="space-y-2">
                   <Label htmlFor="prompt">Тема сайту *</Label>
                   <Textarea
@@ -434,7 +660,6 @@ export function N8nGenerationPanel() {
                   />
                 </div>
               ) : (
-                /* Theme-based selection */
                 <>
                   <div className="space-y-2">
                     <Label>Категорія *</Label>
@@ -615,6 +840,8 @@ export function N8nGenerationPanel() {
               </Button>
             </div>
           </div>
+          </>
+          )}
         </CardContent>
       </Card>
 
