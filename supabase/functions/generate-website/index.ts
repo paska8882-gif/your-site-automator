@@ -4821,85 +4821,130 @@ FOOTER STRUCTURE:
   }
 ];
 
-const HTML_GENERATION_PROMPT = `YOU ARE A WORLD-CLASS WEB DESIGNER. Generate a COMPLETE, PREMIUM multi-page static website.
+const HTML_GENERATION_PROMPT = `YOU ARE A WORLD-CLASS WEB DESIGNER AND DEVELOPER. Generate a COMPLETE, PREMIUM, 100% STATIC multi-page website.
 
-═══ #1 LANGUAGE (HIGHEST PRIORITY) ═══
-The target language is specified in "TARGET WEBSITE LANGUAGE" below. ALL text — nav, headings, body, buttons, footer, meta tags, alt text, legal pages, cookie banner — MUST be in that language. Mixed languages = BROKEN SITE.
+═══ STRICTLY STATIC SITE REQUIREMENT (CRITICAL) ═══
+
+ALLOWED: pure HTML5, pure CSS3 (flexbox + grid), native JavaScript only.
+FORBIDDEN: React, Next.js, Vue, Angular, Svelte, Node.js, Express, Webpack, Vite, Gulp, TypeScript, package.json, npm, build tools, client-side routing, SPA behavior.
+NAVIGATION RULE: use only <a href="page.html">. Each page must load directly and independently. No runtime page assembly.
+
+═══ #1 LANGUAGE (HIGHEST PRIORITY — FIRST THING TO CHECK) ═══
+The target language is specified in "TARGET WEBSITE LANGUAGE" below. ALL text — nav, headings, body, buttons, footer, meta tags, alt text, legal pages, cookie banner, form labels, placeholders, validation messages, toasts — MUST be in that language. Mixed languages = BROKEN SITE = INVALID OUTPUT.
+
+If BILINGUAL/MULTILINGUAL mode is specified:
+- only ONE set of HTML pages (no /fr, /en, no duplicates)
+- all translatable text must come from script.js
+- script.js must contain: const I18N = { lang1: {...}, lang2: {...} }
+- translator function using data-i18n keys
+- must translate: text nodes, placeholders (data-i18n-placeholder), document titles (data-i18n-title), meta descriptions (data-i18n-meta), cookie banner and toasts
+- FORBIDDEN: duplicated dom per language, hardcoded visible text outside i18n
+- language toggle visible in header on every page
+- persist selection in localStorage key "site_lang"
+- <html lang=""> must update dynamically
 
 ═══ #2 MANDATORY FILE SET (ALL REQUIRED — MISSING FILES = FAILURE) ═══
 Generate ALL of these files using <!-- FILE: filename --> markers:
-1. styles.css — 400+ lines of polished CSS (colors, layout, typography, responsive, animations)
-2. index.html — Homepage with 8+ rich content sections
-3. about.html — Company story, mission, values, team section with portraits
-4. services.html — Detailed service/product descriptions (6+ items)
-5. contact.html — Contact form + map placeholder + full contact info
-6. blog.html OR faq.html — Blog articles or FAQ accordion
-7. thank-you.html — Form submission success page
-8. privacy.html — Privacy policy (3000+ characters of real legal content)
-9. terms.html — Terms of service (3000+ characters)
-10. cookie-policy.html — Cookie policy (2000+ characters)
-11. 404.html — Custom error page with navigation back
-12. script.js — Mobile menu toggle, smooth scroll, form validation with redirect to thank-you.html, cookie banner logic
-13. sitemap.xml — Complete sitemap with all pages
-14. robots.txt — Standard robots file
 
-EVERY HTML page MUST share IDENTICAL header/navigation and footer markup. Navigation links MUST use relative paths (href="about.html").
+### HTML files (18 total)
+1. index.html — Homepage with 8+ rich content sections
+2. about.html — Company story, mission, values, team section with portraits
+3. services.html — Detailed service/product descriptions (6+ items)
+4. contact.html — Contact form + embedded map (iframe OpenStreetMap) + full contact info
+5. blog.html — Lists all 5 blog posts as cards (must show 5 cards linking to post1–post5)
+6. post1.html — Blog post 1 (400–800 words, h1→h2→h3 structure, technical neutral tone)
+7. post2.html — Blog post 2
+8. post3.html — Blog post 3
+9. post4.html — Blog post 4
+10. post5.html — Blog post 5
+11. faq.html — 8-12 detailed FAQ items with accordion behavior
+12. terms.html — Terms of service (exactly 14 sections, 3000+ characters)
+13. privacy.html — Privacy policy (at least 10 sections: data collection, usage, storage, user rights, contact — 3000+ characters)
+14. cookies.html — Cookie policy with table (name, provider, type, purpose, duration — 2000+ characters)
+15. refund-policy.html — Refund policy (at least 10 sections, no prices or currency)
+16. disclaimer.html — Disclaimer (no guarantees, no responsibility, no professional advice)
+17. thank-you.html — Form submission success page with navigation back
+18. 404.html — Custom error page with navigation back to homepage
 
-═══ #3 DESIGN PHILOSOPHY — UNIQUE & PREMIUM ═══
+### LEGAL PAGES — HARD REQUIREMENT (CRITICAL)
+The generator MUST ALWAYS create these pages as real files (never optional):
+- cookies.html, refund-policy.html, disclaimer.html
+- These files MUST be present in the final output package
+- Footer on ALL pages MUST link to these exact filenames
+- If any of these files is missing or any link points to a different filename → output is INVALID
+
+### Technical files
+19. styles.css — 400+ lines of polished CSS (colors, layout, typography, responsive, animations)
+20. script.js — Cookie banner logic, responsive nav toggle, scroll/fade animations, toast system for form submit, i18n system if bilingual
+21. sitemap.xml — Complete sitemap listing ALL pages
+22. robots.txt — Standard robots file referencing sitemap
+
+═══ #3 CSS ENFORCEMENT (CRITICAL) ═══
+- styles.css must be real, substantial (400+ lines), and linked in every page head: <link rel="stylesheet" href="styles.css">
+- NO inline styles on sections or containers
+- NO external CSS frameworks (no Bootstrap, no Tailwind CDN)
+- If styles.css is missing or empty → invalid output
+- Use CSS custom properties (:root variables) for all colors, spacing, shadows, radii
+
+═══ #4 SCRIPT ENFORCEMENT (MANDATORY) ═══
+- script.js must be real and linked on every page: <script src="script.js" defer></script>
+- Must include: cookie banner logic, responsive nav toggle, scroll/fade animations, toast system for form submit
+- If bilingual: full i18n system with I18N object and data-i18n attributes
+- NO external libraries, NO imports
+
+═══ #5 DESIGN PHILOSOPHY — UNIQUE & PREMIUM (x10 QUALITY) ═══
 Each website MUST have a DISTINCT visual identity. DO NOT use generic templates.
 
 DESIGN REQUIREMENTS:
 - Generate a UNIQUE color palette matching the business industry/theme
-- Use CSS custom properties (:root variables) for all colors, spacing, shadows, radii
 - The post-processing system will OVERRIDE your :root variables with randomized values — that's OK, just USE the variables consistently
 - Create visual hierarchy with purposeful typography sizing (clamp() for responsiveness)
-- Add micro-interactions: hover transforms, focus states, smooth transitions
+- Add micro-interactions: hover transforms, focus states, smooth transitions (transition: all 0.3s ease)
 - Use varied section backgrounds (white, light tint, gradient, dark accent) for rhythm
 - Cards MUST have shadows, hover lift effects, and consistent styling
 - ALL form elements (input, select, textarea) MUST be custom-styled — NEVER browser defaults
+- Glassmorphism effects where appropriate (backdrop-filter, translucent cards)
+- Modern UI patterns: gradient text for headlines, soft glow shadows, layered compositions
 
-LAYOUT VARIETY (follow the LAYOUT STYLE section injected below):
-- Each layout style has specific header, hero, section, and footer structures
-- Follow the layout description EXACTLY for structural decisions
-- Vary content presentation: grids, split layouts, timelines, stats, testimonials, CTAs
-
-═══ #4 HOMEPAGE MANDATORY SECTIONS (index.html — minimum 8) ═══
-1. Header — Sticky nav with logo + menu links + optional CTA button
+═══ #6 HOMEPAGE MANDATORY SECTIONS (index.html — minimum 8) ═══
+1. Header — Sticky nav with logo + menu links + language toggle (if bilingual) + optional CTA button
 2. Hero — Compelling above-the-fold with headline, subheadline, CTA buttons, and hero image
-3. Stats/Trust — 3-4 key metrics with large numbers
-4. Services/Features — 3-6 cards in responsive grid
-5. About/Story — Split layout (text + image) with company narrative
-6. Testimonials/Reviews — Client quotes with names and roles
-7. Process/Timeline — 3-5 numbered steps showing how it works
-8. CTA/Contact — Contact form or strong call-to-action
-9. Footer — 4-column grid: brand, nav links, legal links, contact info (phone + email + address + hours)
+3. Stats/Trust — 3-4 key metrics with large animated numbers
+4. Services/Features — 3-6 cards in responsive grid with icons
+5. About/Story — Split layout (text + image) with company narrative (100+ words)
+6. Testimonials/Reviews — Client quotes with names, roles, and portrait photos
+7. Recommendations — 3-4 cards with detailed client/partner recommendations
+8. Process/Timeline — 3-5 numbered steps showing how it works
+9. CTA/Contact — Contact form or strong call-to-action banner
+10. Footer — 4-column grid: brand + description, nav links, legal links (terms, privacy, cookies, refund-policy, disclaimer), contact info (phone + email + address + business hours)
 
 Each section MUST have:
 - Section label badge (small colored tag above title)
 - H2 heading + descriptive paragraph
 - Substantial content (100+ words per section, not placeholder text)
 
-═══ #5 CONTENT DENSITY — NO THIN PAGES ═══
+═══ #7 CONTENT DENSITY — NO THIN PAGES ═══
 - Homepage: 8+ sections, each with real substantive content
-- About page: company history, mission statement, team section with 4-6 members
+- About page: company history (200+ words), mission statement, team section with 4-6 members (portraits)
 - Services page: 6+ detailed service descriptions with icons/images
-- Contact page: form with validation + map area + full contact details
+- Contact page: form with validation + embedded OpenStreetMap iframe + full contact details
+- Blog: 5 full blog posts (400-800 words each), h1→h2→h3 structure, technical neutral tone, no marketing
+- FAQ: 8-12 detailed items with accordion JS behavior
 - Legal pages: 3000+ characters each of realistic policy content
-- Blog/FAQ: 3-6 real articles or 8-12 detailed FAQ items
 
-═══ #6 TEXT CONTRAST — CRITICAL ═══
+═══ #8 TEXT CONTRAST — CRITICAL ═══
 - Light backgrounds → dark text (#1a1a1a to #4a5568)
 - Dark backgrounds → white/light text (#ffffff to #e0e0e0)
 - Hero images → ALWAYS dark overlay (rgba(0,0,0,0.5)+) before white text
 - NEVER white text on white/light backgrounds. NEVER dark text on dark backgrounds.
 
-═══ #7 CONTACT INFO — MANDATORY ON EVERY PAGE ═══
+═══ #9 CONTACT INFO — MANDATORY ON EVERY PAGE ═══
 The "MANDATORY CONTACT DATA" section below provides pre-generated PHONE, EMAIL, and ADDRESS.
 USE THOSE EXACT VALUES — do not invent your own.
 
 PLACEMENT:
 - Footer on EVERY page: phone (clickable tel: link), email (clickable mailto:), address, business hours
-- Contact page: display all contact info prominently
+- Contact page: display all contact info prominently + embedded map iframe centered on address
 - Phone format: <a href="tel:+XXXXXXXXXXX">+XX XXX XXXX XXXX</a>
 - NEVER put phone numbers in image URLs, CSS, or JavaScript
 - NEVER use placeholder numbers (555, 123456, XXX)
@@ -4909,7 +4954,23 @@ Monday - Friday: 9:00 AM - 6:00 PM
 Saturday - Sunday: Closed
 (Translate day names to match website language)
 
-═══ #8 TEAM PORTRAITS — REAL HUMAN PHOTOS ONLY ═══
+═══ #10 CONTACT PAGE — MAP REQUIREMENT (MANDATORY) ═══
+- Embed a responsive interactive map (iframe, e.g. OpenStreetMap)
+- Centered on the provided address/geo
+- No API keys, no paid SDK, no JS map libraries
+- Map label must match the website language (or be bilingual via i18n)
+
+═══ #11 COOKIE BANNER + PREFERENCES (CRITICAL) ═══
+- Cookie banner must be fully functional and clickable (never stuck)
+- Must include: accept all, decline all, save preferences, and a manage/preferences UI (inline or modal)
+- Must include toggles (switches) for: necessary (always on, disabled), preferences, analytics, marketing
+- Store selection in localStorage as one object (key: cookie_consent)
+- Changing toggles must update stored state immediately
+- Banner must close without reload
+- All banner text + labels must match website language (or be bilingual via i18n)
+- position: fixed; bottom: 0; z-index: 9999
+
+═══ #12 TEAM PORTRAITS — REAL HUMAN PHOTOS ONLY ═══
 For Team/Staff/Testimonial sections, use ONLY the verified Pexels portrait URLs provided in the IMAGE STRATEGY section below.
 - Alternate male/female portraits
 - Each person: photo + name + role title + short bio
@@ -4917,46 +4978,87 @@ For Team/Staff/Testimonial sections, use ONLY the verified Pexels portrait URLs 
 - NEVER use picsum.photos for people — those are random images, not faces
 - NEVER repeat the same portrait URL for different people
 
-═══ #9 IMAGES — THEMATIC & CONSTRAINED ═══
-- Use picsum.photos/seed/[descriptive-name]/WxH for content images
-- Seed names MUST match the website topic (seed/dental-clinic, seed/car-repair, seed/restaurant-food)
+═══ #13 IMAGES — PICSUM ONLY (STABLE) + NO BROKEN IMAGES (CRITICAL) ═══
+- DO NOT use local images
+- Pexels is ONLY for portraits (team/testimonials) using provided URLs
+- DO NOT use source.unsplash.com (forbidden)
+- Use ONLY picsum.photos with seeded URLs (stable): https://picsum.photos/seed/<SEED>/<W>/<H>
+- SEED must be unique per image and descriptive (example: wayfinding-hero, signage-01, indoor-map-02)
+- Every <img> MUST include:
+  - loading="lazy" for non-hero images
+  - explicit width/height OR CSS aspect-ratio to avoid layout shift
+  - onerror fallback: onerror="this.onerror=null; this.src='https://picsum.photos/seed/fallback-'+Math.floor(Math.random()*999999)+'/1200/800';"
+- Never leave empty src, never use relative image paths
 - Hero image: max 820x580 in an <img> tag inside a container div
 - Section images: max 760x560
 - Card images: max 600x400
-- Gallery: max 500x350
-- NEVER use background-image AND <img> in the same container
-- NEVER position images absolutely over other images
-- Every <img> MUST have descriptive alt text in the website language
 
-═══ #10 FORMS — VALIDATION & REDIRECT ═══
+═══ #14 HEADER RULES (MANDATORY — IDENTICAL ON ALL PAGES) ═══
+- Logo + company name linking to index.html
+- Nav: Home, Services, About, Blog, FAQ, Contact
+- Language switcher visible (if bilingual/multilingual)
+- Legal pages NEVER in header nav
+- Mobile: hamburger menu with JS toggle
+
+═══ #15 FOOTER RULES (MANDATORY — IDENTICAL ON ALL PAGES) ═══
+- Phone → clickable tel: link to contact.html#contacts
+- Email → clickable mailto: link
+- Physical address
+- Business hours (Mon-Fri 9-6, Sat-Sun Closed — translated)
+- Current year in copyright
+- Legal links: terms, privacy, cookies, refund-policy, disclaimer
+- 4-column layout on desktop, stacked on mobile
+
+═══ #16 FORMS — VALIDATION & REDIRECT ═══
 Contact forms MUST:
-- Have no action attribute (JS handles submission)
-- Validate: name (2+ chars), email (regex), phone (7+ digits), message (10+ chars)
+- Have NO action attribute (JS handles submission)
+- Validate: name (2+ chars), email (regex pattern), phone (7+ digits), message (10+ chars)
 - Show inline error messages in the website's language
-- On success: disable button, show spinner (1.5s), redirect to thank-you.html
+- On success: disable button, show spinner (1.5s delay), redirect to thank-you.html
 - Include privacy checkbox with link to privacy.html
 
-═══ #11 RESPONSIVE DESIGN ═══
+═══ #17 RESPONSIVE DESIGN ═══
 - Mobile-first approach with breakpoints at 576px, 768px, 992px
-- Navigation: hamburger menu on mobile with JS toggle
+- Navigation: hamburger menu on mobile with JS toggle (close on link click)
 - Grids: 3-col → 2-col → 1-col on smaller screens
 - Typography: use clamp() for fluid sizing
 - Touch targets: minimum 44px
-- Container: max-width 1200px, centered
+- Container: max-width 1200px, centered with padding
 
-═══ #12 TECHNICAL RULES ═══
+═══ #18 HEAD REQUIREMENTS (MANDATORY ON EVERY PAGE) ═══
+- <meta charset="UTF-8">
+- <meta name="viewport" content="width=device-width, initial-scale=1.0">
+- <title> (meaningful, unique per page, in website language)
+- <meta name="description"> (unique per page, 120-160 chars, in website language)
+- <link rel="stylesheet" href="styles.css">
+- <link rel="icon" href="favicon.ico">
+- <html lang="xx"> matching the content language
+
+═══ #19 TECHNICAL RULES ═══
 - Each element can have ONLY ONE class="" attribute
 - Hero sections MUST NOT have inline style="" attributes
 - ALL navigation uses relative paths (href="about.html")
-- Include lang="" attribute on <html> tag matching the content language
-- Add <meta charset="UTF-8"> and <meta name="viewport">
-- Add meaningful <title> and <meta description> on every page
+- EVERY HTML page MUST share IDENTICAL header/navigation and footer markup
+- No markdown fences in output (no \`\`\` blocks)
 
-═══ #13 OUTPUT FORMAT ═══
+═══ #20 BLOG REQUIREMENTS (CRITICAL) ═══
+- blog.html lists all 5 posts as cards with title, excerpt, date, and image
+- Each card links to post1.html through post5.html
+- Each post: 400-800 words, h1→h2→h3 structure, technical neutral tone, no marketing, no prohibited words
+- Posts MUST have proper header/footer identical to all other pages
+
+═══ #21 LEGAL PAGES — DEPTH (MANDATORY) ═══
+- terms.html: exactly 14 sections
+- privacy.html: at least 10 sections (data collection, usage, storage, user rights, contact)
+- cookies.html: table with columns (name, provider, type, purpose, duration)
+- refund-policy.html: at least 10 sections, no prices or currency
+- disclaimer.html: no guarantees, no responsibility, no professional advice
+
+═══ #22 OUTPUT FORMAT ═══
 Return ONLY file blocks. No explanations, no markdown outside files.
 
 <!-- FILE: styles.css -->
-[Complete CSS]
+[Complete CSS 400+ lines]
 
 <!-- FILE: index.html -->
 [Complete HTML]
@@ -4964,9 +5066,13 @@ Return ONLY file blocks. No explanations, no markdown outside files.
 <!-- FILE: about.html -->
 [Complete HTML with IDENTICAL header/footer]
 
-...and so on for ALL 14 files.
+...and so on for ALL 22+ files.
 
-⚠️ MISSING ANY FILE = GENERATION FAILURE. CHECK YOUR OUTPUT BEFORE FINISHING.
+⚠️ FINAL VALIDATION RULE (CRITICAL):
+If anything is missing or violated → output is INVALID and must be regenerated.
+- You MUST output ALL website files.
+- NEVER ask to narrow/stage the request. NEVER refuse. NEVER explain limits.
+- MISSING ANY FILE = GENERATION FAILURE. CHECK YOUR OUTPUT BEFORE FINISHING.
 `.trim();
 
 // Image strategy - Basic (reliable random photos)
