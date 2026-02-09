@@ -6154,19 +6154,16 @@ These are realistic, verified contact details for the target region. DO NOT repl
   let hasIndexHtml = files.some(f => f.path.toLowerCase() === 'index.html');
   let htmlFileCount = files.filter(f => f.path.toLowerCase().endsWith('.html')).length;
   
-  // If no index.html or no HTML files at all, try fallback models
-  if (!hasIndexHtml || htmlFileCount === 0) {
+  // If no index.html or no HTML files at all, try ONE fast recovery (only within time budget)
+  if ((!hasIndexHtml || htmlFileCount === 0) && !isTimeBudgetExceeded()) {
     console.error(`❌ CRITICAL: No index.html found! Files: ${files.map(f => f.path).join(', ')}`);
-    console.log(`🔄 Attempting recovery with fallback models...`);
+    console.log(`🔄 Single fast recovery attempt (elapsed: ${((Date.now() - generationStartTime)/1000).toFixed(0)}s)...`);
     
-    // Use stable recovery models - avoid openai/gpt-5-mini due to max_tokens incompatibility
-    const recoveryModels = ["google/gemini-2.5-flash", "google/gemini-3-flash-preview"];
+    const recoveryModel = "google/gemini-2.5-flash";
     let recovered = false;
     let finalModelUsed = modelUsed;
     
-    for (const recoveryModel of recoveryModels) {
-      if (recoveryModel === modelUsed) continue; // Skip if already tried this model
-      
+    if (recoveryModel !== modelUsed) {
       console.log(`🔄 Recovery attempt with: ${recoveryModel}`);
       const recoveryResult = await attemptGeneration(recoveryModel, true);
       
