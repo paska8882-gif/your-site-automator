@@ -15,6 +15,23 @@ interface GeneratedFile {
   content: string;
 }
 
+// v0 API format: { name, content, type }
+interface V0File {
+  name: string;
+  content: string;
+  type?: string;
+}
+
+function normalizeFiles(raw: unknown[]): GeneratedFile[] {
+  return raw
+    .filter((f): f is Record<string, unknown> => !!f && typeof f === "object")
+    .map((f) => ({
+      path: (typeof f.path === "string" ? f.path : typeof f.name === "string" ? f.name : "") as string,
+      content: (typeof f.content === "string" ? f.content : "") as string,
+    }))
+    .filter((f) => f.path && f.content.length > 0);
+}
+
 function parseFilesFromResponse(responseText: string): GeneratedFile[] {
   const files: GeneratedFile[] = [];
   
@@ -153,11 +170,11 @@ serve(async (req) => {
       
       let parsedFiles: GeneratedFile[] = [];
       
-      // Витягуємо файли з різних форматів
+      // Витягуємо файли з різних форматів (підтримка {path,content} та v0 {name,content,type})
       if (files && Array.isArray(files)) {
-        parsedFiles = files;
+        parsedFiles = normalizeFiles(files);
       } else if (fileList && Array.isArray(fileList)) {
-        parsedFiles = fileList;
+        parsedFiles = normalizeFiles(fileList);
       } else if (content && typeof content === "string") {
         parsedFiles = parseFilesFromResponse(content);
       } else if (result && typeof result === "string") {
@@ -249,9 +266,9 @@ serve(async (req) => {
       let parsedFiles: GeneratedFile[] = [];
       
       if (files && Array.isArray(files)) {
-        parsedFiles = files;
+        parsedFiles = normalizeFiles(files);
       } else if (fileList && Array.isArray(fileList)) {
-        parsedFiles = fileList;
+        parsedFiles = normalizeFiles(fileList);
       } else if (content && typeof content === "string") {
         parsedFiles = parseFilesFromResponse(content);
       } else if (result && typeof result === "string") {
