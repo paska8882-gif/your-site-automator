@@ -835,6 +835,8 @@ export function N8nGenerationPanel() {
               </Button>
             </div>
           </div>
+          </>
+          )}
         </CardContent>
       </Card>
 
