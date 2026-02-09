@@ -7,9 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-triggered-by, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Retry thresholds
-const RETRY_AFTER_MINUTES = 10; // Retry if stuck for 10+ minutes
-const MAX_RETRIES = 2; // Maximum retry attempts
+// Thresholds
 const FAIL_AFTER_MINUTES = 60; // Mark as failed after 1 hour
 const ZIP_CLEANUP_DAYS = 14; // Delete zip_data after 2 weeks
 
