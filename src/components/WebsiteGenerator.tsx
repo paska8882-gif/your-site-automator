@@ -3606,7 +3606,7 @@ export function WebsiteGenerator() {
                   }
                   setIsSubmitting(false);
                 }}
-                disabled={isGenerationBlocked || siteNames.length === 0 || !prompt.trim() || !seniorMode}
+                disabled={isGenerationBlocked || (siteNames.length === 0 && !currentSiteNameInput.trim()) || !prompt.trim() || !seniorMode}
                 className="w-full h-9 text-sm"
               >
                 {isSubmitting ? (
@@ -3633,7 +3633,7 @@ export function WebsiteGenerator() {
                   onClick={handleGenerateClick}
                   disabled={
                     isGenerationBlocked ||
-                    siteNames.length === 0 || 
+                    (siteNames.length === 0 && !currentSiteNameInput.trim()) || 
                     (promptMode === "theme" ? !selectedTopic : !prompt.trim()) || 
                     (isBilingualMode ? (!bilingualLang1 || !bilingualLang2) : getAllSelectedLanguages().length === 0) || 
                     selectedAiModels.length === 0 || 
@@ -3673,7 +3673,7 @@ export function WebsiteGenerator() {
                   <Button
                     variant="outline"
                     onClick={handleManualRequest}
-                    disabled={siteNames.length === 0 || !prompt.trim() || isSubmitting}
+                    disabled={(siteNames.length === 0 && !currentSiteNameInput.trim()) || !prompt.trim() || isSubmitting}
                     className="h-9 text-sm border-purple-500/50 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950"
                     title={t("generator.manualRequestDesc")}
                   >
