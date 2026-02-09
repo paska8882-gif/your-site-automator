@@ -5560,6 +5560,7 @@ const TOKEN_PRICING = {
   "gpt-4o": { input: 0.0025, output: 0.01 },
   "google/gemini-2.5-flash": { input: 0.000075, output: 0.0003 },
   "google/gemini-2.5-pro": { input: 0.00125, output: 0.005 },
+  "openai/gpt-5-mini": { input: 0.0004, output: 0.0016 },
 };
 
 const calculateCost = (usage: TokenUsage, model: string): number => {
@@ -6004,7 +6005,7 @@ These are realistic, verified contact details for the target region. DO NOT repl
           "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
-      }, 1, 2000, 600000); // 1 retry, 10 min timeout
+      }, 1, 2000, 600000); // NO retry (1 attempt), 10 min timeout
     } catch (fetchError) {
       const errorMsg = (fetchError as Error)?.message || String(fetchError);
       console.error(`❌ Fetch failed for ${modelToUse}: ${errorMsg}`);
@@ -6115,7 +6116,7 @@ These are realistic, verified contact details for the target region. DO NOT repl
   if (!generationResult && !isTimeBudgetExceeded()) {
     const fallbackModels = isJunior 
       ? ["gpt-4o-mini"] 
-      : ["google/gemini-2.5-flash"];
+      : ["openai/gpt-5-mini"];
     
     for (const fallbackModel of fallbackModels) {
       if (isTimeBudgetExceeded()) {
@@ -6159,7 +6160,7 @@ These are realistic, verified contact details for the target region. DO NOT repl
     console.error(`❌ CRITICAL: No index.html found! Files: ${files.map(f => f.path).join(', ')}`);
     console.log(`🔄 Single fast recovery attempt (elapsed: ${((Date.now() - generationStartTime)/1000).toFixed(0)}s)...`);
     
-    const recoveryModel = "google/gemini-2.5-flash";
+    const recoveryModel = "openai/gpt-5-mini";
     let recovered = false;
     let finalModelUsed = modelUsed;
     
