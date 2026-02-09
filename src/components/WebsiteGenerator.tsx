@@ -2373,7 +2373,10 @@ export function WebsiteGenerator() {
                       <SelectContent>
                         {geoOptions.map((geo) => (
                           <SelectItem key={geo.value || "none"} value={geo.value || "none"}>
-                            {geo.label}
+                            <span className="inline-flex items-center gap-1.5">
+                              {geo.value ? <GeoFlag value={geo.value} size={16} /> : "🌍"}
+                              {getGeoText(geo.label)}
+                            </span>
                           </SelectItem>
                         ))}
                       </SelectContent>
