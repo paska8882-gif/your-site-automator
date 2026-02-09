@@ -5771,6 +5771,9 @@ async function runGeneration({
   geo?: string;
 }): Promise<GenerationResult> {
   const isJunior = aiModel === "junior";
+  const generationStartTime = Date.now();
+  const MAX_GENERATION_TIME_MS = 600000; // 10 minutes hard budget
+  const isTimeBudgetExceeded = () => (Date.now() - generationStartTime) > MAX_GENERATION_TIME_MS;
   console.log(`Using ${isJunior ? "Junior AI (OpenAI GPT-4o)" : "Senior AI (Lovable AI)"} for HTML generation`);
 
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
@@ -5964,14 +5967,14 @@ These are realistic, verified contact details for the target region. DO NOT repl
     ],
   };
 
-  // Set max_tokens for both models to ensure complete generation
-  // Junior: 16000 tokens, Senior: 131072 tokens (128K) to guarantee full multi-page websites
+  // Set max_tokens: Junior 16000, Senior 65000 (optimized for 4-7min speed)
   // CRITICAL: OpenAI GPT-5 series uses max_completion_tokens, not max_tokens
+  const seniorMaxTokens = 65000;
   const isOpenAIGPT5Model = generateModel.includes('gpt-5');
   if (isOpenAIGPT5Model) {
-    websiteRequestBody.max_completion_tokens = isJunior ? 16000 : 131072;
+    websiteRequestBody.max_completion_tokens = isJunior ? 16000 : seniorMaxTokens;
   } else {
-    websiteRequestBody.max_tokens = isJunior ? 16000 : 131072;
+    websiteRequestBody.max_tokens = isJunior ? 16000 : seniorMaxTokens;
   }
   
   console.log(`📊 Prompt length: ${prompt.length} chars, System prompt length: ${HTML_GENERATION_PROMPT.length} chars`);
@@ -5984,10 +5987,10 @@ These are realistic, verified contact details for the target region. DO NOT repl
     const isGPT5Series = modelToUse.includes('gpt-5');
     if (isGPT5Series) {
       delete requestBody.max_tokens;
-      requestBody.max_completion_tokens = isJunior ? 16000 : 131072;
+      requestBody.max_completion_tokens = isJunior ? 16000 : seniorMaxTokens;
     } else if (!requestBody.max_tokens) {
       // Ensure non-GPT5 models have max_tokens set
-      requestBody.max_tokens = isJunior ? 16000 : 131072;
+      requestBody.max_tokens = isJunior ? 16000 : seniorMaxTokens;
     }
     
     console.log(`${isRetry ? '🔄 RETRY with' : '🚀 Attempting'} model: ${modelToUse} (${isGPT5Series ? 'max_completion_tokens' : 'max_tokens'})`);
@@ -6001,7 +6004,7 @@ These are realistic, verified contact details for the target region. DO NOT repl
           "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
-      }, 2, 2000, 360000); // 6 min timeout for Senior to allow full generation
+      }, 1, 2000, 240000); // 1 retry, 4 min timeout for speed optimization
     } catch (fetchError) {
       const errorMsg = (fetchError as Error)?.message || String(fetchError);
       console.error(`❌ Fetch failed for ${modelToUse}: ${errorMsg}`);
@@ -6108,17 +6111,23 @@ These are realistic, verified contact details for the target region. DO NOT repl
   // Try primary model first (gemini-2.5-pro for senior, gpt-4o for junior)
   let generationResult = await attemptGeneration(generateModel);
 
-  // If primary model failed, try fallback models
-  if (!generationResult) {
+  // If primary model failed, try fallback models (only if time budget allows)
+  if (!generationResult && !isTimeBudgetExceeded()) {
     const fallbackModels = isJunior 
       ? ["gpt-4o-mini"] 
-      : ["google/gemini-2.5-flash", "openai/gpt-5"];
+      : ["google/gemini-2.5-flash"];
     
     for (const fallbackModel of fallbackModels) {
-      console.log(`🔄 Primary model failed, trying fallback: ${fallbackModel}`);
+      if (isTimeBudgetExceeded()) {
+        console.log(`⏱️ Time budget exceeded (${((Date.now() - generationStartTime)/1000).toFixed(0)}s), skipping fallback`);
+        break;
+      }
+      console.log(`🔄 Primary model failed, trying fallback: ${fallbackModel} (elapsed: ${((Date.now() - generationStartTime)/1000).toFixed(0)}s)`);
       generationResult = await attemptGeneration(fallbackModel, true);
       if (generationResult) break;
     }
+  } else if (!generationResult) {
+    console.log(`⏱️ Time budget exceeded after primary model (${((Date.now() - generationStartTime)/1000).toFixed(0)}s), no fallback`);
   }
 
   if (!generationResult) {
@@ -6145,19 +6154,16 @@ These are realistic, verified contact details for the target region. DO NOT repl
   let hasIndexHtml = files.some(f => f.path.toLowerCase() === 'index.html');
   let htmlFileCount = files.filter(f => f.path.toLowerCase().endsWith('.html')).length;
   
-  // If no index.html or no HTML files at all, try fallback models
-  if (!hasIndexHtml || htmlFileCount === 0) {
+  // If no index.html or no HTML files at all, try ONE fast recovery (only within time budget)
+  if ((!hasIndexHtml || htmlFileCount === 0) && !isTimeBudgetExceeded()) {
     console.error(`❌ CRITICAL: No index.html found! Files: ${files.map(f => f.path).join(', ')}`);
-    console.log(`🔄 Attempting recovery with fallback models...`);
+    console.log(`🔄 Single fast recovery attempt (elapsed: ${((Date.now() - generationStartTime)/1000).toFixed(0)}s)...`);
     
-    // Use stable recovery models - avoid openai/gpt-5-mini due to max_tokens incompatibility
-    const recoveryModels = ["google/gemini-2.5-flash", "google/gemini-3-flash-preview"];
+    const recoveryModel = "google/gemini-2.5-flash";
     let recovered = false;
     let finalModelUsed = modelUsed;
     
-    for (const recoveryModel of recoveryModels) {
-      if (recoveryModel === modelUsed) continue; // Skip if already tried this model
-      
+    if (recoveryModel !== modelUsed) {
       console.log(`🔄 Recovery attempt with: ${recoveryModel}`);
       const recoveryResult = await attemptGeneration(recoveryModel, true);
       
@@ -6173,7 +6179,6 @@ These are realistic, verified contact details for the target region. DO NOT repl
           htmlFileCount = recoveryHtmlCount;
           recovered = true;
           finalModelUsed = recoveryModel;
-          break;
         } else {
           console.log(`❌ Recovery model ${recoveryModel} also failed to produce index.html`);
         }
@@ -6181,15 +6186,23 @@ These are realistic, verified contact details for the target region. DO NOT repl
     }
     
     if (!recovered) {
-      console.error(`❌ All recovery attempts failed. No index.html in final output.`);
+      console.error(`❌ Recovery failed. No index.html in final output.`);
       return {
         success: false,
-        error: "Generation incomplete: no index.html found after multiple attempts. Please retry.",
+        error: "Generation incomplete: no index.html found. Please retry.",
         rawResponse: rawText.substring(0, 500),
         totalCost,
-        specificModel: finalModelUsed, // Record which model was attempted
+        specificModel: finalModelUsed,
       };
     }
+  } else if ((!hasIndexHtml || htmlFileCount === 0) && isTimeBudgetExceeded()) {
+    console.error(`⏱️ No index.html AND time budget exceeded (${((Date.now() - generationStartTime)/1000).toFixed(0)}s). Failing fast.`);
+    return {
+      success: false,
+      error: `Generation timed out after ${((Date.now() - generationStartTime)/1000).toFixed(0)}s without producing index.html. Please retry.`,
+      totalCost,
+      specificModel: modelUsed,
+    };
   }
 
   if (files.length === 0) {
