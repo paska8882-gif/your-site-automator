@@ -5771,6 +5771,9 @@ async function runGeneration({
   geo?: string;
 }): Promise<GenerationResult> {
   const isJunior = aiModel === "junior";
+  const generationStartTime = Date.now();
+  const MAX_GENERATION_TIME_MS = 600000; // 10 minutes hard budget
+  const isTimeBudgetExceeded = () => (Date.now() - generationStartTime) > MAX_GENERATION_TIME_MS;
   console.log(`Using ${isJunior ? "Junior AI (OpenAI GPT-4o)" : "Senior AI (Lovable AI)"} for HTML generation`);
 
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
