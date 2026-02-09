@@ -6017,20 +6017,7 @@ These are realistic, verified contact details for the target region. DO NOT repl
       return null;
     }
 
-    // Read response body with timeout to prevent hanging
-    const BODY_READ_TIMEOUT = 600000; // 10 minutes
-    let rawResponse: string;
-    try {
-      rawResponse = await Promise.race([
-        response.text(),
-        new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error(`Response body read timeout (${BODY_READ_TIMEOUT / 1000}s)`)), BODY_READ_TIMEOUT)
-        ),
-      ]);
-    } catch (bodyError) {
-      console.error(`❌ Failed to read response body from ${modelToUse}: ${(bodyError as Error).message}`);
-      return null;
-    }
+    const rawResponse = await response.text();
     console.log(`📥 Raw response length from ${modelToUse}: ${rawResponse.length}`);
 
     // If response is too short, consider it failed
