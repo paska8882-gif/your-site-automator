@@ -260,7 +260,7 @@ serve(async (req) => {
         zips_cleared: zipsCleared,
         files_cleared: filesCleared,
         processed: processed,
-        retried: retriedCount,
+        retried: 0,
         success: true,
         triggered_by: triggeredBy,
       });
