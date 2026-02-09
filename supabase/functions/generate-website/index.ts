@@ -6611,10 +6611,8 @@ These are realistic, verified contact details for the target region. DO NOT repl
     }
     const radiusStyle = RADIUS_STYLES[Math.floor(Math.random() * RADIUS_STYLES.length)];
     const shadowStyle = SHADOW_STYLES[Math.floor(Math.random() * SHADOW_STYLES.length)];
-    const fontPair = FONT_PAIRS[Math.floor(Math.random() * FONT_PAIRS.length)];
     
     console.log(`🎨 Selected style: ${colorScheme.name} theme, radius: ${radiusStyle.md}, shadow style: ${shadowStyle.md.substring(0, 20)}...`);
-    console.log(`🔤 Selected font pair: ${fontPair.heading} + ${fontPair.body} (${fontPair.style})`);
     
     // Premium baseline CSS with randomized variables
     const BASELINE_CSS = `:root {
