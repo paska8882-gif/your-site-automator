@@ -276,7 +276,6 @@ serve(async (req) => {
         success: true, 
         processed, 
         appealsCreated, 
-        retried: retriedCount,
         zipsCleared,
         filesCleared,
         counterSynced,
