@@ -6159,7 +6159,7 @@ These are realistic, verified contact details for the target region. DO NOT repl
     console.error(`❌ CRITICAL: No index.html found! Files: ${files.map(f => f.path).join(', ')}`);
     console.log(`🔄 Single fast recovery attempt (elapsed: ${((Date.now() - generationStartTime)/1000).toFixed(0)}s)...`);
     
-    const recoveryModel = "google/gemini-2.5-flash";
+    const recoveryModel = "openai/gpt-5-mini";
     let recovered = false;
     let finalModelUsed = modelUsed;
     
