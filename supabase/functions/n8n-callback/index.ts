@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// @ts-ignore - Deno native serve
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import * as zip from "https://deno.land/x/zipjs@v2.7.32/index.js";
 
@@ -35,7 +35,6 @@ function normalizeFiles(raw: unknown[]): GeneratedFile[] {
 function parseFilesFromResponse(responseText: string): GeneratedFile[] {
   const files: GeneratedFile[] = [];
   
-  // Спробуємо кілька варіантів маркерів
   const patterns = [
     /<!-- FILE: ([^>]+) -->([\s\S]*?)(?=<!-- FILE: |$)/g,
     /\/\* FILE: ([^ ]+) \*\/([\s\S]*?)(?=\/\* FILE: |$)/g,
@@ -47,8 +46,6 @@ function parseFilesFromResponse(responseText: string): GeneratedFile[] {
     while ((match = pattern.exec(responseText)) !== null) {
       const fileName = match[1].trim();
       let fileContent = match[2].trim();
-      
-      // Прибираємо markdown fences якщо є
       fileContent = fileContent.replace(/^```[a-z]*\n?/gm, '').replace(/```$/gm, '');
       
       if (fileContent && fileContent.length > 10) {
@@ -63,17 +60,65 @@ function parseFilesFromResponse(responseText: string): GeneratedFile[] {
   return files;
 }
 
+// Розпаковка ZIP-архіву з бінарних даних
+async function extractFilesFromZip(zipData: ArrayBuffer): Promise<GeneratedFile[]> {
+  const files: GeneratedFile[] = [];
+  
+  try {
+    const blobReader = new zip.BlobReader(new Blob([zipData]));
+    const zipReader = new zip.ZipReader(blobReader);
+    const entries = await zipReader.getEntries();
+    
+    console.log(`📦 ZIP contains ${entries.length} entries`);
+    
+    for (const entry of entries) {
+      // Пропускаємо директорії
+      if (entry.directory) {
+        console.log(`📂 Skipping directory: ${entry.filename}`);
+        continue;
+      }
+      
+      // Пропускаємо системні файли macOS
+      if (entry.filename.startsWith("__MACOSX/") || entry.filename.includes(".DS_Store")) {
+        console.log(`🚫 Skipping system file: ${entry.filename}`);
+        continue;
+      }
+      
+      try {
+        const textWriter = new zip.TextWriter();
+        const content = await entry.getData!(textWriter);
+        
+        if (content && content.length > 0) {
+          files.push({
+            path: entry.filename,
+            content: content,
+          });
+          console.log(`✅ Extracted: ${entry.filename} (${content.length} chars)`);
+        }
+      } catch (e) {
+        console.warn(`⚠️ Could not read ${entry.filename} as text, skipping:`, e);
+      }
+    }
+    
+    await zipReader.close();
+  } catch (e) {
+    console.error("❌ Failed to read ZIP archive:", e);
+    throw new Error(`Failed to extract ZIP: ${e instanceof Error ? e.message : "Unknown error"}`);
+  }
+  
+  console.log(`📁 Extracted ${files.length} files from ZIP`);
+  return files;
+}
+
 async function createZipBase64(files: GeneratedFile[]): Promise<string> {
   const blobWriter = new zip.BlobWriter("application/zip");
   const zipWriter = new zip.ZipWriter(blobWriter);
   
-  // Дедуплікація файлів - якщо є однакові шляхи, додаємо суфікс
   const usedPaths = new Set<string>();
   
   for (const file of files) {
     let finalPath = file.path;
     
-    // Якщо шлях вже існує, додаємо числовий суфікс
     if (usedPaths.has(finalPath)) {
       const ext = finalPath.includes('.') ? finalPath.substring(finalPath.lastIndexOf('.')) : '';
       const base = finalPath.includes('.') ? finalPath.substring(0, finalPath.lastIndexOf('.')) : finalPath;
@@ -91,7 +136,6 @@ async function createZipBase64(files: GeneratedFile[]): Promise<string> {
       await zipWriter.add(finalPath, new zip.TextReader(file.content));
     } catch (e) {
       console.error(`Failed to add file ${finalPath}:`, e);
-      // Продовжуємо з іншими файлами
     }
   }
   
@@ -106,7 +150,76 @@ async function createZipBase64(files: GeneratedFile[]): Promise<string> {
   return btoa(binary);
 }
 
-serve(async (req) => {
+// ========== Парсинг запиту: multipart/form-data або JSON ==========
+interface ParsedCallback {
+  historyId?: string;
+  requestId?: string;
+  jobId?: string;
+  status?: string;
+  files?: unknown[];
+  fileList?: unknown[];
+  content?: string;
+  result?: string;
+  cost?: number;
+  model?: string;
+  totalFiles?: number;
+  error?: string;
+  targetTable?: string;
+  createNew?: boolean;
+  domain?: string;
+  geo?: string;
+  languages?: string[];
+  // ZIP-файл з multipart
+  zipFile?: ArrayBuffer;
+}
+
+async function parseRequest(req: Request): Promise<ParsedCallback> {
+  const contentType = req.headers.get("content-type") || "";
+  
+  // === Multipart/form-data (новий формат з ZIP) ===
+  if (contentType.includes("multipart/form-data")) {
+    console.log("📨 Parsing multipart/form-data request");
+    const formData = await req.formData();
+    
+    const result: ParsedCallback = {};
+    
+    // Текстові поля
+    const historyId = formData.get("historyId");
+    if (historyId && typeof historyId === "string") result.historyId = historyId;
+    
+    const status = formData.get("status");
+    if (status && typeof status === "string") result.status = status;
+    
+    const error = formData.get("error");
+    if (error && typeof error === "string") result.error = error;
+    
+    const requestId = formData.get("requestId");
+    if (requestId && typeof requestId === "string") result.requestId = requestId;
+    
+    const jobId = formData.get("jobId");
+    if (jobId && typeof jobId === "string") result.jobId = jobId;
+    
+    const targetTable = formData.get("targetTable");
+    if (targetTable && typeof targetTable === "string") result.targetTable = targetTable;
+    
+    // ZIP-файл
+    const file = formData.get("file");
+    if (file && file instanceof File) {
+      console.log(`📎 Received ZIP file: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
+      result.zipFile = await file.arrayBuffer();
+    }
+    
+    return result;
+  }
+  
+  // === JSON (legacy формат) ===
+  console.log("📨 Parsing JSON request");
+  const body = await req.json();
+  console.log("📥 Received callback:", JSON.stringify(body).substring(0, 1000));
+  return body as ParsedCallback;
+}
+
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -122,34 +235,28 @@ serve(async (req) => {
       });
     }
 
-    const body = await req.json();
-    console.log("📥 Received callback:", JSON.stringify(body).substring(0, 1000));
+    // Парсимо запит (multipart або JSON)
+    const body = await parseRequest(req);
 
     const { 
-      // Ідентифікатори
       requestId, 
       historyId, 
       jobId,
-      // Статуси
       status, 
-      // Дані файлів
       files, 
       fileList,
       content, 
       result, 
-      // Мета
       cost, 
       model, 
       totalFiles,
-      // Помилки
       error,
-      // Режим: 'generation_history' або 'ai_jobs' (за замовчуванням авто-детект)
       targetTable,
-      // Якщо хочемо створити новий запис (без прив'язки до існуючого)
       createNew,
       domain,
       geo,
       languages,
+      zipFile,
     } = body;
 
     // Визначаємо ID та таблицю
@@ -164,26 +271,42 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    // ========== Витягуємо файли з будь-якого формату ==========
+    async function extractFiles(): Promise<GeneratedFile[]> {
+      // 1. ZIP-файл з multipart (пріоритет)
+      if (zipFile) {
+        console.log("📦 Extracting files from ZIP archive...");
+        return await extractFilesFromZip(zipFile);
+      }
+      
+      // 2. JSON масив файлів (legacy та v0 формат)
+      if (files && Array.isArray(files)) {
+        return normalizeFiles(files);
+      }
+      if (fileList && Array.isArray(fileList)) {
+        return normalizeFiles(fileList);
+      }
+      
+      // 3. Текстовий контент з маркерами файлів
+      if (content && typeof content === "string") {
+        return parseFilesFromResponse(content);
+      }
+      if (result && typeof result === "string") {
+        return parseFilesFromResponse(result);
+      }
+      
+      return [];
+    }
+
     // ========== РЕЖИМ 1: Створення нового запису (createNew: true) ==========
     if (createNew) {
       console.log("📝 Creating new record from webhook...");
       
-      let parsedFiles: GeneratedFile[] = [];
-      
-      // Витягуємо файли з різних форматів (підтримка {path,content} та v0 {name,content,type})
-      if (files && Array.isArray(files)) {
-        parsedFiles = normalizeFiles(files);
-      } else if (fileList && Array.isArray(fileList)) {
-        parsedFiles = normalizeFiles(fileList);
-      } else if (content && typeof content === "string") {
-        parsedFiles = parseFilesFromResponse(content);
-      } else if (result && typeof result === "string") {
-        parsedFiles = parseFilesFromResponse(result);
-      }
+      const parsedFiles = await extractFiles();
       
       if (parsedFiles.length === 0) {
         return new Response(JSON.stringify({ 
-          error: "No files provided. Send files as 'files' array or 'content'/'result' string with FILE markers" 
+          error: "No files provided. Send files as ZIP, 'files' array, or 'content'/'result' string with FILE markers" 
         }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -193,11 +316,10 @@ serve(async (req) => {
       console.log(`📦 Creating ZIP for ${parsedFiles.length} files...`);
       const zipBase64 = await createZipBase64(parsedFiles);
       
-      // Зберігаємо в ai_generation_jobs
       const { data: newJob, error: insertError } = await supabase
         .from("ai_generation_jobs")
         .insert({
-          user_id: "00000000-0000-0000-0000-000000000000", // Системний user для webhook
+          user_id: "00000000-0000-0000-0000-000000000000",
           domain: domain || "webhook-import",
           geo: geo || "US",
           languages: languages || ["en"],
@@ -242,7 +364,6 @@ serve(async (req) => {
     // Визначаємо таблицю автоматично
     let table = targetTable;
     if (!table) {
-      // Перевіряємо чи ID є в ai_generation_jobs
       const { data: jobCheck } = await supabase
         .from("ai_generation_jobs")
         .select("id")
@@ -262,25 +383,14 @@ serve(async (req) => {
     if (status === "done" || status === "completed") {
       console.log(`✅ Generation completed for generationId: ${generationId}`);
       
-      // Витягуємо файли
-      let parsedFiles: GeneratedFile[] = [];
-      
-      if (files && Array.isArray(files)) {
-        parsedFiles = normalizeFiles(files);
-      } else if (fileList && Array.isArray(fileList)) {
-        parsedFiles = normalizeFiles(fileList);
-      } else if (content && typeof content === "string") {
-        parsedFiles = parseFilesFromResponse(content);
-      } else if (result && typeof result === "string") {
-        parsedFiles = parseFilesFromResponse(result);
-      }
+      const parsedFiles = await extractFiles();
       
       if (parsedFiles.length === 0) {
-        throw new Error("No files in callback response");
+        throw new Error("No files in callback response (checked ZIP, files array, and content markers)");
       }
       
       // Створюємо ZIP
-      console.log("📦 Creating ZIP archive...");
+      console.log(`📦 Creating ZIP archive from ${parsedFiles.length} files...`);
       const zipBase64 = await createZipBase64(parsedFiles);
       
       // Оновлюємо відповідну таблицю
@@ -364,7 +474,6 @@ serve(async (req) => {
           })
           .eq("id", generationId);
       } else {
-        // Оновлюємо з помилкою
         await supabase
           .from("generation_history")
           .update({
@@ -429,7 +538,6 @@ serve(async (req) => {
       });
       
     } else if (status === "processing" || status === "generating") {
-      // Проміжний статус
       if (table === "ai_generation_jobs") {
         await supabase
           .from("ai_generation_jobs")
