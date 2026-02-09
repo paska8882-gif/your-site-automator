@@ -6115,7 +6115,7 @@ These are realistic, verified contact details for the target region. DO NOT repl
   if (!generationResult && !isTimeBudgetExceeded()) {
     const fallbackModels = isJunior 
       ? ["gpt-4o-mini"] 
-      : ["google/gemini-2.5-flash"];
+      : ["openai/gpt-5-mini"];
     
     for (const fallbackModel of fallbackModels) {
       if (isTimeBudgetExceeded()) {
