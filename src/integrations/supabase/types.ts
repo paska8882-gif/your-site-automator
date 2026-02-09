@@ -340,6 +340,7 @@ export type Database = {
           color_scheme: string | null
           completed_at: string | null
           created_at: string
+          download_url: string | null
           error_message: string | null
           files_data: Json | null
           generation_cost: number | null
@@ -372,6 +373,7 @@ export type Database = {
           color_scheme?: string | null
           completed_at?: string | null
           created_at?: string
+          download_url?: string | null
           error_message?: string | null
           files_data?: Json | null
           generation_cost?: number | null
@@ -404,6 +406,7 @@ export type Database = {
           color_scheme?: string | null
           completed_at?: string | null
           created_at?: string
+          download_url?: string | null
           error_message?: string | null
           files_data?: Json | null
           generation_cost?: number | null
