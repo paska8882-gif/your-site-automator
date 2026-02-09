@@ -8713,7 +8713,6 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
   // Apply all mandatory file checks
   let finalFiles = ensureCookieBannerFile(files);
   finalFiles = ensureQualityCSS(finalFiles);
-  finalFiles = injectGoogleFontsIntoFiles(finalFiles, fontPair); // Inject Google Fonts CDN
   finalFiles = fixPlaceholderImages(finalFiles); // Fix placeholder images
   finalFiles = removeEmojisFromContent(finalFiles); // Remove emojis and instruction symbols
   finalFiles = validateHtmlContent(finalFiles); // Validate HTML content
