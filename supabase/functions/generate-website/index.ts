@@ -6017,8 +6017,19 @@ These are realistic, verified contact details for the target region. DO NOT repl
       return null;
     }
 
-    const rawResponse = await response.text();
-    console.log(`📥 Raw response length from ${modelToUse}: ${rawResponse.length}`);
+    // Add timeout for reading response body (5 minutes max)
+    let rawResponse: string;
+    try {
+      const bodyReadPromise = response.text();
+      const bodyTimeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Response body read timeout (300s)')), 300000)
+      );
+      rawResponse = await Promise.race([bodyReadPromise, bodyTimeoutPromise]);
+      console.log(`📥 Raw response length from ${modelToUse}: ${rawResponse.length}`);
+    } catch (bodyError) {
+      console.error(`❌ Failed to read response body from ${modelToUse}: ${(bodyError as Error).message}`);
+      return null;
+    }
 
     // If response is too short, consider it failed
     // Senior models should return more content than junior
