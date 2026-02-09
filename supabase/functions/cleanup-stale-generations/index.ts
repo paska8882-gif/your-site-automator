@@ -190,7 +190,7 @@ serve(async (req) => {
     }
 
     // ==========================================
-    // STEP 4: Cleanup old zip_data (>2 weeks)
+    // STEP 3: Cleanup old zip_data (>2 weeks)
     // ==========================================
     const { data: oldZipItems, error: zipFetchError } = await supabase
       .from("generation_history")
