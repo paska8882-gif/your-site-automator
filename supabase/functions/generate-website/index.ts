@@ -6635,8 +6635,8 @@ These are realistic, verified contact details for the target region. DO NOT repl
   --radius-md: ${radiusStyle.md};
   --radius-lg: ${radiusStyle.lg};
   --transition: all 0.3s ease;
-  --font-family-body: '${fontPair.body}', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-family-heading: '${fontPair.heading}', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-family-body: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-family-heading: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 *, *::before, *::after {
