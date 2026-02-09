@@ -3606,7 +3606,7 @@ export function WebsiteGenerator() {
                   }
                   setIsSubmitting(false);
                 }}
-                disabled={isGenerationBlocked || siteNames.length === 0 || !prompt.trim() || !seniorMode}
+                disabled={isGenerationBlocked || (siteNames.length === 0 && !currentSiteNameInput.trim()) || !prompt.trim() || !seniorMode}
                 className="w-full h-9 text-sm"
               >
                 {isSubmitting ? (
