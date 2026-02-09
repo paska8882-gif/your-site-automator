@@ -6004,7 +6004,7 @@ These are realistic, verified contact details for the target region. DO NOT repl
           "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
-      }, 1, 2000, 600000); // 1 retry, 10 min timeout
+      }, 1, 2000, 600000); // NO retry (1 attempt), 10 min timeout
     } catch (fetchError) {
       const errorMsg = (fetchError as Error)?.message || String(fetchError);
       console.error(`❌ Fetch failed for ${modelToUse}: ${errorMsg}`);
