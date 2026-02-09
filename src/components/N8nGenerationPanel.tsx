@@ -100,6 +100,12 @@ export function N8nGenerationPanel() {
   const [keywords, setKeywords] = useState("");
   const [forbiddenWords, setForbiddenWords] = useState("");
   
+  // Next.js bot specific fields
+  const [siteName, setSiteName] = useState("");
+  const [siteTopic, setSiteTopic] = useState("");
+  const [siteType, setSiteType] = useState("");
+  const [siteDescription, setSiteDescription] = useState("");
+  
   // Theme selection state
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedTopic, setSelectedTopic] = useState<string>("");
