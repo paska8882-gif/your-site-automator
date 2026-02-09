@@ -35,6 +35,7 @@ interface HistoryItem {
   completed_at: string | null;
   files_data: GeneratedFile[] | null;
   zip_data: string | null;
+  download_url: string | null;
   error_message: string | null;
   geo: string | null;
   language: string;
@@ -74,7 +75,7 @@ export function N8nGenerationHistory() {
     try {
       let query = supabase
         .from("generation_history")
-        .select("id, number, site_name, prompt, status, created_at, completed_at, files_data, zip_data, error_message, geo, language, website_type, ai_model, sale_price, team_id, image_source")
+        .select("id, number, site_name, prompt, status, created_at, completed_at, files_data, zip_data, download_url, error_message, geo, language, website_type, ai_model, sale_price, team_id, image_source")
         .order("created_at", { ascending: false })
         .limit(50);
 
@@ -211,6 +212,21 @@ export function N8nGenerationHistory() {
   };
 
   const handleDownload = async (item: HistoryItem) => {
+    // Direct download URL (ZIP passthrough from n8n)
+    if (item.download_url) {
+      const a = document.createElement("a");
+      a.href = item.download_url;
+      a.download = `${item.site_name || `site-${item.number}`}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast({
+        title: "Завантажено",
+        description: `${item.site_name || `Site ${item.number}`}.zip`,
+      });
+      return;
+    }
+
     if (!item.zip_data && !item.files_data) {
       toast({
         title: "Помилка",
@@ -225,7 +241,6 @@ export function N8nGenerationHistory() {
       let blob: Blob;
       
       if (item.zip_data) {
-        // Use existing zip_data
         const binary = atob(item.zip_data);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) {
@@ -233,7 +248,6 @@ export function N8nGenerationHistory() {
         }
         blob = new Blob([bytes], { type: "application/zip" });
       } else if (item.files_data) {
-        // Generate zip from files_data
         const { default: JSZip } = await import("jszip");
         const zip = new JSZip();
         item.files_data.forEach((file) => zip.file(file.path, file.content));
@@ -380,7 +394,7 @@ export function N8nGenerationHistory() {
                 {history.map((item) => {
                   const existingAppeal = getAppealStatus(item.id);
                   const isCompleted = item.status === "completed";
-                  const hasFiles = !!item.files_data || !!item.zip_data;
+                  const hasFiles = !!item.download_url || !!item.files_data || !!item.zip_data;
                   
                   return (
                     <div
