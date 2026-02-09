@@ -779,7 +779,32 @@ export function AdminAppealsTab() {
                 </div>
                 <div className="col-span-2">
                   <span className="text-muted-foreground">ID сайту:</span>
-                  <p className="font-mono text-xs bg-muted/50 px-2 py-1 rounded mt-0.5 select-all break-all">{selectedAppeal.generation_id}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <p className="font-mono text-xs bg-muted/50 px-2 py-1 rounded select-all break-all flex-1">{selectedAppeal.generation_id}</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[10px] px-2 shrink-0"
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedAppeal.generation_id);
+                        toast({ title: "Скопійовано", description: "ID сайту скопійовано" });
+                      }}
+                    >
+                      ID
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[10px] px-2 shrink-0"
+                      onClick={() => {
+                        const text = `ID: ${selectedAppeal.generation_id}\nПричина: ${selectedAppeal.reason}`;
+                        navigator.clipboard.writeText(text);
+                        toast({ title: "Скопійовано", description: "ID + причина скопійовано" });
+                      }}
+                    >
+                      ID + Причина
+                    </Button>
+                  </div>
                 </div>
               </div>
 
