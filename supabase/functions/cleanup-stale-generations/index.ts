@@ -47,7 +47,7 @@ serve(async (req) => {
       console.error("Error fetching stale items:", errMsg);
       const isRetryable = errMsg.includes("timeout") || errMsg.includes("521") || errMsg.includes("server") || errMsg.includes("connection");
       return new Response(
-        JSON.stringify({ success: false, error: errMsg, retryable: isRetryable, retried: retriedCount }),
+        JSON.stringify({ success: false, error: errMsg, retryable: isRetryable }),
         { status: isRetryable ? 503 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
