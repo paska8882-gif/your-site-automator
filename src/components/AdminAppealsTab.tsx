@@ -777,6 +777,10 @@ export function AdminAppealsTab() {
                   <span className="text-muted-foreground">{t("admin.refundAmount")}:</span>
                   <p className="font-medium text-lg">${selectedAppeal.amount_to_refund.toFixed(2)}</p>
                 </div>
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">ID сайту:</span>
+                  <p className="font-mono text-xs bg-muted/50 px-2 py-1 rounded mt-0.5 select-all break-all">{selectedAppeal.generation_id}</p>
+                </div>
               </div>
 
               {/* Site actions */}
