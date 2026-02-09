@@ -3633,7 +3633,7 @@ export function WebsiteGenerator() {
                   onClick={handleGenerateClick}
                   disabled={
                     isGenerationBlocked ||
-                    siteNames.length === 0 || 
+                    (siteNames.length === 0 && !currentSiteNameInput.trim()) || 
                     (promptMode === "theme" ? !selectedTopic : !prompt.trim()) || 
                     (isBilingualMode ? (!bilingualLang1 || !bilingualLang2) : getAllSelectedLanguages().length === 0) || 
                     selectedAiModels.length === 0 || 
