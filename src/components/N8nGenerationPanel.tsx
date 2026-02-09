@@ -223,10 +223,12 @@ export function N8nGenerationPanel() {
           ? `${basePrompt}\n\n[Варіація ${index + 1} з ${siteCount} - зроби унікальний дизайн та контент]`
           : basePrompt;
         
-        const baseName = domain 
-          ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "")
-          : prompt.slice(0, 40);
-        siteName = siteCount > 1 ? `${baseName} (${index + 1})` : baseName;
+        const baseName = selectedBot === "nextjs_bot"
+          ? (siteName || domain || prompt.slice(0, 40))
+          : (domain 
+            ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "")
+            : prompt.slice(0, 40));
+        siteName_gen = siteCount > 1 ? `${baseName} (${index + 1})` : baseName;
       }
 
       // Create generation history record
