@@ -429,6 +429,194 @@ export function N8nGenerationPanel() {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {selectedBot === "nextjs_bot" ? (
+            /* ===== NEXT.JS BOT FORM ===== */
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Left column */}
+              <div className="space-y-4">
+                {/* Domain */}
+                <div className="space-y-2">
+                  <Label htmlFor="nx-domain">Domain *</Label>
+                  <Input
+                    id="nx-domain"
+                    placeholder="sbofl.pro"
+                    value={domain}
+                    onChange={(e) => setDomain(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+                {/* Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="nx-name">Name *</Label>
+                  <Input
+                    id="nx-name"
+                    placeholder="Systems & Business Operations"
+                    value={siteName}
+                    onChange={(e) => setSiteName(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+                {/* Geo */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Globe className="h-4 w-4" />
+                    Geo
+                  </Label>
+                  <Select value={geo} onValueChange={setGeo} disabled={isSubmitting}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {geoOptions.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Language (single select for Next.js) */}
+                <div className="space-y-2">
+                  <Label>Language</Label>
+                  <Select 
+                    value={selectedLanguages[0] || "en"} 
+                    onValueChange={(v) => setSelectedLanguages([v])} 
+                    disabled={isSubmitting}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {languages.map(lang => (
+                        <SelectItem key={lang.value} value={lang.value}>
+                          {lang.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Topic */}
+                <div className="space-y-2">
+                  <Label htmlFor="nx-topic">Topic *</Label>
+                  <Input
+                    id="nx-topic"
+                    placeholder="Financial Technology Systems"
+                    value={siteTopic}
+                    onChange={(e) => setSiteTopic(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+                {/* Type */}
+                <div className="space-y-2">
+                  <Label htmlFor="nx-type">Type</Label>
+                  <Input
+                    id="nx-type"
+                    placeholder="Enterprise Platform"
+                    value={siteType}
+                    onChange={(e) => setSiteType(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+
+              {/* Right column */}
+              <div className="space-y-4">
+                {/* Description */}
+                <div className="space-y-2">
+                  <Label htmlFor="nx-description">Description *</Label>
+                  <Textarea
+                    id="nx-description"
+                    placeholder="Systems & Business Operations presents comprehensive financial technology systems with enterprise-grade animations..."
+                    value={siteDescription}
+                    onChange={(e) => setSiteDescription(e.target.value)}
+                    disabled={isSubmitting}
+                    className="min-h-[120px]"
+                  />
+                </div>
+
+                {/* Keywords */}
+                <div className="space-y-2">
+                  <Label htmlFor="nx-keywords">Keywords</Label>
+                  <Textarea
+                    id="nx-keywords"
+                    placeholder="business systems, operational technology, financial infrastructure..."
+                    value={keywords}
+                    onChange={(e) => setKeywords(e.target.value)}
+                    disabled={isSubmitting}
+                    className="min-h-[80px]"
+                  />
+                </div>
+
+                {/* Banned words */}
+                <div className="space-y-2">
+                  <Label htmlFor="nx-banned">Banned words</Label>
+                  <Textarea
+                    id="nx-banned"
+                    placeholder="bank, online banking, money, earn..."
+                    value={forbiddenWords}
+                    onChange={(e) => setForbiddenWords(e.target.value)}
+                    disabled={isSubmitting}
+                    className="min-h-[80px]"
+                  />
+                </div>
+
+                {/* Site count */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Layers className="h-4 w-4" />
+                    Кількість сайтів
+                  </Label>
+                  <Select 
+                    value={siteCount.toString()} 
+                    onValueChange={(v) => setSiteCount(parseInt(v))} 
+                    disabled={isSubmitting}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                        <SelectItem key={n} value={n.toString()}>
+                          {n} {n === 1 ? "сайт" : n < 5 ? "сайти" : "сайтів"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Submit */}
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || !domain.trim() || !siteName.trim() || !siteTopic.trim() || !siteDescription.trim()}
+                  className="w-full"
+                  size="lg"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      {submissionProgress.total > 1 
+                        ? `Відправка ${submissionProgress.current}/${submissionProgress.total}...`
+                        : "Відправка..."}
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      {siteCount > 1 
+                        ? `Відправити ${siteCount} сайтів`
+                        : "Відправити на генерацію"}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            /* ===== HTML BOT FORM (original) ===== */
+            <>
           {/* Prompt Mode Selector */}
           <div className="mb-6">
             <Label className="mb-3 block">Режим опису</Label>
@@ -455,7 +643,6 @@ export function N8nGenerationPanel() {
             {/* Left column */}
             <div className="space-y-4">
               {promptMode === "manual" ? (
-                /* Manual prompt input */
                 <div className="space-y-2">
                   <Label htmlFor="prompt">Тема сайту *</Label>
                   <Textarea
@@ -468,7 +655,6 @@ export function N8nGenerationPanel() {
                   />
                 </div>
               ) : (
-                /* Theme-based selection */
                 <>
                   <div className="space-y-2">
                     <Label>Категорія *</Label>
