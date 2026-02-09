@@ -5984,10 +5984,10 @@ These are realistic, verified contact details for the target region. DO NOT repl
     const isGPT5Series = modelToUse.includes('gpt-5');
     if (isGPT5Series) {
       delete requestBody.max_tokens;
-      requestBody.max_completion_tokens = isJunior ? 16000 : 131072;
+      requestBody.max_completion_tokens = isJunior ? 16000 : seniorMaxTokens;
     } else if (!requestBody.max_tokens) {
       // Ensure non-GPT5 models have max_tokens set
-      requestBody.max_tokens = isJunior ? 16000 : 131072;
+      requestBody.max_tokens = isJunior ? 16000 : seniorMaxTokens;
     }
     
     console.log(`${isRetry ? '🔄 RETRY with' : '🚀 Attempting'} model: ${modelToUse} (${isGPT5Series ? 'max_completion_tokens' : 'max_tokens'})`);
