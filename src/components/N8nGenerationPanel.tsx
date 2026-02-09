@@ -244,7 +244,7 @@ export function N8nGenerationPanel() {
           status: "pending",
           ai_model: "senior",
           website_type: currentBot.outputType,
-          image_source: `n8n-bot-${currentBot.id}`,
+          image_source: selectedBot === "nextjs_bot" ? "nextjs" : `n8n-bot-${currentBot.id}`,
         })
         .select("id")
         .single();
