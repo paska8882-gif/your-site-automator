@@ -6179,7 +6179,6 @@ These are realistic, verified contact details for the target region. DO NOT repl
           htmlFileCount = recoveryHtmlCount;
           recovered = true;
           finalModelUsed = recoveryModel;
-          break;
         } else {
           console.log(`❌ Recovery model ${recoveryModel} also failed to produce index.html`);
         }
@@ -6187,15 +6186,23 @@ These are realistic, verified contact details for the target region. DO NOT repl
     }
     
     if (!recovered) {
-      console.error(`❌ All recovery attempts failed. No index.html in final output.`);
+      console.error(`❌ Recovery failed. No index.html in final output.`);
       return {
         success: false,
-        error: "Generation incomplete: no index.html found after multiple attempts. Please retry.",
+        error: "Generation incomplete: no index.html found. Please retry.",
         rawResponse: rawText.substring(0, 500),
         totalCost,
-        specificModel: finalModelUsed, // Record which model was attempted
+        specificModel: finalModelUsed,
       };
     }
+  } else if ((!hasIndexHtml || htmlFileCount === 0) && isTimeBudgetExceeded()) {
+    console.error(`⏱️ No index.html AND time budget exceeded (${((Date.now() - generationStartTime)/1000).toFixed(0)}s). Failing fast.`);
+    return {
+      success: false,
+      error: `Generation timed out after ${((Date.now() - generationStartTime)/1000).toFixed(0)}s without producing index.html. Please retry.`,
+      totalCost,
+      specificModel: modelUsed,
+    };
   }
 
   if (files.length === 0) {
