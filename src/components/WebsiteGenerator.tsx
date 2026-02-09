@@ -132,6 +132,26 @@ const languages = [
   { value: "ar", label: "🇸🇦 العربية" },
 ];
 
+// ISO mapping for flag images (value -> ISO 2-letter code)
+const geoIsoMap: Record<string, string> = {
+  uk: "gb", bg: "bg", be: "be", vn: "vn", gr: "gr", dk: "dk", ee: "ee",
+  id: "id", in: "in", ie: "ie", es: "es", it: "it", ca: "ca", lv: "lv",
+  lt: "lt", nl: "nl", de: "de", ae: "ae", pl: "pl", pt: "pt", ru: "ru",
+  ro: "ro", sk: "sk", si: "si", us: "us", th: "th", tr: "tr", ua: "ua",
+  hu: "hu", fi: "fi", fr: "fr", hr: "hr", cz: "cz", se: "se", jp: "jp",
+};
+
+const GeoFlag = ({ value, size = 16 }: { value: string; size?: number }) => {
+  const iso = geoIsoMap[value];
+  if (!iso) return null;
+  return <img src={`https://flagcdn.com/w40/${iso}.png`} alt="" width={size} height={Math.round(size * 0.75)} className="inline-block shrink-0" style={{ borderRadius: 2 }} />;
+};
+
+const getGeoText = (label: string) => {
+  // Strip emoji flags (regional indicators) from label, keep only text
+  return label.replace(/[\u{1F1E0}-\u{1F1FF}]{2}\s*/gu, '').replace(/🌍\s*/, '').trim();
+};
+
 // Countries/Geo list with flags
 const geoOptions = [
   { value: "", label: "🌍 Не вибрано" },
@@ -2353,7 +2373,10 @@ export function WebsiteGenerator() {
                       <SelectContent>
                         {geoOptions.map((geo) => (
                           <SelectItem key={geo.value || "none"} value={geo.value || "none"}>
-                            {geo.label}
+                            <span className="inline-flex items-center gap-1.5">
+                              {geo.value ? <GeoFlag value={geo.value} size={16} /> : "🌍"}
+                              {getGeoText(geo.label)}
+                            </span>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -2776,7 +2799,10 @@ export function WebsiteGenerator() {
                                       setCustomGeo("");
                                     }}
                                   />
-                                  <span className="text-xs">{geo.label}</span>
+                                  <span className="text-xs inline-flex items-center gap-1.5">
+                                    {geo.value ? <GeoFlag value={geo.value} size={14} /> : "🌍"}
+                                    {getGeoText(geo.label)}
+                                  </span>
                                 </label>
                               ))}
                               <div className="border-t my-1 pt-1">
@@ -3349,7 +3375,10 @@ export function WebsiteGenerator() {
                               setCustomGeo("");
                             }}
                           />
-                          <span className="text-xs">{geo.label}</span>
+                          <span className="text-xs inline-flex items-center gap-1.5">
+                            {geo.value ? <GeoFlag value={geo.value} size={14} /> : "🌍"}
+                            {getGeoText(geo.label)}
+                          </span>
                         </label>
                       ))}
                       <div className="border-t my-1 pt-1">
