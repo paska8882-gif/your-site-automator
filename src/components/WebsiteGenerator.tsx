@@ -1287,8 +1287,14 @@ export function WebsiteGenerator() {
     setSelectedImageSources([source]);
   };
 
-  // Get all site names (already an array)
-  const getAllSiteNames = () => siteNames;
+  // Get all site names (array + current input if not yet added)
+  const getAllSiteNames = () => {
+    const trimmed = currentSiteNameInput.trim();
+    if (trimmed && !siteNames.includes(trimmed)) {
+      return [...siteNames, trimmed];
+    }
+    return siteNames;
+  };
 
   // Parse multiple site names from a string (comma, space, newline, semicolon separated)
   const parseSiteNames = (input: string): string[] => {
