@@ -284,8 +284,13 @@ export function N8nGenerationPanel() {
       return;
     }
 
-    // Validation based on mode
-    if (promptMode === "manual") {
+    // Validation based on bot and mode
+    if (selectedBot === "nextjs_bot") {
+      if (!domain.trim() || !siteName.trim() || !siteTopic.trim() || !siteDescription.trim()) {
+        toast.error("Заповніть обов'язкові поля: Domain, Name, Topic, Description");
+        return;
+      }
+    } else if (promptMode === "manual") {
       if (!prompt.trim()) {
         toast.error("Введіть тему сайту");
         return;
