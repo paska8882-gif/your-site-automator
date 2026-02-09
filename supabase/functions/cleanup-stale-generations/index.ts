@@ -250,7 +250,7 @@ serve(async (req) => {
     console.log(`Cleanup complete: ${processed} processed, ${appealsCreated} pending appeals, ${zipsCleared} zips cleared, ${filesCleared} files cleared${counterSynced ? `, counter synced ${oldCounter}→${newCounter}` : ""}`);
 
     // ==========================================
-    // STEP 5: Log cleanup results
+    // STEP 4: Log cleanup results
     // ==========================================
     const triggeredBy = req.headers.get("x-triggered-by") || "cron";
     
