@@ -130,6 +130,28 @@ export function N8nGenerationPanel() {
   };
 
   const buildFullPrompt = () => {
+    // Next.js bot: structured format matching n8n expectations
+    if (selectedBot === "nextjs_bot") {
+      let result = "";
+      if (domain) result += `Domain: ${domain}\n\n`;
+      if (siteName) result += `Name: ${siteName}\n\n`;
+      
+      const geoOption = geoOptions.find(g => g.value === geo);
+      result += `Geo: ${geoOption?.geoName || geo}\n\n`;
+      
+      const langLabel = languages.find(l => l.value === selectedLanguages[0])?.label?.replace(/^..\s/, "") || selectedLanguages[0];
+      result += `Language: ${langLabel}\n\n`;
+      
+      if (siteTopic) result += `Topic: ${siteTopic}\n\n`;
+      if (siteType) result += `Type: ${siteType}\n\n`;
+      if (siteDescription.trim()) result += `Description:\n\n${siteDescription}\n\n`;
+      if (keywords.trim()) result += `Keywords:\n\n${keywords}\n\n`;
+      if (forbiddenWords.trim()) result += `Banned words:\n\n${forbiddenWords}\n`;
+      
+      return result;
+    }
+
+    // HTML bot: original format
     let result = `Тема: ${prompt}\n`;
     
     if (domain) {
