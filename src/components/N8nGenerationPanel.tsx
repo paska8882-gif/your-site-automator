@@ -234,10 +234,12 @@ export function N8nGenerationPanel() {
         .from("generation_history")
         .insert({
           user_id: user!.id,
-          prompt: promptMode === "theme" ? `Тематика: ${selectedTopic}` : prompt.slice(0, 200),
+          prompt: selectedBot === "nextjs_bot" 
+            ? finalPrompt 
+            : (promptMode === "theme" ? `Тематика: ${selectedTopic}` : prompt.slice(0, 200)),
           improved_prompt: themeGeneratedPrompt,
           language: selectedLanguages.join(", "),
-          site_name: siteName,
+          site_name: generatedSiteName,
           geo: geo.toUpperCase(),
           status: "pending",
           ai_model: "senior",
