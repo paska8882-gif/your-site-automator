@@ -5964,14 +5964,14 @@ These are realistic, verified contact details for the target region. DO NOT repl
     ],
   };
 
-  // Set max_tokens for both models to ensure complete generation
-  // Junior: 16000 tokens, Senior: 131072 tokens (128K) to guarantee full multi-page websites
+  // Set max_tokens: Junior 16000, Senior 65000 (optimized for 4-7min speed)
   // CRITICAL: OpenAI GPT-5 series uses max_completion_tokens, not max_tokens
+  const seniorMaxTokens = 65000;
   const isOpenAIGPT5Model = generateModel.includes('gpt-5');
   if (isOpenAIGPT5Model) {
-    websiteRequestBody.max_completion_tokens = isJunior ? 16000 : 131072;
+    websiteRequestBody.max_completion_tokens = isJunior ? 16000 : seniorMaxTokens;
   } else {
-    websiteRequestBody.max_tokens = isJunior ? 16000 : 131072;
+    websiteRequestBody.max_tokens = isJunior ? 16000 : seniorMaxTokens;
   }
   
   console.log(`📊 Prompt length: ${prompt.length} chars, System prompt length: ${HTML_GENERATION_PROMPT.length} chars`);
