@@ -4813,21 +4813,11 @@ CORRECT EXAMPLES:
 
 YOU MUST USE REAL HUMAN PORTRAIT PHOTOS FROM PEXELS! These are VERIFIED working URLs:
 
-MALE PORTRAITS (use these exact URLs):
-- https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-- https://images.pexels.com/photos/2182970/pexels-photo-2182970.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-- https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-- https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-- https://images.pexels.com/photos/2380794/pexels-photo-2380794.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-- https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+MALE PORTRAITS (use these exact URLs - randomly selected for this generation):
+${SELECTED_MALE_PORTRAITS.map((id: string, i: number) => `- https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop`).join('\n')}
 
-FEMALE PORTRAITS (use these exact URLs):
-- https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-- https://images.pexels.com/photos/1065084/pexels-photo-1065084.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-- https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-- https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-- https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-- https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+FEMALE PORTRAITS (use these exact URLs - randomly selected for this generation):
+${SELECTED_FEMALE_PORTRAITS.map((id: string, i: number) => `- https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop`).join('\n')}
 
 ⛔ NEVER USE FOR PEOPLE:
 - picsum.photos - these are RANDOM images, not faces!
@@ -6779,16 +6769,8 @@ Use the split hero with a single <img> inside .hero-visual:
 🚨 When creating Team, Staff, About Us, or Employee sections, you MUST use portrait photos of people!
 - Use Pexels portrait URLs: https://images.pexels.com/photos/[ID]/pexels-photo-[ID].jpeg?auto=compress&cs=tinysrgb&w=400&h=400&fit=crop
 - These are REAL portrait photo IDs for team sections (verified working):
-  * Man portrait 1: https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-  * Woman portrait 1: https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-  * Man portrait 2: https://images.pexels.com/photos/2182970/pexels-photo-2182970.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-  * Woman portrait 2: https://images.pexels.com/photos/1065084/pexels-photo-1065084.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-  * Man portrait 3: https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-  * Woman portrait 3: https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-  * Man portrait 4: https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-  * Woman portrait 4: https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-  * Man portrait 5: https://images.pexels.com/photos/2380794/pexels-photo-2380794.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-  * Woman portrait 5: https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  ${SELECTED_MALE_PORTRAITS.slice(0, 5).map((id: string, i: number) => `* Man portrait ${i+1}: https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop`).join('\n  ')}
+  ${SELECTED_FEMALE_PORTRAITS.slice(0, 5).map((id: string, i: number) => `* Woman portrait ${i+1}: https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop`).join('\n  ')}
 - NEVER use random numbers or picsum for team members - people need REAL face photos!
 - ALWAYS alternate between male and female portraits for realistic teams
 
@@ -8200,7 +8182,101 @@ These are realistic, verified contact details for the target region. DO NOT repl
     return "";
   };
 
-  // QUALITY CSS ENFORCEMENT: Ensure styles.css has proper quality and all required styles
+  // ============ FONT PAIR RANDOMIZATION (30+ curated Google Fonts pairs) ============
+  const FONT_PAIRS: Array<{ heading: string; body: string; style: string }> = [
+    { heading: 'Playfair Display', body: 'Source Sans 3', style: 'elegant' },
+    { heading: 'Montserrat', body: 'Lora', style: 'modern' },
+    { heading: 'Oswald', body: 'Merriweather', style: 'bold' },
+    { heading: 'Raleway', body: 'Roboto', style: 'clean' },
+    { heading: 'Poppins', body: 'Nunito', style: 'friendly' },
+    { heading: 'DM Serif Display', body: 'Inter', style: 'editorial' },
+    { heading: 'Libre Baskerville', body: 'Open Sans', style: 'classic' },
+    { heading: 'Cormorant Garamond', body: 'Proza Libre', style: 'refined' },
+    { heading: 'Archivo Black', body: 'Roboto', style: 'impactful' },
+    { heading: 'Bitter', body: 'Source Sans 3', style: 'readable' },
+    { heading: 'Crimson Text', body: 'Work Sans', style: 'literary' },
+    { heading: 'Josefin Sans', body: 'Lato', style: 'geometric' },
+    { heading: 'Merriweather', body: 'Open Sans', style: 'traditional' },
+    { heading: 'Nunito Sans', body: 'Merriweather', style: 'warm' },
+    { heading: 'PT Serif', body: 'PT Sans', style: 'balanced' },
+    { heading: 'Rubik', body: 'Karla', style: 'rounded' },
+    { heading: 'Space Grotesk', body: 'Inter', style: 'techy' },
+    { heading: 'Sora', body: 'Noto Sans', style: 'minimal' },
+    { heading: 'DM Sans', body: 'IBM Plex Serif', style: 'corporate' },
+    { heading: 'Outfit', body: 'Source Serif 4', style: 'contrast' },
+    { heading: 'Lexend', body: 'Libre Franklin', style: 'accessible' },
+    { heading: 'Fraunces', body: 'Commissioner', style: 'artisan' },
+    { heading: 'Vollkorn', body: 'Fira Sans', style: 'scholarly' },
+    { heading: 'Cabin', body: 'Old Standard TT', style: 'rustic' },
+    { heading: 'Barlow Condensed', body: 'Barlow', style: 'industrial' },
+    { heading: 'Manrope', body: 'Spectral', style: 'hybrid' },
+    { heading: 'Plus Jakarta Sans', body: 'Lora', style: 'startup' },
+    { heading: 'Urbanist', body: 'Crimson Pro', style: 'futuristic' },
+    { heading: 'Albert Sans', body: 'Bitter', style: 'neutral' },
+    { heading: 'Red Hat Display', body: 'Red Hat Text', style: 'branded' },
+    { heading: 'Bricolage Grotesque', body: 'Atkinson Hyperlegible', style: 'quirky' },
+    { heading: 'Instrument Serif', body: 'Instrument Sans', style: 'paired' },
+  ];
+
+  // ============ EXTENDED PORTRAIT POOL (30+ male, 30+ female verified Pexels IDs) ============
+  const ALL_MALE_PORTRAIT_IDS = [
+    '2379004', '2182970', '1222271', '91227', '2380794', '614810',
+    '220453', '1043471', '1681010', '1300402', '834863', '1516680',
+    '1040880', '937481', '1121796', '775358', '1043474', '1212984',
+    '1182825', '2897883', '1559486', '1777249', '2589653', '1752508',
+    '3785079', '1462980', '2743754', '3211476', '2955305', '428364',
+    '3206079', '1138903', '1487069', '2379005', '3778603',
+  ];
+
+  const ALL_FEMALE_PORTRAIT_IDS = [
+    '415829', '1065084', '774909', '1239291', '1181690', '733872',
+    '1036623', '1587009', '712513', '1130626', '1102341', '1858175',
+    '1520760', '3756616', '1462637', '1462636', '3769021', '1898555',
+    '1181686', '1036622', '3770254', '1090387', '1674752', '3756679',
+    '1183266', '762020', '1559629', '1758845', '3779760', '1181519',
+    '2613260', '3807517', '1975937', '2104252', '3831645',
+  ];
+
+  // Randomly select 8 male + 8 female for this generation
+  function shuffleArray<T>(arr: T[]): T[] {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  const SELECTED_MALE_PORTRAITS = shuffleArray(ALL_MALE_PORTRAIT_IDS).slice(0, 8);
+  const SELECTED_FEMALE_PORTRAITS = shuffleArray(ALL_FEMALE_PORTRAIT_IDS).slice(0, 8);
+  console.log(`👤 Selected portrait IDs - Male: ${SELECTED_MALE_PORTRAITS.join(', ')}, Female: ${SELECTED_FEMALE_PORTRAITS.join(', ')}`);
+
+  // ============ GOOGLE FONTS INJECTION ============
+  const injectGoogleFontsIntoFiles = (generatedFiles: GeneratedFile[], fp: { heading: string; body: string }): GeneratedFile[] => {
+    const families = [fp.heading, fp.body]
+      .filter((f, i, a) => a.indexOf(f) === i) // dedupe
+      .map(f => `family=${f.replace(/ /g, '+')}:wght@400;500;600;700`)
+      .join('&');
+    const fontLink = `<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n<link href="https://fonts.googleapis.com/css2?${families}&display=swap" rel="stylesheet">`;
+
+    return generatedFiles.map(file => {
+      if (!file.path.endsWith('.html')) return file;
+      let content = file.content;
+      // Skip if already has this font link
+      if (content.includes(fp.heading.replace(/ /g, '+')) && content.includes('fonts.googleapis.com')) return file;
+      // Insert after <head>
+      const headMatch = content.match(/<head[^>]*>/i);
+      if (headMatch) {
+        const insertPos = headMatch.index! + headMatch[0].length;
+        content = content.slice(0, insertPos) + '\n' + fontLink + '\n' + content.slice(insertPos);
+      }
+      return { ...file, content };
+    });
+  };
+
+  console.log(`🔤 Font pair for generation: ${FONT_PAIRS[0] ? 'available' : 'missing'}, total pairs: ${FONT_PAIRS.length}`);
+
+  
   // Reference: Based on professional site examples with 600+ lines of comprehensive CSS
   const ensureQualityCSS = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
     const MINIMUM_CSS_LINES = 500; // Minimum lines for quality CSS (increased from 400)
@@ -8277,8 +8353,10 @@ These are realistic, verified contact details for the target region. DO NOT repl
     }
     const radiusStyle = RADIUS_STYLES[Math.floor(Math.random() * RADIUS_STYLES.length)];
     const shadowStyle = SHADOW_STYLES[Math.floor(Math.random() * SHADOW_STYLES.length)];
+    const fontPair = FONT_PAIRS[Math.floor(Math.random() * FONT_PAIRS.length)];
     
     console.log(`🎨 Selected style: ${colorScheme.name} theme, radius: ${radiusStyle.md}, shadow style: ${shadowStyle.md.substring(0, 20)}...`);
+    console.log(`🔤 Selected font pair: ${fontPair.heading} + ${fontPair.body} (${fontPair.style})`);
     
     // Premium baseline CSS with randomized variables
     const BASELINE_CSS = `:root {
@@ -8301,8 +8379,8 @@ These are realistic, verified contact details for the target region. DO NOT repl
   --radius-md: ${radiusStyle.md};
   --radius-lg: ${radiusStyle.lg};
   --transition: all 0.3s ease;
-  --font-family-body: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-family-heading: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-family-body: '${fontPair.body}', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-family-heading: '${fontPair.heading}', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 *, *::before, *::after {
@@ -10379,6 +10457,7 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
   // Apply all mandatory file checks
   let finalFiles = ensureCookieBannerFile(files);
   finalFiles = ensureQualityCSS(finalFiles);
+  finalFiles = injectGoogleFontsIntoFiles(finalFiles, fontPair); // Inject Google Fonts CDN
   finalFiles = fixPlaceholderImages(finalFiles); // Fix placeholder images
   finalFiles = removeEmojisFromContent(finalFiles); // Remove emojis and instruction symbols
   finalFiles = validateHtmlContent(finalFiles); // Validate HTML content
