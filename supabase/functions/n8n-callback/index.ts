@@ -9,6 +9,95 @@ const corsHeaders = {
 
 const CALLBACK_SECRET = Deno.env.get("N8N_CALLBACK_SECRET") || "lovable-n8n-secret-2025";
 
+const MIN_ZIP_SIZE_BYTES = 95 * 1024; // 95KB minimum
+const MAX_AUTO_RETRIES = 3;
+
+const BOT_WEBHOOKS: Record<string, string> = {
+  "2lang_html": "https://n8n.dragonwhite-n8n.top/webhook/lovable-generate",
+  "nextjs_bot": "https://n8n.dragonwhite-n8n.top/webhook/d26af941-69aa-4b93-82f8-fd5cd1d1c5ea",
+};
+const DEFAULT_WEBHOOK_URL = "https://n8n.dragonwhite-n8n.top/webhook/lovable-generate";
+
+async function retryViaN8n(
+  supabase: any,
+  generationId: string,
+  table: string,
+  currentRetryCount: number,
+): Promise<Response> {
+  console.log(`🔄 Auto-retry #${currentRetryCount + 1} for ${generationId} (ZIP too small)`);
+
+  // Get original data for retry
+  const { data: historyData, error: fetchErr } = await supabase
+    .from("generation_history")
+    .select("prompt, language, site_name, geo, vip_prompt, vip_images, color_scheme, layout_style, image_source")
+    .eq("id", generationId)
+    .single();
+
+  if (fetchErr || !historyData) {
+    throw new Error(`Cannot retry: failed to fetch generation data: ${fetchErr?.message}`);
+  }
+
+  // Update status back to generating + increment retry
+  await supabase
+    .from("generation_history")
+    .update({
+      status: "generating",
+      error_message: null,
+      retry_count: currentRetryCount + 1,
+    })
+    .eq("id", generationId);
+
+  // Determine webhook
+  const botId = historyData.image_source === "nextjs" ? "nextjs_bot" : "2lang_html";
+  const webhookUrl = BOT_WEBHOOKS[botId] || DEFAULT_WEBHOOK_URL;
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const callbackUrl = `${supabaseUrl}/functions/v1/n8n-callback`;
+
+  const n8nPayload = {
+    callbackUrl,
+    callbackSecret: "lovable-n8n-secret-2025",
+    historyId: generationId,
+    prompt: historyData.prompt,
+    language: historyData.language,
+    siteName: historyData.site_name,
+    geo: historyData.geo,
+    vipPrompt: historyData.vip_prompt,
+    vipImages: historyData.vip_images,
+    colorScheme: historyData.color_scheme,
+    layoutStyle: historyData.layout_style,
+    timestamp: new Date().toISOString(),
+    botId,
+    isRetry: true,
+    retryCount: currentRetryCount + 1,
+  };
+
+  console.log(`📤 Retry → ${webhookUrl}`);
+
+  const resp = await fetch(webhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(n8nPayload),
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    console.error(`❌ n8n retry failed: ${resp.status}`, errText);
+    await supabase.from("generation_history")
+      .update({ status: "failed", error_message: `Retry failed: ${resp.status}` })
+      .eq("id", generationId);
+    throw new Error(`n8n retry error: ${resp.status}`);
+  }
+
+  return new Response(JSON.stringify({
+    success: true,
+    generationId,
+    retrying: true,
+    retryCount: currentRetryCount + 1,
+    reason: "ZIP size below 95KB threshold",
+  }), { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+
 interface GeneratedFile {
   path: string;
   content: string;
@@ -254,7 +343,26 @@ Deno.serve(async (req) => {
 
       // --- ZIP passthrough (multipart) ---
       if (zipFile) {
-        console.log(`📦 ZIP passthrough mode: uploading ${zipFileName} (${zipFile.byteLength} bytes)`);
+        const zipSizeBytes = zipFile.byteLength;
+        console.log(`📦 ZIP passthrough mode: ${zipFileName} (${zipSizeBytes} bytes, ${(zipSizeBytes / 1024).toFixed(1)}KB)`);
+
+        // --- Auto-retry if ZIP is too small (< 95KB) ---
+        if (zipSizeBytes < MIN_ZIP_SIZE_BYTES && table === "generation_history") {
+          const { data: retryData } = await supabase
+            .from("generation_history")
+            .select("retry_count")
+            .eq("id", generationId)
+            .single();
+
+          const currentRetry = retryData?.retry_count || 0;
+
+          if (currentRetry < MAX_AUTO_RETRIES) {
+            console.log(`⚠️ ZIP too small (${(zipSizeBytes / 1024).toFixed(1)}KB < 95KB), retry ${currentRetry + 1}/${MAX_AUTO_RETRIES}`);
+            return await retryViaN8n(supabase, generationId, table, currentRetry);
+          } else {
+            console.log(`⚠️ ZIP too small but max retries (${MAX_AUTO_RETRIES}) reached, accepting result`);
+          }
+        }
         const downloadUrl = await uploadZipToStorage(
           supabase, generationId, zipFile, zipFileName || "site.zip"
         );
