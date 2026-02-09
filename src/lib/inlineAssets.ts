@@ -261,7 +261,7 @@ export function injectExternalResources(html: string): string {
   if (!html) return html;
 
   // Check if we need to add Google Fonts
-  const needsGoogleFonts = /font-family\s*:[^;]*(Roboto|Open Sans|Lato|Montserrat|Poppins|Inter|Raleway|Nunito)/i.test(html);
+  const needsGoogleFonts = /font-family\s*:[^;]*(Roboto|Open Sans|Lato|Montserrat|Poppins|Inter|Raleway|Nunito|Playfair Display|Source Sans|Oswald|Merriweather|DM Serif|Libre Baskerville|Cormorant|Archivo|Bitter|Crimson|Josefin|PT Serif|PT Sans|Rubik|Karla|Space Grotesk|Sora|Noto Sans|DM Sans|IBM Plex|Outfit|Source Serif|Lexend|Fraunces|Commissioner|Vollkorn|Fira Sans|Cabin|Old Standard|Barlow|Manrope|Spectral|Plus Jakarta|Urbanist|Crimson Pro|Albert Sans|Red Hat|Bricolage|Atkinson|Instrument)/i.test(html);
   
   // Check if we need Font Awesome
   const needsFontAwesome = /<i\s+class\s*=\s*["'][^"']*fa[srlbd]?\s/i.test(html) || 
