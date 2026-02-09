@@ -343,7 +343,26 @@ Deno.serve(async (req) => {
 
       // --- ZIP passthrough (multipart) ---
       if (zipFile) {
-        console.log(`📦 ZIP passthrough mode: uploading ${zipFileName} (${zipFile.byteLength} bytes)`);
+        const zipSizeBytes = zipFile.byteLength;
+        console.log(`📦 ZIP passthrough mode: ${zipFileName} (${zipSizeBytes} bytes, ${(zipSizeBytes / 1024).toFixed(1)}KB)`);
+
+        // --- Auto-retry if ZIP is too small (< 95KB) ---
+        if (zipSizeBytes < MIN_ZIP_SIZE_BYTES && table === "generation_history") {
+          const { data: retryData } = await supabase
+            .from("generation_history")
+            .select("retry_count")
+            .eq("id", generationId)
+            .single();
+
+          const currentRetry = retryData?.retry_count || 0;
+
+          if (currentRetry < MAX_AUTO_RETRIES) {
+            console.log(`⚠️ ZIP too small (${(zipSizeBytes / 1024).toFixed(1)}KB < 95KB), retry ${currentRetry + 1}/${MAX_AUTO_RETRIES}`);
+            return await retryViaN8n(supabase, generationId, table, currentRetry);
+          } else {
+            console.log(`⚠️ ZIP too small but max retries (${MAX_AUTO_RETRIES}) reached, accepting result`);
+          }
+        }
         const downloadUrl = await uploadZipToStorage(
           supabase, generationId, zipFile, zipFileName || "site.zip"
         );
