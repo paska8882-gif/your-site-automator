@@ -6001,7 +6001,7 @@ These are realistic, verified contact details for the target region. DO NOT repl
           "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
-      }, 2, 2000, 360000); // 6 min timeout for Senior to allow full generation
+      }, 1, 2000, 240000); // 1 retry, 4 min timeout for speed optimization
     } catch (fetchError) {
       const errorMsg = (fetchError as Error)?.message || String(fetchError);
       console.error(`❌ Fetch failed for ${modelToUse}: ${errorMsg}`);
