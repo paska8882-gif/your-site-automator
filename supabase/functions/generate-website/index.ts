@@ -6111,17 +6111,23 @@ These are realistic, verified contact details for the target region. DO NOT repl
   // Try primary model first (gemini-2.5-pro for senior, gpt-4o for junior)
   let generationResult = await attemptGeneration(generateModel);
 
-  // If primary model failed, try fallback models
-  if (!generationResult) {
+  // If primary model failed, try fallback models (only if time budget allows)
+  if (!generationResult && !isTimeBudgetExceeded()) {
     const fallbackModels = isJunior 
       ? ["gpt-4o-mini"] 
-      : ["google/gemini-2.5-flash", "openai/gpt-5"];
+      : ["google/gemini-2.5-flash"];
     
     for (const fallbackModel of fallbackModels) {
-      console.log(`🔄 Primary model failed, trying fallback: ${fallbackModel}`);
+      if (isTimeBudgetExceeded()) {
+        console.log(`⏱️ Time budget exceeded (${((Date.now() - generationStartTime)/1000).toFixed(0)}s), skipping fallback`);
+        break;
+      }
+      console.log(`🔄 Primary model failed, trying fallback: ${fallbackModel} (elapsed: ${((Date.now() - generationStartTime)/1000).toFixed(0)}s)`);
       generationResult = await attemptGeneration(fallbackModel, true);
       if (generationResult) break;
     }
+  } else if (!generationResult) {
+    console.log(`⏱️ Time budget exceeded after primary model (${((Date.now() - generationStartTime)/1000).toFixed(0)}s), no fallback`);
   }
 
   if (!generationResult) {
