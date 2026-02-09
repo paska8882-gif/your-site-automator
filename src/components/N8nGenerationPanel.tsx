@@ -181,7 +181,7 @@ export function N8nGenerationPanel() {
   const generateSingleSite = async (index: number, session: any): Promise<boolean> => {
     try {
       let finalPrompt: string;
-      let siteName: string;
+      let generatedSiteName: string;
       let themeGeneratedPrompt: string | null = null;
 
       if (promptMode === "theme" && selectedTopic) {
@@ -193,7 +193,6 @@ export function N8nGenerationPanel() {
             topic: selectedTopic,
             geo: geoName,
             language: selectedLanguages[0] || "en",
-            // Add uniqueness hint for batch generation
             batchIndex: siteCount > 1 ? index + 1 : undefined,
             batchTotal: siteCount > 1 ? siteCount : undefined,
           },
@@ -208,16 +207,15 @@ export function N8nGenerationPanel() {
           themeGeneratedPrompt = data.generatedPrompt;
           finalPrompt = `[Тема: ${selectedTopic}]\n\n${themeGeneratedPrompt}`;
           
-          // Generate unique site name for batch
           const baseName = domain 
             ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "")
             : selectedTopic.slice(0, 40);
-          siteName = siteCount > 1 ? `${baseName} (${index + 1})` : baseName;
+          generatedSiteName = siteCount > 1 ? `${baseName} (${index + 1})` : baseName;
         } else {
           throw new Error("Не вдалось згенерувати промпт");
         }
       } else {
-        // Manual mode - use user's prompt with variation for batch
+        // Manual mode
         const basePrompt = buildFullPrompt();
         finalPrompt = siteCount > 1 
           ? `${basePrompt}\n\n[Варіація ${index + 1} з ${siteCount} - зроби унікальний дизайн та контент]`
@@ -228,7 +226,7 @@ export function N8nGenerationPanel() {
           : (domain 
             ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "")
             : prompt.slice(0, 40));
-        siteName_gen = siteCount > 1 ? `${baseName} (${index + 1})` : baseName;
+        generatedSiteName = siteCount > 1 ? `${baseName} (${index + 1})` : baseName;
       }
 
       // Create generation history record
