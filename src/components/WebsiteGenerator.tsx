@@ -2799,7 +2799,10 @@ export function WebsiteGenerator() {
                                       setCustomGeo("");
                                     }}
                                   />
-                                  <span className="text-xs">{geo.label}</span>
+                                  <span className="text-xs inline-flex items-center gap-1.5">
+                                    {geo.value ? <GeoFlag value={geo.value} size={14} /> : "🌍"}
+                                    {getGeoText(geo.label)}
+                                  </span>
                                 </label>
                               ))}
                               <div className="border-t my-1 pt-1">
