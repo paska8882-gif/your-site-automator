@@ -1287,8 +1287,14 @@ export function WebsiteGenerator() {
     setSelectedImageSources([source]);
   };
 
-  // Get all site names (already an array)
-  const getAllSiteNames = () => siteNames;
+  // Get all site names (array + current input if not yet added)
+  const getAllSiteNames = () => {
+    const trimmed = currentSiteNameInput.trim();
+    if (trimmed && !siteNames.includes(trimmed)) {
+      return [...siteNames, trimmed];
+    }
+    return siteNames;
+  };
 
   // Parse multiple site names from a string (comma, space, newline, semicolon separated)
   const parseSiteNames = (input: string): string[] => {
@@ -2246,9 +2252,10 @@ export function WebsiteGenerator() {
                       size="sm"
                       onClick={addSiteName}
                       disabled={isImproving || !currentSiteNameInput.trim()}
-                      className={`h-8 px-2 ${siteNames.length === 0 && currentSiteNameInput.trim() ? "animate-pulse ring-2 ring-primary/50 bg-primary/10" : ""}`}
+                      className="h-8 px-2"
+                      title="Додати ще одне ім'я сайту"
                     >
-                      <Plus className={`h-4 w-4 ${siteNames.length === 0 && currentSiteNameInput.trim() ? "text-primary" : ""}`} />
+                      <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                   {siteNames.length > 0 && (
