@@ -30,101 +30,11 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const now = Date.now();
-    const tenMinutesAgo = new Date(now - RETRY_AFTER_MINUTES * 60 * 1000).toISOString();
     const oneHourAgo = new Date(now - FAIL_AFTER_MINUTES * 60 * 1000).toISOString();
     const twoWeeksAgo = new Date(now - ZIP_CLEANUP_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
     // ==========================================
-    // STEP 1: Auto-retry stuck generations (10-60 min)
-    // ==========================================
-    const { data: stuckItems, error: stuckError } = await supabase
-      .from("generation_history")
-      .select("id, user_id, team_id, prompt, language, site_name, ai_model, website_type, geo, image_source, vip_prompt, improved_prompt, sale_price, admin_note")
-      .in("status", ["generating"])
-      .lt("created_at", tenMinutesAgo)
-      .gte("created_at", oneHourAgo);
-
-    let retriedCount = 0;
-    
-    if (stuckError) {
-      console.error("Error fetching stuck items:", stuckError.message);
-    } else if (stuckItems && stuckItems.length > 0) {
-      console.log(`Found ${stuckItems.length} stuck generations (10-60 min) to retry`);
-
-      for (const item of stuckItems) {
-        try {
-          // Check retry count from admin_note (format: "retry:N")
-          const currentRetries = parseInt(item.admin_note?.match(/retry:(\d+)/)?.[1] || "0", 10);
-          
-          if (currentRetries >= MAX_RETRIES) {
-            console.log(`Skipping ${item.id} - already retried ${currentRetries} times`);
-            continue;
-          }
-
-          // Determine which edge function to call based on website_type
-          const functionName = item.website_type === "react" 
-            ? "generate-react-website" 
-            : item.website_type === "php" 
-              ? "generate-php-website" 
-              : "generate-website";
-
-          console.log(`🔄 Auto-retrying generation ${item.id} (attempt ${currentRetries + 1}/${MAX_RETRIES}) via ${functionName}`);
-
-          // Update retry counter in admin_note BEFORE calling generator
-          // Keep status as "generating" - the generator will handle the actual work
-          const newAdminNote = item.admin_note 
-            ? item.admin_note.replace(/retry:\d+/, `retry:${currentRetries + 1}`)
-            : `retry:${currentRetries + 1}`;
-          
-          await supabase
-            .from("generation_history")
-            .update({
-              error_message: null,
-              admin_note: newAdminNote.includes("retry:") ? newAdminNote : `${newAdminNote} retry:${currentRetries + 1}`,
-            })
-            .eq("id", item.id);
-
-          // Call the generation function with retry flag
-          const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${supabaseKey}`,
-            },
-            body: JSON.stringify({
-              retryHistoryId: item.id,
-              prompt: item.prompt,
-              language: item.language,
-              siteName: item.site_name,
-              aiModel: item.ai_model,
-              websiteType: item.website_type,
-              geo: item.geo,
-              imageSource: item.image_source,
-              vipPrompt: item.vip_prompt,
-              improvedPrompt: item.improved_prompt,
-            }),
-          });
-
-          if (response.ok) {
-            console.log(`✅ Retry initiated for ${item.id}`);
-            retriedCount++;
-          } else {
-            const errorText = await response.text();
-            console.error(`❌ Retry failed for ${item.id}: ${response.status} ${errorText}`);
-            // Status remains "generating" so it will be picked up again on next cleanup run
-          }
-
-          // Small delay between retries to avoid overwhelming the system
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-        } catch (retryError) {
-          console.error(`Error retrying ${item.id}:`, retryError);
-        }
-      }
-    }
-
-    // ==========================================
-    // STEP 2: Fail and refund old generations (>1 hour)
+    // STEP 1: Fail and refund old generations (>1 hour)
     // ==========================================
     const { data: staleItems, error: fetchError } = await supabase
       .from("generation_history")
