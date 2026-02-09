@@ -5560,6 +5560,7 @@ const TOKEN_PRICING = {
   "gpt-4o": { input: 0.0025, output: 0.01 },
   "google/gemini-2.5-flash": { input: 0.000075, output: 0.0003 },
   "google/gemini-2.5-pro": { input: 0.00125, output: 0.005 },
+  "openai/gpt-5-mini": { input: 0.0004, output: 0.0016 },
 };
 
 const calculateCost = (usage: TokenUsage, model: string): number => {
