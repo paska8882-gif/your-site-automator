@@ -353,6 +353,10 @@ export function N8nGenerationPanel() {
       setSelectedCategory("");
       setSelectedTopic("");
       setSiteCount(1);
+      setSiteName("");
+      setSiteTopic("");
+      setSiteType("");
+      setSiteDescription("");
 
     } catch (error: any) {
       console.error("Submit error:", error);
