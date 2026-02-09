@@ -144,7 +144,7 @@ serve(async (req) => {
     }
 
     // ==========================================
-    // STEP 3: Sync active_generations counter with reality
+    // STEP 2: Sync active_generations counter with reality
     // ==========================================
     const { count: actualActiveCount, error: countError } = await supabase
       .from("generation_history")
