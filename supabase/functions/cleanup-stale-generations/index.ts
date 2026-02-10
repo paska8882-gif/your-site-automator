@@ -54,7 +54,7 @@ serve(async (req) => {
 
     // Continue even if no stale items - we still need to cleanup old zip data
     const staleCount = staleItems?.length ?? 0;
-    console.log(`Found ${staleCount} stale generations (>1h) to cleanup`);
+    console.log(`Found ${staleCount} stale generations (>20min) to cleanup`);
 
     let processed = 0;
     let appealsCreated = 0;
