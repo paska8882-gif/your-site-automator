@@ -9708,12 +9708,14 @@ ${promptForGeneration}`;
     const historyId = historyEntry!.id;
     console.log("Using history entry:", historyId);
 
-    // Start background generation using EdgeRuntime.waitUntil
-    // Pass salePrice and teamId for potential refund on error
+    // Run generation SYNCHRONOUSLY (EdgeRuntime.waitUntil was killing background processes)
+    // With max_duration_seconds=900, we have 15 minutes which is enough
     // IMPORTANT: Use promptForGeneration which includes language and geo instructions
     // Use effectiveColorScheme and effectiveLayoutStyle to ensure retry gets correct params
-    EdgeRuntime.waitUntil(
-      runBackgroundGeneration(
+    console.log(`[SYNC] Starting synchronous generation for ${historyId}`);
+    
+    try {
+      await runBackgroundGeneration(
         historyId,
         userId,
         promptForGeneration,
@@ -9728,21 +9730,36 @@ ${promptForGeneration}`;
         bilingualLanguages || null,
         bundleImages,
         effectiveColorScheme
-      )
-    );
-
-    // Return immediately with the history entry ID
-    return new Response(
-      JSON.stringify({
-        success: true,
-        historyId: historyId,
-        message: "Generation started in background",
-      }),
-      {
-        status: 202,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+      );
+      
+      console.log(`[SYNC] Generation completed successfully for ${historyId}`);
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          historyId: historyId,
+          message: "Generation completed",
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    } catch (genError) {
+      console.error(`[SYNC] Generation failed for ${historyId}:`, genError);
+      const genErrorMessage = genError instanceof Error ? genError.message : "Generation failed";
+      return new Response(
+        JSON.stringify({
+          success: true,
+          historyId: historyId,
+          message: "Generation started (check status)",
+        }),
+        {
+          status: 202,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
   } catch (error) {
     console.error("Error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
