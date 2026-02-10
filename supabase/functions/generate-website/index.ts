@@ -9682,37 +9682,48 @@ ${promptForGeneration}`;
     const historyId = historyEntry!.id;
     console.log("Using history entry:", historyId);
 
-    // Run generation SYNCHRONOUSLY (full await) for runtime stability.
-    // EdgeRuntime.waitUntil was removed because background tasks get killed
-    // when platform recycles instances, leaving tasks stuck in "generating" forever.
-    // With await, the active request keeps the instance alive for the full duration.
-    // Function timeout: 900s (15 min), generation takes 4-7 min — well within budget.
-    await runBackgroundGeneration(
-      historyId,
-      userId,
-      promptForGeneration,
-      language,
-      aiModel,
-      effectiveLayoutStyle,
-      imageSource,
-      teamId,
-      salePrice,
-      siteName,
-      geo,
-      bilingualLanguages || null,
-      bundleImages,
-      effectiveColorScheme
-    );
+    // Fire-and-forget: call ourselves in WORKER mode with the service role key.
+    // The Supabase API gateway has a hard ~150s timeout on client-facing HTTP requests.
+    // By triggering a separate service-to-service call, the worker runs independently
+    // under the function's max_duration_seconds (900s = 15 min), while the client
+    // gets an immediate 202 response with the historyId for polling.
+    const workerUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-website`;
+    fetch(workerUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
+      body: JSON.stringify({
+        __worker: true,
+        historyId,
+        userId,
+        prompt: promptForGeneration,
+        language,
+        aiModel,
+        layoutStyle: effectiveLayoutStyle,
+        imageSource,
+        teamId,
+        salePrice,
+        siteName,
+        geo,
+        bilingualLanguages: bilingualLanguages || null,
+        bundleImages,
+        colorScheme: effectiveColorScheme,
+      }),
+    }).catch(err => {
+      console.error(`[DISPATCH] Failed to trigger worker for ${historyId}:`, err);
+    });
 
-    // Return with the history entry ID after generation completes
+    // Return immediately — client polls via Realtime or refetch
     return new Response(
       JSON.stringify({
         success: true,
         historyId: historyId,
-        message: "Generation completed",
+        message: "Generation started",
       }),
       {
-        status: 200,
+        status: 202,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
