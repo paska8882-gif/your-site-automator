@@ -312,6 +312,9 @@ export function N8nGenerationPanel() {
         generatedSiteName = siteCount > 1 ? `${baseName} (${index + 1})` : baseName;
       }
 
+      // Calculate sale price per site
+      const salePrice = teamPricing?.externalPrice || 7;
+
       // Create generation history record
       const { data: historyData, error: historyError } = await supabase
         .from("generation_history")
@@ -328,11 +331,24 @@ export function N8nGenerationPanel() {
           ai_model: "senior",
           website_type: currentBot.outputType,
           image_source: selectedBot === "nextjs_bot" ? "nextjs" : `n8n-bot-${currentBot.id}`,
+          team_id: teamPricing?.teamId || null,
+          sale_price: teamPricing ? salePrice : null,
         })
         .select("id")
         .single();
 
       if (historyError) throw historyError;
+
+      // Deduct balance from team
+      if (teamPricing) {
+        const newBalance = teamPricing.balance - salePrice;
+        await supabase
+          .from("teams")
+          .update({ balance: newBalance })
+          .eq("id", teamPricing.teamId);
+        
+        setTeamPricing(prev => prev ? { ...prev, balance: newBalance } : null);
+      }
 
       // Call n8n-async-proxy
       const response = await supabase.functions.invoke("n8n-async-proxy", {
