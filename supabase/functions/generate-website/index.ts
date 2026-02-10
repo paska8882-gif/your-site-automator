@@ -4906,6 +4906,56 @@ DESIGN REQUIREMENTS:
 - Glassmorphism effects where appropriate (backdrop-filter, translucent cards)
 - Modern UI patterns: gradient text for headlines, soft glow shadows, layered compositions
 
+═══ #5.1 COMPONENT LAYOUT & POSITIONING — STRICT RULES (CRITICAL) ═══
+EVERY section, card, heading, and text block MUST be properly positioned. Broken layouts = INVALID OUTPUT.
+
+SPACING & ALIGNMENT:
+- Every section: padding: clamp(48px, 8vw, 96px) 0; — NEVER less than 48px vertical padding
+- Section headings (h2): margin-bottom: clamp(24px, 4vw, 48px); text-align: center or left (consistent per section)
+- Section subtitle/description below h2: margin-bottom: clamp(32px, 5vw, 56px); max-width: 680px; margin-inline: auto (if centered)
+- Badge/label above h2: margin-bottom: 12px; display: inline-block
+- Cards in grid: gap: clamp(16px, 3vw, 32px); padding inside card: clamp(20px, 3vw, 32px)
+- Text inside cards: p { margin-top: 12px; line-height: 1.6; }
+- Buttons: padding: 14px 28px minimum; border-radius: 8px; font-weight: 600
+
+CONTAINER RULES (MANDATORY):
+- .container or .section-inner wrapper: max-width: 1200px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 32px);
+- EVERY section content MUST be inside a container — NEVER full-bleed text
+- Hero: max-width: 1200px for content, image can extend wider
+
+GRID & FLEXBOX RULES:
+- Service/feature cards: display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+- Team members: display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+- Stats: display: flex; flex-wrap: wrap; justify-content: center; gap: 32px;
+- Footer: display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 32px;
+- NEVER use float for layout. NEVER use position:absolute for content positioning (only for decorative elements)
+
+HEADING HIERARCHY (STRICT):
+- h1: ONLY on hero section, font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.15; font-weight: 700-800
+- h2: section titles, font-size: clamp(1.5rem, 4vw, 2.5rem); line-height: 1.2; font-weight: 700
+- h3: card/item titles, font-size: clamp(1.1rem, 2vw, 1.5rem); line-height: 1.3; font-weight: 600
+- h4-h6: sub-items only, font-size: 1rem-1.2rem
+- NEVER skip heading levels (no h1 → h3). NEVER use headings for styling only.
+- Headings MUST have adequate spacing: margin-top: 0 inside cards; margin-bottom: 8-16px before related content
+
+TEXT READABILITY:
+- Body text: font-size: clamp(0.95rem, 1.5vw, 1.1rem); line-height: 1.7; color: var(--text-color)
+- Max paragraph width: max-width: 72ch for readability (especially on wide screens)
+- Letter-spacing on headings: -0.02em to -0.01em for tighter, premium feel
+- NEVER center-align body paragraphs longer than 3 lines — use text-align: left
+
+VERTICAL RHYTHM:
+- Adjacent sections: alternate backgrounds (white → light-gray → white → accent)
+- Each section must be visually distinct — user must SEE section boundaries without scrolling
+- Section dividers: use background-color changes, not <hr> tags
+- Cards must have equal height in a row: use align-items: stretch on grid parent
+
+OVERFLOW PREVENTION:
+- All images: max-width: 100%; height: auto; object-fit: cover
+- Long words: overflow-wrap: break-word on text containers
+- Horizontal scroll: html, body { overflow-x: hidden; }
+- Tables: overflow-x: auto on wrapper div
+
 ═══ #6 HOMEPAGE MANDATORY SECTIONS (index.html — minimum 8) ═══
 1. Header — Sticky nav with logo + menu links + language toggle (if bilingual) + optional CTA button
 2. Hero — Compelling above-the-fold with headline, subheadline, CTA buttons, and hero image
@@ -5017,13 +5067,36 @@ Contact forms MUST:
 - On success: disable button, show spinner (1.5s delay), redirect to thank-you.html
 - Include privacy checkbox with link to privacy.html
 
-═══ #17 RESPONSIVE DESIGN ═══
-- Mobile-first approach with breakpoints at 576px, 768px, 992px
-- Navigation: hamburger menu on mobile with JS toggle (close on link click)
-- Grids: 3-col → 2-col → 1-col on smaller screens
-- Typography: use clamp() for fluid sizing
-- Touch targets: minimum 44px
-- Container: max-width 1200px, centered with padding
+═══ #17 RESPONSIVE DESIGN — PIXEL-PERFECT ADAPTATION (CRITICAL) ═══
+Broken mobile layout = INVALID OUTPUT. Test mentally at 375px, 768px, 1024px, 1440px.
+
+BREAKPOINT SYSTEM (MANDATORY IN styles.css):
+- @media (max-width: 992px): 3-col → 2-col grids, reduce section padding to 40px 0
+- @media (max-width: 768px): 2-col → 1-col, hero split → stacked (image below text), footer 1-col, hide desktop nav → show hamburger
+- @media (max-width: 576px): font sizes shrink via clamp(), card padding: 16px, container padding: 16px
+- EVERY grid and flex layout MUST have a mobile override — NEVER assume desktop layout works on mobile
+
+MOBILE-SPECIFIC RULES:
+- Navigation: hamburger menu with JS toggle (close on link click, close on outside click)
+- Hero: on mobile, text stacks ABOVE image, image max-height: 300px, text centered
+- Cards: on mobile, full-width with margin-bottom: 16px
+- Stats: on mobile, 2-column grid or vertical stack, NEVER horizontal overflow
+- Footer: on mobile, single column, each footer column margin-bottom: 24px
+- Images: NEVER wider than viewport, always max-width: 100%
+- Touch targets: minimum 44px height and width for all clickable elements
+- No horizontal scroll at ANY viewport width
+
+TYPOGRAPHY FLUID SCALING:
+- h1: font-size: clamp(1.75rem, 5vw, 3.5rem)
+- h2: font-size: clamp(1.35rem, 4vw, 2.5rem)
+- h3: font-size: clamp(1.05rem, 2vw, 1.5rem)
+- body: font-size: clamp(0.9rem, 1.5vw, 1.1rem)
+- Container: max-width: 1200px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 32px)
+
+FLEX/GRID MOBILE COLLAPSE:
+- Use flex-wrap: wrap on ALL flex containers
+- Use grid-template-columns: repeat(auto-fit, minmax(Xpx, 1fr)) — NEVER fixed column counts without media query fallback
+- gap values: use clamp(12px, 2vw, 32px) for responsive gaps
 
 ═══ #18 HEAD REQUIREMENTS (MANDATORY ON EVERY PAGE) ═══
 - <meta charset="UTF-8">
