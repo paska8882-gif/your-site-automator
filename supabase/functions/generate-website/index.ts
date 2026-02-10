@@ -9091,10 +9091,12 @@ serve(async (req) => {
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
   // ============ WORKER MODE ============
-  // When called with __worker flag + service key, run generation synchronously.
-  // The Supabase gateway has a ~150s HTTP timeout for client-facing requests,
-  // but service-to-service calls (fire-and-forget) are not subject to the same
-  // gateway timeout — the function runs until max_duration_seconds (900s).
+  // When called with __worker flag + service key, use EdgeRuntime.waitUntil
+  // to run generation in background. The HTTP response returns immediately (200)
+  // to avoid the Supabase API gateway's ~150s timeout. The background task
+  // continues running under max_duration_seconds (900s). If the instance is
+  // recycled by the platform, the cleanup-stale-generations cron will detect
+  // stuck tasks and mark them as failed for retry.
   const authHeader = req.headers.get("Authorization");
   if (authHeader) {
     const token = authHeader.replace("Bearer ", "").trim();
@@ -9102,31 +9104,40 @@ serve(async (req) => {
       try {
         const workerBody = await req.json();
         if (workerBody.__worker) {
-          console.log(`[WORKER] Starting generation for historyId: ${workerBody.historyId}`);
-          await runBackgroundGeneration(
-            workerBody.historyId,
-            workerBody.userId,
-            workerBody.prompt,
-            workerBody.language,
-            workerBody.aiModel,
-            workerBody.layoutStyle,
-            workerBody.imageSource,
-            workerBody.teamId,
-            workerBody.salePrice,
-            workerBody.siteName,
-            workerBody.geo,
-            workerBody.bilingualLanguages,
-            workerBody.bundleImages,
-            workerBody.colorScheme
+          console.log(`[WORKER] Received job for historyId: ${workerBody.historyId}, starting via waitUntil`);
+          
+          // Use waitUntil — the only way to run long tasks on Supabase Edge Functions.
+          // The HTTP response is returned immediately; the generation continues in background.
+          EdgeRuntime.waitUntil(
+            runBackgroundGeneration(
+              workerBody.historyId,
+              workerBody.userId,
+              workerBody.prompt,
+              workerBody.language,
+              workerBody.aiModel,
+              workerBody.layoutStyle,
+              workerBody.imageSource,
+              workerBody.teamId,
+              workerBody.salePrice,
+              workerBody.siteName,
+              workerBody.geo,
+              workerBody.bilingualLanguages,
+              workerBody.bundleImages,
+              workerBody.colorScheme
+            ).then(() => {
+              console.log(`[WORKER] Generation completed for historyId: ${workerBody.historyId}`);
+            }).catch((err) => {
+              console.error(`[WORKER] Generation failed for historyId: ${workerBody.historyId}:`, err);
+            })
           );
-          console.log(`[WORKER] Generation completed for historyId: ${workerBody.historyId}`);
-          return new Response(JSON.stringify({ success: true }), {
+
+          return new Response(JSON.stringify({ success: true, message: "Worker started" }), {
             status: 200,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
       } catch (workerError) {
-        console.error(`[WORKER] Error:`, workerError);
+        console.error(`[WORKER] Error parsing worker request:`, workerError);
         return new Response(JSON.stringify({ success: false, error: String(workerError) }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
