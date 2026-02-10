@@ -514,6 +514,35 @@ export function N8nGenerationPanel() {
           <CardDescription>
             Відправте запит на генерацію через зовнішнього n8n бота. Час очікування — до 20 хвилин. Можна запускати кілька генерацій паралельно.
           </CardDescription>
+          {/* Balance info */}
+          {teamPricing && (
+            <div className="flex items-center gap-3 mt-2">
+              <Badge variant="outline" className="flex items-center gap-1">
+                <Wallet className="h-3 w-3" />
+                {teamPricing.teamName}: ${teamPricing.balance.toFixed(2)}
+              </Badge>
+              <Badge variant="outline" className="text-muted-foreground">
+                Ціна: ${teamPricing.externalPrice}/сайт
+              </Badge>
+              {siteCount > 1 && (
+                <Badge variant="secondary">
+                  Всього: ${calculateTotalCost().toFixed(2)}
+                </Badge>
+              )}
+              {insufficientBalance && (
+                <Badge variant="destructive" className="flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Недостатньо коштів
+                </Badge>
+              )}
+            </div>
+          )}
+          {!teamPricing && !teamLoading && !isAdmin && (
+            <Alert variant="destructive" className="mt-2">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>Ви не прив'язані до команди. Генерація неможлива.</AlertDescription>
+            </Alert>
+          )}
         </CardHeader>
         <CardContent className="pt-0">
           {/* Bot Selector */}
