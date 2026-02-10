@@ -4757,9 +4757,10 @@ const HTML_GENERATION_PROMPT = `YOU ARE A WORLD-CLASS WEB DESIGNER AND DEVELOPER
 
 ═══ STRICTLY STATIC SITE REQUIREMENT (CRITICAL) ═══
 
-ALLOWED: pure HTML5, pure CSS3 (flexbox + grid), native JavaScript only.
+ALLOWED: pure HTML5, pure CSS3 (flexbox + grid + custom properties + clamp() + backdrop-filter), native JavaScript only.
 FORBIDDEN: React, Next.js, Vue, Angular, Svelte, Node.js, Express, Webpack, Vite, Gulp, TypeScript, package.json, npm, build tools, client-side routing, SPA behavior.
 NAVIGATION RULE: use only <a href="page.html">. Each page must load directly and independently. No runtime page assembly.
+CSS MINIMUM: styles.css MUST be 600+ lines of polished, production-grade CSS. Use :root custom properties for ALL colors and spacing. Include @keyframes for at least 2 animations (fade-in, slide-up). Include responsive breakpoints at 576px, 768px, 992px, 1200px.
 
 ═══ #1 LANGUAGE (HIGHEST PRIORITY — FIRST THING TO CHECK) ═══
 The target language is specified in "TARGET WEBSITE LANGUAGE" below. ALL text — nav, headings, body, buttons, footer, meta tags, alt text, legal pages, cookie banner, form labels, placeholders, validation messages, toasts — MUST be in that language. Mixed languages = BROKEN SITE = INVALID OUTPUT.
