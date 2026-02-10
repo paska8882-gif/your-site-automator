@@ -739,7 +739,7 @@ export function N8nGenerationPanel() {
                 {/* Submit */}
                 <Button
                   onClick={handleSubmit}
-                  disabled={isSubmitting || !domain.trim() || !siteName.trim() || !siteTopic.trim() || !siteDescription.trim()}
+                  disabled={isSubmitting || insufficientBalance || (!isAdmin && !teamPricing) || !domain.trim() || !siteName.trim() || !siteTopic.trim() || !siteDescription.trim()}
                   className="w-full"
                   size="lg"
                 >
