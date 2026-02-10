@@ -429,7 +429,12 @@ export async function startGeneration(
     const data = await resp.json();
     return data;
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    // Detect network-level failures (function unreachable / deploy failed)
+    if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("abort")) {
+      return { success: false, error: "Функція генерації недоступна (можливо, йде деплой). Спробуйте через 1-2 хвилини." };
+    }
+    return { success: false, error: msg };
   }
 }
 
