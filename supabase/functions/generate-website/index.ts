@@ -9085,8 +9085,56 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  // ============ WORKER MODE ============
+  // When called with __worker flag + service key, run generation synchronously.
+  // The Supabase gateway has a ~150s HTTP timeout for client-facing requests,
+  // but service-to-service calls (fire-and-forget) are not subject to the same
+  // gateway timeout — the function runs until max_duration_seconds (900s).
+  const authHeader = req.headers.get("Authorization");
+  if (authHeader) {
+    const token = authHeader.replace("Bearer ", "").trim();
+    if (token === supabaseServiceKey) {
+      try {
+        const workerBody = await req.json();
+        if (workerBody.__worker) {
+          console.log(`[WORKER] Starting generation for historyId: ${workerBody.historyId}`);
+          await runBackgroundGeneration(
+            workerBody.historyId,
+            workerBody.userId,
+            workerBody.prompt,
+            workerBody.language,
+            workerBody.aiModel,
+            workerBody.layoutStyle,
+            workerBody.imageSource,
+            workerBody.teamId,
+            workerBody.salePrice,
+            workerBody.siteName,
+            workerBody.geo,
+            workerBody.bilingualLanguages,
+            workerBody.bundleImages,
+            workerBody.colorScheme
+          );
+          console.log(`[WORKER] Generation completed for historyId: ${workerBody.historyId}`);
+          return new Response(JSON.stringify({ success: true }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      } catch (workerError) {
+        console.error(`[WORKER] Error:`, workerError);
+        return new Response(JSON.stringify({ success: false, error: String(workerError) }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+  }
+  // ============ END WORKER MODE ============
+
   try {
-    const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       console.warn("Request rejected: No authorization header");
       return new Response(JSON.stringify({ success: false, error: "Authentication required" }), {
@@ -9096,9 +9144,7 @@ serve(async (req) => {
     }
 
     // Validate JWT using getClaims() - more reliable than getUser() for token validation
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     if (!authHeader.startsWith("Bearer ")) {
       console.warn("Request rejected: invalid authorization header format");
