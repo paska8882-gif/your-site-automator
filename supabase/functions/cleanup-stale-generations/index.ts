@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 // Thresholds
-const FAIL_AFTER_MINUTES = 60; // Mark as failed after 1 hour
+const FAIL_AFTER_MINUTES = 20; // Mark as failed after 20 minutes (generation timeout is 15 min)
 const ZIP_CLEANUP_DAYS = 14; // Delete zip_data after 2 weeks
 
 serve(async (req) => {

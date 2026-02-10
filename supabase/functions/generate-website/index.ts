@@ -9641,28 +9641,40 @@ ${promptForGeneration}`;
     const historyId = historyEntry!.id;
     console.log("Using history entry:", historyId);
 
-    // Start background generation using EdgeRuntime.waitUntil
-    // Pass salePrice and teamId for potential refund on error
-    // IMPORTANT: Use promptForGeneration which includes language and geo instructions
-    // Use effectiveColorScheme and effectiveLayoutStyle to ensure retry gets correct params
-    EdgeRuntime.waitUntil(
-      runBackgroundGeneration(
+    // Start background generation in a SEPARATE invocation via fire-and-forget fetch.
+    // This replaces EdgeRuntime.waitUntil which gets killed on runtime shutdown/deploy,
+    // causing tasks to hang in "generating" state forever.
+    const selfUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-website`;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    
+    console.log(`[MAIN] Triggering worker invocation for ${historyId}...`);
+    
+    fetch(selfUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${serviceKey}`,
+        "x-worker-mode": "true",
+      },
+      body: JSON.stringify({
         historyId,
         userId,
-        promptForGeneration,
+        prompt: promptForGeneration,
         language,
         aiModel,
-        effectiveLayoutStyle,
+        layoutStyle: effectiveLayoutStyle,
         imageSource,
         teamId,
         salePrice,
         siteName,
         geo,
-        bilingualLanguages || null,
+        bilingualLanguages: bilingualLanguages || null,
         bundleImages,
-        effectiveColorScheme
-      )
-    );
+        colorScheme: effectiveColorScheme,
+      }),
+    }).catch(err => {
+      console.error(`[MAIN] Failed to trigger worker for ${historyId}:`, err);
+    });
 
     // Return immediately with the history entry ID
     return new Response(
