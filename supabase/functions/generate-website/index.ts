@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void };
+// Worker mode: background generation runs in a separate self-invocation via fetch, not waitUntil
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
