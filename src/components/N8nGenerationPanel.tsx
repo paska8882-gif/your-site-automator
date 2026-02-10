@@ -87,6 +87,7 @@ const TOPIC_CATEGORIES: Record<string, string[]> = {
 
 export function N8nGenerationPanel() {
   const { user } = useAuth();
+  const { isAdmin } = useAdmin();
   
   // Selected bot
   const [selectedBot, setSelectedBot] = useState<BotId>("2lang_html");
@@ -120,8 +121,85 @@ export function N8nGenerationPanel() {
   const [submissionProgress, setSubmissionProgress] = useState({ current: 0, total: 0 });
   const [historyKey, setHistoryKey] = useState(0);
 
-  // Get current bot config
-  const currentBot = N8N_BOTS.find(b => b.id === selectedBot) || N8N_BOTS[0];
+  // Team pricing state
+  const [teamPricing, setTeamPricing] = useState<{
+    teamId: string;
+    teamName: string;
+    balance: number;
+    creditLimit: number;
+    externalPrice: number;
+  } | null>(null);
+  const [teamLoading, setTeamLoading] = useState(true);
+
+  // Load team pricing for the current user
+  useEffect(() => {
+    const fetchTeamPricing = async () => {
+      if (!user) { setTeamLoading(false); return; }
+      
+      // Admins in admin panel don't need team binding (legacy behavior)
+      // But on the standalone page they do need it
+      
+      const { data: membership } = await supabase
+        .from("team_members")
+        .select("team_id")
+        .eq("user_id", user.id)
+        .eq("status", "approved")
+        .limit(1)
+        .maybeSingle();
+
+      if (!membership) { setTeamLoading(false); return; }
+
+      const { data: team } = await supabase
+        .from("teams")
+        .select("id, name, balance, credit_limit")
+        .eq("id", membership.team_id)
+        .maybeSingle();
+
+      const { data: pricing } = await supabase
+        .from("team_pricing")
+        .select("external_price")
+        .eq("team_id", membership.team_id)
+        .maybeSingle();
+
+      if (team) {
+        setTeamPricing({
+          teamId: team.id,
+          teamName: team.name,
+          balance: team.balance || 0,
+          creditLimit: team.credit_limit || 0,
+          externalPrice: pricing?.external_price || 7,
+        });
+      }
+      setTeamLoading(false);
+    };
+
+    fetchTeamPricing();
+
+    // Subscribe to team balance changes
+    const channel = supabase
+      .channel("n8n_team_balance")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "teams" }, (payload) => {
+        if (teamPricing && payload.new.id === teamPricing.teamId) {
+          setTeamPricing(prev => prev ? {
+            ...prev,
+            balance: payload.new.balance,
+            creditLimit: payload.new.credit_limit ?? prev.creditLimit,
+          } : null);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
+  // Cost calculation
+  const calculateTotalCost = () => {
+    return (teamPricing?.externalPrice || 7) * siteCount;
+  };
+
+  const insufficientBalance = teamPricing
+    ? (teamPricing.balance - calculateTotalCost()) < -(teamPricing.creditLimit)
+    : false;
 
   const toggleLanguage = (lang: string) => {
     setSelectedLanguages(prev => 
