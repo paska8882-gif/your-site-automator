@@ -201,6 +201,9 @@ export function N8nGenerationPanel() {
     ? (teamPricing.balance - calculateTotalCost()) < -(teamPricing.creditLimit)
     : false;
 
+  // Get current bot config
+  const currentBot = N8N_BOTS.find(b => b.id === selectedBot) || N8N_BOTS[0];
+
   const toggleLanguage = (lang: string) => {
     setSelectedLanguages(prev => 
       prev.includes(lang) 
