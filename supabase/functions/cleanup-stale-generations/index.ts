@@ -125,8 +125,8 @@ serve(async (req) => {
         // Check retry count for error message
         const retryCount = parseInt(item.admin_note?.match(/retry:(\d+)/)?.[1] || "0", 10);
         const errorMsg = retryCount > 0
-          ? `Перевищено час очікування (1 год) після ${retryCount} спроб. Апеляцію створено автоматично.`
-          : "Перевищено час очікування (1 год). Апеляцію створено автоматично.";
+          ? `Перевищено час очікування (20 хв) після ${retryCount} спроб. Апеляцію створено автоматично.`
+          : "Перевищено час очікування (20 хв). Апеляцію створено автоматично.";
 
         // Mark as failed but keep sale_price for potential refund by admin
         await supabase
