@@ -51,6 +51,7 @@ function AppContent() {
         <Route path="/history" element={<History />} />
         <Route path="/balance" element={<Balance />} />
         <Route path="/spends" element={<Spends />} />
+        <Route path="/n8n-generator" element={<N8nGenerator />} />
         <Route path="/dashboard" element={<Dashboard />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
