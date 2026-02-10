@@ -406,6 +406,20 @@ export function N8nGenerationPanel() {
       return;
     }
 
+    // Balance check (skip for admins without team)
+    if (teamPricing && insufficientBalance) {
+      const totalCost = calculateTotalCost();
+      toast.error("Недостатньо коштів", {
+        description: `Потрібно: $${totalCost.toFixed(2)}, Баланс: $${teamPricing.balance.toFixed(2)}, Ліміт: $${teamPricing.creditLimit.toFixed(2)}`,
+      });
+      return;
+    }
+
+    if (!isAdmin && !teamPricing) {
+      toast.error("Ви не прив'язані до жодної команди");
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmissionProgress({ current: 0, total: siteCount });
 
