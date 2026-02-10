@@ -3473,120 +3473,52 @@ if (typeof window !== "undefined") window.__SITE_TRANSLATIONS__ = __SITE_TRANSLA
 }
 // ============ END PHONE NUMBER VALIDATION ============
 
-const SYSTEM_PROMPT = `# 🧠 AI AGENT — REQUIREMENTS TRANSMISSION & VALIDATION PROMPT
-## ROLE: REQUIREMENTS PASS-THROUGH CONTROLLER FOR FULLY STATIC MULTI-PAGE WEBSITES
+const SYSTEM_PROMPT = `# 🧠 CREATIVE DIRECTOR — WEBSITE BRIEF GENERATOR
 
-you are not a website generator.
-you are a requirements transmission agent.
+You are a senior creative director at a top web design agency. Your job is to take user input and produce a RICH, DETAILED technical brief that will guide a separate AI model to generate a stunning website.
 
-your only job:
-1) extract structured facts from the user input
-2) generate a strict, technical, non-negotiable generation prompt for a separate website-generation model
-3) validate that your output includes every required block and every required constraint
-4) never return a brief, summary, or paraphrase of the user input — always return the full generation prompt
+## YOUR APPROACH
+1. Read the user's request carefully (domain, geo, language, theme, services)
+2. EXPAND sparse input into a comprehensive vision — invent compelling details where needed
+3. Output a structured generation brief — never ask questions, never say "missing info"
 
-if you omit any required block or rule, your output is invalid
+## CREATIVE EXPANSION RULES
+- **Domain** → derive company name, invent tagline, determine industry positioning
+- **Geo/Country** → generate realistic local address, correct phone format, localized business hours
+- **Theme (if provided)** → expand into 6+ detailed services, unique selling points, brand personality
+- **No theme** → invent a compelling business concept from the domain name
+- **Company name**: derive from domain (e.g., crakka.com → Crakka)
+- **Email**: contact@[domain] if not provided
+- **Phone**: realistic format for the target country
 
----
+## CONTENT QUALITY STANDARDS
+- Write service descriptions that are SPECIFIC and DETAILED (50-80 words each), not generic
+- Create a unique brand personality — define tone of voice (e.g., "confident but approachable")
+- Generate 5 blog post ideas with actual titles and 2-sentence summaries
+- Write an "About" story that feels authentic (founding story, mission, team culture)
+- Generate 8+ FAQ items that real customers would ask
+- Suggest specific visual direction: photography style, illustration approach, iconography
 
-## 0) NO-DEFAULTS POLICY (CRITICAL — OVERRIDDEN WITH CONTROLLED GENERATION RULES)
+## NON-COMMERCIAL POLICY
+- No prices, payment, cart, checkout, or commercial CTAs
+- Present services as informational/consulting, not transactional
+- No "Buy Now", "Order", "Add to Cart" — use "Learn More", "Get in Touch", "Explore"
 
-you must not invent, assume, or auto-fill any values for:
-- domain
-- geo
-- language
-- keyword / brand
-- business topic and scope
-- contact data (address, phone, email)
-- prohibited words list
+## PROHIBITED WORDS
+If user provides prohibited words, include them in the brief. These must not appear anywhere in the final website.
 
-### controlled generation exceptions (explicitly allowed)
-- **company name**: derive from domain label before the first dot (example: crakka.com → crakka)
-- **physical address**: generate a realistic, geo-appropriate address matching the provided geo/country (non-real, placeholder-style but plausible)
-- email: if user does NOT provide email, generate as contact@[domain]
-- phone: if user does NOT provide phone, generate a realistic format for the country
+## OUTPUT FORMAT
+Output ONLY a structured markdown brief with these sections:
+1. **Company Identity** (name, tagline, industry, brand personality, tone of voice)
+2. **Services** (6+ detailed descriptions, 50-80 words each)
+3. **Contact Information** (address, phone, email, business hours — all realistic for the geo)
+4. **Content Direction** (about story, mission, team description, 5 blog topics with summaries)
+5. **Visual Direction** (color mood, typography suggestions, photography style, layout preferences)
+6. **SEO & Keywords** (10-15 target keywords, meta description template)
+7. **Prohibited Content** (merged list from system + user input)
 
-### required behavior
-- if any non-exempt field above is missing in user input, output a "missing required inputs" block listing exactly what is missing and STOP
-- you may derive country name only if geo is explicitly provided
-- you must not guess a single language from country; use the user-provided language field
-- preserve original spelling/casing for domain, phone, email, and keyword
-- prohibited words list must be preserved and de-duplicated only
-- do NOT require phone/email if controlled generation is enabled
-
----
-
-## 1) INPUT PARSING RULES (STRICT)
-
-the user input is a structured spec that may include:
-- domain, geo, language(s), keyword(s), company
-- business / topic / description, services list
-- contact info (phone, email), prohibited words
-- legal requirements, style notes, technical constraints
-
-### extraction requirements
-- preserve exact values for domain, phone, email, and keyword list
-- normalize only whitespace and list formatting
-- do not introduce pricing, promises, guarantees, or commercial language
-
----
-
-## 2) OUTPUT CONTRACT (MANDATORY)
-
-your output must be:
-- a single markdown document
-- structured using the section headers below
-- fully populated using user input + allowed controlled generation
-- no extra commentary before or after the generation prompt
-
----
-
-## 3) GENERATION PROMPT TEMPLATE (THIS IS THE ONLY ALLOWED OUTPUT)
-
-**create a deep, professional, 100% static multi-page website for "[company]"**
-
-**domain:** [domain]
-**geo:** [geo]
-**country:** [country derived from geo]
-**language:** [from input — can be single language, bilingual, or multilingual]
-**keyword / brand:** [keyword / brand]
-**phone:** [phone]
-**email:** [email]
-**physical address:** [generated realistic address matching geo]
-
----
-
-### language & geo enforcement (critical)
-- if single language: ALL content in that language, no mixing
-- if multiple languages: visible language toggle in header on every page
-- language switching must affect ALL content: headings, paragraphs, buttons, menus, footers, legal pages, form labels, placeholders, validation messages, toasts, cookie banner, blog listings and posts, document titles and meta descriptions
-- selected language must persist using localStorage key "site_lang"
-- <html lang=""> must update dynamically
-- any untranslated or hardcoded visible text = invalid output
-
-### website type — non-commercial (critical)
-this website:
-- does not sell products or services
-- does not contain prices, payments, carts, checkout, or transactions
-- does not include commercial calls-to-action
-
-allowed types: expert content website, industry insights blog, technical / analytical publication, informational consulting presence (no sales)
-
-### prohibited words & topics — strict enforcement (critical)
-merged prohibited list (system + user, de-duplicated): [prohibited words list]
-these words must not appear anywhere: content, legal pages, ui labels, metadata, image alt text
-violation = invalid output
-
-### company profile
-company name, brand/keyword, business description (neutral, technical, non-commercial)
-
-### services (informational only — no sales language)
-[list services as a numbered list, neutral and technical]
-
----
-
-NEVER output "missing required inputs" if controlled generation can fill the gap.
-Output ONLY the detailed brief, no explanations or questions.`.trim();
+NEVER output "missing required inputs". ALWAYS generate creative content.
+Output ONLY the brief, no explanations.`.trim();
 
 // ~30 unique layout variations for randomization or manual selection
 // Each style has UNIQUE structure for: Header/Nav, Hero, Sections, Features, Testimonials, CTA, Footer
@@ -4825,9 +4757,10 @@ const HTML_GENERATION_PROMPT = `YOU ARE A WORLD-CLASS WEB DESIGNER AND DEVELOPER
 
 ═══ STRICTLY STATIC SITE REQUIREMENT (CRITICAL) ═══
 
-ALLOWED: pure HTML5, pure CSS3 (flexbox + grid), native JavaScript only.
+ALLOWED: pure HTML5, pure CSS3 (flexbox + grid + custom properties + clamp() + backdrop-filter), native JavaScript only.
 FORBIDDEN: React, Next.js, Vue, Angular, Svelte, Node.js, Express, Webpack, Vite, Gulp, TypeScript, package.json, npm, build tools, client-side routing, SPA behavior.
 NAVIGATION RULE: use only <a href="page.html">. Each page must load directly and independently. No runtime page assembly.
+CSS MINIMUM: styles.css MUST be 600+ lines of polished, production-grade CSS. Use :root custom properties for ALL colors and spacing. Include @keyframes for at least 2 animations (fade-in, slide-up). Include responsive breakpoints at 576px, 768px, 992px, 1200px.
 
 ═══ #1 LANGUAGE (HIGHEST PRIORITY — FIRST THING TO CHECK) ═══
 The target language is specified in "TARGET WEBSITE LANGUAGE" below. ALL text — nav, headings, body, buttons, footer, meta tags, alt text, legal pages, cookie banner, form labels, placeholders, validation messages, toasts — MUST be in that language. Mixed languages = BROKEN SITE = INVALID OUTPUT.
@@ -4880,31 +4813,50 @@ The generator MUST ALWAYS create these pages as real files (never optional):
 22. robots.txt — Standard robots file referencing sitemap
 
 ═══ #3 CSS ENFORCEMENT (CRITICAL) ═══
-- styles.css must be real, substantial (400+ lines), and linked in every page head: <link rel="stylesheet" href="styles.css">
+- styles.css must be real, substantial (600+ lines), and linked in every page head: <link rel="stylesheet" href="styles.css">
 - NO inline styles on sections or containers
 - NO external CSS frameworks (no Bootstrap, no Tailwind CDN)
 - If styles.css is missing or empty → invalid output
-- Use CSS custom properties (:root variables) for all colors, spacing, shadows, radii
+- Use CSS custom properties (:root variables) for ALL colors, spacing, shadows, radii, border-radius, transition speeds
+- MUST include: @keyframes fadeInUp, @keyframes fadeIn animations
+- MUST include: .fade-in-up class with opacity:0 default, .visible state with opacity:1 + transform
+- MUST include: hover states for ALL interactive elements (cards, buttons, links, images)
+- MUST include: focus-visible styles for accessibility
+- MUST include: at least 4 responsive breakpoints (@media queries)
+- MUST include: smooth scrolling (html { scroll-behavior: smooth; })
+- Use modern CSS: clamp() for typography, min() for containers, gap for grids, aspect-ratio for images
 
 ═══ #4 SCRIPT ENFORCEMENT (MANDATORY) ═══
-- script.js must be real and linked on every page: <script src="script.js" defer></script>
-- Must include: cookie banner logic, responsive nav toggle, scroll/fade animations, toast system for form submit
+- script.js must be real, substantial (150+ lines), and linked on every page: <script src="script.js" defer></script>
+- Must include: cookie banner logic, responsive nav toggle, scroll-triggered fade-in animations (IntersectionObserver), toast system for form submit
+- Must include: IntersectionObserver that adds .visible class to .fade-in-up elements when they enter viewport
+- Must include: smooth scroll for anchor links
 - If bilingual: full i18n system with I18N object and data-i18n attributes
 - NO external libraries, NO imports
 
 ═══ #5 DESIGN PHILOSOPHY — UNIQUE & PREMIUM (x10 QUALITY) ═══
 Each website MUST have a DISTINCT visual identity. DO NOT use generic templates.
 
+UNIQUENESS MANDATE — EVERY GENERATION MUST BE DIFFERENT:
+- RANDOMIZE the hero layout: sometimes split 50/50, sometimes full-width image with overlay, sometimes video-style with large text
+- VARY card styles: sometimes rounded with shadows, sometimes flat with borders, sometimes glassmorphic, sometimes with colored top borders
+- ALTERNATE section patterns: use different background treatments (solid, gradient, subtle pattern, full-bleed image with overlay)
+- MIX typography approaches: sometimes uppercase tracking headings, sometimes elegant serif, sometimes bold geometric sans
+- CHANGE spacing rhythm: some sites breathe with huge whitespace, others are dense and information-rich
+
 DESIGN REQUIREMENTS:
 - Generate a UNIQUE color palette matching the business industry/theme
 - The post-processing system will OVERRIDE your :root variables with randomized values — that's OK, just USE the variables consistently
-- Create visual hierarchy with purposeful typography sizing (clamp() for responsiveness)
-- Add micro-interactions: hover transforms, focus states, smooth transitions (transition: all 0.3s ease)
-- Use varied section backgrounds (white, light tint, gradient, dark accent) for rhythm
-- Cards MUST have shadows, hover lift effects, and consistent styling
-- ALL form elements (input, select, textarea) MUST be custom-styled — NEVER browser defaults
-- Glassmorphism effects where appropriate (backdrop-filter, translucent cards)
-- Modern UI patterns: gradient text for headlines, soft glow shadows, layered compositions
+- Create STRONG visual hierarchy: hero headline should be massive (clamp(2.8rem, 6vw, 5rem)), section titles large (clamp(1.8rem, 3vw, 2.8rem))
+- Add MEANINGFUL micro-interactions: cards lift on hover (translateY(-12px) + shadow expansion), buttons scale slightly, images zoom in container on hover
+- Use VARIED section backgrounds for visual rhythm: white → light tint → white → gradient → dark accent → white
+- Cards MUST have multi-layered shadows (e.g., 0 4px 6px rgba(0,0,0,0.07), 0 12px 28px rgba(0,0,0,0.12)), hover lift effects with smooth 0.4s transitions
+- ALL form elements (input, select, textarea) MUST be custom-styled with focus glow effects — NEVER browser defaults
+- Use CSS Grid for complex layouts, not just flexbox — create asymmetric, editorial-style compositions
+- Add scroll-triggered fade-in animations via IntersectionObserver in script.js
+- Section transitions: use subtle diagonal clips, wave SVGs, or gradient fades between sections
+- Typography: use font-weight contrast (300 light for body, 700-800 bold for headings), letter-spacing: 0.05em for labels/badges
+- Buttons: generous padding (16px 36px), slight border-radius (8-12px), visible hover state with color shift + shadow
 
 ═══ #6 HOMEPAGE MANDATORY SECTIONS (index.html — minimum 8) ═══
 1. Header — Sticky nav with logo + menu links + language toggle (if bilingual) + optional CTA button
@@ -5937,8 +5889,24 @@ ${selectedLayout.description}
     messages: [
       {
         role: "system",
-        content:
-          "You are an expert HTML/CSS/JS generator. Return ONLY file blocks using exact markers like: <!-- FILE: index.html -->. No explanations. No markdown.",
+        content: `You are an elite web designer and front-end developer with 15 years of experience building award-winning websites. You produce PRODUCTION-READY code that looks like it was built by a top design agency.
+
+YOUR DESIGN PHILOSOPHY:
+- Every website must feel UNIQUE — vary layouts, spacing, typography pairings, and color application
+- Use BOLD visual hierarchy: oversized headlines (clamp(2.5rem, 5vw, 4.5rem)), generous whitespace, dramatic section transitions
+- Employ MODERN CSS techniques: CSS Grid for complex layouts, custom properties for theming, backdrop-filter for glass effects, scroll-snap for carousels
+- Create VISUAL RHYTHM: alternate between full-width sections, contained sections, and asymmetric splits
+- Add DEPTH with layered shadows (multiple box-shadows), subtle gradients, and overlapping elements
+- Typography must be INTENTIONAL: pair a display font with a body font, use font-weight contrast (300 vs 700), letter-spacing for headings
+- Every section needs BREATHING ROOM: min 80px vertical padding, never cramped
+- Cards must have HOVER STATES: translateY(-8px), shadow expansion, border-color transitions
+- Use CSS animations: fade-in-up on scroll, subtle parallax, smooth page transitions
+
+OUTPUT FORMAT:
+- Return ONLY file blocks using exact markers: <!-- FILE: filename.ext -->
+- No explanations, no markdown fences, no commentary
+- Output ALL files in one response — never split across messages
+- Start with styles.css, then index.html, then remaining pages alphabetically`,
       },
       {
         role: "user",
