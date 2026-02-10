@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Send, Bot, Sparkles, Globe, Wand2, Layers, Code2, FileCode } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, Send, Bot, Sparkles, Globe, Wand2, Layers, Code2, FileCode, AlertTriangle, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAdmin } from "@/hooks/useAdmin";
 import { toast } from "sonner";
 import { N8nGenerationHistory } from "./N8nGenerationHistory";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -85,6 +87,7 @@ const TOPIC_CATEGORIES: Record<string, string[]> = {
 
 export function N8nGenerationPanel() {
   const { user } = useAuth();
+  const { isAdmin } = useAdmin();
   
   // Selected bot
   const [selectedBot, setSelectedBot] = useState<BotId>("2lang_html");
@@ -117,6 +120,86 @@ export function N8nGenerationPanel() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionProgress, setSubmissionProgress] = useState({ current: 0, total: 0 });
   const [historyKey, setHistoryKey] = useState(0);
+
+  // Team pricing state
+  const [teamPricing, setTeamPricing] = useState<{
+    teamId: string;
+    teamName: string;
+    balance: number;
+    creditLimit: number;
+    externalPrice: number;
+  } | null>(null);
+  const [teamLoading, setTeamLoading] = useState(true);
+
+  // Load team pricing for the current user
+  useEffect(() => {
+    const fetchTeamPricing = async () => {
+      if (!user) { setTeamLoading(false); return; }
+      
+      // Admins in admin panel don't need team binding (legacy behavior)
+      // But on the standalone page they do need it
+      
+      const { data: membership } = await supabase
+        .from("team_members")
+        .select("team_id")
+        .eq("user_id", user.id)
+        .eq("status", "approved")
+        .limit(1)
+        .maybeSingle();
+
+      if (!membership) { setTeamLoading(false); return; }
+
+      const { data: team } = await supabase
+        .from("teams")
+        .select("id, name, balance, credit_limit")
+        .eq("id", membership.team_id)
+        .maybeSingle();
+
+      const { data: pricing } = await supabase
+        .from("team_pricing")
+        .select("external_price")
+        .eq("team_id", membership.team_id)
+        .maybeSingle();
+
+      if (team) {
+        setTeamPricing({
+          teamId: team.id,
+          teamName: team.name,
+          balance: team.balance || 0,
+          creditLimit: team.credit_limit || 0,
+          externalPrice: pricing?.external_price || 7,
+        });
+      }
+      setTeamLoading(false);
+    };
+
+    fetchTeamPricing();
+
+    // Subscribe to team balance changes
+    const channel = supabase
+      .channel("n8n_team_balance")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "teams" }, (payload) => {
+        if (teamPricing && payload.new.id === teamPricing.teamId) {
+          setTeamPricing(prev => prev ? {
+            ...prev,
+            balance: payload.new.balance,
+            creditLimit: payload.new.credit_limit ?? prev.creditLimit,
+          } : null);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
+  // Cost calculation
+  const calculateTotalCost = () => {
+    return (teamPricing?.externalPrice || 7) * siteCount;
+  };
+
+  const insufficientBalance = teamPricing
+    ? (teamPricing.balance - calculateTotalCost()) < -(teamPricing.creditLimit)
+    : false;
 
   // Get current bot config
   const currentBot = N8N_BOTS.find(b => b.id === selectedBot) || N8N_BOTS[0];
@@ -229,6 +312,9 @@ export function N8nGenerationPanel() {
         generatedSiteName = siteCount > 1 ? `${baseName} (${index + 1})` : baseName;
       }
 
+      // Calculate sale price per site
+      const salePrice = teamPricing?.externalPrice || 7;
+
       // Create generation history record
       const { data: historyData, error: historyError } = await supabase
         .from("generation_history")
@@ -245,11 +331,24 @@ export function N8nGenerationPanel() {
           ai_model: "senior",
           website_type: currentBot.outputType,
           image_source: selectedBot === "nextjs_bot" ? "nextjs" : `n8n-bot-${currentBot.id}`,
+          team_id: teamPricing?.teamId || null,
+          sale_price: teamPricing ? salePrice : null,
         })
         .select("id")
         .single();
 
       if (historyError) throw historyError;
+
+      // Deduct balance from team
+      if (teamPricing) {
+        const newBalance = teamPricing.balance - salePrice;
+        await supabase
+          .from("teams")
+          .update({ balance: newBalance })
+          .eq("id", teamPricing.teamId);
+        
+        setTeamPricing(prev => prev ? { ...prev, balance: newBalance } : null);
+      }
 
       // Call n8n-async-proxy
       const response = await supabase.functions.invoke("n8n-async-proxy", {
@@ -304,6 +403,20 @@ export function N8nGenerationPanel() {
 
     if (selectedLanguages.length === 0) {
       toast.error("Виберіть хоча б одну мову");
+      return;
+    }
+
+    // Balance check (skip for admins without team)
+    if (teamPricing && insufficientBalance) {
+      const totalCost = calculateTotalCost();
+      toast.error("Недостатньо коштів", {
+        description: `Потрібно: $${totalCost.toFixed(2)}, Баланс: $${teamPricing.balance.toFixed(2)}, Ліміт: $${teamPricing.creditLimit.toFixed(2)}`,
+      });
+      return;
+    }
+
+    if (!isAdmin && !teamPricing) {
+      toast.error("Ви не прив'язані до жодної команди");
       return;
     }
 
@@ -401,6 +514,35 @@ export function N8nGenerationPanel() {
           <CardDescription>
             Відправте запит на генерацію через зовнішнього n8n бота. Час очікування — до 20 хвилин. Можна запускати кілька генерацій паралельно.
           </CardDescription>
+          {/* Balance info */}
+          {teamPricing && (
+            <div className="flex items-center gap-3 mt-2">
+              <Badge variant="outline" className="flex items-center gap-1">
+                <Wallet className="h-3 w-3" />
+                {teamPricing.teamName}: ${teamPricing.balance.toFixed(2)}
+              </Badge>
+              <Badge variant="outline" className="text-muted-foreground">
+                Ціна: ${teamPricing.externalPrice}/сайт
+              </Badge>
+              {siteCount > 1 && (
+                <Badge variant="secondary">
+                  Всього: ${calculateTotalCost().toFixed(2)}
+                </Badge>
+              )}
+              {insufficientBalance && (
+                <Badge variant="destructive" className="flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Недостатньо коштів
+                </Badge>
+              )}
+            </div>
+          )}
+          {!teamPricing && !teamLoading && !isAdmin && (
+            <Alert variant="destructive" className="mt-2">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>Ви не прив'язані до команди. Генерація неможлива.</AlertDescription>
+            </Alert>
+          )}
         </CardHeader>
         <CardContent className="pt-0">
           {/* Bot Selector */}
@@ -597,7 +739,7 @@ export function N8nGenerationPanel() {
                 {/* Submit */}
                 <Button
                   onClick={handleSubmit}
-                  disabled={isSubmitting || !domain.trim() || !siteName.trim() || !siteTopic.trim() || !siteDescription.trim()}
+                  disabled={isSubmitting || insufficientBalance || (!isAdmin && !teamPricing) || !domain.trim() || !siteName.trim() || !siteTopic.trim() || !siteDescription.trim()}
                   className="w-full"
                   size="lg"
                 >
@@ -818,7 +960,7 @@ export function N8nGenerationPanel() {
               {/* Submit button */}
               <Button
                 onClick={handleSubmit}
-                disabled={isSubmitting || (promptMode === "manual" ? !prompt.trim() : !selectedTopic)}
+                disabled={isSubmitting || insufficientBalance || (!isAdmin && !teamPricing) || (promptMode === "manual" ? !prompt.trim() : !selectedTopic)}
                 className="w-full"
                 size="lg"
               >
