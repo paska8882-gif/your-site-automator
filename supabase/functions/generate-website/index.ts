@@ -2,7 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void };
+// NOTE: EdgeRuntime.waitUntil removed — synchronous await is used for stability
+// (waitUntil background tasks get killed when instances are recycled by the platform)
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9635,38 +9636,37 @@ ${promptForGeneration}`;
     const historyId = historyEntry!.id;
     console.log("Using history entry:", historyId);
 
-    // Start background generation using EdgeRuntime.waitUntil
-    // Pass salePrice and teamId for potential refund on error
-    // IMPORTANT: Use promptForGeneration which includes language and geo instructions
-    // Use effectiveColorScheme and effectiveLayoutStyle to ensure retry gets correct params
-    EdgeRuntime.waitUntil(
-      runBackgroundGeneration(
-        historyId,
-        userId,
-        promptForGeneration,
-        language,
-        aiModel,
-        effectiveLayoutStyle,
-        imageSource,
-        teamId,
-        salePrice,
-        siteName,
-        geo,
-        bilingualLanguages || null,
-        bundleImages,
-        effectiveColorScheme
-      )
+    // Run generation SYNCHRONOUSLY (full await) for runtime stability.
+    // EdgeRuntime.waitUntil was removed because background tasks get killed
+    // when platform recycles instances, leaving tasks stuck in "generating" forever.
+    // With await, the active request keeps the instance alive for the full duration.
+    // Function timeout: 900s (15 min), generation takes 4-7 min — well within budget.
+    await runBackgroundGeneration(
+      historyId,
+      userId,
+      promptForGeneration,
+      language,
+      aiModel,
+      effectiveLayoutStyle,
+      imageSource,
+      teamId,
+      salePrice,
+      siteName,
+      geo,
+      bilingualLanguages || null,
+      bundleImages,
+      effectiveColorScheme
     );
 
-    // Return immediately with the history entry ID
+    // Return with the history entry ID after generation completes
     return new Response(
       JSON.stringify({
         success: true,
         historyId: historyId,
-        message: "Generation started in background",
+        message: "Generation completed",
       }),
       {
-        status: 202,
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
