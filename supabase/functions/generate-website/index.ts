@@ -4813,15 +4813,24 @@ The generator MUST ALWAYS create these pages as real files (never optional):
 22. robots.txt — Standard robots file referencing sitemap
 
 ═══ #3 CSS ENFORCEMENT (CRITICAL) ═══
-- styles.css must be real, substantial (400+ lines), and linked in every page head: <link rel="stylesheet" href="styles.css">
+- styles.css must be real, substantial (600+ lines), and linked in every page head: <link rel="stylesheet" href="styles.css">
 - NO inline styles on sections or containers
 - NO external CSS frameworks (no Bootstrap, no Tailwind CDN)
 - If styles.css is missing or empty → invalid output
-- Use CSS custom properties (:root variables) for all colors, spacing, shadows, radii
+- Use CSS custom properties (:root variables) for ALL colors, spacing, shadows, radii, border-radius, transition speeds
+- MUST include: @keyframes fadeInUp, @keyframes fadeIn animations
+- MUST include: .fade-in-up class with opacity:0 default, .visible state with opacity:1 + transform
+- MUST include: hover states for ALL interactive elements (cards, buttons, links, images)
+- MUST include: focus-visible styles for accessibility
+- MUST include: at least 4 responsive breakpoints (@media queries)
+- MUST include: smooth scrolling (html { scroll-behavior: smooth; })
+- Use modern CSS: clamp() for typography, min() for containers, gap for grids, aspect-ratio for images
 
 ═══ #4 SCRIPT ENFORCEMENT (MANDATORY) ═══
-- script.js must be real and linked on every page: <script src="script.js" defer></script>
-- Must include: cookie banner logic, responsive nav toggle, scroll/fade animations, toast system for form submit
+- script.js must be real, substantial (150+ lines), and linked on every page: <script src="script.js" defer></script>
+- Must include: cookie banner logic, responsive nav toggle, scroll-triggered fade-in animations (IntersectionObserver), toast system for form submit
+- Must include: IntersectionObserver that adds .visible class to .fade-in-up elements when they enter viewport
+- Must include: smooth scroll for anchor links
 - If bilingual: full i18n system with I18N object and data-i18n attributes
 - NO external libraries, NO imports
 
