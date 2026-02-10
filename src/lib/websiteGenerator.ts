@@ -258,29 +258,6 @@ async function getGenerationBlockInfo(): Promise<GenerationBlockInfo> {
   }
 }
 
-// Quick healthcheck to verify edge functions are reachable before starting generation
-export async function checkBackendHealth(): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
-    const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/healthcheck`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-      },
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    if (!resp.ok) {
-      return { ok: false, error: `Backend returned ${resp.status}` };
-    }
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: "Backend functions are unreachable. Try again in a minute." };
-  }
-}
-
 export async function startGeneration(
   prompt: string,
   language?: string,
@@ -302,12 +279,6 @@ export async function startGeneration(
   const maintenance = await getGenerationBlockInfo();
   if (maintenance.blocked) {
     return { success: false, error: maintenance.message };
-  }
-
-  // Pre-flight healthcheck: verify backend is reachable before creating a job
-  const health = await checkBackendHealth();
-  if (!health.ok) {
-    return { success: false, error: `Сервер генерації недоступний. ${health.error || "Спробуйте через хвилину."}` };
   }
 
   // IMPORTANT: seniorMode (codex/reaktiv) only applies to React websites
@@ -429,12 +400,7 @@ export async function startGeneration(
     const data = await resp.json();
     return data;
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "Unknown error";
-    // Detect network-level failures (function unreachable / deploy failed)
-    if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("abort")) {
-      return { success: false, error: "Функція генерації недоступна (можливо, йде деплой). Спробуйте через 1-2 хвилини." };
-    }
-    return { success: false, error: msg };
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
 }
 

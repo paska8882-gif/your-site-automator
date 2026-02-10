@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 // Thresholds
-const FAIL_AFTER_MINUTES = 20; // Mark as failed after 20 minutes (generation timeout is 15 min)
+const FAIL_AFTER_MINUTES = 60; // Mark as failed after 1 hour
 const ZIP_CLEANUP_DAYS = 14; // Delete zip_data after 2 weeks
 
 serve(async (req) => {
@@ -54,13 +54,13 @@ serve(async (req) => {
 
     // Continue even if no stale items - we still need to cleanup old zip data
     const staleCount = staleItems?.length ?? 0;
-    console.log(`Found ${staleCount} stale generations (>20min) to cleanup`);
+    console.log(`Found ${staleCount} stale generations (>1h) to cleanup`);
 
     let processed = 0;
     let appealsCreated = 0;
 
     const autoAppealReason =
-      "Автоповідомлення: генерація перевищила час очікування (>20 хв). Потребує розгляду адміністратором.";
+      "Автоповідомлення: генерація перевищила час очікування (>1 год). Потребує розгляду адміністратором.";
 
     for (const item of staleItems || []) {
       try {
@@ -93,7 +93,7 @@ serve(async (req) => {
           } else if (!existingAppeal) {
             // Include retry info in admin comment
             const retryCount = parseInt(item.admin_note?.match(/retry:(\d+)/)?.[1] || "0", 10);
-            const adminCommentParts: string[] = [`⏱️ Auto-timeout 20min.`];
+            const adminCommentParts: string[] = [`⏱️ Auto-timeout 1h.`];
             if (retryCount > 0) {
               adminCommentParts.push(`Retried ${retryCount}x.`);
             }
@@ -125,8 +125,8 @@ serve(async (req) => {
         // Check retry count for error message
         const retryCount = parseInt(item.admin_note?.match(/retry:(\d+)/)?.[1] || "0", 10);
         const errorMsg = retryCount > 0
-          ? `Перевищено час очікування (20 хв) після ${retryCount} спроб. Апеляцію створено автоматично.`
-          : "Перевищено час очікування (20 хв). Апеляцію створено автоматично.";
+          ? `Перевищено час очікування (1 год) після ${retryCount} спроб. Апеляцію створено автоматично.`
+          : "Перевищено час очікування (1 год). Апеляцію створено автоматично.";
 
         // Mark as failed but keep sale_price for potential refund by admin
         await supabase
