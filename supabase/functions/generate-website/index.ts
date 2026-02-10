@@ -9052,6 +9052,44 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // ============ WORKER MODE: Run background generation synchronously ============
+  // When called with __workerMode, this is a self-invocation from the main handler.
+  // The generation runs in this independent invocation, so it won't be killed by
+  // the original runtime shutdown (unlike EdgeRuntime.waitUntil).
+  const workerHeader = req.headers.get("x-worker-mode");
+  if (workerHeader === "true") {
+    try {
+      const workerBody = await req.json();
+      console.log(`[WORKER] Starting background generation for ${workerBody.historyId}`);
+      await runBackgroundGeneration(
+        workerBody.historyId,
+        workerBody.userId,
+        workerBody.prompt,
+        workerBody.language,
+        workerBody.aiModel,
+        workerBody.layoutStyle,
+        workerBody.imageSource,
+        workerBody.teamId,
+        workerBody.salePrice,
+        workerBody.siteName,
+        workerBody.geo,
+        workerBody.bilingualLanguages,
+        workerBody.bundleImages,
+        workerBody.colorScheme
+      );
+      console.log(`[WORKER] Background generation completed for ${workerBody.historyId}`);
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    } catch (workerError) {
+      console.error(`[WORKER] Fatal error:`, workerError);
+      return new Response(JSON.stringify({ success: false, error: String(workerError) }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
