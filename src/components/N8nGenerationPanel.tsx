@@ -960,7 +960,7 @@ export function N8nGenerationPanel() {
               {/* Submit button */}
               <Button
                 onClick={handleSubmit}
-                disabled={isSubmitting || (promptMode === "manual" ? !prompt.trim() : !selectedTopic)}
+                disabled={isSubmitting || insufficientBalance || (!isAdmin && !teamPricing) || (promptMode === "manual" ? !prompt.trim() : !selectedTopic)}
                 className="w-full"
                 size="lg"
               >
