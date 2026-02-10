@@ -24,6 +24,7 @@ import History from "./pages/History";
 import Balance from "./pages/Balance";
 import Dashboard from "./pages/Dashboard";
 import Spends from "./pages/Spends";
+import N8nGenerator from "./pages/N8nGenerator";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
