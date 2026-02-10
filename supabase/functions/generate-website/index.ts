@@ -2,8 +2,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// NOTE: EdgeRuntime.waitUntil removed — synchronous await is used for stability
-// (waitUntil background tasks get killed when instances are recycled by the platform)
+// Architecture: Self-calling worker pattern.
+// Client request → validates, creates history, deducts balance → fires self-call with __worker flag → returns 202 immediately.
+// Worker call (service key) → runs runBackgroundGeneration synchronously under max_duration_seconds (900s).
+// This avoids the Supabase API gateway's ~150s HTTP timeout for client-facing requests.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9085,8 +9087,56 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  // ============ WORKER MODE ============
+  // When called with __worker flag + service key, run generation synchronously.
+  // The Supabase gateway has a ~150s HTTP timeout for client-facing requests,
+  // but service-to-service calls (fire-and-forget) are not subject to the same
+  // gateway timeout — the function runs until max_duration_seconds (900s).
+  const authHeader = req.headers.get("Authorization");
+  if (authHeader) {
+    const token = authHeader.replace("Bearer ", "").trim();
+    if (token === supabaseServiceKey) {
+      try {
+        const workerBody = await req.json();
+        if (workerBody.__worker) {
+          console.log(`[WORKER] Starting generation for historyId: ${workerBody.historyId}`);
+          await runBackgroundGeneration(
+            workerBody.historyId,
+            workerBody.userId,
+            workerBody.prompt,
+            workerBody.language,
+            workerBody.aiModel,
+            workerBody.layoutStyle,
+            workerBody.imageSource,
+            workerBody.teamId,
+            workerBody.salePrice,
+            workerBody.siteName,
+            workerBody.geo,
+            workerBody.bilingualLanguages,
+            workerBody.bundleImages,
+            workerBody.colorScheme
+          );
+          console.log(`[WORKER] Generation completed for historyId: ${workerBody.historyId}`);
+          return new Response(JSON.stringify({ success: true }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      } catch (workerError) {
+        console.error(`[WORKER] Error:`, workerError);
+        return new Response(JSON.stringify({ success: false, error: String(workerError) }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+  }
+  // ============ END WORKER MODE ============
+
   try {
-    const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       console.warn("Request rejected: No authorization header");
       return new Response(JSON.stringify({ success: false, error: "Authentication required" }), {
@@ -9096,9 +9146,7 @@ serve(async (req) => {
     }
 
     // Validate JWT using getClaims() - more reliable than getUser() for token validation
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     if (!authHeader.startsWith("Bearer ")) {
       console.warn("Request rejected: invalid authorization header format");
@@ -9636,37 +9684,48 @@ ${promptForGeneration}`;
     const historyId = historyEntry!.id;
     console.log("Using history entry:", historyId);
 
-    // Run generation SYNCHRONOUSLY (full await) for runtime stability.
-    // EdgeRuntime.waitUntil was removed because background tasks get killed
-    // when platform recycles instances, leaving tasks stuck in "generating" forever.
-    // With await, the active request keeps the instance alive for the full duration.
-    // Function timeout: 900s (15 min), generation takes 4-7 min — well within budget.
-    await runBackgroundGeneration(
-      historyId,
-      userId,
-      promptForGeneration,
-      language,
-      aiModel,
-      effectiveLayoutStyle,
-      imageSource,
-      teamId,
-      salePrice,
-      siteName,
-      geo,
-      bilingualLanguages || null,
-      bundleImages,
-      effectiveColorScheme
-    );
+    // Fire-and-forget: call ourselves in WORKER mode with the service role key.
+    // The Supabase API gateway has a hard ~150s timeout on client-facing HTTP requests.
+    // By triggering a separate service-to-service call, the worker runs independently
+    // under the function's max_duration_seconds (900s = 15 min), while the client
+    // gets an immediate 202 response with the historyId for polling.
+    const workerUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-website`;
+    fetch(workerUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
+      body: JSON.stringify({
+        __worker: true,
+        historyId,
+        userId,
+        prompt: promptForGeneration,
+        language,
+        aiModel,
+        layoutStyle: effectiveLayoutStyle,
+        imageSource,
+        teamId,
+        salePrice,
+        siteName,
+        geo,
+        bilingualLanguages: bilingualLanguages || null,
+        bundleImages,
+        colorScheme: effectiveColorScheme,
+      }),
+    }).catch(err => {
+      console.error(`[DISPATCH] Failed to trigger worker for ${historyId}:`, err);
+    });
 
-    // Return with the history entry ID after generation completes
+    // Return immediately — client polls via Realtime or refetch
     return new Response(
       JSON.stringify({
         success: true,
         historyId: historyId,
-        message: "Generation completed",
+        message: "Generation started",
       }),
       {
-        status: 200,
+        status: 202,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
