@@ -93,7 +93,7 @@ serve(async (req) => {
           } else if (!existingAppeal) {
             // Include retry info in admin comment
             const retryCount = parseInt(item.admin_note?.match(/retry:(\d+)/)?.[1] || "0", 10);
-            const adminCommentParts: string[] = [`⏱️ Auto-timeout 1h.`];
+            const adminCommentParts: string[] = [`⏱️ Auto-timeout 20min.`];
             if (retryCount > 0) {
               adminCommentParts.push(`Retried ${retryCount}x.`);
             }
