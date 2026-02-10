@@ -2,10 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Architecture: Self-calling worker pattern.
-// Client request → validates, creates history, deducts balance → fires self-call with __worker flag → returns 202 immediately.
-// Worker call (service key) → runs runBackgroundGeneration synchronously under max_duration_seconds (900s).
-// This avoids the Supabase API gateway's ~150s HTTP timeout for client-facing requests.
+declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void };
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,43 +12,43 @@ const corsHeaders = {
 // ============ COLOR SCHEME LOOKUP (for branding) ============
 // Maps color scheme names to their primary/accent colors for logo/favicon generation
 const BRAND_COLOR_MAP: Record<string, { primary: string; accent: string }> = {
-  ocean: { primary: '#0d4f8b', accent: '#3182ce' },
-  midnight: { primary: '#1a1a2e', accent: '#2563eb' },
-  teal: { primary: '#234e52', accent: '#319795' },
-  arctic: { primary: '#0c4a6e', accent: '#38bdf8' },
-  navy: { primary: '#1e3a5f', accent: '#4a90d9' },
-  sky: { primary: '#0284c7', accent: '#7dd3fc' },
-  forest: { primary: '#276749', accent: '#38a169' },
-  emerald: { primary: '#047857', accent: '#10b981' },
-  sage: { primary: '#3f6212', accent: '#84cc16' },
-  mint: { primary: '#059669', accent: '#34d399' },
-  olive: { primary: '#4d5527', accent: '#708238' },
-  sunset: { primary: '#c53030', accent: '#e53e3e' },
-  coral: { primary: '#c05621', accent: '#dd6b20' },
-  crimson: { primary: '#991b1b', accent: '#dc2626' },
-  amber: { primary: '#b45309', accent: '#f59e0b' },
-  flame: { primary: '#ea580c', accent: '#fb923c' },
-  royal: { primary: '#553c9a', accent: '#805ad5' },
-  rose: { primary: '#97266d', accent: '#d53f8c' },
-  lavender: { primary: '#7c3aed', accent: '#a78bfa' },
-  fuchsia: { primary: '#a21caf', accent: '#e879f9' },
-  plum: { primary: '#6b21a8', accent: '#c084fc' },
-  mauve: { primary: '#9d4edd', accent: '#c77dff' },
-  slate: { primary: '#2d3748', accent: '#4a5568' },
-  charcoal: { primary: '#1f2937', accent: '#374151' },
-  bronze: { primary: '#92400e', accent: '#d97706' },
-  coffee: { primary: '#78350f', accent: '#a16207' },
-  sand: { primary: '#a8a29e', accent: '#d6d3d1' },
-  terracotta: { primary: '#9a3412', accent: '#ea580c' },
-  gold: { primary: '#b7791f', accent: '#ecc94b' },
-  silver: { primary: '#64748b', accent: '#94a3b8' },
-  wine: { primary: '#7f1d1d', accent: '#b91c1c' },
-  ocean_deep: { primary: '#0c4a6e', accent: '#0369a1' },
+  ocean: { primary: "#0d4f8b", accent: "#3182ce" },
+  midnight: { primary: "#1a1a2e", accent: "#2563eb" },
+  teal: { primary: "#234e52", accent: "#319795" },
+  arctic: { primary: "#0c4a6e", accent: "#38bdf8" },
+  navy: { primary: "#1e3a5f", accent: "#4a90d9" },
+  sky: { primary: "#0284c7", accent: "#7dd3fc" },
+  forest: { primary: "#276749", accent: "#38a169" },
+  emerald: { primary: "#047857", accent: "#10b981" },
+  sage: { primary: "#3f6212", accent: "#84cc16" },
+  mint: { primary: "#059669", accent: "#34d399" },
+  olive: { primary: "#4d5527", accent: "#708238" },
+  sunset: { primary: "#c53030", accent: "#e53e3e" },
+  coral: { primary: "#c05621", accent: "#dd6b20" },
+  crimson: { primary: "#991b1b", accent: "#dc2626" },
+  amber: { primary: "#b45309", accent: "#f59e0b" },
+  flame: { primary: "#ea580c", accent: "#fb923c" },
+  royal: { primary: "#553c9a", accent: "#805ad5" },
+  rose: { primary: "#97266d", accent: "#d53f8c" },
+  lavender: { primary: "#7c3aed", accent: "#a78bfa" },
+  fuchsia: { primary: "#a21caf", accent: "#e879f9" },
+  plum: { primary: "#6b21a8", accent: "#c084fc" },
+  mauve: { primary: "#9d4edd", accent: "#c77dff" },
+  slate: { primary: "#2d3748", accent: "#4a5568" },
+  charcoal: { primary: "#1f2937", accent: "#374151" },
+  bronze: { primary: "#92400e", accent: "#d97706" },
+  coffee: { primary: "#78350f", accent: "#a16207" },
+  sand: { primary: "#a8a29e", accent: "#d6d3d1" },
+  terracotta: { primary: "#9a3412", accent: "#ea580c" },
+  gold: { primary: "#b7791f", accent: "#ecc94b" },
+  silver: { primary: "#64748b", accent: "#94a3b8" },
+  wine: { primary: "#7f1d1d", accent: "#b91c1c" },
+  ocean_deep: { primary: "#0c4a6e", accent: "#0369a1" },
 };
 
 function getBrandColors(schemeName?: string): { primary: string; accent: string } {
-  if (!schemeName) return { primary: '#10b981', accent: '#047857' }; // Default emerald
-  return BRAND_COLOR_MAP[schemeName] || { primary: '#10b981', accent: '#047857' };
+  if (!schemeName) return { primary: "#10b981", accent: "#047857" }; // Default emerald
+  return BRAND_COLOR_MAP[schemeName] || { primary: "#10b981", accent: "#047857" };
 }
 
 // ============ ZIP ASSET BUNDLING (EXTERNAL IMAGES -> LOCAL FILES) ============
@@ -101,10 +98,7 @@ function getExtFromUrl(url: string): string | null {
 }
 
 function isBundlableExternalImageUrl(url: string): boolean {
-  return (
-    /^https?:\/\/picsum\.photos\//i.test(url) ||
-    /^https?:\/\/images\.pexels\.com\//i.test(url)
-  );
+  return /^https?:\/\/picsum\.photos\//i.test(url) || /^https?:\/\/images\.pexels\.com\//i.test(url);
 }
 
 function extractExternalImageUrlsFromText(text: string): string[] {
@@ -143,9 +137,7 @@ async function downloadImageAsBase64(url: string): Promise<{ base64: string; ext
   }
 }
 
-async function bundleExternalImagesForZip(
-  files: Array<{ path: string; content: string }>
-): Promise<{
+async function bundleExternalImagesForZip(files: Array<{ path: string; content: string }>): Promise<{
   textFiles: Array<{ path: string; content: string }>;
   binaryFiles: Array<{ path: string; base64: string }>;
   replacedCount: number;
@@ -211,33 +203,33 @@ async function bundleExternalImagesForZip(
 // ============ PHONE NUMBER VALIDATION & FIXING ============
 // Patterns that indicate fake/placeholder phone numbers
 const INVALID_PHONE_PATTERNS = [
-  /\b\d{3}[-.\s]?\d{4}\b(?!\d)/g,  // Just 7 digits like 456-7890 or 4567890
+  /\b\d{3}[-.\s]?\d{4}\b(?!\d)/g, // Just 7 digits like 456-7890 or 4567890
   /\b\(?555\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/gi, // 555-xxx-xxxx (classic US fake)
-  /\b123[-.\s]?456[-.\s]?7890\b/g,  // 123-456-7890
-  /\b0{6,}\b/g,  // 000000...
-  /\b9{6,}\b/g,  // 999999...
-  /\b1{6,}\b/g,  // 111111...
-  /\bXXX[-.\s]?XXX[-.\s]?XXXX\b/gi,  // XXX-XXX-XXXX placeholder
+  /\b123[-.\s]?456[-.\s]?7890\b/g, // 123-456-7890
+  /\b0{6,}\b/g, // 000000...
+  /\b9{6,}\b/g, // 999999...
+  /\b1{6,}\b/g, // 111111...
+  /\bXXX[-.\s]?XXX[-.\s]?XXXX\b/gi, // XXX-XXX-XXXX placeholder
 ];
 
 // Check if a phone number is valid (has country code, enough digits)
 function isValidPhone(phone: string): boolean {
   // Remove all non-digit characters except +
-  const cleaned = phone.replace(/[^\d+]/g, '');
-  
+  const cleaned = phone.replace(/[^\d+]/g, "");
+
   // Must start with + and have at least 10 digits total
-  if (!cleaned.startsWith('+')) return false;
-  
-  const digits = cleaned.replace(/\D/g, '');
+  if (!cleaned.startsWith("+")) return false;
+
+  const digits = cleaned.replace(/\D/g, "");
   if (digits.length < 10) return false;
-  
+
   // Check for DUPLICATE country codes (e.g., +353+353, +49+49, etc.)
   // This catches patterns like "+353 +353 1 234 5678" or "+49 +49 30 1234"
   if (/\+\d+.*\+\d+/.test(phone)) return false; // Multiple + signs = duplicate codes
-  
+
   // Check for repeated country code at start of digits (e.g., 353353..., 4949...)
   // Common codes: 1-3 digits. If first 2-3 digits repeat immediately, it's likely duplicate
-  const digitsOnly = cleaned.replace(/[^\d]/g, '');
+  const digitsOnly = cleaned.replace(/[^\d]/g, "");
   for (let codeLen = 1; codeLen <= 3; codeLen++) {
     const potentialCode = digitsOnly.substring(0, codeLen);
     const afterCode = digitsOnly.substring(codeLen);
@@ -250,22 +242,22 @@ function isValidPhone(phone: string): boolean {
       }
     }
   }
-  
+
   // Check for placeholder patterns
   if (/^(\d)\1{6,}$/.test(digits)) return false; // All same digit
   if (/123456|654321|4567890|7654321/.test(digits)) return false; // Sequential
   if (/555\d{7}/.test(digits)) return false; // 555 area code (fake)
-  
+
   return true;
 }
 
 // Generate a realistic phone number based on geo/country hint
 function generateRealisticPhone(geo?: string): string {
-  const geoLower = (geo || '').toLowerCase();
+  const geoLower = (geo || "").toLowerCase();
   const geoToken = geoLower.trim();
 
   const randomDigits = (count: number) => {
-    let result = '';
+    let result = "";
     for (let i = 0; i < count; i++) {
       result += Math.floor(Math.random() * 10).toString();
     }
@@ -273,201 +265,265 @@ function generateRealisticPhone(geo?: string): string {
     return result;
   };
 
-  const hasGeoCode = (code: string) => geoToken === code || new RegExp(`\\b${code}\\b`, 'i').test(geoLower);
+  const hasGeoCode = (code: string) => geoToken === code || new RegExp(`\\b${code}\\b`, "i").test(geoLower);
 
   // Portugal +351
-  if (geoLower.includes('portugal') || geoLower.includes('portugu') || geoLower.includes('португал') || hasGeoCode('pt')) {
-    const areaCodes = ['21', '22', '23', '24', '25'];
+  if (
+    geoLower.includes("portugal") ||
+    geoLower.includes("portugu") ||
+    geoLower.includes("португал") ||
+    hasGeoCode("pt")
+  ) {
+    const areaCodes = ["21", "22", "23", "24", "25"];
     return `+351 ${areaCodes[Math.floor(Math.random() * areaCodes.length)]}${Math.floor(Math.random() * 10)} ${randomDigits(3)} ${randomDigits(3)}`;
   }
 
   // Germany +49
-  if (geoLower.includes('germany') || geoLower.includes('deutschland') || geoLower.includes('німеч') || hasGeoCode('de')) {
-    const areaCodes = ['30', '40', '69', '89', '221', '211', '351'];
+  if (
+    geoLower.includes("germany") ||
+    geoLower.includes("deutschland") ||
+    geoLower.includes("німеч") ||
+    hasGeoCode("de")
+  ) {
+    const areaCodes = ["30", "40", "69", "89", "221", "211", "351"];
     return `+49 ${areaCodes[Math.floor(Math.random() * areaCodes.length)]} ${randomDigits(3)} ${randomDigits(4)}`;
   }
 
   // Austria +43
-  if (geoLower.includes('austria') || geoLower.includes('österreich') || geoLower.includes('австрі') || hasGeoCode('at')) {
+  if (
+    geoLower.includes("austria") ||
+    geoLower.includes("österreich") ||
+    geoLower.includes("австрі") ||
+    hasGeoCode("at")
+  ) {
     return `+43 1 ${randomDigits(3)} ${randomDigits(4)}`;
   }
 
   // Switzerland +41
-  if (geoLower.includes('switzerland') || geoLower.includes('schweiz') || geoLower.includes('швейцар') || hasGeoCode('ch')) {
+  if (
+    geoLower.includes("switzerland") ||
+    geoLower.includes("schweiz") ||
+    geoLower.includes("швейцар") ||
+    hasGeoCode("ch")
+  ) {
     return `+41 44 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
 
   // UK +44
-  if (geoLower.includes('united kingdom') || geoLower.includes('britain') || geoLower.includes('england') || geoLower.includes('великобритан') || hasGeoCode('uk') || hasGeoCode('gb')) {
+  if (
+    geoLower.includes("united kingdom") ||
+    geoLower.includes("britain") ||
+    geoLower.includes("england") ||
+    geoLower.includes("великобритан") ||
+    hasGeoCode("uk") ||
+    hasGeoCode("gb")
+  ) {
     return `+44 20 ${randomDigits(4)} ${randomDigits(4)}`;
   }
 
   // France +33
-  if (geoLower.includes('france') || geoLower.includes('франц') || hasGeoCode('fr')) {
+  if (geoLower.includes("france") || geoLower.includes("франц") || hasGeoCode("fr")) {
     return `+33 1 ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
 
   // Spain +34
-  if (geoLower.includes('spain') || geoLower.includes('españa') || geoLower.includes('іспан') || hasGeoCode('es')) {
+  if (geoLower.includes("spain") || geoLower.includes("españa") || geoLower.includes("іспан") || hasGeoCode("es")) {
     return `+34 91 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
 
   // Italy +39
-  if (geoLower.includes('italy') || geoLower.includes('italia') || geoLower.includes('італ') || hasGeoCode('it')) {
+  if (geoLower.includes("italy") || geoLower.includes("italia") || geoLower.includes("італ") || hasGeoCode("it")) {
     return `+39 06 ${randomDigits(4)} ${randomDigits(4)}`;
   }
 
   // Netherlands +31
-  if (geoLower.includes('netherlands') || geoLower.includes('nederland') || geoLower.includes('нідерланд') || hasGeoCode('nl')) {
+  if (
+    geoLower.includes("netherlands") ||
+    geoLower.includes("nederland") ||
+    geoLower.includes("нідерланд") ||
+    hasGeoCode("nl")
+  ) {
     return `+31 20 ${randomDigits(3)} ${randomDigits(4)}`;
   }
 
   // Poland +48
-  if (geoLower.includes('poland') || geoLower.includes('polska') || geoLower.includes('польщ') || hasGeoCode('pl')) {
+  if (geoLower.includes("poland") || geoLower.includes("polska") || geoLower.includes("польщ") || hasGeoCode("pl")) {
     return `+48 22 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
 
   // USA +1
-  if (geoLower.includes('united states') || geoLower.includes('america') || geoLower.includes('сша') || hasGeoCode('us')) {
-    const areaCodes = ['212', '310', '415', '312', '617', '305', '404'];
+  if (
+    geoLower.includes("united states") ||
+    geoLower.includes("america") ||
+    geoLower.includes("сша") ||
+    hasGeoCode("us")
+  ) {
+    const areaCodes = ["212", "310", "415", "312", "617", "305", "404"];
     return `+1 (${areaCodes[Math.floor(Math.random() * areaCodes.length)]}) ${randomDigits(3)}-${randomDigits(4)}`;
   }
 
   // Canada +1
-  if (geoLower.includes('canada') || geoLower.includes('канад') || hasGeoCode('ca')) {
-    const areaCodes = ['416', '604', '514', '403', '613'];
+  if (geoLower.includes("canada") || geoLower.includes("канад") || hasGeoCode("ca")) {
+    const areaCodes = ["416", "604", "514", "403", "613"];
     return `+1 (${areaCodes[Math.floor(Math.random() * areaCodes.length)]}) ${randomDigits(3)}-${randomDigits(4)}`;
   }
 
   // Ukraine +380
-  if (geoLower.includes('ukrain') || geoLower.includes('україн') || hasGeoCode('ua')) {
-    const areaCodes = ['44', '50', '66', '67', '68', '73', '93', '95', '96', '97', '98', '99'];
+  if (geoLower.includes("ukrain") || geoLower.includes("україн") || hasGeoCode("ua")) {
+    const areaCodes = ["44", "50", "66", "67", "68", "73", "93", "95", "96", "97", "98", "99"];
     return `+380 ${areaCodes[Math.floor(Math.random() * areaCodes.length)]} ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
 
   // Ireland +353
-  if (geoLower.includes('ireland') || geoLower.includes('éire') || geoLower.includes('ірланд') || hasGeoCode('ie')) {
+  if (geoLower.includes("ireland") || geoLower.includes("éire") || geoLower.includes("ірланд") || hasGeoCode("ie")) {
     return `+353 1 ${randomDigits(3)} ${randomDigits(4)}`;
   }
 
   // Czech Republic +420
-  if (geoLower.includes('czech') || geoLower.includes('česk') || geoLower.includes('чехі') || hasGeoCode('cz')) {
+  if (geoLower.includes("czech") || geoLower.includes("česk") || geoLower.includes("чехі") || hasGeoCode("cz")) {
     return `+420 2 ${randomDigits(4)} ${randomDigits(4)}`;
   }
 
   // Bulgaria +359
-  if (geoLower.includes('bulgaria') || geoLower.includes('българ') || geoLower.includes('болгар') || hasGeoCode('bg')) {
+  if (geoLower.includes("bulgaria") || geoLower.includes("българ") || geoLower.includes("болгар") || hasGeoCode("bg")) {
     return `+359 2 ${randomDigits(3)} ${randomDigits(4)}`;
   }
 
   // Belgium +32
-  if (geoLower.includes('belgium') || geoLower.includes('belgi') || geoLower.includes('бельгі') || hasGeoCode('be')) {
+  if (geoLower.includes("belgium") || geoLower.includes("belgi") || geoLower.includes("бельгі") || hasGeoCode("be")) {
     return `+32 2 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
 
   // Vietnam +84
-  if (geoLower.includes('vietnam') || geoLower.includes('việt') || geoLower.includes("в'єтнам") || hasGeoCode('vn')) {
+  if (geoLower.includes("vietnam") || geoLower.includes("việt") || geoLower.includes("в'єтнам") || hasGeoCode("vn")) {
     return `+84 24 ${randomDigits(4)} ${randomDigits(4)}`;
   }
 
   // Greece +30
-  if (geoLower.includes('greece') || geoLower.includes('ελλ') || geoLower.includes('греці') || hasGeoCode('gr')) {
+  if (geoLower.includes("greece") || geoLower.includes("ελλ") || geoLower.includes("греці") || hasGeoCode("gr")) {
     return `+30 21 ${randomDigits(4)} ${randomDigits(4)}`;
   }
 
   // Denmark +45
-  if (geoLower.includes('denmark') || geoLower.includes('danmark') || geoLower.includes('данія') || geoLower.includes('дані') || hasGeoCode('dk')) {
+  if (
+    geoLower.includes("denmark") ||
+    geoLower.includes("danmark") ||
+    geoLower.includes("данія") ||
+    geoLower.includes("дані") ||
+    hasGeoCode("dk")
+  ) {
     return `+45 ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
 
   // Estonia +372
-  if (geoLower.includes('estonia') || geoLower.includes('eesti') || geoLower.includes('естоні') || hasGeoCode('ee')) {
+  if (geoLower.includes("estonia") || geoLower.includes("eesti") || geoLower.includes("естоні") || hasGeoCode("ee")) {
     return `+372 ${randomDigits(4)} ${randomDigits(4)}`;
   }
 
   // Indonesia +62
-  if (geoLower.includes('indonesia') || geoLower.includes('індонез') || hasGeoCode('id')) {
+  if (geoLower.includes("indonesia") || geoLower.includes("індонез") || hasGeoCode("id")) {
     return `+62 21 ${randomDigits(4)} ${randomDigits(4)}`;
   }
 
   // India +91
-  if (geoLower.includes('india') || geoLower.includes('індія') || geoLower.includes('інді') || hasGeoCode('in')) {
+  if (geoLower.includes("india") || geoLower.includes("індія") || geoLower.includes("інді") || hasGeoCode("in")) {
     return `+91 ${randomDigits(5)} ${randomDigits(5)}`;
   }
 
   // Latvia +371
-  if (geoLower.includes('latvia') || geoLower.includes('latvij') || geoLower.includes('латві') || hasGeoCode('lv')) {
+  if (geoLower.includes("latvia") || geoLower.includes("latvij") || geoLower.includes("латві") || hasGeoCode("lv")) {
     return `+371 ${randomDigits(4)} ${randomDigits(4)}`;
   }
 
   // Lithuania +370
-  if (geoLower.includes('lithuania') || geoLower.includes('lietuv') || geoLower.includes('литв') || hasGeoCode('lt')) {
+  if (geoLower.includes("lithuania") || geoLower.includes("lietuv") || geoLower.includes("литв") || hasGeoCode("lt")) {
     return `+370 5 ${randomDigits(3)} ${randomDigits(4)}`;
   }
 
   // UAE +971
-  if (geoLower.includes('emirates') || geoLower.includes('uae') || geoLower.includes('оае') || geoLower.includes('емірат') || hasGeoCode('ae')) {
+  if (
+    geoLower.includes("emirates") ||
+    geoLower.includes("uae") ||
+    geoLower.includes("оае") ||
+    geoLower.includes("емірат") ||
+    hasGeoCode("ae")
+  ) {
     return `+971 4 ${randomDigits(3)} ${randomDigits(4)}`;
   }
 
   // Russia +7
-  if (geoLower.includes('russia') || geoLower.includes('росі') || geoLower.includes('росси') || hasGeoCode('ru')) {
-    const areaCodes = ['495', '499', '812', '383', '343'];
+  if (geoLower.includes("russia") || geoLower.includes("росі") || geoLower.includes("росси") || hasGeoCode("ru")) {
+    const areaCodes = ["495", "499", "812", "383", "343"];
     return `+7 ${areaCodes[Math.floor(Math.random() * areaCodes.length)]} ${randomDigits(3)}-${randomDigits(2)}-${randomDigits(2)}`;
   }
 
   // Romania +40
-  if (geoLower.includes('romania') || geoLower.includes('român') || geoLower.includes('румуні') || hasGeoCode('ro')) {
+  if (geoLower.includes("romania") || geoLower.includes("român") || geoLower.includes("румуні") || hasGeoCode("ro")) {
     return `+40 21 ${randomDigits(3)} ${randomDigits(4)}`;
   }
 
   // Slovakia +421
-  if (geoLower.includes('slovakia') || geoLower.includes('slovensk') || geoLower.includes('словаччин') || hasGeoCode('sk')) {
+  if (
+    geoLower.includes("slovakia") ||
+    geoLower.includes("slovensk") ||
+    geoLower.includes("словаччин") ||
+    hasGeoCode("sk")
+  ) {
     return `+421 2 ${randomDigits(4)} ${randomDigits(4)}`;
   }
 
   // Slovenia +386
-  if (geoLower.includes('slovenia') || geoLower.includes('slovenij') || geoLower.includes('словені') || hasGeoCode('si')) {
+  if (
+    geoLower.includes("slovenia") ||
+    geoLower.includes("slovenij") ||
+    geoLower.includes("словені") ||
+    hasGeoCode("si")
+  ) {
     return `+386 1 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
 
   // Thailand +66
-  if (geoLower.includes('thailand') || geoLower.includes('таїланд') || geoLower.includes('тайланд') || hasGeoCode('th')) {
+  if (
+    geoLower.includes("thailand") ||
+    geoLower.includes("таїланд") ||
+    geoLower.includes("тайланд") ||
+    hasGeoCode("th")
+  ) {
     return `+66 2 ${randomDigits(3)} ${randomDigits(4)}`;
   }
 
   // Turkey +90
-  if (geoLower.includes('turkey') || geoLower.includes('türk') || geoLower.includes('туреч') || hasGeoCode('tr')) {
+  if (geoLower.includes("turkey") || geoLower.includes("türk") || geoLower.includes("туреч") || hasGeoCode("tr")) {
     return `+90 212 ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
 
   // Hungary +36
-  if (geoLower.includes('hungary') || geoLower.includes('magyar') || geoLower.includes('угорщ') || hasGeoCode('hu')) {
+  if (geoLower.includes("hungary") || geoLower.includes("magyar") || geoLower.includes("угорщ") || hasGeoCode("hu")) {
     return `+36 1 ${randomDigits(3)} ${randomDigits(4)}`;
   }
 
   // Finland +358
-  if (geoLower.includes('finland') || geoLower.includes('suomi') || geoLower.includes('фінлянд') || hasGeoCode('fi')) {
+  if (geoLower.includes("finland") || geoLower.includes("suomi") || geoLower.includes("фінлянд") || hasGeoCode("fi")) {
     return `+358 9 ${randomDigits(4)} ${randomDigits(4)}`;
   }
 
   // Croatia +385
-  if (geoLower.includes('croatia') || geoLower.includes('hrvat') || geoLower.includes('хорват') || hasGeoCode('hr')) {
+  if (geoLower.includes("croatia") || geoLower.includes("hrvat") || geoLower.includes("хорват") || hasGeoCode("hr")) {
     return `+385 1 ${randomDigits(4)} ${randomDigits(3)}`;
   }
 
   // Sweden +46
-  if (geoLower.includes('sweden') || geoLower.includes('sverige') || geoLower.includes('швеці') || hasGeoCode('se')) {
+  if (geoLower.includes("sweden") || geoLower.includes("sverige") || geoLower.includes("швеці") || hasGeoCode("se")) {
     return `+46 8 ${randomDigits(3)} ${randomDigits(3)} ${randomDigits(2)}`;
   }
 
   // Norway +47
-  if (geoLower.includes('norway') || geoLower.includes('norge') || geoLower.includes('норвег') || hasGeoCode('no')) {
+  if (geoLower.includes("norway") || geoLower.includes("norge") || geoLower.includes("норвег") || hasGeoCode("no")) {
     return `+47 ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
 
   // Japan +81
-  if (geoLower.includes('japan') || geoLower.includes('日本') || geoLower.includes('японі') || hasGeoCode('jp')) {
+  if (geoLower.includes("japan") || geoLower.includes("日本") || geoLower.includes("японі") || hasGeoCode("jp")) {
     return `+81 3 ${randomDigits(4)} ${randomDigits(4)}`;
   }
 
@@ -478,241 +534,581 @@ function generateRealisticPhone(geo?: string): string {
 // ============ REALISTIC ADDRESS GENERATION ============
 // Generate a realistic, unique address based on geo/country
 function generateRealisticAddress(geo?: string): string {
-  const geoLower = (geo || '').toLowerCase().trim();
-  const hasGeoCode = (code: string) => geoLower === code || new RegExp(`\\b${code}\\b`, 'i').test(geoLower);
+  const geoLower = (geo || "").toLowerCase().trim();
+  const hasGeoCode = (code: string) => geoLower === code || new RegExp(`\\b${code}\\b`, "i").test(geoLower);
 
-  const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+  const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
   const num = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
   // Street data per country: [streets[], cities[], postal format fn]
-  type CountryData = { streets: string[]; cities: string[]; postal: () => string; format: (s: string, n: number, c: string, p: string) => string };
+  type CountryData = {
+    streets: string[];
+    cities: string[];
+    postal: () => string;
+    format: (s: string, n: number, c: string, p: string) => string;
+  };
 
   const countries: Record<string, CountryData> = {
     de: {
-      streets: ['Friedrichstraße', 'Berliner Allee', 'Hauptstraße', 'Schillerstraße', 'Goethestraße', 'Bahnhofstraße', 'Mozartstraße', 'Gartenstraße', 'Rosenstraße', 'Waldstraße', 'Lindenstraße', 'Kirchstraße', 'Bismarckstraße', 'Kaiserstraße', 'Beethovenstraße'],
-      cities: ['Berlin', 'München', 'Hamburg', 'Köln', 'Frankfurt am Main', 'Stuttgart', 'Düsseldorf', 'Dresden', 'Leipzig', 'Hannover', 'Nürnberg', 'Bremen'],
+      streets: [
+        "Friedrichstraße",
+        "Berliner Allee",
+        "Hauptstraße",
+        "Schillerstraße",
+        "Goethestraße",
+        "Bahnhofstraße",
+        "Mozartstraße",
+        "Gartenstraße",
+        "Rosenstraße",
+        "Waldstraße",
+        "Lindenstraße",
+        "Kirchstraße",
+        "Bismarckstraße",
+        "Kaiserstraße",
+        "Beethovenstraße",
+      ],
+      cities: [
+        "Berlin",
+        "München",
+        "Hamburg",
+        "Köln",
+        "Frankfurt am Main",
+        "Stuttgart",
+        "Düsseldorf",
+        "Dresden",
+        "Leipzig",
+        "Hannover",
+        "Nürnberg",
+        "Bremen",
+      ],
       postal: () => `${num(10, 99)}${num(100, 999)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Germany`,
     },
     at: {
-      streets: ['Mariahilfer Straße', 'Kärntner Straße', 'Ringstraße', 'Graben', 'Landstraße', 'Hauptplatz', 'Herrengasse', 'Bahnhofstraße'],
-      cities: ['Wien', 'Graz', 'Linz', 'Salzburg', 'Innsbruck', 'Klagenfurt'],
+      streets: [
+        "Mariahilfer Straße",
+        "Kärntner Straße",
+        "Ringstraße",
+        "Graben",
+        "Landstraße",
+        "Hauptplatz",
+        "Herrengasse",
+        "Bahnhofstraße",
+      ],
+      cities: ["Wien", "Graz", "Linz", "Salzburg", "Innsbruck", "Klagenfurt"],
       postal: () => `${num(1010, 9999)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Austria`,
     },
     ch: {
-      streets: ['Bahnhofstrasse', 'Limmatquai', 'Rämistrasse', 'Marktgasse', 'Bundesgasse', 'Kramgasse', 'Spitalgasse'],
-      cities: ['Zürich', 'Bern', 'Basel', 'Genf', 'Lausanne', 'Luzern'],
+      streets: ["Bahnhofstrasse", "Limmatquai", "Rämistrasse", "Marktgasse", "Bundesgasse", "Kramgasse", "Spitalgasse"],
+      cities: ["Zürich", "Bern", "Basel", "Genf", "Lausanne", "Luzern"],
       postal: () => `${num(1000, 9999)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Switzerland`,
     },
     gb: {
-      streets: ['Baker Street', 'Oxford Street', 'High Street', 'King Street', 'Queen Street', 'Church Road', 'Victoria Road', 'Station Road', 'Park Avenue', 'Mill Lane', 'The Broadway', 'Regent Street'],
-      cities: ['London', 'Manchester', 'Birmingham', 'Leeds', 'Glasgow', 'Liverpool', 'Edinburgh', 'Bristol', 'Cardiff', 'Sheffield'],
-      postal: () => `${pick(['SW', 'SE', 'NW', 'EC', 'WC', 'W', 'E', 'N'])}${num(1, 20)} ${num(1, 9)}${pick(['AB', 'CD', 'EF', 'GH', 'JK', 'LN', 'PQ', 'RS', 'TW'])}`,
+      streets: [
+        "Baker Street",
+        "Oxford Street",
+        "High Street",
+        "King Street",
+        "Queen Street",
+        "Church Road",
+        "Victoria Road",
+        "Station Road",
+        "Park Avenue",
+        "Mill Lane",
+        "The Broadway",
+        "Regent Street",
+      ],
+      cities: [
+        "London",
+        "Manchester",
+        "Birmingham",
+        "Leeds",
+        "Glasgow",
+        "Liverpool",
+        "Edinburgh",
+        "Bristol",
+        "Cardiff",
+        "Sheffield",
+      ],
+      postal: () =>
+        `${pick(["SW", "SE", "NW", "EC", "WC", "W", "E", "N"])}${num(1, 20)} ${num(1, 9)}${pick(["AB", "CD", "EF", "GH", "JK", "LN", "PQ", "RS", "TW"])}`,
       format: (s, n, c, p) => `${n} ${s}, ${c} ${p}, United Kingdom`,
     },
     fr: {
-      streets: ['Rue de Rivoli', 'Avenue des Champs-Élysées', 'Boulevard Saint-Germain', 'Rue du Faubourg Saint-Honoré', 'Avenue Montaigne', 'Rue de la Paix', 'Boulevard Haussmann', 'Rue Saint-Honoré', 'Avenue Victor Hugo', 'Rue de Vaugirard'],
-      cities: ['Paris', 'Lyon', 'Marseille', 'Toulouse', 'Nice', 'Nantes', 'Strasbourg', 'Bordeaux', 'Lille', 'Montpellier'],
+      streets: [
+        "Rue de Rivoli",
+        "Avenue des Champs-Élysées",
+        "Boulevard Saint-Germain",
+        "Rue du Faubourg Saint-Honoré",
+        "Avenue Montaigne",
+        "Rue de la Paix",
+        "Boulevard Haussmann",
+        "Rue Saint-Honoré",
+        "Avenue Victor Hugo",
+        "Rue de Vaugirard",
+      ],
+      cities: [
+        "Paris",
+        "Lyon",
+        "Marseille",
+        "Toulouse",
+        "Nice",
+        "Nantes",
+        "Strasbourg",
+        "Bordeaux",
+        "Lille",
+        "Montpellier",
+      ],
       postal: () => `${num(10, 95)}${num(100, 999)}`,
       format: (s, n, c, p) => `${n} ${s}, ${p} ${c}, France`,
     },
     es: {
-      streets: ['Calle Gran Vía', 'Paseo de la Castellana', 'Calle Serrano', 'Avenida de la Constitución', 'Calle Mayor', 'Rambla de Catalunya', 'Calle Alcalá', 'Paseo de Gracia', 'Calle de Velázquez', 'Avenida Diagonal'],
-      cities: ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Bilbao', 'Málaga', 'Zaragoza', 'Alicante', 'Palma de Mallorca'],
+      streets: [
+        "Calle Gran Vía",
+        "Paseo de la Castellana",
+        "Calle Serrano",
+        "Avenida de la Constitución",
+        "Calle Mayor",
+        "Rambla de Catalunya",
+        "Calle Alcalá",
+        "Paseo de Gracia",
+        "Calle de Velázquez",
+        "Avenida Diagonal",
+      ],
+      cities: [
+        "Madrid",
+        "Barcelona",
+        "Valencia",
+        "Sevilla",
+        "Bilbao",
+        "Málaga",
+        "Zaragoza",
+        "Alicante",
+        "Palma de Mallorca",
+      ],
       postal: () => `${num(10, 52)}${num(100, 999)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Spain`,
     },
     it: {
-      streets: ['Via Roma', 'Via Nazionale', 'Corso Vittorio Emanuele', 'Via del Corso', 'Via Torino', 'Via Garibaldi', 'Via Dante', 'Via Manzoni', 'Via Verdi', 'Piazza del Duomo', 'Via della Libertà'],
-      cities: ['Roma', 'Milano', 'Napoli', 'Torino', 'Firenze', 'Bologna', 'Genova', 'Palermo', 'Venezia', 'Verona'],
+      streets: [
+        "Via Roma",
+        "Via Nazionale",
+        "Corso Vittorio Emanuele",
+        "Via del Corso",
+        "Via Torino",
+        "Via Garibaldi",
+        "Via Dante",
+        "Via Manzoni",
+        "Via Verdi",
+        "Piazza del Duomo",
+        "Via della Libertà",
+      ],
+      cities: ["Roma", "Milano", "Napoli", "Torino", "Firenze", "Bologna", "Genova", "Palermo", "Venezia", "Verona"],
       postal: () => `${num(10, 98)}${num(100, 999)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Italy`,
     },
     nl: {
-      streets: ['Keizersgracht', 'Herengracht', 'Prinsengracht', 'Damrak', 'Kalverstraat', 'Leidsestraat', 'Utrechtsestraat', 'Singel', 'Vijzelstraat', 'Overtoom'],
-      cities: ['Amsterdam', 'Rotterdam', 'Den Haag', 'Utrecht', 'Eindhoven', 'Groningen', 'Tilburg', 'Breda'],
-      postal: () => `${num(1000, 9999)} ${pick(['AB', 'CD', 'EF', 'GH', 'JK', 'LM', 'NP', 'RS', 'TV', 'WX'])}`,
+      streets: [
+        "Keizersgracht",
+        "Herengracht",
+        "Prinsengracht",
+        "Damrak",
+        "Kalverstraat",
+        "Leidsestraat",
+        "Utrechtsestraat",
+        "Singel",
+        "Vijzelstraat",
+        "Overtoom",
+      ],
+      cities: ["Amsterdam", "Rotterdam", "Den Haag", "Utrecht", "Eindhoven", "Groningen", "Tilburg", "Breda"],
+      postal: () => `${num(1000, 9999)} ${pick(["AB", "CD", "EF", "GH", "JK", "LM", "NP", "RS", "TV", "WX"])}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Netherlands`,
     },
     be: {
-      streets: ['Rue Neuve', 'Avenue Louise', 'Boulevard Anspach', 'Rue de la Loi', 'Chaussée de Waterloo', 'Rue Royale', 'Boulevard du Jardin Botanique', 'Rue du Marché aux Herbes'],
-      cities: ['Bruxelles', 'Antwerpen', 'Gent', 'Liège', 'Charleroi', 'Bruges', 'Namur', 'Leuven'],
+      streets: [
+        "Rue Neuve",
+        "Avenue Louise",
+        "Boulevard Anspach",
+        "Rue de la Loi",
+        "Chaussée de Waterloo",
+        "Rue Royale",
+        "Boulevard du Jardin Botanique",
+        "Rue du Marché aux Herbes",
+      ],
+      cities: ["Bruxelles", "Antwerpen", "Gent", "Liège", "Charleroi", "Bruges", "Namur", "Leuven"],
       postal: () => `${num(1000, 9999)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Belgium`,
     },
     pl: {
-      streets: ['ul. Marszałkowska', 'ul. Nowy Świat', 'ul. Krakowskie Przedmieście', 'ul. Floriańska', 'ul. Piotrkowska', 'ul. Długa', 'ul. Grodzka', 'ul. Świętojańska', 'Al. Jerozolimskie', 'ul. Lipowa'],
-      cities: ['Warszawa', 'Kraków', 'Wrocław', 'Poznań', 'Gdańsk', 'Łódź', 'Katowice', 'Lublin', 'Szczecin'],
+      streets: [
+        "ul. Marszałkowska",
+        "ul. Nowy Świat",
+        "ul. Krakowskie Przedmieście",
+        "ul. Floriańska",
+        "ul. Piotrkowska",
+        "ul. Długa",
+        "ul. Grodzka",
+        "ul. Świętojańska",
+        "Al. Jerozolimskie",
+        "ul. Lipowa",
+      ],
+      cities: ["Warszawa", "Kraków", "Wrocław", "Poznań", "Gdańsk", "Łódź", "Katowice", "Lublin", "Szczecin"],
       postal: () => `${num(10, 99)}-${num(100, 999)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Poland`,
     },
     us: {
-      streets: ['Broadway', 'Main Street', 'Oak Avenue', 'Maple Drive', 'Cedar Lane', 'Park Boulevard', 'Elm Street', 'Washington Avenue', 'Lincoln Drive', 'Madison Avenue', 'Sunset Boulevard', 'Pacific Avenue'],
-      cities: ['New York, NY', 'Los Angeles, CA', 'Chicago, IL', 'Houston, TX', 'Phoenix, AZ', 'Philadelphia, PA', 'San Antonio, TX', 'San Diego, CA', 'Dallas, TX', 'Austin, TX', 'San Francisco, CA', 'Seattle, WA', 'Denver, CO', 'Boston, MA'],
+      streets: [
+        "Broadway",
+        "Main Street",
+        "Oak Avenue",
+        "Maple Drive",
+        "Cedar Lane",
+        "Park Boulevard",
+        "Elm Street",
+        "Washington Avenue",
+        "Lincoln Drive",
+        "Madison Avenue",
+        "Sunset Boulevard",
+        "Pacific Avenue",
+      ],
+      cities: [
+        "New York, NY",
+        "Los Angeles, CA",
+        "Chicago, IL",
+        "Houston, TX",
+        "Phoenix, AZ",
+        "Philadelphia, PA",
+        "San Antonio, TX",
+        "San Diego, CA",
+        "Dallas, TX",
+        "Austin, TX",
+        "San Francisco, CA",
+        "Seattle, WA",
+        "Denver, CO",
+        "Boston, MA",
+      ],
       postal: () => `${num(10001, 99999)}`,
       format: (s, n, c, p) => `${n} ${s}, ${c} ${p}, USA`,
     },
     ca: {
-      streets: ['Yonge Street', 'Bloor Street', 'King Street', 'Queen Street', 'Dundas Street', 'Bay Street', 'Rue Sainte-Catherine', 'Robson Street', 'Jasper Avenue'],
-      cities: ['Toronto, ON', 'Vancouver, BC', 'Montréal, QC', 'Calgary, AB', 'Ottawa, ON', 'Edmonton, AB', 'Winnipeg, MB', 'Halifax, NS'],
-      postal: () => `${pick(['M', 'V', 'H', 'T', 'K', 'R', 'B'])}${num(1, 9)}${pick(['A', 'B', 'C', 'E', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'R', 'S', 'T', 'V', 'W', 'X', 'Y'])} ${num(1, 9)}${pick(['A', 'B', 'C', 'E', 'G', 'H', 'J', 'K'])}${num(1, 9)}`,
+      streets: [
+        "Yonge Street",
+        "Bloor Street",
+        "King Street",
+        "Queen Street",
+        "Dundas Street",
+        "Bay Street",
+        "Rue Sainte-Catherine",
+        "Robson Street",
+        "Jasper Avenue",
+      ],
+      cities: [
+        "Toronto, ON",
+        "Vancouver, BC",
+        "Montréal, QC",
+        "Calgary, AB",
+        "Ottawa, ON",
+        "Edmonton, AB",
+        "Winnipeg, MB",
+        "Halifax, NS",
+      ],
+      postal: () =>
+        `${pick(["M", "V", "H", "T", "K", "R", "B"])}${num(1, 9)}${pick(["A", "B", "C", "E", "G", "H", "J", "K", "L", "M", "N", "P", "R", "S", "T", "V", "W", "X", "Y"])} ${num(1, 9)}${pick(["A", "B", "C", "E", "G", "H", "J", "K"])}${num(1, 9)}`,
       format: (s, n, c, p) => `${n} ${s}, ${c} ${p}, Canada`,
     },
     ua: {
-      streets: ['вул. Хрещатик', 'вул. Грушевського', 'просп. Свободи', 'вул. Дерибасівська', 'вул. Сумська', 'вул. Велика Васильківська', 'просп. Шевченка', 'вул. Соборна', 'вул. Січових Стрільців', 'вул. Богдана Хмельницького'],
-      cities: ['Київ', 'Львів', 'Одеса', 'Харків', 'Дніпро', 'Запоріжжя', 'Вінниця', 'Івано-Франківськ', 'Тернопіль', 'Полтава'],
+      streets: [
+        "вул. Хрещатик",
+        "вул. Грушевського",
+        "просп. Свободи",
+        "вул. Дерибасівська",
+        "вул. Сумська",
+        "вул. Велика Васильківська",
+        "просп. Шевченка",
+        "вул. Соборна",
+        "вул. Січових Стрільців",
+        "вул. Богдана Хмельницького",
+      ],
+      cities: [
+        "Київ",
+        "Львів",
+        "Одеса",
+        "Харків",
+        "Дніпро",
+        "Запоріжжя",
+        "Вінниця",
+        "Івано-Франківськ",
+        "Тернопіль",
+        "Полтава",
+      ],
       postal: () => `${num(10, 99)}${num(100, 999)}`,
       format: (s, n, c, p) => `${s}, ${n}, ${c}, ${p}, Україна`,
     },
     pt: {
-      streets: ['Rua Augusta', 'Avenida da Liberdade', 'Rua do Ouro', 'Rua de Santa Catarina', 'Avenida dos Aliados', 'Rua Garrett', 'Praça do Comércio', 'Rua da Prata'],
-      cities: ['Lisboa', 'Porto', 'Braga', 'Coimbra', 'Faro', 'Funchal', 'Aveiro', 'Setúbal'],
+      streets: [
+        "Rua Augusta",
+        "Avenida da Liberdade",
+        "Rua do Ouro",
+        "Rua de Santa Catarina",
+        "Avenida dos Aliados",
+        "Rua Garrett",
+        "Praça do Comércio",
+        "Rua da Prata",
+      ],
+      cities: ["Lisboa", "Porto", "Braga", "Coimbra", "Faro", "Funchal", "Aveiro", "Setúbal"],
       postal: () => `${num(1000, 9999)}-${num(100, 999)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Portugal`,
     },
     cz: {
-      streets: ['Václavské náměstí', 'Na Příkopě', 'Národní třída', 'Pařížská', 'Celetná', 'Nerudova', 'Mostecká', 'Karlova'],
-      cities: ['Praha', 'Brno', 'Ostrava', 'Plzeň', 'Liberec', 'Olomouc'],
+      streets: [
+        "Václavské náměstí",
+        "Na Příkopě",
+        "Národní třída",
+        "Pařížská",
+        "Celetná",
+        "Nerudova",
+        "Mostecká",
+        "Karlova",
+      ],
+      cities: ["Praha", "Brno", "Ostrava", "Plzeň", "Liberec", "Olomouc"],
       postal: () => `${num(100, 999)} ${num(10, 99)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Czech Republic`,
     },
     ro: {
-      streets: ['Calea Victoriei', 'Bulevardul Unirii', 'Strada Lipscani', 'Bulevardul Magheru', 'Strada Franceză', 'Bulevardul Dacia', 'Calea Moșilor', 'Strada Covaci'],
-      cities: ['București', 'Cluj-Napoca', 'Timișoara', 'Iași', 'Constanța', 'Brașov', 'Sibiu', 'Oradea'],
+      streets: [
+        "Calea Victoriei",
+        "Bulevardul Unirii",
+        "Strada Lipscani",
+        "Bulevardul Magheru",
+        "Strada Franceză",
+        "Bulevardul Dacia",
+        "Calea Moșilor",
+        "Strada Covaci",
+      ],
+      cities: ["București", "Cluj-Napoca", "Timișoara", "Iași", "Constanța", "Brașov", "Sibiu", "Oradea"],
       postal: () => `${num(100, 999)}${num(100, 999)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Romania`,
     },
     ie: {
-      streets: ["O'Connell Street", 'Grafton Street', 'Henry Street', 'Dame Street', "St Stephen's Green", 'Baggot Street', 'Pearse Street', 'Thomas Street'],
-      cities: ['Dublin', 'Cork', 'Galway', 'Limerick', 'Waterford', 'Kilkenny'],
-      postal: () => `${pick(['D', 'T', 'A', 'C', 'V', 'E', 'F', 'H', 'K', 'N', 'P', 'R', 'W', 'X', 'Y'])}${num(10, 99)} ${pick(['A', 'B', 'C', 'D', 'E', 'F', 'H', 'K', 'N', 'P', 'R', 'T', 'V', 'W', 'X', 'Y'])}${pick(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'])}${pick(['A', 'B', 'C', 'D', 'E', 'F'])}${pick(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'])}`,
+      streets: [
+        "O'Connell Street",
+        "Grafton Street",
+        "Henry Street",
+        "Dame Street",
+        "St Stephen's Green",
+        "Baggot Street",
+        "Pearse Street",
+        "Thomas Street",
+      ],
+      cities: ["Dublin", "Cork", "Galway", "Limerick", "Waterford", "Kilkenny"],
+      postal: () =>
+        `${pick(["D", "T", "A", "C", "V", "E", "F", "H", "K", "N", "P", "R", "W", "X", "Y"])}${num(10, 99)} ${pick(["A", "B", "C", "D", "E", "F", "H", "K", "N", "P", "R", "T", "V", "W", "X", "Y"])}${pick(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"])}${pick(["A", "B", "C", "D", "E", "F"])}${pick(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"])}`,
       format: (s, n, c, p) => `${n} ${s}, ${c} ${p}, Ireland`,
     },
     bg: {
-      streets: ['бул. Витоша', 'ул. Граф Игнатиев', 'бул. Цар Освободител', 'ул. Пиротска', 'бул. Мария Луиза', 'ул. Шишман'],
-      cities: ['София', 'Пловдив', 'Варна', 'Бургас', 'Русе', 'Стара Загора'],
+      streets: [
+        "бул. Витоша",
+        "ул. Граф Игнатиев",
+        "бул. Цар Освободител",
+        "ул. Пиротска",
+        "бул. Мария Луиза",
+        "ул. Шишман",
+      ],
+      cities: ["София", "Пловдив", "Варна", "Бургас", "Русе", "Стара Загора"],
       postal: () => `${num(1000, 9999)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Bulgaria`,
     },
     hu: {
-      streets: ['Andrássy út', 'Váci utca', 'Rákóczi út', 'Kossuth Lajos utca', 'Nagymező utca', 'Bajcsy-Zsilinszky út', 'Dob utca'],
-      cities: ['Budapest', 'Debrecen', 'Szeged', 'Miskolc', 'Pécs', 'Győr'],
+      streets: [
+        "Andrássy út",
+        "Váci utca",
+        "Rákóczi út",
+        "Kossuth Lajos utca",
+        "Nagymező utca",
+        "Bajcsy-Zsilinszky út",
+        "Dob utca",
+      ],
+      cities: ["Budapest", "Debrecen", "Szeged", "Miskolc", "Pécs", "Győr"],
       postal: () => `${num(1000, 9999)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Hungary`,
     },
     hr: {
-      streets: ['Ilica', 'Jurišićeva ulica', 'Frankopanska ulica', 'Tkalčićeva ulica', 'Savska cesta', 'Maksimirska cesta'],
-      cities: ['Zagreb', 'Split', 'Rijeka', 'Osijek', 'Zadar', 'Dubrovnik'],
+      streets: [
+        "Ilica",
+        "Jurišićeva ulica",
+        "Frankopanska ulica",
+        "Tkalčićeva ulica",
+        "Savska cesta",
+        "Maksimirska cesta",
+      ],
+      cities: ["Zagreb", "Split", "Rijeka", "Osijek", "Zadar", "Dubrovnik"],
       postal: () => `${num(10000, 53999)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Croatia`,
     },
     tr: {
-      streets: ['İstiklal Caddesi', 'Bağdat Caddesi', 'Atatürk Bulvarı', 'Kızılay Meydanı', 'Cumhuriyet Caddesi', 'Anafartalar Caddesi'],
-      cities: ['İstanbul', 'Ankara', 'İzmir', 'Antalya', 'Bursa', 'Adana'],
+      streets: [
+        "İstiklal Caddesi",
+        "Bağdat Caddesi",
+        "Atatürk Bulvarı",
+        "Kızılay Meydanı",
+        "Cumhuriyet Caddesi",
+        "Anafartalar Caddesi",
+      ],
+      cities: ["İstanbul", "Ankara", "İzmir", "Antalya", "Bursa", "Adana"],
       postal: () => `${num(10, 81)}${num(100, 999)}`,
       format: (s, n, c, p) => `${s} No:${n}, ${p} ${c}, Turkey`,
     },
     ru: {
-      streets: ['ул. Тверская', 'Невский проспект', 'ул. Арбат', 'проспект Мира', 'ул. Ленина', 'Красный проспект', 'ул. Кирова', 'проспект Победы', 'ул. Гагарина', 'ул. Пушкина'],
-      cities: ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Казань', 'Нижний Новгород', 'Самара', 'Ростов-на-Дону'],
+      streets: [
+        "ул. Тверская",
+        "Невский проспект",
+        "ул. Арбат",
+        "проспект Мира",
+        "ул. Ленина",
+        "Красный проспект",
+        "ул. Кирова",
+        "проспект Победы",
+        "ул. Гагарина",
+        "ул. Пушкина",
+      ],
+      cities: [
+        "Москва",
+        "Санкт-Петербург",
+        "Новосибирск",
+        "Екатеринбург",
+        "Казань",
+        "Нижний Новгород",
+        "Самара",
+        "Ростов-на-Дону",
+      ],
       postal: () => `${num(100, 699)}${num(100, 999)}`,
       format: (s, n, c, p) => `${s}, д. ${n}, ${c}, ${p}, Россия`,
     },
     se: {
-      streets: ['Drottninggatan', 'Kungsgatan', 'Sveavägen', 'Birger Jarlsgatan', 'Strandvägen', 'Hamngatan', 'Vasagatan'],
-      cities: ['Stockholm', 'Göteborg', 'Malmö', 'Uppsala', 'Linköping', 'Västerås'],
+      streets: [
+        "Drottninggatan",
+        "Kungsgatan",
+        "Sveavägen",
+        "Birger Jarlsgatan",
+        "Strandvägen",
+        "Hamngatan",
+        "Vasagatan",
+      ],
+      cities: ["Stockholm", "Göteborg", "Malmö", "Uppsala", "Linköping", "Västerås"],
       postal: () => `${num(100, 999)} ${num(10, 99)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Sweden`,
     },
     dk: {
-      streets: ['Strøget', 'Nørrebrogade', 'Vesterbrogade', 'Amagerbrogade', 'Østerbrogade', 'Kongens Nytorv', 'Gothersgade'],
-      cities: ['København', 'Aarhus', 'Odense', 'Aalborg', 'Frederiksberg', 'Esbjerg'],
+      streets: [
+        "Strøget",
+        "Nørrebrogade",
+        "Vesterbrogade",
+        "Amagerbrogade",
+        "Østerbrogade",
+        "Kongens Nytorv",
+        "Gothersgade",
+      ],
+      cities: ["København", "Aarhus", "Odense", "Aalborg", "Frederiksberg", "Esbjerg"],
       postal: () => `${num(1000, 9999)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Denmark`,
     },
     no: {
-      streets: ['Karl Johans gate', 'Grünerløkka', 'Bogstadveien', 'Markens gate', 'Strandgaten', 'Torgallmenningen'],
-      cities: ['Oslo', 'Bergen', 'Trondheim', 'Stavanger', 'Tromsø', 'Drammen'],
+      streets: ["Karl Johans gate", "Grünerløkka", "Bogstadveien", "Markens gate", "Strandgaten", "Torgallmenningen"],
+      cities: ["Oslo", "Bergen", "Trondheim", "Stavanger", "Tromsø", "Drammen"],
       postal: () => `${num(1, 9)}${num(100, 999)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Norway`,
     },
     fi: {
-      streets: ['Mannerheimintie', 'Aleksanterinkatu', 'Esplanadi', 'Hämeenkatu', 'Kauppakatu', 'Keskuskatu'],
-      cities: ['Helsinki', 'Espoo', 'Tampere', 'Turku', 'Oulu', 'Jyväskylä'],
+      streets: ["Mannerheimintie", "Aleksanterinkatu", "Esplanadi", "Hämeenkatu", "Kauppakatu", "Keskuskatu"],
+      cities: ["Helsinki", "Espoo", "Tampere", "Turku", "Oulu", "Jyväskylä"],
       postal: () => `${num(10, 99)}${num(100, 999)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Finland`,
     },
     gr: {
-      streets: ['Ερμού', 'Πανεπιστημίου', 'Σταδίου', 'Ακαδημίας', 'Τσιμισκή', 'Εγνατία', 'Νίκης'],
-      cities: ['Αθήνα', 'Θεσσαλονίκη', 'Πάτρα', 'Ηράκλειο', 'Λάρισα', 'Βόλος'],
+      streets: ["Ερμού", "Πανεπιστημίου", "Σταδίου", "Ακαδημίας", "Τσιμισκή", "Εγνατία", "Νίκης"],
+      cities: ["Αθήνα", "Θεσσαλονίκη", "Πάτρα", "Ηράκλειο", "Λάρισα", "Βόλος"],
       postal: () => `${num(100, 999)} ${num(10, 99)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Greece`,
     },
     sk: {
-      streets: ['Obchodná ulica', 'Štúrova ulica', 'Hlavná ulica', 'Hviezdoslavovo námestie', 'Námestie SNP'],
-      cities: ['Bratislava', 'Košice', 'Prešov', 'Žilina', 'Nitra', 'Banská Bystrica'],
+      streets: ["Obchodná ulica", "Štúrova ulica", "Hlavná ulica", "Hviezdoslavovo námestie", "Námestie SNP"],
+      cities: ["Bratislava", "Košice", "Prešov", "Žilina", "Nitra", "Banská Bystrica"],
       postal: () => `${num(10, 99)}${num(1, 9)} ${num(10, 99)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Slovakia`,
     },
     si: {
-      streets: ['Čopova ulica', 'Slovenska cesta', 'Trubarjeva cesta', 'Prešernov trg', 'Cankarjeva cesta'],
-      cities: ['Ljubljana', 'Maribor', 'Celje', 'Kranj', 'Koper'],
+      streets: ["Čopova ulica", "Slovenska cesta", "Trubarjeva cesta", "Prešernov trg", "Cankarjeva cesta"],
+      cities: ["Ljubljana", "Maribor", "Celje", "Kranj", "Koper"],
       postal: () => `${num(1000, 9999)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Slovenia`,
     },
     lt: {
-      streets: ['Gedimino prospektas', 'Vilniaus gatvė', 'Pilies gatvė', 'Laisvės alėja', 'Vokiečių gatvė'],
-      cities: ['Vilnius', 'Kaunas', 'Klaipėda', 'Šiauliai', 'Panevėžys'],
+      streets: ["Gedimino prospektas", "Vilniaus gatvė", "Pilies gatvė", "Laisvės alėja", "Vokiečių gatvė"],
+      cities: ["Vilnius", "Kaunas", "Klaipėda", "Šiauliai", "Panevėžys"],
       postal: () => `LT-${num(10, 99)}${num(100, 999)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Lithuania`,
     },
     lv: {
-      streets: ['Brīvības iela', 'Elizabetes iela', 'Krišjāņa Barona iela', 'Čaka iela', 'Tērbatas iela'],
-      cities: ['Rīga', 'Daugavpils', 'Liepāja', 'Jelgava', 'Jūrmala'],
+      streets: ["Brīvības iela", "Elizabetes iela", "Krišjāņa Barona iela", "Čaka iela", "Tērbatas iela"],
+      cities: ["Rīga", "Daugavpils", "Liepāja", "Jelgava", "Jūrmala"],
       postal: () => `LV-${num(1000, 5999)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p}, ${c}, Latvia`,
     },
     ee: {
-      streets: ['Viru tänav', 'Narva maantee', 'Pärnu maantee', 'Tartu maantee', 'Liivalaia tänav'],
-      cities: ['Tallinn', 'Tartu', 'Narva', 'Pärnu', 'Kohtla-Järve'],
+      streets: ["Viru tänav", "Narva maantee", "Pärnu maantee", "Tartu maantee", "Liivalaia tänav"],
+      cities: ["Tallinn", "Tartu", "Narva", "Pärnu", "Kohtla-Järve"],
       postal: () => `${num(10, 99)}${num(100, 999)}`,
       format: (s, n, c, p) => `${s} ${n}, ${p} ${c}, Estonia`,
     },
     jp: {
-      streets: ['丸の内', '銀座', '渋谷', '新宿', '六本木', '表参道', '品川', '日本橋'],
-      cities: ['東京都', '大阪市', '京都市', '横浜市', '名古屋市', '神戸市', '福岡市', '札幌市'],
+      streets: ["丸の内", "銀座", "渋谷", "新宿", "六本木", "表参道", "品川", "日本橋"],
+      cities: ["東京都", "大阪市", "京都市", "横浜市", "名古屋市", "神戸市", "福岡市", "札幌市"],
       postal: () => `${num(100, 999)}-${num(1000, 9999)}`,
       format: (s, n, c, p) => `〒${p} ${c}${s}${n}-${num(1, 30)}`,
     },
     ae: {
-      streets: ['Sheikh Zayed Road', 'Al Maktoum Road', 'Jumeirah Beach Road', 'Al Wasl Road', 'Corniche Road'],
-      cities: ['Dubai', 'Abu Dhabi', 'Sharjah', 'Ajman'],
+      streets: ["Sheikh Zayed Road", "Al Maktoum Road", "Jumeirah Beach Road", "Al Wasl Road", "Corniche Road"],
+      cities: ["Dubai", "Abu Dhabi", "Sharjah", "Ajman"],
       postal: () => `${num(10000, 99999)}`,
       format: (s, n, c, p) => `${s}, Building ${n}, ${c} ${p}, UAE`,
     },
     vn: {
-      streets: ['Đường Nguyễn Huệ', 'Đường Lê Lợi', 'Đường Đồng Khởi', 'Phố Hàng Bài', 'Đường Trần Hưng Đạo', 'Phố Tràng Tiền'],
-      cities: ['Hà Nội', 'TP. Hồ Chí Minh', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ'],
+      streets: [
+        "Đường Nguyễn Huệ",
+        "Đường Lê Lợi",
+        "Đường Đồng Khởi",
+        "Phố Hàng Bài",
+        "Đường Trần Hưng Đạo",
+        "Phố Tràng Tiền",
+      ],
+      cities: ["Hà Nội", "TP. Hồ Chí Minh", "Đà Nẵng", "Hải Phòng", "Cần Thơ"],
       postal: () => `${num(100, 999)}${num(100, 999)}`,
       format: (s, n, c, p) => `${n} ${s}, ${c} ${p}, Vietnam`,
     },
     th: {
-      streets: ['Sukhumvit Road', 'Silom Road', 'Sathorn Road', 'Ratchadaphisek Road', 'Phahonyothin Road', 'Rama IV Road'],
-      cities: ['Bangkok', 'Chiang Mai', 'Phuket', 'Pattaya', 'Nonthaburi'],
+      streets: [
+        "Sukhumvit Road",
+        "Silom Road",
+        "Sathorn Road",
+        "Ratchadaphisek Road",
+        "Phahonyothin Road",
+        "Rama IV Road",
+      ],
+      cities: ["Bangkok", "Chiang Mai", "Phuket", "Pattaya", "Nonthaburi"],
       postal: () => `${num(10, 96)}${num(100, 999)}`,
       format: (s, n, c, p) => `${n} ${s}, ${c} ${p}, Thailand`,
     },
     in: {
-      streets: ['MG Road', 'Brigade Road', 'Park Street', 'Connaught Place', 'Marine Drive', 'Anna Salai', 'FC Road'],
-      cities: ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai', 'Kolkata', 'Pune', 'Ahmedabad'],
+      streets: ["MG Road", "Brigade Road", "Park Street", "Connaught Place", "Marine Drive", "Anna Salai", "FC Road"],
+      cities: ["Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai", "Kolkata", "Pune", "Ahmedabad"],
       postal: () => `${num(100, 999)}${num(100, 999)}`,
       format: (s, n, c, p) => `${n}, ${s}, ${c} ${p}, India`,
     },
     id: {
-      streets: ['Jalan Sudirman', 'Jalan Thamrin', 'Jalan Gatot Subroto', 'Jalan Merdeka', 'Jalan Malioboro'],
-      cities: ['Jakarta', 'Surabaya', 'Bandung', 'Medan', 'Semarang', 'Yogyakarta'],
+      streets: ["Jalan Sudirman", "Jalan Thamrin", "Jalan Gatot Subroto", "Jalan Merdeka", "Jalan Malioboro"],
+      cities: ["Jakarta", "Surabaya", "Bandung", "Medan", "Semarang", "Yogyakarta"],
       postal: () => `${num(10, 99)}${num(100, 999)}`,
       format: (s, n, c, p) => `${s} No. ${n}, ${c} ${p}, Indonesia`,
     },
@@ -720,52 +1116,97 @@ function generateRealisticAddress(geo?: string): string {
 
   // Match geo to country code
   const geoMapping: [RegExp | string, string][] = [
-    [/germany|deutschland|німеч/i, 'de'], ['de', 'de'],
-    [/austria|österreich|австрі/i, 'at'], ['at', 'at'],
-    [/switzerland|schweiz|швейцар/i, 'ch'], ['ch', 'ch'],
-    [/united kingdom|britain|england|великобритан/i, 'gb'], ['gb', 'gb'], ['uk', 'gb'],
-    [/france|франц/i, 'fr'], ['fr', 'fr'],
-    [/spain|españa|іспан/i, 'es'], ['es', 'es'],
-    [/italy|italia|італ/i, 'it'], ['it', 'it'],
-    [/netherlands|nederland|нідерланд/i, 'nl'], ['nl', 'nl'],
-    [/belgium|belgi|бельгі/i, 'be'], ['be', 'be'],
-    [/poland|polska|польщ/i, 'pl'], ['pl', 'pl'],
-    [/united states|america|сша/i, 'us'], ['us', 'us'],
-    [/canada|канад/i, 'ca'], ['ca', 'ca'],
-    [/ukrain|україн/i, 'ua'], ['ua', 'ua'],
-    [/portugal|portugu|португал/i, 'pt'], ['pt', 'pt'],
-    [/czech|česk|чехі/i, 'cz'], ['cz', 'cz'],
-    [/romania|român|румуні/i, 'ro'], ['ro', 'ro'],
-    [/ireland|éire|ірланд/i, 'ie'], ['ie', 'ie'],
-    [/bulgaria|българ|болгар/i, 'bg'], ['bg', 'bg'],
-    [/hungary|magyar|угорщ/i, 'hu'], ['hu', 'hu'],
-    [/croatia|hrvat|хорват/i, 'hr'], ['hr', 'hr'],
-    [/turkey|türk|туреч/i, 'tr'], ['tr', 'tr'],
-    [/russia|росі|росси/i, 'ru'], ['ru', 'ru'],
-    [/sweden|sverige|швеці/i, 'se'], ['se', 'se'],
-    [/denmark|danmark|данія|дані/i, 'dk'], ['dk', 'dk'],
-    [/norway|norge|норвег/i, 'no'], ['no', 'no'],
-    [/finland|suomi|фінлянд/i, 'fi'], ['fi', 'fi'],
-    [/greece|ελλ|греці/i, 'gr'], ['gr', 'gr'],
-    [/slovakia|slovensk|словаччин/i, 'sk'], ['sk', 'sk'],
-    [/slovenia|slovenij|словені/i, 'si'], ['si', 'si'],
-    [/lithuania|lietuv|литв/i, 'lt'], ['lt', 'lt'],
-    [/latvia|latvij|латві/i, 'lv'], ['lv', 'lv'],
-    [/estonia|eesti|естоні/i, 'ee'], ['ee', 'ee'],
-    [/japan|日本|японі/i, 'jp'], ['jp', 'jp'],
-    [/emirates|uae|оае|емірат/i, 'ae'], ['ae', 'ae'],
-    [/vietnam|việt|в'єтнам/i, 'vn'], ['vn', 'vn'],
-    [/thailand|таїланд|тайланд/i, 'th'], ['th', 'th'],
-    [/india|індія|інді/i, 'in'], ['in', 'in'],
-    [/indonesia|індонез/i, 'id'], ['id', 'id'],
+    [/germany|deutschland|німеч/i, "de"],
+    ["de", "de"],
+    [/austria|österreich|австрі/i, "at"],
+    ["at", "at"],
+    [/switzerland|schweiz|швейцар/i, "ch"],
+    ["ch", "ch"],
+    [/united kingdom|britain|england|великобритан/i, "gb"],
+    ["gb", "gb"],
+    ["uk", "gb"],
+    [/france|франц/i, "fr"],
+    ["fr", "fr"],
+    [/spain|españa|іспан/i, "es"],
+    ["es", "es"],
+    [/italy|italia|італ/i, "it"],
+    ["it", "it"],
+    [/netherlands|nederland|нідерланд/i, "nl"],
+    ["nl", "nl"],
+    [/belgium|belgi|бельгі/i, "be"],
+    ["be", "be"],
+    [/poland|polska|польщ/i, "pl"],
+    ["pl", "pl"],
+    [/united states|america|сша/i, "us"],
+    ["us", "us"],
+    [/canada|канад/i, "ca"],
+    ["ca", "ca"],
+    [/ukrain|україн/i, "ua"],
+    ["ua", "ua"],
+    [/portugal|portugu|португал/i, "pt"],
+    ["pt", "pt"],
+    [/czech|česk|чехі/i, "cz"],
+    ["cz", "cz"],
+    [/romania|român|румуні/i, "ro"],
+    ["ro", "ro"],
+    [/ireland|éire|ірланд/i, "ie"],
+    ["ie", "ie"],
+    [/bulgaria|българ|болгар/i, "bg"],
+    ["bg", "bg"],
+    [/hungary|magyar|угорщ/i, "hu"],
+    ["hu", "hu"],
+    [/croatia|hrvat|хорват/i, "hr"],
+    ["hr", "hr"],
+    [/turkey|türk|туреч/i, "tr"],
+    ["tr", "tr"],
+    [/russia|росі|росси/i, "ru"],
+    ["ru", "ru"],
+    [/sweden|sverige|швеці/i, "se"],
+    ["se", "se"],
+    [/denmark|danmark|данія|дані/i, "dk"],
+    ["dk", "dk"],
+    [/norway|norge|норвег/i, "no"],
+    ["no", "no"],
+    [/finland|suomi|фінлянд/i, "fi"],
+    ["fi", "fi"],
+    [/greece|ελλ|греці/i, "gr"],
+    ["gr", "gr"],
+    [/slovakia|slovensk|словаччин/i, "sk"],
+    ["sk", "sk"],
+    [/slovenia|slovenij|словені/i, "si"],
+    ["si", "si"],
+    [/lithuania|lietuv|литв/i, "lt"],
+    ["lt", "lt"],
+    [/latvia|latvij|латві/i, "lv"],
+    ["lv", "lv"],
+    [/estonia|eesti|естоні/i, "ee"],
+    ["ee", "ee"],
+    [/japan|日本|японі/i, "jp"],
+    ["jp", "jp"],
+    [/emirates|uae|оае|емірат/i, "ae"],
+    ["ae", "ae"],
+    [/vietnam|việt|в'єтнам/i, "vn"],
+    ["vn", "vn"],
+    [/thailand|таїланд|тайланд/i, "th"],
+    ["th", "th"],
+    [/india|індія|інді/i, "in"],
+    ["in", "in"],
+    [/indonesia|індонез/i, "id"],
+    ["id", "id"],
   ];
 
-  let countryCode = 'de'; // default
+  let countryCode = "de"; // default
   for (const [pattern, code] of geoMapping) {
-    if (typeof pattern === 'string') {
-      if (hasGeoCode(pattern)) { countryCode = code; break; }
+    if (typeof pattern === "string") {
+      if (hasGeoCode(pattern)) {
+        countryCode = code;
+        break;
+      }
     } else {
-      if (pattern.test(geoLower)) { countryCode = code; break; }
+      if (pattern.test(geoLower)) {
+        countryCode = code;
+        break;
+      }
     }
   }
 
@@ -781,7 +1222,7 @@ function generateRealisticAddress(geo?: string): string {
 // Enforce realistic address in generated files
 function enforceAddressInFiles(
   files: Array<{ path: string; content: string }>,
-  desiredAddress: string
+  desiredAddress: string,
 ): Array<{ path: string; content: string }> {
   if (!desiredAddress) return files;
 
@@ -832,14 +1273,13 @@ function fixBrokenImageUrls(content: string): { content: string; fixed: number }
     return String(h || 1);
   };
 
-  const picsumUrl = (seed: string, w = 1400, h = 900) =>
-    `https://picsum.photos/seed/${seed}/${w}/${h}`;
+  const picsumUrl = (seed: string, w = 1400, h = 900) => `https://picsum.photos/seed/${seed}/${w}/${h}`;
 
   const replacementFor = (badUrl: string) => picsumUrl(seedFrom(badUrl));
 
   // 1) Replace any Pexels URL where the "photos/<id>/" segment is NOT purely numeric.
   // Example broken pattern:
-  // https://images.pexels.com/photos/+49 30 410 9097/pexels-photo-+49 30 030 5065.jpeg?... 
+  // https://images.pexels.com/photos/+49 30 410 9097/pexels-photo-+49 30 030 5065.jpeg?...
   // NOTE: We intentionally DROP the querystring to avoid duplicated "?auto=...?..." chains.
   const BROKEN_PEXELS_ID_REGEX =
     /(https?:\/\/images\.pexels\.com\/photos\/)([^\/"'\s?]+|[^\/"']*\s[^\/"']*)(\/pexels-photo-)([^"']+)(\.(?:jpe?g|png|webp))(\?[^"']*)?/gi;
@@ -850,8 +1290,7 @@ function fixBrokenImageUrls(content: string): { content: string; fixed: number }
 
   // 2) Attributes: src/data-src/poster that contain phone-like patterns (+XX, spaces, etc.)
   // We only touch known image hosts; then replace with a safe placeholder.
-  const BROKEN_MEDIA_ATTR_REGEX =
-    /(\b(?:src|data-src|poster)\s*=\s*["'])([^"']*(?:\+\d|\s{1,})[^"']*)(["'])/gi;
+  const BROKEN_MEDIA_ATTR_REGEX = /(\b(?:src|data-src|poster)\s*=\s*["'])([^"']*(?:\+\d|\s{1,})[^"']*)(["'])/gi;
   result = result.replace(BROKEN_MEDIA_ATTR_REGEX, (m, p1, url, p3) => {
     const u = String(url);
     if (!/^https?:\/\//i.test(u)) return m;
@@ -884,7 +1323,7 @@ function fixBrokenImageUrls(content: string): { content: string; fixed: number }
 function fixPhoneNumbersInContent(content: string, geo?: string): { content: string; fixed: number } {
   let fixed = 0;
   let result = content;
-  
+
   // 0) FIRST: Fix broken image URLs that contain phone numbers
   const imgFix = fixBrokenImageUrls(result);
   result = imgFix.content;
@@ -937,7 +1376,8 @@ function fixPhoneNumbersInContent(content: string, geo?: string): { content: str
   });
 
   // 4) Fix bare local phone-like sequences ONLY when near phone/contact labels
-  const CONTEXTUAL_BARE_PHONE_REGEX = /(phone|tel|telephone|call|contact|контакт|телефон|тел\.?)[^\n\r]{0,25}\b(\d{8,12})\b/gi;
+  const CONTEXTUAL_BARE_PHONE_REGEX =
+    /(phone|tel|telephone|call|contact|контакт|телефон|тел\.?)[^\n\r]{0,25}\b(\d{8,12})\b/gi;
   result = result.replace(CONTEXTUAL_BARE_PHONE_REGEX, (fullMatch, _label, digits) => {
     fixed++;
     return String(fullMatch).replace(String(digits), generateRealisticPhone(geo));
@@ -947,21 +1387,24 @@ function fixPhoneNumbersInContent(content: string, geo?: string): { content: str
 }
 
 // Process all files and fix phone numbers
-function fixPhoneNumbersInFiles(files: Array<{ path: string; content: string }>, geo?: string): { files: Array<{ path: string; content: string }>; totalFixed: number } {
+function fixPhoneNumbersInFiles(
+  files: Array<{ path: string; content: string }>,
+  geo?: string,
+): { files: Array<{ path: string; content: string }>; totalFixed: number } {
   let totalFixed = 0;
-  
-  const fixedFiles = files.map(file => {
+
+  const fixedFiles = files.map((file) => {
     // Only process HTML, PHP, JS files (not CSS, images, etc.)
     if (!/\.(html?|php|jsx?|tsx?)$/i.test(file.path)) {
       return file;
     }
-    
+
     const { content, fixed } = fixPhoneNumbersInContent(file.content, geo);
     totalFixed += fixed;
-    
+
     return { ...file, content };
   });
-  
+
   return { files: fixedFiles, totalFixed };
 }
 
@@ -970,15 +1413,15 @@ function extractExplicitBrandingFromPrompt(prompt: string): { siteName?: string;
   const out: { siteName?: string; phone?: string } = {};
 
   // VIP prompt format: "Name: ..." / "Phone: ..."
-  const nameMatch = prompt.match(/^(?:Name|SITE_NAME)\s*:\s*(.+)$/mi);
+  const nameMatch = prompt.match(/^(?:Name|SITE_NAME)\s*:\s*(.+)$/im);
   if (nameMatch?.[1]) out.siteName = nameMatch[1].trim();
 
-  const phoneMatch = prompt.match(/^(?:Phone|PHONE)\s*:\s*(.+)$/mi);
+  const phoneMatch = prompt.match(/^(?:Phone|PHONE)\s*:\s*(.+)$/im);
   if (phoneMatch?.[1]) out.phone = phoneMatch[1].trim();
 
   // Fallback: CONTACT block: "- phone: ..."
   if (!out.phone) {
-    const phoneMatch2 = prompt.match(/^\s*-\s*phone\s*:\s*(.+)$/mi);
+    const phoneMatch2 = prompt.match(/^\s*-\s*phone\s*:\s*(.+)$/im);
     if (phoneMatch2?.[1]) out.phone = phoneMatch2[1].trim();
   }
 
@@ -987,7 +1430,7 @@ function extractExplicitBrandingFromPrompt(prompt: string): { siteName?: string;
 
 function enforcePhoneInFiles(
   files: Array<{ path: string; content: string }>,
-  desiredPhoneRaw: string | undefined
+  desiredPhoneRaw: string | undefined,
 ): Array<{ path: string; content: string }> {
   if (!desiredPhoneRaw) return files;
 
@@ -995,11 +1438,12 @@ function enforcePhoneInFiles(
   const desiredTel = desiredPhone.replace(/[^\d+]/g, "");
 
   // Helper: strip attributes for phone scan (defined here for self-contained function)
-  const stripAttrsForScan = (html: string): string => html
-    .replace(/\bsrc=["'][^"']*["']/gi, 'src=""')
-    .replace(/\bhref=["'](?!tel:)[^"']*["']/gi, 'href=""')
-    .replace(/\bcontent=["'][^"']*["']/gi, 'content=""')
-    .replace(/\bdata-[\w-]+=["'][^"']*["']/gi, 'data-x=""');
+  const stripAttrsForScan = (html: string): string =>
+    html
+      .replace(/\bsrc=["'][^"']*["']/gi, 'src=""')
+      .replace(/\bhref=["'](?!tel:)[^"']*["']/gi, 'href=""')
+      .replace(/\bcontent=["'][^"']*["']/gi, 'content=""')
+      .replace(/\bdata-[\w-]+=["'][^"']*["']/gi, 'data-x=""');
 
   return files.map((f) => {
     if (!/\.(html?|php|jsx?|tsx?)$/i.test(f.path)) return f;
@@ -1032,13 +1476,10 @@ function enforcePhoneInFiles(
     });
 
     // Replace common contextual "Phone:" labels
-    content = content.replace(
-      /(Phone|Tel|Telephone|Контакт|Телефон)\s*:\s*[^<\n\r]{6,}/gi,
-      (m) => {
-        const label = m.split(":")[0];
-        return `${label}: ${desiredPhone}`;
-      }
-    );
+    content = content.replace(/(Phone|Tel|Telephone|Контакт|Телефон)\s*:\s*[^<\n\r]{6,}/gi, (m) => {
+      const label = m.split(":")[0];
+      return `${label}: ${desiredPhone}`;
+    });
 
     // If the site originally contained no phone at all, inject one (HTML/PHP only)
     if (!hadTelLink && !hadPlusPhone && !hadPhoneLabel && /\.(html?|php)$/i.test(f.path)) {
@@ -1048,10 +1489,7 @@ function enforcePhoneInFiles(
 
       // 1) Prefer inserting into an existing contact section
       if (/<section[^>]*id=["']contact["'][^>]*>/i.test(content)) {
-        content = content.replace(
-          /(<section[^>]*id=["']contact["'][^>]*>)/i,
-          `$1${phoneBlock}`
-        );
+        content = content.replace(/(<section[^>]*id=["']contact["'][^>]*>)/i, `$1${phoneBlock}`);
       }
 
       // 2) Insert into footer if present
@@ -1059,10 +1497,7 @@ function enforcePhoneInFiles(
         content = content.replace(/<\/footer>/i, `${phoneBlock}</footer>`);
       } else if (/<\/body>/i.test(content)) {
         // 3) Fallback: create a minimal footer
-        content = content.replace(
-          /<\/body>/i,
-          `\n<footer style="padding:24px 16px">${phoneBlock}</footer>\n</body>`
-        );
+        content = content.replace(/<\/body>/i, `\n<footer style="padding:24px 16px">${phoneBlock}</footer>\n</body>`);
       } else {
         // 4) Last resort: append
         content += phoneBlock;
@@ -1077,33 +1512,93 @@ function enforcePhoneInFiles(
 // Ensure all pages have business hours in footer
 function enforceBusinessHoursInFiles(
   files: Array<{ path: string; content: string }>,
-  language: string = "en"
+  language: string = "en",
 ): Array<{ path: string; content: string }> {
   // Business hours translations
   const hoursTranslations: Record<string, { label: string; weekdays: string; weekend: string }> = {
-    "en": { label: "Working Hours:", weekdays: "Monday - Friday: 9:00 AM - 6:00 PM", weekend: "Saturday - Sunday: Closed" },
-    "de": { label: "Öffnungszeiten:", weekdays: "Montag - Freitag: 9:00 - 18:00", weekend: "Samstag - Sonntag: Geschlossen" },
-    "fr": { label: "Heures d'ouverture:", weekdays: "Lundi - Vendredi: 9h00 - 18h00", weekend: "Samedi - Dimanche: Fermé" },
-    "es": { label: "Horario:", weekdays: "Lunes - Viernes: 9:00 - 18:00", weekend: "Sábado - Domingo: Cerrado" },
-    "it": { label: "Orario di lavoro:", weekdays: "Lunedì - Venerdì: 9:00 - 18:00", weekend: "Sabato - Domenica: Chiuso" },
-    "pt": { label: "Horário de funcionamento:", weekdays: "Segunda - Sexta: 9:00 - 18:00", weekend: "Sábado - Domingo: Fechado" },
-    "nl": { label: "Openingstijden:", weekdays: "Maandag - Vrijdag: 9:00 - 18:00", weekend: "Zaterdag - Zondag: Gesloten" },
-    "pl": { label: "Godziny pracy:", weekdays: "Poniedziałek - Piątek: 9:00 - 18:00", weekend: "Sobota - Niedziela: Nieczynne" },
-    "uk": { label: "Години роботи:", weekdays: "Понеділок - П'ятниця: 9:00 - 18:00", weekend: "Субота - Неділя: Зачинено" },
-    "ru": { label: "Часы работы:", weekdays: "Понедельник - Пятница: 9:00 - 18:00", weekend: "Суббота - Воскресенье: Закрыто" },
-    "ro": { label: "Program de lucru:", weekdays: "Luni - Vineri: 9:00 - 18:00", weekend: "Sâmbătă - Duminică: Închis" },
-    "cs": { label: "Otevírací doba:", weekdays: "Pondělí - Pátek: 9:00 - 18:00", weekend: "Sobota - Neděle: Zavřeno" },
-    "sk": { label: "Otváracie hodiny:", weekdays: "Pondelok - Piatok: 9:00 - 18:00", weekend: "Sobota - Nedeľa: Zatvorené" },
-    "hu": { label: "Nyitvatartás:", weekdays: "Hétfő - Péntek: 9:00 - 18:00", weekend: "Szombat - Vasárnap: Zárva" },
-    "bg": { label: "Работно време:", weekdays: "Понеделник - Петък: 9:00 - 18:00", weekend: "Събота - Неделя: Затворено" },
-    "hr": { label: "Radno vrijeme:", weekdays: "Ponedjeljak - Petak: 9:00 - 18:00", weekend: "Subota - Nedjelja: Zatvoreno" },
-    "sl": { label: "Delovni čas:", weekdays: "Ponedeljek - Petek: 9:00 - 18:00", weekend: "Sobota - Nedelja: Zaprto" },
-    "da": { label: "Åbningstider:", weekdays: "Mandag - Fredag: 9:00 - 18:00", weekend: "Lørdag - Søndag: Lukket" },
-    "sv": { label: "Öppettider:", weekdays: "Måndag - Fredag: 9:00 - 18:00", weekend: "Lördag - Söndag: Stängt" },
-    "no": { label: "Åpningstider:", weekdays: "Mandag - Fredag: 9:00 - 18:00", weekend: "Lørdag - Søndag: Stengt" },
-    "fi": { label: "Aukioloajat:", weekdays: "Maanantai - Perjantai: 9:00 - 18:00", weekend: "Lauantai - Sunnuntai: Suljettu" },
-    "el": { label: "Ώρες λειτουργίας:", weekdays: "Δευτέρα - Παρασκευή: 9:00 - 18:00", weekend: "Σάββατο - Κυριακή: Κλειστά" },
-    "tr": { label: "Çalışma Saatleri:", weekdays: "Pazartesi - Cuma: 9:00 - 18:00", weekend: "Cumartesi - Pazar: Kapalı" },
+    en: {
+      label: "Working Hours:",
+      weekdays: "Monday - Friday: 9:00 AM - 6:00 PM",
+      weekend: "Saturday - Sunday: Closed",
+    },
+    de: {
+      label: "Öffnungszeiten:",
+      weekdays: "Montag - Freitag: 9:00 - 18:00",
+      weekend: "Samstag - Sonntag: Geschlossen",
+    },
+    fr: {
+      label: "Heures d'ouverture:",
+      weekdays: "Lundi - Vendredi: 9h00 - 18h00",
+      weekend: "Samedi - Dimanche: Fermé",
+    },
+    es: { label: "Horario:", weekdays: "Lunes - Viernes: 9:00 - 18:00", weekend: "Sábado - Domingo: Cerrado" },
+    it: {
+      label: "Orario di lavoro:",
+      weekdays: "Lunedì - Venerdì: 9:00 - 18:00",
+      weekend: "Sabato - Domenica: Chiuso",
+    },
+    pt: {
+      label: "Horário de funcionamento:",
+      weekdays: "Segunda - Sexta: 9:00 - 18:00",
+      weekend: "Sábado - Domingo: Fechado",
+    },
+    nl: {
+      label: "Openingstijden:",
+      weekdays: "Maandag - Vrijdag: 9:00 - 18:00",
+      weekend: "Zaterdag - Zondag: Gesloten",
+    },
+    pl: {
+      label: "Godziny pracy:",
+      weekdays: "Poniedziałek - Piątek: 9:00 - 18:00",
+      weekend: "Sobota - Niedziela: Nieczynne",
+    },
+    uk: {
+      label: "Години роботи:",
+      weekdays: "Понеділок - П'ятниця: 9:00 - 18:00",
+      weekend: "Субота - Неділя: Зачинено",
+    },
+    ru: {
+      label: "Часы работы:",
+      weekdays: "Понедельник - Пятница: 9:00 - 18:00",
+      weekend: "Суббота - Воскресенье: Закрыто",
+    },
+    ro: { label: "Program de lucru:", weekdays: "Luni - Vineri: 9:00 - 18:00", weekend: "Sâmbătă - Duminică: Închis" },
+    cs: { label: "Otevírací doba:", weekdays: "Pondělí - Pátek: 9:00 - 18:00", weekend: "Sobota - Neděle: Zavřeno" },
+    sk: {
+      label: "Otváracie hodiny:",
+      weekdays: "Pondelok - Piatok: 9:00 - 18:00",
+      weekend: "Sobota - Nedeľa: Zatvorené",
+    },
+    hu: { label: "Nyitvatartás:", weekdays: "Hétfő - Péntek: 9:00 - 18:00", weekend: "Szombat - Vasárnap: Zárva" },
+    bg: {
+      label: "Работно време:",
+      weekdays: "Понеделник - Петък: 9:00 - 18:00",
+      weekend: "Събота - Неделя: Затворено",
+    },
+    hr: {
+      label: "Radno vrijeme:",
+      weekdays: "Ponedjeljak - Petak: 9:00 - 18:00",
+      weekend: "Subota - Nedjelja: Zatvoreno",
+    },
+    sl: { label: "Delovni čas:", weekdays: "Ponedeljek - Petek: 9:00 - 18:00", weekend: "Sobota - Nedelja: Zaprto" },
+    da: { label: "Åbningstider:", weekdays: "Mandag - Fredag: 9:00 - 18:00", weekend: "Lørdag - Søndag: Lukket" },
+    sv: { label: "Öppettider:", weekdays: "Måndag - Fredag: 9:00 - 18:00", weekend: "Lördag - Söndag: Stängt" },
+    no: { label: "Åpningstider:", weekdays: "Mandag - Fredag: 9:00 - 18:00", weekend: "Lørdag - Søndag: Stengt" },
+    fi: {
+      label: "Aukioloajat:",
+      weekdays: "Maanantai - Perjantai: 9:00 - 18:00",
+      weekend: "Lauantai - Sunnuntai: Suljettu",
+    },
+    el: {
+      label: "Ώρες λειτουργίας:",
+      weekdays: "Δευτέρα - Παρασκευή: 9:00 - 18:00",
+      weekend: "Σάββατο - Κυριακή: Κλειστά",
+    },
+    tr: {
+      label: "Çalışma Saatleri:",
+      weekdays: "Pazartesi - Cuma: 9:00 - 18:00",
+      weekend: "Cumartesi - Pazar: Kapalı",
+    },
   };
 
   const langCode = (language || "en").toLowerCase().substring(0, 2);
@@ -1135,7 +1630,7 @@ function enforceBusinessHoursInFiles(
     let content = f.content;
 
     // Check if hours already exist
-    const hasHours = hoursPatterns.some(pattern => pattern.test(content));
+    const hasHours = hoursPatterns.some((pattern) => pattern.test(content));
     if (hasHours) {
       return f; // Already has hours, skip
     }
@@ -1158,20 +1653,14 @@ function enforceBusinessHoursInFiles(
         // Inject before footer-bottom
         content = content.replace(
           /(<div[^>]*class=["'][^"']*footer-bottom[^"']*["'][^>]*>)/i,
-          `${hoursHtml}\n        $1`
+          `${hoursHtml}\n        $1`,
         );
       } else if (/class=["'][^"']*footer-content[^"']*["']/i.test(content)) {
         // Inject at end of footer-content
-        content = content.replace(
-          /(<\/div>\s*<\/footer>)/i,
-          `${hoursHtml}\n        $1`
-        );
+        content = content.replace(/(<\/div>\s*<\/footer>)/i, `${hoursHtml}\n        $1`);
       } else {
         // Inject right before </footer>
-        content = content.replace(
-          /<\/footer>/i,
-          `${hoursHtml}\n      </footer>`
-        );
+        content = content.replace(/<\/footer>/i, `${hoursHtml}\n      </footer>`);
       }
     }
 
@@ -1181,7 +1670,7 @@ function enforceBusinessHoursInFiles(
 
 function enforceSiteNameInFiles(
   files: Array<{ path: string; content: string }>,
-  desiredSiteNameRaw: string | undefined
+  desiredSiteNameRaw: string | undefined,
 ): Array<{ path: string; content: string }> {
   if (!desiredSiteNameRaw) return files;
   const desiredSiteName = desiredSiteNameRaw.trim();
@@ -1199,7 +1688,7 @@ function enforceSiteNameInFiles(
     // Enforce og:site_name where present
     content = content.replace(
       /<meta\s+property=["']og:site_name["']\s+content=["'][^"']*["']\s*\/?\s*>/i,
-      `<meta property="og:site_name" content="${desiredSiteName}" />`
+      `<meta property="og:site_name" content="${desiredSiteName}" />`,
     );
 
     return { ...f, content };
@@ -1212,41 +1701,41 @@ function enforceSiteNameInFiles(
 // Otherwise clean it and add .com: "My Company" -> info@mycompany.com
 function generateEmailFromSiteName(siteName: string): string {
   const trimmed = siteName.trim();
-  
+
   // Check if site name already looks like a domain (e.g., "example.com", "site.es")
   const domainMatch = trimmed.match(/^([a-z0-9][-a-z0-9]*\.)+[a-z]{2,}$/i);
   if (domainMatch) {
     // It's already a domain, use it directly
     return `info@${trimmed.toLowerCase()}`;
   }
-  
+
   // Check if site name contains a domain-like part at the end
   const containsDomainMatch = trimmed.match(/([a-z0-9][-a-z0-9]*\.[a-z]{2,})$/i);
   if (containsDomainMatch) {
     // Extract the domain part and use it
     return `info@${containsDomainMatch[1].toLowerCase()}`;
   }
-  
+
   // Clean site name: lowercase, remove special chars, replace spaces/underscores/dashes with nothing
   const domain = trimmed
     .toLowerCase()
-    .replace(/[^a-z0-9\s_-]/gi, '') // Remove special chars except underscore/dash
-    .replace(/[\s_-]+/g, '')         // Remove spaces, underscores, dashes
+    .replace(/[^a-z0-9\s_-]/gi, "") // Remove special chars except underscore/dash
+    .replace(/[\s_-]+/g, "") // Remove spaces, underscores, dashes
     .trim();
-  
-  return domain ? `info@${domain}.com` : 'info@example.com';
+
+  return domain ? `info@${domain}.com` : "info@example.com";
 }
 
 // Enforce email based on site name across all files
 function enforceEmailInFiles(
   files: Array<{ path: string; content: string }>,
-  desiredSiteNameRaw: string | undefined
+  desiredSiteNameRaw: string | undefined,
 ): Array<{ path: string; content: string }> {
   if (!desiredSiteNameRaw) return files;
-  
+
   const desiredEmail = generateEmailFromSiteName(desiredSiteNameRaw);
   console.log(`[enforceEmailInFiles] Generated email "${desiredEmail}" from site name "${desiredSiteNameRaw}"`);
-  
+
   // Common placeholder/fake email patterns to replace
   const emailPatterns = [
     /info@example\.com/gi,
@@ -1264,13 +1753,13 @@ function enforceEmailInFiles(
     /contact@yourdomain\.com/gi,
     /info@placeholder\.com/gi,
   ];
-  
+
   return files.map((f) => {
     if (!/\.(html?|php|jsx?|tsx?)$/i.test(f.path)) return f;
-    
+
     let content = f.content;
     let replacedCount = 0;
-    
+
     // Replace all placeholder emails with the generated one
     for (const pattern of emailPatterns) {
       const matches = content.match(pattern);
@@ -1279,17 +1768,19 @@ function enforceEmailInFiles(
         content = content.replace(pattern, desiredEmail);
       }
     }
-    
+
     // Also replace mailto: links with placeholder emails
     content = content.replace(
       /mailto:(info|contact|support|email|test|hello)@(example|company|companyname|yoursite|yourdomain|placeholder)\.com/gi,
-      `mailto:${desiredEmail}`
+      `mailto:${desiredEmail}`,
     );
-    
+
     if (replacedCount > 0) {
-      console.log(`[enforceEmailInFiles] Replaced ${replacedCount} placeholder email(s) in ${f.path} with "${desiredEmail}"`);
+      console.log(
+        `[enforceEmailInFiles] Replaced ${replacedCount} placeholder email(s) in ${f.path} with "${desiredEmail}"`,
+      );
     }
-    
+
     return { ...f, content };
   });
 }
@@ -1300,131 +1791,126 @@ function enforceEmailInFiles(
 // - Remove ./ prefix: href="./about.html" -> href="about.html"
 // - Ensure .html extension for internal pages
 // - Skip external links, anchors, tel:, mailto:, javascript:, etc.
-function normalizeInternalLinks(
-  files: Array<{ path: string; content: string }>
-): { files: Array<{ path: string; content: string }>; totalFixed: number } {
+function normalizeInternalLinks(files: Array<{ path: string; content: string }>): {
+  files: Array<{ path: string; content: string }>;
+  totalFixed: number;
+} {
   let totalFixed = 0;
-  
+
   // Get list of actual HTML file names (without path prefix) for validation
   const htmlFiles = new Set(
-    files
-      .filter(f => /\.html?$/i.test(f.path))
-      .map(f => f.path.replace(/^\.?\//, '').toLowerCase())
+    files.filter((f) => /\.html?$/i.test(f.path)).map((f) => f.path.replace(/^\.?\//, "").toLowerCase()),
   );
-  
-  const updatedFiles = files.map(f => {
+
+  const updatedFiles = files.map((f) => {
     if (!/\.(html?|php)$/i.test(f.path)) return f;
-    
+
     let content = f.content;
     let fixedInFile = 0;
-    
+
     // Pattern to match href attributes (capturing the URL)
     // Skip: external URLs, #anchors, tel:, mailto:, javascript:, data:
-    content = content.replace(
-      /href=["']([^"']+)["']/gi,
-      (match, url: string) => {
-        const trimmedUrl = url.trim();
-        
-        // Skip external URLs
-        if (/^https?:\/\//i.test(trimmedUrl)) return match;
-        
-        // Skip special protocols
-        if (/^(?:tel:|mailto:|javascript:|data:|#)/i.test(trimmedUrl)) return match;
-        
-        // Skip empty hrefs
-        if (!trimmedUrl || trimmedUrl === '#') return match;
-        
-        // Skip if it's just an anchor on current page
-        if (trimmedUrl.startsWith('#')) return match;
-        
-        let fixedUrl = trimmedUrl;
-        let wasFixed = false;
-        
-        // Remove leading slash (critical for static hosts in subdirectories)
-        if (fixedUrl.startsWith('/')) {
-          fixedUrl = fixedUrl.slice(1);
-          wasFixed = true;
-        }
-        
-        // Remove ./ prefix
-        if (fixedUrl.startsWith('./')) {
-          fixedUrl = fixedUrl.slice(2);
-          wasFixed = true;
-        }
-        
-        // Handle paths with anchors (e.g., "/about.html#section" -> "about.html#section")
-        const [pathPart, anchorPart] = fixedUrl.split('#');
-        let cleanPath = pathPart;
-        
-        // If it looks like an internal page link without extension, add .html
-        // Skip asset paths (css, js, images, fonts, etc.)
-        if (cleanPath && 
-            !cleanPath.includes('.') && 
-            !/^(?:assets|css|js|images?|img|fonts?|media|files?)\//i.test(cleanPath)) {
-          // Check if adding .html would match an actual file
-          const withHtml = cleanPath.toLowerCase() + '.html';
-          if (htmlFiles.has(withHtml)) {
-            cleanPath = cleanPath + '.html';
-            wasFixed = true;
-          }
-        }
-        
-        // Reconstruct URL with anchor if present
-        fixedUrl = anchorPart ? `${cleanPath}#${anchorPart}` : cleanPath;
-        
-        if (wasFixed) {
-          fixedInFile++;
-          return `href="${fixedUrl}"`;
-        }
-        
-        return match;
+    content = content.replace(/href=["']([^"']+)["']/gi, (match, url: string) => {
+      const trimmedUrl = url.trim();
+
+      // Skip external URLs
+      if (/^https?:\/\//i.test(trimmedUrl)) return match;
+
+      // Skip special protocols
+      if (/^(?:tel:|mailto:|javascript:|data:|#)/i.test(trimmedUrl)) return match;
+
+      // Skip empty hrefs
+      if (!trimmedUrl || trimmedUrl === "#") return match;
+
+      // Skip if it's just an anchor on current page
+      if (trimmedUrl.startsWith("#")) return match;
+
+      let fixedUrl = trimmedUrl;
+      let wasFixed = false;
+
+      // Remove leading slash (critical for static hosts in subdirectories)
+      if (fixedUrl.startsWith("/")) {
+        fixedUrl = fixedUrl.slice(1);
+        wasFixed = true;
       }
-    );
-    
+
+      // Remove ./ prefix
+      if (fixedUrl.startsWith("./")) {
+        fixedUrl = fixedUrl.slice(2);
+        wasFixed = true;
+      }
+
+      // Handle paths with anchors (e.g., "/about.html#section" -> "about.html#section")
+      const [pathPart, anchorPart] = fixedUrl.split("#");
+      let cleanPath = pathPart;
+
+      // If it looks like an internal page link without extension, add .html
+      // Skip asset paths (css, js, images, fonts, etc.)
+      if (
+        cleanPath &&
+        !cleanPath.includes(".") &&
+        !/^(?:assets|css|js|images?|img|fonts?|media|files?)\//i.test(cleanPath)
+      ) {
+        // Check if adding .html would match an actual file
+        const withHtml = cleanPath.toLowerCase() + ".html";
+        if (htmlFiles.has(withHtml)) {
+          cleanPath = cleanPath + ".html";
+          wasFixed = true;
+        }
+      }
+
+      // Reconstruct URL with anchor if present
+      fixedUrl = anchorPart ? `${cleanPath}#${anchorPart}` : cleanPath;
+
+      if (wasFixed) {
+        fixedInFile++;
+        return `href="${fixedUrl}"`;
+      }
+
+      return match;
+    });
+
     // Also fix src attributes that might have leading slashes (for local assets)
-    content = content.replace(
-      /src=["']([^"']+)["']/gi,
-      (match, url: string) => {
-        const trimmedUrl = url.trim();
-        
-        // Skip external URLs
-        if (/^https?:\/\//i.test(trimmedUrl)) return match;
-        
-        // Skip data URIs
-        if (/^data:/i.test(trimmedUrl)) return match;
-        
-        let fixedUrl = trimmedUrl;
-        let wasFixed = false;
-        
-        // Remove leading slash for local assets
-        if (fixedUrl.startsWith('/') && !fixedUrl.startsWith('//')) {
-          fixedUrl = fixedUrl.slice(1);
-          wasFixed = true;
-        }
-        
-        // Remove ./ prefix
-        if (fixedUrl.startsWith('./')) {
-          fixedUrl = fixedUrl.slice(2);
-          wasFixed = true;
-        }
-        
-        if (wasFixed) {
-          fixedInFile++;
-          return `src="${fixedUrl}"`;
-        }
-        
-        return match;
+    content = content.replace(/src=["']([^"']+)["']/gi, (match, url: string) => {
+      const trimmedUrl = url.trim();
+
+      // Skip external URLs
+      if (/^https?:\/\//i.test(trimmedUrl)) return match;
+
+      // Skip data URIs
+      if (/^data:/i.test(trimmedUrl)) return match;
+
+      let fixedUrl = trimmedUrl;
+      let wasFixed = false;
+
+      // Remove leading slash for local assets
+      if (fixedUrl.startsWith("/") && !fixedUrl.startsWith("//")) {
+        fixedUrl = fixedUrl.slice(1);
+        wasFixed = true;
       }
-    );
-    
+
+      // Remove ./ prefix
+      if (fixedUrl.startsWith("./")) {
+        fixedUrl = fixedUrl.slice(2);
+        wasFixed = true;
+      }
+
+      if (wasFixed) {
+        fixedInFile++;
+        return `src="${fixedUrl}"`;
+      }
+
+      return match;
+    });
+
     if (fixedInFile > 0) {
       totalFixed += fixedInFile;
       console.log(`🔗 [normalizeInternalLinks] Fixed ${fixedInFile} link(s) in ${f.path}`);
     }
-    
+
     return { ...f, content };
   });
-  
+
   return { files: updatedFiles, totalFixed };
 }
 
@@ -1433,105 +1919,103 @@ function normalizeInternalLinks(
 // This function fixes forms to work properly on static hosts
 function fixFormActionsForStaticHost(
   files: Array<{ path: string; content: string }>,
-  language?: string
+  language?: string,
 ): { files: Array<{ path: string; content: string }>; totalFixed: number } {
   let totalFixed = 0;
-  
+
   // Get list of actual HTML file names for validation
   const htmlFiles = new Set(
-    files
-      .filter(f => /\.html?$/i.test(f.path))
-      .map(f => f.path.replace(/^\.?\//, '').toLowerCase())
+    files.filter((f) => /\.html?$/i.test(f.path)).map((f) => f.path.replace(/^\.?\//, "").toLowerCase()),
   );
-  
+
   // Localized success messages
-  const langLower = (language || 'en').toLowerCase();
-  let successTitle = 'Thank you!';
-  let successMessage = 'Your message has been sent successfully. We will contact you soon.';
-  let closeText = 'Close';
-  
-  if (langLower.includes('de')) {
-    successTitle = 'Vielen Dank!';
-    successMessage = 'Ihre Nachricht wurde erfolgreich gesendet. Wir werden uns bald bei Ihnen melden.';
-    closeText = 'Schließen';
-  } else if (langLower.includes('pl')) {
-    successTitle = 'Dziękujemy!';
-    successMessage = 'Twoja wiadomość została wysłana pomyślnie. Skontaktujemy się wkrótce.';
-    closeText = 'Zamknij';
-  } else if (langLower.includes('uk')) {
-    successTitle = 'Дякуємо!';
-    successMessage = 'Ваше повідомлення успішно надіслано. Ми зв\'яжемося з вами найближчим часом.';
-    closeText = 'Закрити';
-  } else if (langLower.includes('ru')) {
-    successTitle = 'Спасибо!';
-    successMessage = 'Ваше сообщение успешно отправлено. Мы свяжемся с вами в ближайшее время.';
-    closeText = 'Закрыть';
-  } else if (langLower.includes('fr')) {
-    successTitle = 'Merci!';
-    successMessage = 'Votre message a été envoyé avec succès. Nous vous contacterons bientôt.';
-    closeText = 'Fermer';
-  } else if (langLower.includes('es')) {
-    successTitle = '¡Gracias!';
-    successMessage = 'Su mensaje ha sido enviado con éxito. Nos pondremos en contacto pronto.';
-    closeText = 'Cerrar';
-  } else if (langLower.includes('it')) {
-    successTitle = 'Grazie!';
-    successMessage = 'Il tuo messaggio è stato inviato con successo. Ti contatteremo presto.';
-    closeText = 'Chiudi';
-  } else if (langLower.includes('ro')) {
-    successTitle = 'Mulțumim!';
-    successMessage = 'Mesajul dvs. a fost trimis cu succes. Vă vom contacta în curând.';
-    closeText = 'Închide';
-  } else if (langLower.includes('nl')) {
-    successTitle = 'Bedankt!';
-    successMessage = 'Uw bericht is succesvol verzonden. We nemen binnenkort contact met u op.';
-    closeText = 'Sluiten';
-  } else if (langLower.includes('pt')) {
-    successTitle = 'Obrigado!';
-    successMessage = 'Sua mensagem foi enviada com sucesso. Entraremos em contato em breve.';
-    closeText = 'Fechar';
-  } else if (langLower.includes('bg')) {
-    successTitle = 'Благодарим!';
-    successMessage = 'Вашето съобщение беше изпратено успешно. Ще се свържем с вас скоро.';
-    closeText = 'Затвори';
-  } else if (langLower.includes('cs') || langLower.includes('cz')) {
-    successTitle = 'Děkujeme!';
-    successMessage = 'Vaše zpráva byla úspěšně odeslána. Brzy vás budeme kontaktovat.';
-    closeText = 'Zavřít';
-  } else if (langLower.includes('hu')) {
-    successTitle = 'Köszönjük!';
-    successMessage = 'Üzenete sikeresen elküldve. Hamarosan felvesszük Önnel a kapcsolatot.';
-    closeText = 'Bezárás';
-  } else if (langLower.includes('sk')) {
-    successTitle = 'Ďakujeme!';
-    successMessage = 'Vaša správa bola úspešne odoslaná. Čoskoro vás budeme kontaktovať.';
-    closeText = 'Zavrieť';
-  } else if (langLower.includes('el') || langLower.includes('gr')) {
-    successTitle = 'Ευχαριστούμε!';
-    successMessage = 'Το μήνυμά σας στάλθηκε με επιτυχία. Θα επικοινωνήσουμε σύντομα.';
-    closeText = 'Κλείσιμο';
-  } else if (langLower.includes('tr')) {
-    successTitle = 'Teşekkürler!';
-    successMessage = 'Mesajınız başarıyla gönderildi. En kısa sürede sizinle iletişime geçeceğiz.';
-    closeText = 'Kapat';
-  } else if (langLower.includes('sv') || langLower.includes('se')) {
-    successTitle = 'Tack!';
-    successMessage = 'Ditt meddelande har skickats. Vi återkommer snart.';
-    closeText = 'Stäng';
-  } else if (langLower.includes('da') || langLower.includes('dk')) {
-    successTitle = 'Tak!';
-    successMessage = 'Din besked er blevet sendt. Vi kontakter dig snart.';
-    closeText = 'Luk';
-  } else if (langLower.includes('no')) {
-    successTitle = 'Takk!';
-    successMessage = 'Din melding er sendt. Vi kontakter deg snart.';
-    closeText = 'Lukk';
-  } else if (langLower.includes('fi')) {
-    successTitle = 'Kiitos!';
-    successMessage = 'Viestisi on lähetetty onnistuneesti. Otamme sinuun pian yhteyttä.';
-    closeText = 'Sulje';
+  const langLower = (language || "en").toLowerCase();
+  let successTitle = "Thank you!";
+  let successMessage = "Your message has been sent successfully. We will contact you soon.";
+  let closeText = "Close";
+
+  if (langLower.includes("de")) {
+    successTitle = "Vielen Dank!";
+    successMessage = "Ihre Nachricht wurde erfolgreich gesendet. Wir werden uns bald bei Ihnen melden.";
+    closeText = "Schließen";
+  } else if (langLower.includes("pl")) {
+    successTitle = "Dziękujemy!";
+    successMessage = "Twoja wiadomość została wysłana pomyślnie. Skontaktujemy się wkrótce.";
+    closeText = "Zamknij";
+  } else if (langLower.includes("uk")) {
+    successTitle = "Дякуємо!";
+    successMessage = "Ваше повідомлення успішно надіслано. Ми зв'яжемося з вами найближчим часом.";
+    closeText = "Закрити";
+  } else if (langLower.includes("ru")) {
+    successTitle = "Спасибо!";
+    successMessage = "Ваше сообщение успешно отправлено. Мы свяжемся с вами в ближайшее время.";
+    closeText = "Закрыть";
+  } else if (langLower.includes("fr")) {
+    successTitle = "Merci!";
+    successMessage = "Votre message a été envoyé avec succès. Nous vous contacterons bientôt.";
+    closeText = "Fermer";
+  } else if (langLower.includes("es")) {
+    successTitle = "¡Gracias!";
+    successMessage = "Su mensaje ha sido enviado con éxito. Nos pondremos en contacto pronto.";
+    closeText = "Cerrar";
+  } else if (langLower.includes("it")) {
+    successTitle = "Grazie!";
+    successMessage = "Il tuo messaggio è stato inviato con successo. Ti contatteremo presto.";
+    closeText = "Chiudi";
+  } else if (langLower.includes("ro")) {
+    successTitle = "Mulțumim!";
+    successMessage = "Mesajul dvs. a fost trimis cu succes. Vă vom contacta în curând.";
+    closeText = "Închide";
+  } else if (langLower.includes("nl")) {
+    successTitle = "Bedankt!";
+    successMessage = "Uw bericht is succesvol verzonden. We nemen binnenkort contact met u op.";
+    closeText = "Sluiten";
+  } else if (langLower.includes("pt")) {
+    successTitle = "Obrigado!";
+    successMessage = "Sua mensagem foi enviada com sucesso. Entraremos em contato em breve.";
+    closeText = "Fechar";
+  } else if (langLower.includes("bg")) {
+    successTitle = "Благодарим!";
+    successMessage = "Вашето съобщение беше изпратено успешно. Ще се свържем с вас скоро.";
+    closeText = "Затвори";
+  } else if (langLower.includes("cs") || langLower.includes("cz")) {
+    successTitle = "Děkujeme!";
+    successMessage = "Vaše zpráva byla úspěšně odeslána. Brzy vás budeme kontaktovat.";
+    closeText = "Zavřít";
+  } else if (langLower.includes("hu")) {
+    successTitle = "Köszönjük!";
+    successMessage = "Üzenete sikeresen elküldve. Hamarosan felvesszük Önnel a kapcsolatot.";
+    closeText = "Bezárás";
+  } else if (langLower.includes("sk")) {
+    successTitle = "Ďakujeme!";
+    successMessage = "Vaša správa bola úspešne odoslaná. Čoskoro vás budeme kontaktovať.";
+    closeText = "Zavrieť";
+  } else if (langLower.includes("el") || langLower.includes("gr")) {
+    successTitle = "Ευχαριστούμε!";
+    successMessage = "Το μήνυμά σας στάλθηκε με επιτυχία. Θα επικοινωνήσουμε σύντομα.";
+    closeText = "Κλείσιμο";
+  } else if (langLower.includes("tr")) {
+    successTitle = "Teşekkürler!";
+    successMessage = "Mesajınız başarıyla gönderildi. En kısa sürede sizinle iletişime geçeceğiz.";
+    closeText = "Kapat";
+  } else if (langLower.includes("sv") || langLower.includes("se")) {
+    successTitle = "Tack!";
+    successMessage = "Ditt meddelande har skickats. Vi återkommer snart.";
+    closeText = "Stäng";
+  } else if (langLower.includes("da") || langLower.includes("dk")) {
+    successTitle = "Tak!";
+    successMessage = "Din besked er blevet sendt. Vi kontakter dig snart.";
+    closeText = "Luk";
+  } else if (langLower.includes("no")) {
+    successTitle = "Takk!";
+    successMessage = "Din melding er sendt. Vi kontakter deg snart.";
+    closeText = "Lukk";
+  } else if (langLower.includes("fi")) {
+    successTitle = "Kiitos!";
+    successMessage = "Viestisi on lähetetty onnistuneesti. Otamme sinuun pian yhteyttä.";
+    closeText = "Sulje";
   }
-  
+
   // Form submission handler script (injected once per file that has forms needing fix)
   const formHandlerScript = `
 <script>
@@ -1559,40 +2043,40 @@ function fixFormActionsForStaticHost(
 })();
 </script>`;
 
-  const updatedFiles = files.map(f => {
+  const updatedFiles = files.map((f) => {
     if (!/\.html?$/i.test(f.path)) return f;
-    
+
     let content = f.content;
     let fixedInFile = 0;
     let needsScript = false;
-    
+
     // Pattern to match form tags with action attributes
     content = content.replace(
       /<form([^>]*)action=["']([^"']+)["']([^>]*)>/gi,
       (match, before: string, actionUrl: string, after: string) => {
         const trimmedAction = actionUrl.trim();
-        
+
         // Skip external form actions (e.g., Netlify, Formspree, etc.)
         if (/^https?:\/\//i.test(trimmedAction)) return match;
-        
+
         // Skip mailto: actions
         if (/^mailto:/i.test(trimmedAction)) return match;
-        
+
         // Skip JavaScript actions
         if (/^javascript:/i.test(trimmedAction)) return match;
-        
+
         // Skip already fixed forms
         if (/data-static-form/i.test(before + after)) return match;
-        
+
         // Normalize the action path for comparison
         let normalizedAction = trimmedAction;
-        if (normalizedAction.startsWith('/')) normalizedAction = normalizedAction.slice(1);
-        if (normalizedAction.startsWith('./')) normalizedAction = normalizedAction.slice(2);
-        
+        if (normalizedAction.startsWith("/")) normalizedAction = normalizedAction.slice(1);
+        if (normalizedAction.startsWith("./")) normalizedAction = normalizedAction.slice(2);
+
         // Check if this action points to an existing HTML file
         const actionLower = normalizedAction.toLowerCase();
-        const actionWithHtml = actionLower.endsWith('.html') ? actionLower : actionLower + '.html';
-        
+        const actionWithHtml = actionLower.endsWith(".html") ? actionLower : actionLower + ".html";
+
         // If the action target exists as a file, leave it alone
         if (htmlFiles.has(actionLower) || htmlFiles.has(actionWithHtml)) {
           // But still normalize the path
@@ -1602,50 +2086,47 @@ function fixFormActionsForStaticHost(
           }
           return match;
         }
-        
+
         // Action points to non-existent page - fix it!
         // Remove action and add marker for JavaScript handler
         fixedInFile++;
         needsScript = true;
-        
+
         // Remove action attribute and add data-static-form marker
-        const cleanBefore = before.replace(/\s*action=["'][^"']*["']/gi, '');
-        const cleanAfter = after.replace(/\s*action=["'][^"']*["']/gi, '');
-        
+        const cleanBefore = before.replace(/\s*action=["'][^"']*["']/gi, "");
+        const cleanAfter = after.replace(/\s*action=["'][^"']*["']/gi, "");
+
         console.log(`📝 [fixFormActions] Fixed form in ${f.path}: action="${trimmedAction}" -> inline handler`);
-        
+
         return `<form${cleanBefore} data-static-form="true"${cleanAfter}>`;
-      }
+      },
     );
-    
+
     // Also catch forms without action (implicit current page) that might cause issues
     // Mark them for inline handling too if they don't have method="get" for search
-    content = content.replace(
-      /<form(?![^>]*action=)([^>]*)>/gi,
-      (match, attrs: string) => {
-        // Skip search forms (usually have method="get")
-        if (/method=["']get["']/i.test(attrs)) return match;
-        
-        // Skip already fixed forms
-        if (/data-static-form/i.test(attrs)) return match;
-        
-        // Skip newsletter forms (Netlify, etc. might be configured differently)
-        if (/netlify|formspree|mailchimp/i.test(attrs)) return match;
-        
-        fixedInFile++;
-        needsScript = true;
-        return `<form data-static-form="true"${attrs}>`;
-      }
-    );
-    
+    content = content.replace(/<form(?![^>]*action=)([^>]*)>/gi, (match, attrs: string) => {
+      // Skip search forms (usually have method="get")
+      if (/method=["']get["']/i.test(attrs)) return match;
+
+      // Skip already fixed forms
+      if (/data-static-form/i.test(attrs)) return match;
+
+      // Skip newsletter forms (Netlify, etc. might be configured differently)
+      if (/netlify|formspree|mailchimp/i.test(attrs)) return match;
+
+      fixedInFile++;
+      needsScript = true;
+      return `<form data-static-form="true"${attrs}>`;
+    });
+
     // Inject the handler script before </body> if needed
-    if (needsScript && !content.includes('data-static-form')) {
+    if (needsScript && !content.includes("data-static-form")) {
       // Form was fixed but script check failed - re-check
     }
-    
+
     if (needsScript) {
       // Check if script already exists
-      if (!content.includes('showFormSuccess')) {
+      if (!content.includes("showFormSuccess")) {
         // Inject before </body>
         if (/<\/body>/i.test(content)) {
           content = content.replace(/<\/body>/i, `${formHandlerScript}\n</body>`);
@@ -1655,15 +2136,15 @@ function fixFormActionsForStaticHost(
         }
       }
     }
-    
+
     if (fixedInFile > 0) {
       totalFixed += fixedInFile;
       console.log(`📝 [fixFormActions] Fixed ${fixedInFile} form(s) in ${f.path}`);
     }
-    
+
     return fixedInFile > 0 ? { ...f, content } : f;
   });
-  
+
   return { files: updatedFiles, totalFixed };
 }
 
@@ -1671,39 +2152,37 @@ function fixFormActionsForStaticHost(
 // Validate and fix contact.html to ensure phone/email are present
 function validateContactPage(
   files: Array<{ path: string; content: string }>,
-  geo?: string
+  geo?: string,
 ): { files: Array<{ path: string; content: string }>; warnings: string[] } {
   const warnings: string[] = [];
-  
-  const contactFile = files.find(f => 
-    /contact\.html?$/i.test(f.path) || 
-    /kontakt\.html?$/i.test(f.path) ||
-    /contacts?\.html?$/i.test(f.path)
+
+  const contactFile = files.find(
+    (f) => /contact\.html?$/i.test(f.path) || /kontakt\.html?$/i.test(f.path) || /contacts?\.html?$/i.test(f.path),
   );
-  
+
   if (!contactFile) {
     warnings.push("No contact.html found - skipping contact page validation");
     return { files, warnings };
   }
-  
+
   let content = contactFile.content;
   let modified = false;
-  
+
   // Check for phone number presence
   const hasPhone = /href=["']tel:/i.test(content) || /\+\d[\d\s().-]{7,}\d/.test(content);
-  
+
   // Check for email presence
   const hasEmail = /href=["']mailto:/i.test(content) || /[\w.-]+@[\w.-]+\.\w{2,}/i.test(content);
-  
+
   // If no phone, inject one
   if (!hasPhone) {
     warnings.push(`contact.html: No phone found - auto-injecting`);
     const phone = generateRealisticPhone(geo);
     const phoneHtml = `
     <div class="contact-info-phone" style="margin: 16px 0;">
-      <strong>Phone:</strong> <a href="tel:${phone.replace(/[^\d+]/g, '')}" style="color: inherit;">${phone}</a>
+      <strong>Phone:</strong> <a href="tel:${phone.replace(/[^\d+]/g, "")}" style="color: inherit;">${phone}</a>
     </div>`;
-    
+
     // Try to inject after h1/h2 or at start of main/article/section
     if (/<(main|article|section)[^>]*>/i.test(content)) {
       content = content.replace(/(<(?:main|article|section)[^>]*>)/i, `$1${phoneHtml}`);
@@ -1714,7 +2193,7 @@ function validateContactPage(
     }
     modified = true;
   }
-  
+
   // If no email, inject one
   if (!hasEmail) {
     warnings.push(`contact.html: No email found - auto-injecting`);
@@ -1723,7 +2202,7 @@ function validateContactPage(
     <div class="contact-info-email" style="margin: 16px 0;">
       <strong>Email:</strong> <a href="mailto:${email}" style="color: inherit;">${email}</a>
     </div>`;
-    
+
     if (/<(main|article|section)[^>]*>/i.test(content)) {
       content = content.replace(/(<(?:main|article|section)[^>]*>)/i, `$1${emailHtml}`);
     } else if (/<body[^>]*>/i.test(content)) {
@@ -1733,78 +2212,72 @@ function validateContactPage(
     }
     modified = true;
   }
-  
+
   if (!modified) {
     return { files, warnings };
   }
-  
-  const updatedFiles = files.map(f => 
-    f.path === contactFile.path ? { ...f, content } : f
-  );
-  
+
+  const updatedFiles = files.map((f) => (f.path === contactFile.path ? { ...f, content } : f));
+
   return { files: updatedFiles, warnings };
 }
 
 // Ensure footer in all pages has link to contact page
-function ensureContactLinkInFooters(
-  files: Array<{ path: string; content: string }>
-): { files: Array<{ path: string; content: string }>; warnings: string[] } {
+function ensureContactLinkInFooters(files: Array<{ path: string; content: string }>): {
+  files: Array<{ path: string; content: string }>;
+  warnings: string[];
+} {
   const warnings: string[] = [];
-  
+
   // Find contact page path
-  const contactFile = files.find(f => 
-    /contact\.html?$/i.test(f.path) || 
-    /kontakt\.html?$/i.test(f.path) ||
-    /contacts?\.html?$/i.test(f.path)
+  const contactFile = files.find(
+    (f) => /contact\.html?$/i.test(f.path) || /kontakt\.html?$/i.test(f.path) || /contacts?\.html?$/i.test(f.path),
   );
-  
+
   if (!contactFile) {
     return { files, warnings }; // No contact page to link to
   }
-  
-  const contactPath = contactFile.path.replace(/^\.?\//, '');
-  
-  const updatedFiles = files.map(f => {
+
+  const contactPath = contactFile.path.replace(/^\.?\//, "");
+
+  const updatedFiles = files.map((f) => {
     // Only process HTML files
     if (!/\.html?$/i.test(f.path)) return f;
-    
+
     // Skip the contact page itself
     if (f.path === contactFile.path) return f;
-    
+
     let content = f.content;
-    
+
     // Check if footer exists
     const hasFooter = /<footer\b/i.test(content);
     if (!hasFooter) return f;
-    
+
     // Check if footer already has contact link
     const footerMatch = content.match(/<footer[\s\S]*?<\/footer>/i);
     if (!footerMatch) return f;
-    
+
     const footerContent = footerMatch[0];
-    
+
     // Check for existing contact link in footer
-    const hasContactLink = 
+    const hasContactLink =
       /href=["'][^"']*contact[^"']*["']/i.test(footerContent) ||
       /href=["'][^"']*kontakt[^"']*["']/i.test(footerContent);
-    
+
     if (hasContactLink) return f;
-    
+
     // Footer exists but no contact link - inject one
     warnings.push(`${f.path}: Added missing contact link to footer`);
-    
+
     // Find the best place to add the contact link in footer
     // Prefer adding to existing nav/ul, otherwise add before </footer>
-    
+
     const contactLinkHtml = `<a href="${contactPath}" class="footer-contact-link">Contact</a>`;
-    
+
     // Try to find a nav or ul in footer
     if (/<footer[\s\S]*?<(nav|ul)\b[\s\S]*?<\/\1>/i.test(content)) {
       // Add to the first nav/ul in footer
-      content = content.replace(
-        /(<footer[\s\S]*?)(<\/(?:nav|ul)>)/i,
-        `$1${contactLinkHtml} $2`
-      );
+      content = content.replace(/(<footer[\s\S]*?)(<\/(?:nav|ul)>)/i, `$1${contactLinkHtml} $2`);
     } else {
       // Just add before </footer>
       const contactBlock = `
@@ -1813,114 +2286,113 @@ function ensureContactLinkInFooters(
       </div>`;
       content = content.replace(/<\/footer>/i, `${contactBlock}\n</footer>`);
     }
-    
+
     return { ...f, content };
   });
-  
+
   return { files: updatedFiles, warnings };
 }
 
 // Ensure footer in all pages has Privacy Policy and Terms links
 function ensureLegalLinksInFooters(
   files: Array<{ path: string; content: string }>,
-  language?: string
+  language?: string,
 ): { files: Array<{ path: string; content: string }>; warnings: string[] } {
   const warnings: string[] = [];
-  
+
   // Find privacy and terms pages
-  const privacyFile = files.find(f => 
-    /privac[yi][-_]?polic[yi]?\.html?$/i.test(f.path) ||
-    /privacy\.html?$/i.test(f.path) ||
-    /datenschutz\.html?$/i.test(f.path) ||
-    /polityka[-_]?prywatnosci\.html?$/i.test(f.path)
+  const privacyFile = files.find(
+    (f) =>
+      /privac[yi][-_]?polic[yi]?\.html?$/i.test(f.path) ||
+      /privacy\.html?$/i.test(f.path) ||
+      /datenschutz\.html?$/i.test(f.path) ||
+      /polityka[-_]?prywatnosci\.html?$/i.test(f.path),
   );
-  
-  const termsFile = files.find(f => 
-    /terms[-_]?(?:of[-_]?(?:service|use))?\.html?$/i.test(f.path) ||
-    /agb\.html?$/i.test(f.path) ||
-    /regulamin\.html?$/i.test(f.path) ||
-    /nutzungsbedingungen\.html?$/i.test(f.path)
+
+  const termsFile = files.find(
+    (f) =>
+      /terms[-_]?(?:of[-_]?(?:service|use))?\.html?$/i.test(f.path) ||
+      /agb\.html?$/i.test(f.path) ||
+      /regulamin\.html?$/i.test(f.path) ||
+      /nutzungsbedingungen\.html?$/i.test(f.path),
   );
-  
+
   // Determine link text based on language
-  const langLower = (language || 'en').toLowerCase();
-  let privacyText = 'Privacy Policy';
-  let termsText = 'Terms of Service';
-  
-  if (langLower.includes('de')) {
-    privacyText = 'Datenschutz';
-    termsText = 'AGB';
-  } else if (langLower.includes('pl')) {
-    privacyText = 'Polityka Prywatności';
-    termsText = 'Regulamin';
-  } else if (langLower.includes('uk')) {
-    privacyText = 'Політика конфіденційності';
-    termsText = 'Умови використання';
-  } else if (langLower.includes('ru')) {
-    privacyText = 'Политика конфиденциальности';
-    termsText = 'Условия использования';
-  } else if (langLower.includes('fr')) {
-    privacyText = 'Politique de confidentialité';
-    termsText = 'Conditions d\'utilisation';
-  } else if (langLower.includes('es')) {
-    privacyText = 'Política de Privacidad';
-    termsText = 'Términos de Servicio';
-  } else if (langLower.includes('it')) {
-    privacyText = 'Informativa sulla Privacy';
-    termsText = 'Termini di Servizio';
+  const langLower = (language || "en").toLowerCase();
+  let privacyText = "Privacy Policy";
+  let termsText = "Terms of Service";
+
+  if (langLower.includes("de")) {
+    privacyText = "Datenschutz";
+    termsText = "AGB";
+  } else if (langLower.includes("pl")) {
+    privacyText = "Polityka Prywatności";
+    termsText = "Regulamin";
+  } else if (langLower.includes("uk")) {
+    privacyText = "Політика конфіденційності";
+    termsText = "Умови використання";
+  } else if (langLower.includes("ru")) {
+    privacyText = "Политика конфиденциальности";
+    termsText = "Условия использования";
+  } else if (langLower.includes("fr")) {
+    privacyText = "Politique de confidentialité";
+    termsText = "Conditions d'utilisation";
+  } else if (langLower.includes("es")) {
+    privacyText = "Política de Privacidad";
+    termsText = "Términos de Servicio";
+  } else if (langLower.includes("it")) {
+    privacyText = "Informativa sulla Privacy";
+    termsText = "Termini di Servizio";
   }
-  
-  const privacyPath = privacyFile?.path.replace(/^\.?\//, '') || 'privacy-policy.html';
-  const termsPath = termsFile?.path.replace(/^\.?\//, '') || 'terms.html';
-  
-  const updatedFiles = files.map(f => {
+
+  const privacyPath = privacyFile?.path.replace(/^\.?\//, "") || "privacy-policy.html";
+  const termsPath = termsFile?.path.replace(/^\.?\//, "") || "terms.html";
+
+  const updatedFiles = files.map((f) => {
     if (!/\.html?$/i.test(f.path)) return f;
-    
+
     let content = f.content;
-    
+
     const hasFooter = /<footer\b/i.test(content);
     if (!hasFooter) return f;
-    
+
     const footerMatch = content.match(/<footer[\s\S]*?<\/footer>/i);
     if (!footerMatch) return f;
-    
+
     const footerContent = footerMatch[0];
-    
+
     // Check for existing privacy link
-    const hasPrivacyLink = 
+    const hasPrivacyLink =
       /href=["'][^"']*privac[yi]/i.test(footerContent) ||
       /href=["'][^"']*datenschutz/i.test(footerContent) ||
       /href=["'][^"']*prywatno/i.test(footerContent);
-    
+
     // Check for existing terms link
-    const hasTermsLink = 
+    const hasTermsLink =
       /href=["'][^"']*terms/i.test(footerContent) ||
       /href=["'][^"']*agb/i.test(footerContent) ||
       /href=["'][^"']*regulamin/i.test(footerContent) ||
       /href=["'][^"']*nutzung/i.test(footerContent);
-    
+
     let linksToAdd: string[] = [];
-    
+
     if (!hasPrivacyLink) {
       warnings.push(`${f.path}: Added missing Privacy Policy link to footer`);
       linksToAdd.push(`<a href="${privacyPath}" class="footer-legal-link">${privacyText}</a>`);
     }
-    
+
     if (!hasTermsLink) {
       warnings.push(`${f.path}: Added missing Terms link to footer`);
       linksToAdd.push(`<a href="${termsPath}" class="footer-legal-link">${termsText}</a>`);
     }
-    
+
     if (linksToAdd.length === 0) return f;
-    
-    const linksHtml = linksToAdd.join(' | ');
-    
+
+    const linksHtml = linksToAdd.join(" | ");
+
     // Try to find a nav or ul in footer for legal links
     if (/<footer[\s\S]*?<(nav|ul)\b[\s\S]*?<\/\1>/i.test(content)) {
-      content = content.replace(
-        /(<footer[\s\S]*?)(<\/(?:nav|ul)>)/i,
-        `$1${linksHtml} $2`
-      );
+      content = content.replace(/(<footer[\s\S]*?)(<\/(?:nav|ul)>)/i, `$1${linksHtml} $2`);
     } else {
       const legalBlock = `
       <div class="footer-legal-links" style="margin-top: 12px; font-size: 0.875rem;">
@@ -1928,269 +2400,296 @@ function ensureLegalLinksInFooters(
       </div>`;
       content = content.replace(/<\/footer>/i, `${legalBlock}\n</footer>`);
     }
-    
+
     return { ...f, content };
   });
-  
+
   return { files: updatedFiles, warnings };
 }
 
 // Ensure Cookie Policy link and cookie banner in all pages
 function ensureCookiePolicyAndBanner(
   files: Array<{ path: string; content: string }>,
-  language?: string
+  language?: string,
 ): { files: Array<{ path: string; content: string }>; warnings: string[] } {
   const warnings: string[] = [];
-  
+
   // Find cookie policy page
-  const cookiePolicyFile = files.find(f => 
-    /cookie[-_]?polic[yi]?\.html?$/i.test(f.path) ||
-    /cookies?\.html?$/i.test(f.path)
+  const cookiePolicyFile = files.find(
+    (f) => /cookie[-_]?polic[yi]?\.html?$/i.test(f.path) || /cookies?\.html?$/i.test(f.path),
   );
-  
+
   // Determine text based on language - EXTENDED for cookie settings modal
-  const langLower = (language || 'en').toLowerCase();
-  
+  const langLower = (language || "en").toLowerCase();
+
   // Cookie texts object for all languages
-  const cookieTexts: { [key: string]: {
-    cookiePolicyText: string;
-    cookieBannerText: string;
-    acceptAllText: string;
-    settingsText: string;
-    saveSettingsText: string;
-    declineAllText: string;
-    learnMoreText: string;
-    cookieSettingsTitle: string;
-    cookieSettingsDesc: string;
-    necessaryTitle: string;
-    necessaryDesc: string;
-    analyticsTitle: string;
-    analyticsDesc: string;
-    marketingTitle: string;
-    marketingDesc: string;
-    alwaysActive: string;
-  }} = {
+  const cookieTexts: {
+    [key: string]: {
+      cookiePolicyText: string;
+      cookieBannerText: string;
+      acceptAllText: string;
+      settingsText: string;
+      saveSettingsText: string;
+      declineAllText: string;
+      learnMoreText: string;
+      cookieSettingsTitle: string;
+      cookieSettingsDesc: string;
+      necessaryTitle: string;
+      necessaryDesc: string;
+      analyticsTitle: string;
+      analyticsDesc: string;
+      marketingTitle: string;
+      marketingDesc: string;
+      alwaysActive: string;
+    };
+  } = {
     en: {
-      cookiePolicyText: 'Cookie Policy',
-      cookieBannerText: 'We use cookies to enhance your experience. You can customize your preferences below.',
-      acceptAllText: 'Accept All',
-      settingsText: 'Cookie Settings',
-      saveSettingsText: 'Save Settings',
-      declineAllText: 'Decline All',
-      learnMoreText: 'Learn more',
-      cookieSettingsTitle: 'Cookie Settings',
-      cookieSettingsDesc: 'Configure the types of cookies you allow on our site. Necessary cookies are required for the site to function.',
-      necessaryTitle: 'Necessary Cookies',
-      necessaryDesc: 'Provide basic site functionality. The site cannot function properly without these cookies.',
-      analyticsTitle: 'Analytics Cookies',
-      analyticsDesc: 'Help us understand how visitors interact with the site by collecting anonymous information.',
-      marketingTitle: 'Marketing Cookies',
-      marketingDesc: 'Used to track visitors across websites to display relevant advertisements.',
-      alwaysActive: 'Always active'
+      cookiePolicyText: "Cookie Policy",
+      cookieBannerText: "We use cookies to enhance your experience. You can customize your preferences below.",
+      acceptAllText: "Accept All",
+      settingsText: "Cookie Settings",
+      saveSettingsText: "Save Settings",
+      declineAllText: "Decline All",
+      learnMoreText: "Learn more",
+      cookieSettingsTitle: "Cookie Settings",
+      cookieSettingsDesc:
+        "Configure the types of cookies you allow on our site. Necessary cookies are required for the site to function.",
+      necessaryTitle: "Necessary Cookies",
+      necessaryDesc: "Provide basic site functionality. The site cannot function properly without these cookies.",
+      analyticsTitle: "Analytics Cookies",
+      analyticsDesc: "Help us understand how visitors interact with the site by collecting anonymous information.",
+      marketingTitle: "Marketing Cookies",
+      marketingDesc: "Used to track visitors across websites to display relevant advertisements.",
+      alwaysActive: "Always active",
     },
     de: {
-      cookiePolicyText: 'Cookie-Richtlinie',
-      cookieBannerText: 'Wir verwenden Cookies, um Ihre Erfahrung zu verbessern. Sie können Ihre Einstellungen anpassen.',
-      acceptAllText: 'Alle akzeptieren',
-      settingsText: 'Cookie-Einstellungen',
-      saveSettingsText: 'Einstellungen speichern',
-      declineAllText: 'Alle ablehnen',
-      learnMoreText: 'Mehr erfahren',
-      cookieSettingsTitle: 'Cookie-Einstellungen',
-      cookieSettingsDesc: 'Konfigurieren Sie die Arten von Cookies, die Sie auf unserer Website zulassen. Notwendige Cookies sind für die Funktion der Website erforderlich.',
-      necessaryTitle: 'Notwendige Cookies',
-      necessaryDesc: 'Ermöglichen grundlegende Website-Funktionen. Die Website kann ohne diese Cookies nicht ordnungsgemäß funktionieren.',
-      analyticsTitle: 'Analyse-Cookies',
-      analyticsDesc: 'Helfen uns zu verstehen, wie Besucher mit der Website interagieren, indem sie anonyme Informationen sammeln.',
-      marketingTitle: 'Marketing-Cookies',
-      marketingDesc: 'Werden verwendet, um Besucher auf Websites zu verfolgen und relevante Werbung anzuzeigen.',
-      alwaysActive: 'Immer aktiv'
+      cookiePolicyText: "Cookie-Richtlinie",
+      cookieBannerText:
+        "Wir verwenden Cookies, um Ihre Erfahrung zu verbessern. Sie können Ihre Einstellungen anpassen.",
+      acceptAllText: "Alle akzeptieren",
+      settingsText: "Cookie-Einstellungen",
+      saveSettingsText: "Einstellungen speichern",
+      declineAllText: "Alle ablehnen",
+      learnMoreText: "Mehr erfahren",
+      cookieSettingsTitle: "Cookie-Einstellungen",
+      cookieSettingsDesc:
+        "Konfigurieren Sie die Arten von Cookies, die Sie auf unserer Website zulassen. Notwendige Cookies sind für die Funktion der Website erforderlich.",
+      necessaryTitle: "Notwendige Cookies",
+      necessaryDesc:
+        "Ermöglichen grundlegende Website-Funktionen. Die Website kann ohne diese Cookies nicht ordnungsgemäß funktionieren.",
+      analyticsTitle: "Analyse-Cookies",
+      analyticsDesc:
+        "Helfen uns zu verstehen, wie Besucher mit der Website interagieren, indem sie anonyme Informationen sammeln.",
+      marketingTitle: "Marketing-Cookies",
+      marketingDesc: "Werden verwendet, um Besucher auf Websites zu verfolgen und relevante Werbung anzuzeigen.",
+      alwaysActive: "Immer aktiv",
     },
     pl: {
-      cookiePolicyText: 'Polityka Cookies',
-      cookieBannerText: 'Używamy plików cookie, aby poprawić Twoje doświadczenia. Możesz dostosować swoje preferencje.',
-      acceptAllText: 'Akceptuj wszystkie',
-      settingsText: 'Ustawienia cookie',
-      saveSettingsText: 'Zapisz ustawienia',
-      declineAllText: 'Odrzuć wszystkie',
-      learnMoreText: 'Dowiedz się więcej',
-      cookieSettingsTitle: 'Ustawienia cookie',
-      cookieSettingsDesc: 'Skonfiguruj rodzaje plików cookie, które zezwalasz na naszej stronie. Niezbędne pliki cookie są wymagane do funkcjonowania strony.',
-      necessaryTitle: 'Niezbędne cookie',
-      necessaryDesc: 'Zapewniają podstawową funkcjonalność strony. Strona nie może działać poprawnie bez tych plików.',
-      analyticsTitle: 'Analityczne cookie',
-      analyticsDesc: 'Pomagają nam zrozumieć, jak odwiedzający wchodzą w interakcję ze stroną, zbierając anonimowe informacje.',
-      marketingTitle: 'Marketingowe cookie',
-      marketingDesc: 'Używane do śledzenia odwiedzających na stronach w celu wyświetlania odpowiednich reklam.',
-      alwaysActive: 'Zawsze aktywne'
+      cookiePolicyText: "Polityka Cookies",
+      cookieBannerText: "Używamy plików cookie, aby poprawić Twoje doświadczenia. Możesz dostosować swoje preferencje.",
+      acceptAllText: "Akceptuj wszystkie",
+      settingsText: "Ustawienia cookie",
+      saveSettingsText: "Zapisz ustawienia",
+      declineAllText: "Odrzuć wszystkie",
+      learnMoreText: "Dowiedz się więcej",
+      cookieSettingsTitle: "Ustawienia cookie",
+      cookieSettingsDesc:
+        "Skonfiguruj rodzaje plików cookie, które zezwalasz na naszej stronie. Niezbędne pliki cookie są wymagane do funkcjonowania strony.",
+      necessaryTitle: "Niezbędne cookie",
+      necessaryDesc: "Zapewniają podstawową funkcjonalność strony. Strona nie może działać poprawnie bez tych plików.",
+      analyticsTitle: "Analityczne cookie",
+      analyticsDesc:
+        "Pomagają nam zrozumieć, jak odwiedzający wchodzą w interakcję ze stroną, zbierając anonimowe informacje.",
+      marketingTitle: "Marketingowe cookie",
+      marketingDesc: "Używane do śledzenia odwiedzających na stronach w celu wyświetlania odpowiednich reklam.",
+      alwaysActive: "Zawsze aktywne",
     },
     uk: {
-      cookiePolicyText: 'Політика Cookie',
-      cookieBannerText: 'Ми використовуємо файли cookie для покращення вашого досвіду. Ви можете налаштувати свої вподобання.',
-      acceptAllText: 'Прийняти всі',
-      settingsText: 'Налаштування cookie',
-      saveSettingsText: 'Зберегти налаштування',
-      declineAllText: 'Відхилити всі',
-      learnMoreText: 'Дізнатися більше',
-      cookieSettingsTitle: 'Налаштування cookie',
-      cookieSettingsDesc: 'Налаштуйте типи файлів cookie, які ви дозволяєте на нашому сайті. Необхідні cookie потрібні для функціонування сайту.',
-      necessaryTitle: 'Необхідні cookie',
-      necessaryDesc: 'Забезпечують базову функціональність сайту. Сайт не може нормально працювати без цих файлів.',
-      analyticsTitle: 'Аналітичні cookie',
-      analyticsDesc: 'Допомагають нам зрозуміти, як відвідувачі взаємодіють із сайтом, збираючи анонімну інформацію.',
-      marketingTitle: 'Маркетингові cookie',
-      marketingDesc: 'Використовуються для відстеження відвідувачів на веб-сайтах з метою відображення релевантної реклами.',
-      alwaysActive: 'Завжди активні'
+      cookiePolicyText: "Політика Cookie",
+      cookieBannerText:
+        "Ми використовуємо файли cookie для покращення вашого досвіду. Ви можете налаштувати свої вподобання.",
+      acceptAllText: "Прийняти всі",
+      settingsText: "Налаштування cookie",
+      saveSettingsText: "Зберегти налаштування",
+      declineAllText: "Відхилити всі",
+      learnMoreText: "Дізнатися більше",
+      cookieSettingsTitle: "Налаштування cookie",
+      cookieSettingsDesc:
+        "Налаштуйте типи файлів cookie, які ви дозволяєте на нашому сайті. Необхідні cookie потрібні для функціонування сайту.",
+      necessaryTitle: "Необхідні cookie",
+      necessaryDesc: "Забезпечують базову функціональність сайту. Сайт не може нормально працювати без цих файлів.",
+      analyticsTitle: "Аналітичні cookie",
+      analyticsDesc: "Допомагають нам зрозуміти, як відвідувачі взаємодіють із сайтом, збираючи анонімну інформацію.",
+      marketingTitle: "Маркетингові cookie",
+      marketingDesc:
+        "Використовуються для відстеження відвідувачів на веб-сайтах з метою відображення релевантної реклами.",
+      alwaysActive: "Завжди активні",
     },
     ru: {
-      cookiePolicyText: 'Политика Cookie',
-      cookieBannerText: 'Мы используем файлы cookie для улучшения вашего опыта. Вы можете настроить свои предпочтения.',
-      acceptAllText: 'Принять все',
-      settingsText: 'Настройки cookie',
-      saveSettingsText: 'Сохранить настройки',
-      declineAllText: 'Отклонить все',
-      learnMoreText: 'Узнать больше',
-      cookieSettingsTitle: 'Настройки cookie',
-      cookieSettingsDesc: 'Настройте типы cookie-файлов, которые вы разрешаете использовать на нашем сайте. Обязательные cookie необходимы для функционирования сайта.',
-      necessaryTitle: 'Необходимые cookie',
-      necessaryDesc: 'Обеспечивают базовую функциональность сайта. Сайт не может нормально работать без этих файлов.',
-      analyticsTitle: 'Аналитические cookie',
-      analyticsDesc: 'Помогают нам понять, как посетители взаимодействуют с сайтом, собирая анонимную информацию.',
-      marketingTitle: 'Маркетинговые cookie',
-      marketingDesc: 'Используются для отслеживания посетителей на веб-сайтах с целью отображения релевантной рекламы.',
-      alwaysActive: 'Всегда активны'
+      cookiePolicyText: "Политика Cookie",
+      cookieBannerText: "Мы используем файлы cookie для улучшения вашего опыта. Вы можете настроить свои предпочтения.",
+      acceptAllText: "Принять все",
+      settingsText: "Настройки cookie",
+      saveSettingsText: "Сохранить настройки",
+      declineAllText: "Отклонить все",
+      learnMoreText: "Узнать больше",
+      cookieSettingsTitle: "Настройки cookie",
+      cookieSettingsDesc:
+        "Настройте типы cookie-файлов, которые вы разрешаете использовать на нашем сайте. Обязательные cookie необходимы для функционирования сайта.",
+      necessaryTitle: "Необходимые cookie",
+      necessaryDesc: "Обеспечивают базовую функциональность сайта. Сайт не может нормально работать без этих файлов.",
+      analyticsTitle: "Аналитические cookie",
+      analyticsDesc: "Помогают нам понять, как посетители взаимодействуют с сайтом, собирая анонимную информацию.",
+      marketingTitle: "Маркетинговые cookie",
+      marketingDesc: "Используются для отслеживания посетителей на веб-сайтах с целью отображения релевантной рекламы.",
+      alwaysActive: "Всегда активны",
     },
     fr: {
-      cookiePolicyText: 'Politique de Cookies',
-      cookieBannerText: 'Nous utilisons des cookies pour améliorer votre expérience. Vous pouvez personnaliser vos préférences.',
-      acceptAllText: 'Tout accepter',
-      settingsText: 'Paramètres des cookies',
-      saveSettingsText: 'Enregistrer',
-      declineAllText: 'Tout refuser',
-      learnMoreText: 'En savoir plus',
-      cookieSettingsTitle: 'Paramètres des cookies',
-      cookieSettingsDesc: 'Configurez les types de cookies que vous autorisez sur notre site. Les cookies nécessaires sont requis pour le fonctionnement du site.',
-      necessaryTitle: 'Cookies nécessaires',
-      necessaryDesc: 'Assurent la fonctionnalité de base du site. Le site ne peut pas fonctionner correctement sans ces cookies.',
-      analyticsTitle: 'Cookies analytiques',
-      analyticsDesc: 'Nous aident à comprendre comment les visiteurs interagissent avec le site en collectant des informations anonymes.',
-      marketingTitle: 'Cookies marketing',
-      marketingDesc: 'Utilisés pour suivre les visiteurs sur les sites web afin d\'afficher des publicités pertinentes.',
-      alwaysActive: 'Toujours actif'
+      cookiePolicyText: "Politique de Cookies",
+      cookieBannerText:
+        "Nous utilisons des cookies pour améliorer votre expérience. Vous pouvez personnaliser vos préférences.",
+      acceptAllText: "Tout accepter",
+      settingsText: "Paramètres des cookies",
+      saveSettingsText: "Enregistrer",
+      declineAllText: "Tout refuser",
+      learnMoreText: "En savoir plus",
+      cookieSettingsTitle: "Paramètres des cookies",
+      cookieSettingsDesc:
+        "Configurez les types de cookies que vous autorisez sur notre site. Les cookies nécessaires sont requis pour le fonctionnement du site.",
+      necessaryTitle: "Cookies nécessaires",
+      necessaryDesc:
+        "Assurent la fonctionnalité de base du site. Le site ne peut pas fonctionner correctement sans ces cookies.",
+      analyticsTitle: "Cookies analytiques",
+      analyticsDesc:
+        "Nous aident à comprendre comment les visiteurs interagissent avec le site en collectant des informations anonymes.",
+      marketingTitle: "Cookies marketing",
+      marketingDesc: "Utilisés pour suivre les visiteurs sur les sites web afin d'afficher des publicités pertinentes.",
+      alwaysActive: "Toujours actif",
     },
     es: {
-      cookiePolicyText: 'Política de Cookies',
-      cookieBannerText: 'Utilizamos cookies para mejorar su experiencia. Puede personalizar sus preferencias.',
-      acceptAllText: 'Aceptar todas',
-      settingsText: 'Configuración de cookies',
-      saveSettingsText: 'Guardar configuración',
-      declineAllText: 'Rechazar todas',
-      learnMoreText: 'Saber más',
-      cookieSettingsTitle: 'Configuración de cookies',
-      cookieSettingsDesc: 'Configure los tipos de cookies que permite en nuestro sitio. Las cookies necesarias son requeridas para el funcionamiento del sitio.',
-      necessaryTitle: 'Cookies necesarias',
-      necessaryDesc: 'Proporcionan la funcionalidad básica del sitio. El sitio no puede funcionar correctamente sin estas cookies.',
-      analyticsTitle: 'Cookies analíticas',
-      analyticsDesc: 'Nos ayudan a entender cómo los visitantes interactúan con el sitio, recopilando información anónima.',
-      marketingTitle: 'Cookies de marketing',
-      marketingDesc: 'Se utilizan para rastrear visitantes en los sitios web para mostrar anuncios relevantes.',
-      alwaysActive: 'Siempre activas'
+      cookiePolicyText: "Política de Cookies",
+      cookieBannerText: "Utilizamos cookies para mejorar su experiencia. Puede personalizar sus preferencias.",
+      acceptAllText: "Aceptar todas",
+      settingsText: "Configuración de cookies",
+      saveSettingsText: "Guardar configuración",
+      declineAllText: "Rechazar todas",
+      learnMoreText: "Saber más",
+      cookieSettingsTitle: "Configuración de cookies",
+      cookieSettingsDesc:
+        "Configure los tipos de cookies que permite en nuestro sitio. Las cookies necesarias son requeridas para el funcionamiento del sitio.",
+      necessaryTitle: "Cookies necesarias",
+      necessaryDesc:
+        "Proporcionan la funcionalidad básica del sitio. El sitio no puede funcionar correctamente sin estas cookies.",
+      analyticsTitle: "Cookies analíticas",
+      analyticsDesc:
+        "Nos ayudan a entender cómo los visitantes interactúan con el sitio, recopilando información anónima.",
+      marketingTitle: "Cookies de marketing",
+      marketingDesc: "Se utilizan para rastrear visitantes en los sitios web para mostrar anuncios relevantes.",
+      alwaysActive: "Siempre activas",
     },
     it: {
-      cookiePolicyText: 'Politica dei Cookie',
-      cookieBannerText: 'Utilizziamo i cookie per migliorare la tua esperienza. Puoi personalizzare le tue preferenze.',
-      acceptAllText: 'Accetta tutti',
-      settingsText: 'Impostazioni cookie',
-      saveSettingsText: 'Salva impostazioni',
-      declineAllText: 'Rifiuta tutti',
-      learnMoreText: 'Scopri di più',
-      cookieSettingsTitle: 'Impostazioni cookie',
-      cookieSettingsDesc: 'Configura i tipi di cookie che consenti sul nostro sito. I cookie necessari sono richiesti per il funzionamento del sito.',
-      necessaryTitle: 'Cookie necessari',
-      necessaryDesc: 'Forniscono funzionalità di base del sito. Il sito non può funzionare correttamente senza questi cookie.',
-      analyticsTitle: 'Cookie analitici',
-      analyticsDesc: 'Ci aiutano a capire come i visitatori interagiscono con il sito raccogliendo informazioni anonime.',
-      marketingTitle: 'Cookie di marketing',
-      marketingDesc: 'Utilizzati per tracciare i visitatori sui siti web al fine di visualizzare annunci pertinenti.',
-      alwaysActive: 'Sempre attivo'
+      cookiePolicyText: "Politica dei Cookie",
+      cookieBannerText: "Utilizziamo i cookie per migliorare la tua esperienza. Puoi personalizzare le tue preferenze.",
+      acceptAllText: "Accetta tutti",
+      settingsText: "Impostazioni cookie",
+      saveSettingsText: "Salva impostazioni",
+      declineAllText: "Rifiuta tutti",
+      learnMoreText: "Scopri di più",
+      cookieSettingsTitle: "Impostazioni cookie",
+      cookieSettingsDesc:
+        "Configura i tipi di cookie che consenti sul nostro sito. I cookie necessari sono richiesti per il funzionamento del sito.",
+      necessaryTitle: "Cookie necessari",
+      necessaryDesc:
+        "Forniscono funzionalità di base del sito. Il sito non può funzionare correttamente senza questi cookie.",
+      analyticsTitle: "Cookie analitici",
+      analyticsDesc:
+        "Ci aiutano a capire come i visitatori interagiscono con il sito raccogliendo informazioni anonime.",
+      marketingTitle: "Cookie di marketing",
+      marketingDesc: "Utilizzati per tracciare i visitatori sui siti web al fine di visualizzare annunci pertinenti.",
+      alwaysActive: "Sempre attivo",
     },
     ro: {
-      cookiePolicyText: 'Politica Cookie',
-      cookieBannerText: 'Folosim cookie-uri pentru a vă îmbunătăți experiența. Puteți personaliza preferințele.',
-      acceptAllText: 'Acceptă toate',
-      settingsText: 'Setări cookie',
-      saveSettingsText: 'Salvează setările',
-      declineAllText: 'Refuză toate',
-      learnMoreText: 'Află mai multe',
-      cookieSettingsTitle: 'Setări cookie',
-      cookieSettingsDesc: 'Configurați tipurile de cookie-uri pe care le permiteți pe site-ul nostru. Cookie-urile necesare sunt obligatorii pentru funcționarea site-ului.',
-      necessaryTitle: 'Cookie-uri necesare',
-      necessaryDesc: 'Asigură funcționalitatea de bază a site-ului. Site-ul nu poate funcționa corect fără aceste cookie-uri.',
-      analyticsTitle: 'Cookie-uri analitice',
-      analyticsDesc: 'Ne ajută să înțelegem cum interacționează vizitatorii cu site-ul, colectând informații anonime.',
-      marketingTitle: 'Cookie-uri de marketing',
-      marketingDesc: 'Folosite pentru a urmări vizitatorii pe site-uri web pentru a afișa reclame relevante.',
-      alwaysActive: 'Întotdeauna activ'
+      cookiePolicyText: "Politica Cookie",
+      cookieBannerText: "Folosim cookie-uri pentru a vă îmbunătăți experiența. Puteți personaliza preferințele.",
+      acceptAllText: "Acceptă toate",
+      settingsText: "Setări cookie",
+      saveSettingsText: "Salvează setările",
+      declineAllText: "Refuză toate",
+      learnMoreText: "Află mai multe",
+      cookieSettingsTitle: "Setări cookie",
+      cookieSettingsDesc:
+        "Configurați tipurile de cookie-uri pe care le permiteți pe site-ul nostru. Cookie-urile necesare sunt obligatorii pentru funcționarea site-ului.",
+      necessaryTitle: "Cookie-uri necesare",
+      necessaryDesc:
+        "Asigură funcționalitatea de bază a site-ului. Site-ul nu poate funcționa corect fără aceste cookie-uri.",
+      analyticsTitle: "Cookie-uri analitice",
+      analyticsDesc: "Ne ajută să înțelegem cum interacționează vizitatorii cu site-ul, colectând informații anonime.",
+      marketingTitle: "Cookie-uri de marketing",
+      marketingDesc: "Folosite pentru a urmări vizitatorii pe site-uri web pentru a afișa reclame relevante.",
+      alwaysActive: "Întotdeauna activ",
     },
     nl: {
-      cookiePolicyText: 'Cookiebeleid',
-      cookieBannerText: 'Wij gebruiken cookies om uw ervaring te verbeteren. U kunt uw voorkeuren aanpassen.',
-      acceptAllText: 'Alles accepteren',
-      settingsText: 'Cookie-instellingen',
-      saveSettingsText: 'Instellingen opslaan',
-      declineAllText: 'Alles weigeren',
-      learnMoreText: 'Meer informatie',
-      cookieSettingsTitle: 'Cookie-instellingen',
-      cookieSettingsDesc: 'Configureer de soorten cookies die u op onze site toestaat. Noodzakelijke cookies zijn vereist voor de werking van de site.',
-      necessaryTitle: 'Noodzakelijke cookies',
-      necessaryDesc: 'Bieden basisfunctionaliteit van de site. De site kan niet goed functioneren zonder deze cookies.',
-      analyticsTitle: 'Analytische cookies',
-      analyticsDesc: 'Helpen ons te begrijpen hoe bezoekers omgaan met de site door anonieme informatie te verzamelen.',
-      marketingTitle: 'Marketing cookies',
-      marketingDesc: 'Worden gebruikt om bezoekers op websites te volgen om relevante advertenties weer te geven.',
-      alwaysActive: 'Altijd actief'
+      cookiePolicyText: "Cookiebeleid",
+      cookieBannerText: "Wij gebruiken cookies om uw ervaring te verbeteren. U kunt uw voorkeuren aanpassen.",
+      acceptAllText: "Alles accepteren",
+      settingsText: "Cookie-instellingen",
+      saveSettingsText: "Instellingen opslaan",
+      declineAllText: "Alles weigeren",
+      learnMoreText: "Meer informatie",
+      cookieSettingsTitle: "Cookie-instellingen",
+      cookieSettingsDesc:
+        "Configureer de soorten cookies die u op onze site toestaat. Noodzakelijke cookies zijn vereist voor de werking van de site.",
+      necessaryTitle: "Noodzakelijke cookies",
+      necessaryDesc: "Bieden basisfunctionaliteit van de site. De site kan niet goed functioneren zonder deze cookies.",
+      analyticsTitle: "Analytische cookies",
+      analyticsDesc: "Helpen ons te begrijpen hoe bezoekers omgaan met de site door anonieme informatie te verzamelen.",
+      marketingTitle: "Marketing cookies",
+      marketingDesc: "Worden gebruikt om bezoekers op websites te volgen om relevante advertenties weer te geven.",
+      alwaysActive: "Altijd actief",
     },
     pt: {
-      cookiePolicyText: 'Política de Cookies',
-      cookieBannerText: 'Usamos cookies para melhorar sua experiência. Você pode personalizar suas preferências.',
-      acceptAllText: 'Aceitar todos',
-      settingsText: 'Configurações de cookies',
-      saveSettingsText: 'Salvar configurações',
-      declineAllText: 'Recusar todos',
-      learnMoreText: 'Saiba mais',
-      cookieSettingsTitle: 'Configurações de cookies',
-      cookieSettingsDesc: 'Configure os tipos de cookies que você permite em nosso site. Os cookies necessários são obrigatórios para o funcionamento do site.',
-      necessaryTitle: 'Cookies necessários',
-      necessaryDesc: 'Fornecem funcionalidade básica do site. O site não pode funcionar corretamente sem esses cookies.',
-      analyticsTitle: 'Cookies analíticos',
-      analyticsDesc: 'Nos ajudam a entender como os visitantes interagem com o site, coletando informações anônimas.',
-      marketingTitle: 'Cookies de marketing',
-      marketingDesc: 'Usados para rastrear visitantes em sites para exibir anúncios relevantes.',
-      alwaysActive: 'Sempre ativo'
-    }
+      cookiePolicyText: "Política de Cookies",
+      cookieBannerText: "Usamos cookies para melhorar sua experiência. Você pode personalizar suas preferências.",
+      acceptAllText: "Aceitar todos",
+      settingsText: "Configurações de cookies",
+      saveSettingsText: "Salvar configurações",
+      declineAllText: "Recusar todos",
+      learnMoreText: "Saiba mais",
+      cookieSettingsTitle: "Configurações de cookies",
+      cookieSettingsDesc:
+        "Configure os tipos de cookies que você permite em nosso site. Os cookies necessários são obrigatórios para o funcionamento do site.",
+      necessaryTitle: "Cookies necessários",
+      necessaryDesc:
+        "Fornecem funcionalidade básica do site. O site não pode funcionar corretamente sem esses cookies.",
+      analyticsTitle: "Cookies analíticos",
+      analyticsDesc: "Nos ajudam a entender como os visitantes interagem com o site, coletando informações anônimas.",
+      marketingTitle: "Cookies de marketing",
+      marketingDesc: "Usados para rastrear visitantes em sites para exibir anúncios relevantes.",
+      alwaysActive: "Sempre ativo",
+    },
   };
-  
+
   // Detect language
-  let detectedLang = 'en';
-  if (langLower.includes('de')) detectedLang = 'de';
-  else if (langLower.includes('pl')) detectedLang = 'pl';
-  else if (langLower.includes('uk')) detectedLang = 'uk';
-  else if (langLower.includes('ru')) detectedLang = 'ru';
-  else if (langLower.includes('fr')) detectedLang = 'fr';
-  else if (langLower.includes('es')) detectedLang = 'es';
-  else if (langLower.includes('it')) detectedLang = 'it';
-  else if (langLower.includes('ro')) detectedLang = 'ro';
-  else if (langLower.includes('nl')) detectedLang = 'nl';
-  else if (langLower.includes('pt')) detectedLang = 'pt';
-  
+  let detectedLang = "en";
+  if (langLower.includes("de")) detectedLang = "de";
+  else if (langLower.includes("pl")) detectedLang = "pl";
+  else if (langLower.includes("uk")) detectedLang = "uk";
+  else if (langLower.includes("ru")) detectedLang = "ru";
+  else if (langLower.includes("fr")) detectedLang = "fr";
+  else if (langLower.includes("es")) detectedLang = "es";
+  else if (langLower.includes("it")) detectedLang = "it";
+  else if (langLower.includes("ro")) detectedLang = "ro";
+  else if (langLower.includes("nl")) detectedLang = "nl";
+  else if (langLower.includes("pt")) detectedLang = "pt";
+
   const t = cookieTexts[detectedLang] || cookieTexts.en;
-  
-  const cookiePolicyPath = cookiePolicyFile?.path.replace(/^\.?\//, '') || 'cookie-policy.html';
-  
+
+  const cookiePolicyPath = cookiePolicyFile?.path.replace(/^\.?\//, "") || "cookie-policy.html";
+
   // Cookie banner HTML with settings modal
-  const COOKIE_BANNER_ID = 'lovable-cookie-banner';
-  const COOKIE_MODAL_ID = 'lovable-cookie-modal';
-  
+  const COOKIE_BANNER_ID = "lovable-cookie-banner";
+  const COOKIE_MODAL_ID = "lovable-cookie-modal";
+
   const cookieBannerHtml = `
 <!-- Cookie Banner with Settings -->
 <style>
@@ -2306,18 +2805,16 @@ document.getElementById('${COOKIE_MODAL_ID}').addEventListener('click',function(
 });
 </script>
 <!-- End Cookie Banner -->`;
-  
-  const updatedFiles = files.map(f => {
+
+  const updatedFiles = files.map((f) => {
     if (!/\.html?$/i.test(f.path)) return f;
-    
+
     let content = f.content;
     let modified = false;
-    
+
     // If the page has any cookie banner but not OUR settings modal, upgrade it.
     const hasOurCookieSettings =
-      content.includes(COOKIE_MODAL_ID) ||
-      content.includes(COOKIE_BANNER_ID) ||
-      /cookiePreferences/i.test(content);
+      content.includes(COOKIE_MODAL_ID) || content.includes(COOKIE_BANNER_ID) || /cookiePreferences/i.test(content);
 
     const hasAnyCookieBanner =
       /cookie[-_]?(?:banner|consent|notice|popup)/i.test(content) ||
@@ -2327,7 +2824,7 @@ document.getElementById('${COOKIE_MODAL_ID}').addEventListener('click',function(
 
     if (!hasOurCookieSettings) {
       warnings.push(`${f.path}: Added/updated cookie settings (necessary/analytics/marketing)`);
-      
+
       if (/<\/body>/i.test(content)) {
         content = content.replace(/<\/body>/i, `${cookieBannerHtml}\n</body>`);
       } else {
@@ -2335,31 +2832,27 @@ document.getElementById('${COOKIE_MODAL_ID}').addEventListener('click',function(
       }
       modified = true;
     }
-    
+
     // Check footer for cookie policy link
     const hasFooter = /<footer\b/i.test(content);
     if (hasFooter) {
       const footerMatch = content.match(/<footer[\s\S]*?<\/footer>/i);
       if (footerMatch) {
         const footerContent = footerMatch[0];
-        
-        const hasCookieLink = 
-          /href=["'][^"']*cookie/i.test(footerContent);
-        
+
+        const hasCookieLink = /href=["'][^"']*cookie/i.test(footerContent);
+
         if (!hasCookieLink) {
           warnings.push(`${f.path}: Added missing Cookie Policy link to footer`);
-          
+
           const cookieLinkHtml = `<a href="${cookiePolicyPath}" class="footer-legal-link">${t.cookiePolicyText}</a>`;
-          
+
           if (/<footer[\s\S]*?<(nav|ul)\b[\s\S]*?<\/\1>/i.test(content)) {
-            content = content.replace(
-              /(<footer[\s\S]*?)(<\/(?:nav|ul)>)/i,
-              `$1 | ${cookieLinkHtml} $2`
-            );
+            content = content.replace(/(<footer[\s\S]*?)(<\/(?:nav|ul)>)/i, `$1 | ${cookieLinkHtml} $2`);
           } else if (/<footer[\s\S]*?class=["']footer-legal-links["']/i.test(content)) {
             content = content.replace(
               /(<div[^>]*class=["']footer-legal-links["'][^>]*>[\s\S]*?)(<\/div>)/i,
-              `$1 | ${cookieLinkHtml}$2`
+              `$1 | ${cookieLinkHtml}$2`,
             );
           } else {
             const cookieBlock = `
@@ -2372,10 +2865,10 @@ document.getElementById('${COOKIE_MODAL_ID}').addEventListener('click',function(
         }
       }
     }
-    
+
     return modified ? { ...f, content } : f;
   });
-  
+
   return { files: updatedFiles, warnings };
 }
 
@@ -2408,48 +2901,43 @@ function hasClickableTelLink(content: string): boolean {
 
 // Fix broken tel: links (missing closing quote, etc.)
 function fixBrokenTelLinks(content: string, desiredPhone: string): string {
-  const telNumber = desiredPhone.replace(/[^\d+]/g, '');
-  
+  const telNumber = desiredPhone.replace(/[^\d+]/g, "");
+
   // Pattern 1: href="tel: followed by phone but no closing quote before </a> or >
   // Example: <a href="tel: +49 30 123</a> -> <a href="tel:+49301234567">+49 30 123</a>
-  content = content.replace(
-    /<a\s+href=["']?tel:\s*([^"'<>]+?)(?:<\/a>|>)/gi,
-    (match, phoneContent) => {
-      // If properly formatted already, return as-is
-      if (/^["']tel:\+?\d+["']$/i.test(`"tel:${phoneContent.trim()}"`)) {
-        return match;
-      }
-      // Fix it
-      console.log(`🔧 [fixBrokenTelLinks] Fixing broken tel link: ${match.substring(0, 50)}...`);
-      return `<a href="tel:${telNumber}" class="site-phone-link" style="color:inherit;text-decoration:none;">${desiredPhone}</a>`;
+  content = content.replace(/<a\s+href=["']?tel:\s*([^"'<>]+?)(?:<\/a>|>)/gi, (match, phoneContent) => {
+    // If properly formatted already, return as-is
+    if (/^["']tel:\+?\d+["']$/i.test(`"tel:${phoneContent.trim()}"`)) {
+      return match;
     }
-  );
-  
+    // Fix it
+    console.log(`🔧 [fixBrokenTelLinks] Fixing broken tel link: ${match.substring(0, 50)}...`);
+    return `<a href="tel:${telNumber}" class="site-phone-link" style="color:inherit;text-decoration:none;">${desiredPhone}</a>`;
+  });
+
   // Pattern 2: href="tel:XXX" but phone number has spaces inside href value
   // Example: href="tel: +49 30 123 456" -> href="tel:+49301234567"
-  content = content.replace(
-    /href=["']tel:\s*(\+?\d[\d\s().-]*\d)["']/gi,
-    (match, phone) => {
-      const cleanNumber = phone.replace(/[^\d+]/g, '');
-      if (match.includes(cleanNumber)) return match; // Already clean
-      return `href="tel:${cleanNumber}"`;
-    }
-  );
-  
+  content = content.replace(/href=["']tel:\s*(\+?\d[\d\s().-]*\d)["']/gi, (match, phone) => {
+    const cleanNumber = phone.replace(/[^\d+]/g, "");
+    if (match.includes(cleanNumber)) return match; // Already clean
+    return `href="tel:${cleanNumber}"`;
+  });
+
   return content;
 }
 
 // Make all phone numbers clickable with tel: links
-function makeAllPhonesClickable(
-  files: Array<{ path: string; content: string }>
-): { files: Array<{ path: string; content: string }>; fixed: number } {
+function makeAllPhonesClickable(files: Array<{ path: string; content: string }>): {
+  files: Array<{ path: string; content: string }>;
+  fixed: number;
+} {
   let totalFixed = 0;
-  
+
   // Regex to find phone numbers that are NOT already wrapped in tel: link
   // Matches: +XX XXX XXX XXXX patterns (international format)
   const PHONE_REGEX = /(?<!href=["']tel:[^"']*?)(?<!["'>])(\+\d[\d\s().-]{7,}\d)(?![^<]*<\/a>)/g;
 
-  const updatedFiles = files.map(f => {
+  const updatedFiles = files.map((f) => {
     if (!/\.(html?|php)$/i.test(f.path)) return f;
 
     let content = f.content;
@@ -2475,14 +2963,14 @@ function makeAllPhonesClickable(
       if (beforeLastOpenTag) return match;
 
       fileFixed++;
-      const telNumber = String(phone).replace(/[^\d+]/g, '');
+      const telNumber = String(phone).replace(/[^\d+]/g, "");
       return `<a href="tel:${telNumber}" style="color:inherit;text-decoration:none;">${phone}</a>`;
     });
 
     totalFixed += fileFixed;
     return { ...f, content };
   });
-  
+
   return { files: updatedFiles, fixed: totalFixed };
 }
 
@@ -2491,80 +2979,84 @@ function makeAllPhonesClickable(
 function ensurePhoneOnAllPages(
   files: Array<{ path: string; content: string }>,
   desiredPhone: string,
-  geo?: string
+  geo?: string,
 ): { files: Array<{ path: string; content: string }>; warnings: string[] } {
   const warnings: string[] = [];
   const phone = desiredPhone || generateRealisticPhone(geo);
-  const telNumber = phone.replace(/[^\d+]/g, '');
-  
+  const telNumber = phone.replace(/[^\d+]/g, "");
+
   const phoneLink = `<a href="tel:${telNumber}" class="site-phone-link" style="color:inherit;text-decoration:none;font-weight:500;">${phone}</a>`;
   const phoneBlockHeader = `<div class="header-phone" style="padding:8px 16px;font-size:0.9rem;">${phoneLink}</div>`;
   const phoneBlockFooter = `<div class="footer-phone" style="margin:16px 0;font-size:0.95rem;">📞 ${phoneLink}</div>`;
-  
-  const updatedFiles = files.map(f => {
+
+  const updatedFiles = files.map((f) => {
     if (!/\.(html?|php)$/i.test(f.path)) return f;
-    
+
     let content = f.content;
-    
+
     // FIRST: Fix any broken tel: links before checking
     content = fixBrokenTelLinks(content, phone);
-    
+
     // PRIMARY CHECK: Is there a clickable tel: link?
     const hasTelLink = hasClickableTelLink(content);
-    
+
     // SECONDARY CHECK: Is there a user-visible phone (not in URLs/attributes)?
     const hasVisiblePhoneReal = hasUserVisiblePhone(content);
-    
+
     // Check if already has our marker class (prevent duplicate injections)
     const hasOurMarker = /class=["'][^"']*(?:site-phone-link|footer-phone|header-phone)[^"']*["']/i.test(content);
-    
+
     // If no tel: link AND no user-visible phone AND no marker -> INJECT
     if (!hasTelLink && !hasVisiblePhoneReal && !hasOurMarker) {
       warnings.push(`[PHONE-INJECT] ${f.path}: No phone found - injecting clickable phone`);
       console.log(`📞 [ensurePhoneOnAllPages] Injecting phone into ${f.path} - no tel: or visible phone found`);
-      
+
       // Try to add to header first
       if (/<header\b[^>]*>/i.test(content)) {
         content = content.replace(/(<header\b[^>]*>)/i, `$1\n${phoneBlockHeader}`);
       }
-      
+
       // Always add to footer (most important!)
       if (/<footer\b[^>]*>/i.test(content)) {
         content = content.replace(/<\/footer>/i, `${phoneBlockFooter}\n</footer>`);
       } else if (/<\/body>/i.test(content)) {
         // Create footer if none exists
-        content = content.replace(/<\/body>/i, `<footer style="padding:24px;text-align:center;">${phoneBlockFooter}</footer>\n</body>`);
+        content = content.replace(
+          /<\/body>/i,
+          `<footer style="padding:24px;text-align:center;">${phoneBlockFooter}</footer>\n</body>`,
+        );
       } else {
         content += `\n<footer style="padding:24px;text-align:center;">${phoneBlockFooter}</footer>`;
       }
     } else if (!hasTelLink && hasVisiblePhoneReal && !hasOurMarker) {
       // Phone exists but not clickable - check if it's in a good location
-      const strippedFooter = stripAttributeValuesForPhoneScan(
-        (content.match(/<footer[\s\S]*?<\/footer>/i) || [''])[0]
-      );
-      const strippedHeader = stripAttributeValuesForPhoneScan(
-        (content.match(/<header[\s\S]*?<\/header>/i) || [''])[0]
-      );
-      
+      const strippedFooter = stripAttributeValuesForPhoneScan((content.match(/<footer[\s\S]*?<\/footer>/i) || [""])[0]);
+      const strippedHeader = stripAttributeValuesForPhoneScan((content.match(/<header[\s\S]*?<\/header>/i) || [""])[0]);
+
       const inFooter = /\+\d[\d\s().-]{7,}\d/.test(strippedFooter);
       const inHeader = /\+\d[\d\s().-]{7,}\d/.test(strippedHeader);
-      
+
       if (!inFooter && !inHeader) {
         warnings.push(`[PHONE-INJECT] ${f.path}: Phone not in header/footer - adding to footer`);
-        console.log(`📞 [ensurePhoneOnAllPages] Adding phone to footer in ${f.path} - phone exists but not in header/footer`);
-        
+        console.log(
+          `📞 [ensurePhoneOnAllPages] Adding phone to footer in ${f.path} - phone exists but not in header/footer`,
+        );
+
         if (/<footer\b[^>]*>/i.test(content)) {
           content = content.replace(/<\/footer>/i, `${phoneBlockFooter}\n</footer>`);
         } else if (/<\/body>/i.test(content)) {
-          content = content.replace(/<\/body>/i, `<footer style="padding:24px;text-align:center;">${phoneBlockFooter}</footer>\n</body>`);
+          content = content.replace(
+            /<\/body>/i,
+            `<footer style="padding:24px;text-align:center;">${phoneBlockFooter}</footer>\n</body>`,
+          );
         }
       }
     }
     // If hasTelLink is true, we're good - phone is already clickable
-    
+
     return { ...f, content };
   });
-  
+
   return { files: updatedFiles, warnings };
 }
 // ============ END PHONE ON ALL PAGES ============
@@ -2574,50 +3066,57 @@ function runContactValidation(
   files: Array<{ path: string; content: string }>,
   geo?: string,
   language?: string,
-  desiredPhone?: string
+  desiredPhone?: string,
 ): { files: Array<{ path: string; content: string }>; warnings: string[] } {
   const allWarnings: string[] = [];
-  
+
   // Step 0: CRITICAL - Ensure phone on ALL pages (most important!)
   const phoneToUse = desiredPhone || generateRealisticPhone(geo);
   const { files: filesWithPhones, warnings: phoneWarnings } = ensurePhoneOnAllPages(files, phoneToUse, geo);
   allWarnings.push(...phoneWarnings);
-  
+
   // Step 0.5: Make ALL phone numbers clickable with tel: links
   const { files: filesWithClickablePhones, fixed: clickableFixed } = makeAllPhonesClickable(filesWithPhones);
   if (clickableFixed > 0) {
     allWarnings.push(`Made ${clickableFixed} phone number(s) clickable with tel: links`);
   }
-  
+
   // Step 1: Validate contact page has phone/email
-  const { files: filesAfterContactValidation, warnings: contactWarnings } = validateContactPage(filesWithClickablePhones, geo);
+  const { files: filesAfterContactValidation, warnings: contactWarnings } = validateContactPage(
+    filesWithClickablePhones,
+    geo,
+  );
   allWarnings.push(...contactWarnings);
-  
+
   // Step 2: Ensure all footers have contact link
-  const { files: filesWithContactLinks, warnings: footerWarnings } = ensureContactLinkInFooters(filesAfterContactValidation);
+  const { files: filesWithContactLinks, warnings: footerWarnings } =
+    ensureContactLinkInFooters(filesAfterContactValidation);
   allWarnings.push(...footerWarnings);
-  
+
   // Step 3: Ensure all footers have Privacy Policy and Terms links
-  const { files: filesWithLegalLinks, warnings: legalWarnings } = ensureLegalLinksInFooters(filesWithContactLinks, language);
+  const { files: filesWithLegalLinks, warnings: legalWarnings } = ensureLegalLinksInFooters(
+    filesWithContactLinks,
+    language,
+  );
   allWarnings.push(...legalWarnings);
-  
+
   // Step 4: Ensure Cookie Policy link and cookie banner in all pages
   const { files: finalFiles, warnings: cookieWarnings } = ensureCookiePolicyAndBanner(filesWithLegalLinks, language);
   allWarnings.push(...cookieWarnings);
-  
+
   if (allWarnings.length > 0) {
     console.log(`📋 Contact & Legal validation complete with ${allWarnings.length} fixes:`);
-    allWarnings.forEach(w => console.log(`   - ${w}`));
+    allWarnings.forEach((w) => console.log(`   - ${w}`));
   } else {
     console.log(`✅ Contact & Legal validation passed - no fixes needed`);
   }
-  
+
   return { files: finalFiles, warnings: allWarnings };
 }
 // ============ END CONTACT INFO & FOOTER LINK VALIDATION ============
 
 function enforceResponsiveImagesInFiles(
-  files: Array<{ path: string; content: string }>
+  files: Array<{ path: string; content: string }>,
 ): Array<{ path: string; content: string }> {
   const STYLE_ID = "lovable-responsive-images";
   // Prevent AI-generated pages from rendering "full height" banner images.
@@ -2640,7 +3139,7 @@ function enforceResponsiveImagesInFiles(
 }
 
 function enforceUiUxBaselineInFiles(
-  files: Array<{ path: string; content: string }>
+  files: Array<{ path: string; content: string }>,
 ): Array<{ path: string; content: string }> {
   const STYLE_ID = "lovable-uix-baseline";
 
@@ -2667,7 +3166,7 @@ function enforceUiUxBaselineInFiles(
 function ensureFaviconAndLogoInFiles(
   files: Array<{ path: string; content: string }>,
   siteNameRaw?: string,
-  brandColors?: { primary: string; accent: string }
+  brandColors?: { primary: string; accent: string },
 ): Array<{ path: string; content: string }> {
   const siteName = (siteNameRaw || "Website").trim() || "Website";
   const initials =
@@ -2679,7 +3178,7 @@ function ensureFaviconAndLogoInFiles(
       .join("") || "W";
 
   const safeText = (s: string) =>
-    s.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c] as string));
+    s.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[c] as string);
 
   // Generate a small legacy-compatible favicon.ico (32-bit BMP inside ICO).
   // Note: we can't reliably rasterize SVG here without native deps, so we render
@@ -2694,43 +3193,43 @@ function ensureFaviconAndLogoInFiles(
   };
 
   const font5x7: Record<string, string[]> = {
-    A: ["01110","10001","10001","11111","10001","10001","10001"],
-    B: ["11110","10001","10001","11110","10001","10001","11110"],
-    C: ["01111","10000","10000","10000","10000","10000","01111"],
-    D: ["11110","10001","10001","10001","10001","10001","11110"],
-    E: ["11111","10000","10000","11110","10000","10000","11111"],
-    F: ["11111","10000","10000","11110","10000","10000","10000"],
-    G: ["01111","10000","10000","10111","10001","10001","01111"],
-    H: ["10001","10001","10001","11111","10001","10001","10001"],
-    I: ["11111","00100","00100","00100","00100","00100","11111"],
-    J: ["00111","00010","00010","00010","10010","10010","01100"],
-    K: ["10001","10010","10100","11000","10100","10010","10001"],
-    L: ["10000","10000","10000","10000","10000","10000","11111"],
-    M: ["10001","11011","10101","10101","10001","10001","10001"],
-    N: ["10001","11001","10101","10011","10001","10001","10001"],
-    O: ["01110","10001","10001","10001","10001","10001","01110"],
-    P: ["11110","10001","10001","11110","10000","10000","10000"],
-    Q: ["01110","10001","10001","10001","10101","10010","01101"],
-    R: ["11110","10001","10001","11110","10100","10010","10001"],
-    S: ["01111","10000","10000","01110","00001","00001","11110"],
-    T: ["11111","00100","00100","00100","00100","00100","00100"],
-    U: ["10001","10001","10001","10001","10001","10001","01110"],
-    V: ["10001","10001","10001","10001","10001","01010","00100"],
-    W: ["10001","10001","10001","10101","10101","11011","10001"],
-    X: ["10001","10001","01010","00100","01010","10001","10001"],
-    Y: ["10001","10001","01010","00100","00100","00100","00100"],
-    Z: ["11111","00001","00010","00100","01000","10000","11111"],
-    "0": ["01110","10001","10011","10101","11001","10001","01110"],
-    "1": ["00100","01100","00100","00100","00100","00100","01110"],
-    "2": ["01110","10001","00001","00010","00100","01000","11111"],
-    "3": ["11110","00001","00001","01110","00001","00001","11110"],
-    "4": ["00010","00110","01010","10010","11111","00010","00010"],
-    "5": ["11111","10000","10000","11110","00001","00001","11110"],
-    "6": ["01110","10000","10000","11110","10001","10001","01110"],
-    "7": ["11111","00001","00010","00100","01000","01000","01000"],
-    "8": ["01110","10001","10001","01110","10001","10001","01110"],
-    "9": ["01110","10001","10001","01111","00001","00001","01110"],
-    "?": ["01110","10001","00001","00010","00100","00000","00100"],
+    A: ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
+    B: ["11110", "10001", "10001", "11110", "10001", "10001", "11110"],
+    C: ["01111", "10000", "10000", "10000", "10000", "10000", "01111"],
+    D: ["11110", "10001", "10001", "10001", "10001", "10001", "11110"],
+    E: ["11111", "10000", "10000", "11110", "10000", "10000", "11111"],
+    F: ["11111", "10000", "10000", "11110", "10000", "10000", "10000"],
+    G: ["01111", "10000", "10000", "10111", "10001", "10001", "01111"],
+    H: ["10001", "10001", "10001", "11111", "10001", "10001", "10001"],
+    I: ["11111", "00100", "00100", "00100", "00100", "00100", "11111"],
+    J: ["00111", "00010", "00010", "00010", "10010", "10010", "01100"],
+    K: ["10001", "10010", "10100", "11000", "10100", "10010", "10001"],
+    L: ["10000", "10000", "10000", "10000", "10000", "10000", "11111"],
+    M: ["10001", "11011", "10101", "10101", "10001", "10001", "10001"],
+    N: ["10001", "11001", "10101", "10011", "10001", "10001", "10001"],
+    O: ["01110", "10001", "10001", "10001", "10001", "10001", "01110"],
+    P: ["11110", "10001", "10001", "11110", "10000", "10000", "10000"],
+    Q: ["01110", "10001", "10001", "10001", "10101", "10010", "01101"],
+    R: ["11110", "10001", "10001", "11110", "10100", "10010", "10001"],
+    S: ["01111", "10000", "10000", "01110", "00001", "00001", "11110"],
+    T: ["11111", "00100", "00100", "00100", "00100", "00100", "00100"],
+    U: ["10001", "10001", "10001", "10001", "10001", "10001", "01110"],
+    V: ["10001", "10001", "10001", "10001", "10001", "01010", "00100"],
+    W: ["10001", "10001", "10001", "10101", "10101", "11011", "10001"],
+    X: ["10001", "10001", "01010", "00100", "01010", "10001", "10001"],
+    Y: ["10001", "10001", "01010", "00100", "00100", "00100", "00100"],
+    Z: ["11111", "00001", "00010", "00100", "01000", "10000", "11111"],
+    "0": ["01110", "10001", "10011", "10101", "11001", "10001", "01110"],
+    "1": ["00100", "01100", "00100", "00100", "00100", "00100", "01110"],
+    "2": ["01110", "10001", "00001", "00010", "00100", "01000", "11111"],
+    "3": ["11110", "00001", "00001", "01110", "00001", "00001", "11110"],
+    "4": ["00010", "00110", "01010", "10010", "11111", "00010", "00010"],
+    "5": ["11111", "10000", "10000", "11110", "00001", "00001", "11110"],
+    "6": ["01110", "10000", "10000", "11110", "10001", "10001", "01110"],
+    "7": ["11111", "00001", "00010", "00100", "01000", "01000", "01000"],
+    "8": ["01110", "10001", "10001", "01110", "10001", "10001", "01110"],
+    "9": ["01110", "10001", "10001", "01111", "00001", "00001", "01110"],
+    "?": ["01110", "10001", "00001", "00010", "00100", "00000", "00100"],
   };
 
   const createIcoBase64 = (text: string) => {
@@ -2919,16 +3418,12 @@ function ensureFaviconAndLogoInFiles(
     // Ensure favicon link exists
     if (!/rel=["']icon["']/i.test(content)) {
       const link = `\n<link rel="icon" href="favicon.ico" type="image/x-icon">\n<link rel="icon" href="favicon.svg" type="image/svg+xml">\n`;
-      content = /<\/head>/i.test(content)
-        ? content.replace(/<\/head>/i, `${link}</head>`)
-        : `${link}${content}`;
+      content = /<\/head>/i.test(content) ? content.replace(/<\/head>/i, `${link}</head>`) : `${link}${content}`;
     } else {
       // If there is already an icon, still try to add .ico for legacy browsers
       if (!/href=["']favicon\.ico["']/i.test(content)) {
         const link = `\n<link rel="icon" href="favicon.ico" type="image/x-icon">\n`;
-        content = /<\/head>/i.test(content)
-          ? content.replace(/<\/head>/i, `${link}</head>`)
-          : `${link}${content}`;
+        content = /<\/head>/i.test(content) ? content.replace(/<\/head>/i, `${link}</head>`) : `${link}${content}`;
       }
     }
 
@@ -2936,7 +3431,7 @@ function ensureFaviconAndLogoInFiles(
     content = content.replace(
       /<a([^>]*\bclass=["'][^"']*(?:nav-logo|logo|brand)[^"']*["'][^>]*)>(?!\s*<img\b)[\s\S]*?<\/a>/gi,
       (_m, aAttrs) =>
-        `<a${aAttrs}><img src="logo.svg" alt="${safeText(siteName)} logo" style="height:40px;width:auto;display:block" loading="eager"></a>`
+        `<a${aAttrs}><img src="logo.svg" alt="${safeText(siteName)} logo" style="height:40px;width:auto;display:block" loading="eager"></a>`,
     );
 
     return { ...f, content };
@@ -2946,10 +3441,7 @@ function ensureFaviconAndLogoInFiles(
 // MANDATORY: Ensure required utility pages exist for HTML generations.
 // NOTE: There is also a nested implementation inside the main generation flow.
 // This top-level version is required so background generation can call it too.
-function ensureMandatoryPages(
-  generatedFiles: GeneratedFile[],
-  lang: string = "en"
-): GeneratedFile[] {
+function ensureMandatoryPages(generatedFiles: GeneratedFile[], lang: string = "en"): GeneratedFile[] {
   const fileMap = new Map(generatedFiles.map((f) => [f.path.toLowerCase(), f]));
 
   // Extract header/footer from index.html for consistent styling
@@ -3011,13 +3503,10 @@ function ensureMandatoryPages(
 
     if (fileName === "privacy.html") {
       if (lang === "uk" || lang === "ru") {
-        const t1 =
-          lang === "uk" ? "1. Загальні положення" : "1. Общие положения";
+        const t1 = lang === "uk" ? "1. Загальні положення" : "1. Общие положения";
         const t2 = lang === "uk" ? "2. Які дані ми збираємо" : "2. Какие данные мы собираем";
-        const t3 =
-          lang === "uk" ? "3. Як ми використовуємо дані" : "3. Как мы используем данные";
-        const t4 =
-          lang === "uk" ? "4. Захист даних" : "4. Защита данных";
+        const t3 = lang === "uk" ? "3. Як ми використовуємо дані" : "3. Как мы используем данные";
+        const t4 = lang === "uk" ? "4. Захист даних" : "4. Защита данных";
         const t5 = lang === "uk" ? "5. Ваші права" : "5. Ваши права";
         const t6 = lang === "uk" ? "6. Контакти" : "6. Контакты";
 
@@ -3035,11 +3524,17 @@ function ensureMandatoryPages(
       return (
         section(
           "1. Introduction",
-          `This Privacy Policy explains how ${siteName} collects, uses, and protects personal information.`
+          `This Privacy Policy explains how ${siteName} collects, uses, and protects personal information.`,
         ) +
         section("2. Data We Collect", "Contact details, technical data (IP, browser), cookies, and usage analytics.") +
-        section("3. How We Use Data", "To provide services, improve the website, communicate with you, and for analytics.") +
-        section("4. Security", "We apply reasonable technical and organizational safeguards to protect your information.") +
+        section(
+          "3. How We Use Data",
+          "To provide services, improve the website, communicate with you, and for analytics.",
+        ) +
+        section(
+          "4. Security",
+          "We apply reasonable technical and organizational safeguards to protect your information.",
+        ) +
         section("5. Your Rights", "You may request access, correction, or deletion of your personal information.") +
         section("6. Contact", "Please contact us via the website contact form.") +
         "\n".repeat(30)
@@ -3066,7 +3561,10 @@ function ensureMandatoryPages(
       }
       return (
         section("1. Acceptance", "By using this website, you agree to these Terms of Service.") +
-        section("2. Services", `${siteName} provides informational and/or consulting services as described on the site.`) +
+        section(
+          "2. Services",
+          `${siteName} provides informational and/or consulting services as described on the site.`,
+        ) +
         section("3. User Conduct", "You agree to use the site lawfully and not to violate others’ rights.") +
         section("4. Intellectual Property", "All content is protected; copying without permission is prohibited.") +
         section("5. Liability", "We are not liable for indirect damages or data loss to the extent permitted by law.") +
@@ -3091,7 +3589,10 @@ function ensureMandatoryPages(
       }
       return (
         section("1. What Are Cookies", "Cookies are small text files stored on your device when you visit a website.") +
-        section("2. How We Use Cookies", "We use cookies for core functionality, analytics, and remembering preferences.") +
+        section(
+          "2. How We Use Cookies",
+          "We use cookies for core functionality, analytics, and remembering preferences.",
+        ) +
         section("3. Types", "Necessary cookies (cookieConsent) and optional analytics cookies may be used.") +
         section("4. Managing Cookies", "You can control cookies in your browser settings.") +
         "\n".repeat(30)
@@ -3234,13 +3735,25 @@ function ensureMandatoryPages(
     {
       file: "terms.html",
       title:
-        lang === "uk" ? "Умови використання" : lang === "ru" ? "Условия использования" : lang === "de" ? "Nutzungsbedingungen" : "Terms of Service",
+        lang === "uk"
+          ? "Умови використання"
+          : lang === "ru"
+            ? "Условия использования"
+            : lang === "de"
+              ? "Nutzungsbedingungen"
+              : "Terms of Service",
       minLength: 2000,
     },
     {
       file: "cookie-policy.html",
       title:
-        lang === "uk" ? "Політика cookies" : lang === "ru" ? "Политика cookies" : lang === "de" ? "Cookie-Richtlinie" : "Cookie Policy",
+        lang === "uk"
+          ? "Політика cookies"
+          : lang === "ru"
+            ? "Политика cookies"
+            : lang === "de"
+              ? "Cookie-Richtlinie"
+              : "Cookie Policy",
       minLength: 2000,
     },
     {
@@ -3259,7 +3772,7 @@ function ensureMandatoryPages(
     const mandatoryPage = mandatoryPages.find((mp) => mp.file === fileName);
     if (mandatoryPage && f.content.length < mandatoryPage.minLength) {
       console.log(
-        `⚠️ Replacing incomplete page ${f.path} (${f.content.length} chars < ${mandatoryPage.minLength} min)`
+        `⚠️ Replacing incomplete page ${f.path} (${f.content.length} chars < ${mandatoryPage.minLength} min)`,
       );
       return false;
     }
@@ -3287,7 +3800,7 @@ function normalizeLang(code: string): string {
 function ensureBilingualI18nInFiles(
   files: Array<{ path: string; content: string }>,
   bilingualLanguages: string[] | null | undefined,
-  siteName?: string
+  siteName?: string,
 ): Array<{ path: string; content: string }> {
   if (!bilingualLanguages || !Array.isArray(bilingualLanguages) || bilingualLanguages.length !== 2) return files;
   const lang1 = normalizeLang(bilingualLanguages[0]);
@@ -3302,13 +3815,13 @@ function ensureBilingualI18nInFiles(
 // eslint-disable-next-line no-var
 var __SITE_TRANSLATIONS__ = {
   "${lang1}": {
-    "meta": { "siteName": "${(siteName || "Website").replace(/"/g, "\\\"")}" },
+    "meta": { "siteName": "${(siteName || "Website").replace(/"/g, '\\"')}" },
     "lang": { "label": "${lang1.toUpperCase()}" },
     "nav": { "home": "Home", "about": "About", "services": "Services", "contact": "Contact" },
     "common": { "learnMore": "Learn more", "send": "Send" }
   },
   "${lang2}": {
-    "meta": { "siteName": "${(siteName || "Website").replace(/"/g, "\\\"")}" },
+    "meta": { "siteName": "${(siteName || "Website").replace(/"/g, '\\"')}" },
     "lang": { "label": "${lang2.toUpperCase()}" },
     "nav": { "home": "Home", "about": "About", "services": "Services", "contact": "Contact" },
     "common": { "learnMore": "Learn more", "send": "Send" }
@@ -3476,120 +3989,41 @@ if (typeof window !== "undefined") window.__SITE_TRANSLATIONS__ = __SITE_TRANSLA
 }
 // ============ END PHONE NUMBER VALIDATION ============
 
-const SYSTEM_PROMPT = `# 🧠 AI AGENT — REQUIREMENTS TRANSMISSION & VALIDATION PROMPT
-## ROLE: REQUIREMENTS PASS-THROUGH CONTROLLER FOR FULLY STATIC MULTI-PAGE WEBSITES
+const SYSTEM_PROMPT = `You are a prompt refiner for professional, multi-page websites.
 
-you are not a website generator.
-you are a requirements transmission agent.
+Your job:
+- Analyze the user's request
+- Extract the required pages/sections, brand details, geo/country, and contact info
+- Produce a clear GENERATION BRIEF that a separate website generator will follow
 
-your only job:
-1) extract structured facts from the user input
-2) generate a strict, technical, non-negotiable generation prompt for a separate website-generation model
-3) validate that your output includes every required block and every required constraint
-4) never return a brief, summary, or paraphrase of the user input — always return the full generation prompt
+LANGUAGE (CRITICAL, NON-NEGOTIABLE):
+- If the user explicitly specifies a language (e.g. "Language: EN", "Мова: українська", "Язык: русский"), set TARGET_LANGUAGE to that exact language/code.
+- Otherwise infer from the language of the user's message.
+- If still unclear, default to EN.
+- IMPORTANT: Do NOT "default" to Ukrainian unless explicitly requested.
 
-if you omit any required block or rule, your output is invalid
+OUTPUT RULES:
+- Write the brief itself in ENGLISH (meta-instructions), but keep TARGET_LANGUAGE exactly as determined.
+- Do NOT translate the user's business content; only describe what to generate.
 
----
-
-## 0) NO-DEFAULTS POLICY (CRITICAL — OVERRIDDEN WITH CONTROLLED GENERATION RULES)
-
-you must not invent, assume, or auto-fill any values for:
-- domain
-- geo
-- language
-- keyword / brand
-- business topic and scope
-- contact data (address, phone, email)
-- prohibited words list
-
-### controlled generation exceptions (explicitly allowed)
-- **company name**: derive from domain label before the first dot (example: crakka.com → crakka)
-- **physical address**: generate a realistic, geo-appropriate address matching the provided geo/country (non-real, placeholder-style but plausible)
-- email: if user does NOT provide email, generate as contact@[domain]
-- phone: if user does NOT provide phone, generate a realistic format for the country
-
-### required behavior
-- if any non-exempt field above is missing in user input, output a "missing required inputs" block listing exactly what is missing and STOP
-- you may derive country name only if geo is explicitly provided
-- you must not guess a single language from country; use the user-provided language field
-- preserve original spelling/casing for domain, phone, email, and keyword
-- prohibited words list must be preserved and de-duplicated only
-- do NOT require phone/email if controlled generation is enabled
-
----
-
-## 1) INPUT PARSING RULES (STRICT)
-
-the user input is a structured spec that may include:
-- domain, geo, language(s), keyword(s), company
-- business / topic / description, services list
-- contact info (phone, email), prohibited words
-- legal requirements, style notes, technical constraints
-
-### extraction requirements
-- preserve exact values for domain, phone, email, and keyword list
-- normalize only whitespace and list formatting
-- do not introduce pricing, promises, guarantees, or commercial language
-
----
-
-## 2) OUTPUT CONTRACT (MANDATORY)
-
-your output must be:
-- a single markdown document
-- structured using the section headers below
-- fully populated using user input + allowed controlled generation
-- no extra commentary before or after the generation prompt
-
----
-
-## 3) GENERATION PROMPT TEMPLATE (THIS IS THE ONLY ALLOWED OUTPUT)
-
-**create a deep, professional, 100% static multi-page website for "[company]"**
-
-**domain:** [domain]
-**geo:** [geo]
-**country:** [country derived from geo]
-**language:** [from input — can be single language, bilingual, or multilingual]
-**keyword / brand:** [keyword / brand]
-**phone:** [phone]
-**email:** [email]
-**physical address:** [generated realistic address matching geo]
-
----
-
-### language & geo enforcement (critical)
-- if single language: ALL content in that language, no mixing
-- if multiple languages: visible language toggle in header on every page
-- language switching must affect ALL content: headings, paragraphs, buttons, menus, footers, legal pages, form labels, placeholders, validation messages, toasts, cookie banner, blog listings and posts, document titles and meta descriptions
-- selected language must persist using localStorage key "site_lang"
-- <html lang=""> must update dynamically
-- any untranslated or hardcoded visible text = invalid output
-
-### website type — non-commercial (critical)
-this website:
-- does not sell products or services
-- does not contain prices, payments, carts, checkout, or transactions
-- does not include commercial calls-to-action
-
-allowed types: expert content website, industry insights blog, technical / analytical publication, informational consulting presence (no sales)
-
-### prohibited words & topics — strict enforcement (critical)
-merged prohibited list (system + user, de-duplicated): [prohibited words list]
-these words must not appear anywhere: content, legal pages, ui labels, metadata, image alt text
-violation = invalid output
-
-### company profile
-company name, brand/keyword, business description (neutral, technical, non-commercial)
-
-### services (informational only — no sales language)
-[list services as a numbered list, neutral and technical]
-
----
-
-NEVER output "missing required inputs" if controlled generation can fill the gap.
-Output ONLY the detailed brief, no explanations or questions.`.trim();
+Return ONLY this structure:
+TARGET_LANGUAGE: <value>
+SITE_NAME: <value if present>
+GEO/COUNTRY: <value if present>
+PAGES:
+- <page 1>
+- <page 2>
+DESIGN:
+- style: <summary>
+- colors: <summary>
+CONTENT:
+- key offerings: <bullets>
+- primary CTAs: <bullets>
+CONTACT:
+- phone: <required format + must be clickable tel: link>
+- email: <if present + must be clickable mailto: link>
+- address: <if present>
+`.trim();
 
 // ~30 unique layout variations for randomization or manual selection
 // Each style has UNIQUE structure for: Header/Nav, Hero, Sections, Features, Testimonials, CTA, Footer
@@ -3628,7 +4062,7 @@ FOOTER STRUCTURE:
 - 4-column layout: About + logo | Quick Links | Services | Contact Info
 - Newsletter subscription bar above columns
 - Bottom bar: copyright LEFT, social icons RIGHT
-- Colors: dark navy/charcoal background with white text`
+- Colors: dark navy/charcoal background with white text`,
   },
   {
     id: "corporate",
@@ -3667,7 +4101,7 @@ FOOTER STRUCTURE:
 - Columns: Company Info | Products | Services | Resources | Legal
 - Large company logo and description in first column
 - Certifications and awards row above copyright
-- Bottom: copyright CENTER with policy links`
+- Bottom: copyright CENTER with policy links`,
   },
   {
     id: "professional",
@@ -3705,7 +4139,7 @@ FOOTER STRUCTURE:
 - Columns: Navigation | Services | Resources | Contact
 - Professional color scheme matching header
 - Social proof badges (BBB, SSL, etc.)
-- Bottom bar: copyright + privacy/terms links`
+- Bottom bar: copyright + privacy/terms links`,
   },
   {
     id: "executive",
@@ -3743,7 +4177,7 @@ FOOTER STRUCTURE:
 - Single centered column with logo, essential links, contact
 - Gold/silver decorative line divider
 - Premium typography throughout
-- Subtle background texture or pattern`
+- Subtle background texture or pattern`,
   },
   // Modern & Creative
   {
@@ -3780,7 +4214,7 @@ FOOTER STRUCTURE:
 - Minimalist 2-column asymmetric layout
 - Large logo one side, stacked links other side
 - Unusual spacing and alignment
-- Bold accent color strip at bottom`
+- Bold accent color strip at bottom`,
   },
   {
     id: "editorial",
@@ -3816,7 +4250,7 @@ FOOTER STRUCTURE:
 - Single-line minimalist footer
 - Horizontal link list with decorative separators
 - Publication name centered above links
-- "Back to top" link prominent`
+- "Back to top" link prominent`,
   },
   {
     id: "bold",
@@ -3852,7 +4286,7 @@ FOOTER STRUCTURE:
 - Compact dark footer
 - Social icons large and prominent in row
 - Minimal text links in single line
-- Strong color accent border at top`
+- Strong color accent border at top`,
   },
   {
     id: "creative",
@@ -3888,7 +4322,7 @@ FOOTER STRUCTURE:
 - Artistic footer with decorative elements
 - Links in casual scattered arrangement
 - Hand-drawn decorative borders or doodles
-- Playful copyright with emoji or illustration`
+- Playful copyright with emoji or illustration`,
   },
   {
     id: "artistic",
@@ -3924,7 +4358,7 @@ FOOTER STRUCTURE:
 - Minimal gallery-style footer
 - Small centered text block
 - Opening hours prominently displayed
-- Location and contact as single line`
+- Location and contact as single line`,
   },
   // Minimalist & Clean
   {
@@ -3960,7 +4394,7 @@ FOOTER STRUCTURE:
 - Ultra-minimal single line
 - Copyright, 2-3 essential links only
 - No background color change
-- Generous top margin as separator`
+- Generous top margin as separator`,
   },
   {
     id: "zen",
@@ -3995,7 +4429,7 @@ FOOTER STRUCTURE:
 - Serene footer with muted background color
 - Flowing organic shapes as decoration
 - Centered content stack
-- Social links as subtle icons`
+- Social links as subtle icons`,
   },
   {
     id: "clean",
@@ -4031,7 +4465,7 @@ FOOTER STRUCTURE:
 - Organized columns with clear headings
 - Visible grid alignment
 - Subtle border separating from content
-- Clean bottom bar with copyright`
+- Clean bottom bar with copyright`,
   },
   {
     id: "whitespace",
@@ -4066,7 +4500,7 @@ FOOTER STRUCTURE:
 - Spread out footer elements
 - Each column stands alone with space
 - Bottom bar with generous padding
-- Feels like elements are floating`
+- Feels like elements are floating`,
   },
   // Dynamic & Interactive
   {
@@ -4102,7 +4536,7 @@ FOOTER STRUCTURE:
 - Multi-level footer with expandable sections
 - Animated social icons
 - Interactive newsletter signup
-- Hover effects on all links`
+- Hover effects on all links`,
   },
   {
     id: "interactive",
@@ -4137,7 +4571,7 @@ FOOTER STRUCTURE:
 - Interactive elements throughout
 - Hover-reactive social icons
 - Animated decorative elements
-- Easter egg interactions hidden`
+- Easter egg interactions hidden`,
   },
   {
     id: "animated",
@@ -4173,7 +4607,7 @@ FOOTER STRUCTURE:
 - Subtle entrance animation when scrolled into view
 - Hover animations on links
 - Animated social icons
-- Gentle background animation possible`
+- Gentle background animation possible`,
   },
   {
     id: "parallax",
@@ -4209,7 +4643,7 @@ FOOTER STRUCTURE:
 - Parallax background continuing into footer
 - Content overlays moving background
 - Creates infinite scroll illusion
-- Grounded contact info at very bottom`
+- Grounded contact info at very bottom`,
   },
   // Tech & Product
   {
@@ -4250,7 +4684,7 @@ FOOTER STRUCTURE:
 - Columns: Product | Company | Resources | Legal
 - Social links and newsletter signup
 - Platform status link
-- Copyright with product version`
+- Copyright with product version`,
   },
   {
     id: "startup",
@@ -4288,7 +4722,7 @@ FOOTER STRUCTURE:
 - Startup-style footer with newsletter emphasis
 - Columns: Product | Company | Social
 - Job openings link prominent
-- "Made with ❤️" style copyright`
+- "Made with ❤️" style copyright`,
   },
   {
     id: "tech",
@@ -4325,7 +4759,7 @@ FOOTER STRUCTURE:
 - Dark footer matching theme
 - API/Docs links prominent
 - GitHub/Discord community links
-- Technical contact (support@, developers@)`
+- Technical contact (support@, developers@)`,
   },
   {
     id: "app",
@@ -4362,7 +4796,7 @@ FOOTER STRUCTURE:
 - App Store badges prominent again
 - Support and contact links
 - App version number in footer
-- Social links for app community`
+- Social links for app community`,
   },
   // Style-specific
   {
@@ -4400,7 +4834,7 @@ FOOTER STRUCTURE:
 - Dark footer with gradient accent line at top
 - Subtle gradient in background
 - Glass-effect social icons
-- Wave shape divider from content`
+- Wave shape divider from content`,
   },
   {
     id: "brutalist",
@@ -4437,7 +4871,7 @@ FOOTER STRUCTURE:
 - Minimal with just copyright and essential links
 - Thick top border as separator
 - Monospace or bold sans-serif text
-- Exposed, honest, no decoration`
+- Exposed, honest, no decoration`,
   },
   {
     id: "glassmorphism",
@@ -4474,7 +4908,7 @@ FOOTER STRUCTURE:
 - Semi-transparent footer with blur
 - Glass-effect sections
 - Soft light borders throughout
-- Colorful gradient visible through transparency`
+- Colorful gradient visible through transparency`,
   },
   {
     id: "neomorphism",
@@ -4511,7 +4945,7 @@ FOOTER STRUCTURE:
 - Subtle neomorphic footer elements
 - Raised social icons
 - Soft shadow separating from content
-- Gentle, tactile feel throughout`
+- Gentle, tactile feel throughout`,
   },
   {
     id: "retro",
@@ -4547,7 +4981,7 @@ FOOTER STRUCTURE:
 - 90s-inspired colorful footer
 - Geometric shape decorations
 - Bright accent colors
-- "© 1999 vibes" playful copyright`
+- "© 1999 vibes" playful copyright`,
   },
   // Portfolio & Showcase
   {
@@ -4584,7 +5018,7 @@ FOOTER STRUCTURE:
 - Social links prominent
 - Simple copyright with name
 - "Available for freelance" status indicator
-- Personal email prominent`
+- Personal email prominent`,
   },
   {
     id: "agency",
@@ -4624,7 +5058,7 @@ FOOTER STRUCTURE:
 - Office locations (if multiple)
 - Awards and certifications row
 - Comprehensive sitemap links
-- Newsletter signup for insights`
+- Newsletter signup for insights`,
   },
   {
     id: "studio",
@@ -4660,7 +5094,7 @@ FOOTER STRUCTURE:
 - Creative studio footer with showreel link
 - Contact for productions
 - Social links (Vimeo, YouTube, Instagram)
-- Studio location and hours`
+- Studio location and hours`,
   },
   // E-commerce & Services
   {
@@ -4699,7 +5133,7 @@ FOOTER STRUCTURE:
 - Payment method icons row
 - Shipping partners logos
 - Trust badges (SSL, secure checkout)
-- Legal links and policies`
+- Legal links and policies`,
   },
   {
     id: "services",
@@ -4739,7 +5173,7 @@ FOOTER STRUCTURE:
 - Hours of operation prominent
 - License and insurance info
 - BBB rating or trust badges
-- Easy contact access`
+- Easy contact access`,
   },
   {
     id: "restaurant",
@@ -4778,7 +5212,7 @@ FOOTER STRUCTURE:
 - Reservation widget or link
 - Delivery partner logos (UberEats, etc.)
 - Social links (Instagram important)
-- Newsletter for specials`
+- Newsletter for specials`,
   },
   {
     id: "hotel",
@@ -4820,262 +5254,2008 @@ FOOTER STRUCTURE:
 - Travel platform links/widgets
 - Policies (cancellation, check-in times)
 - Sister properties if applicable
-- Loyalty program info`
-  }
+- Loyalty program info`,
+  },
 ];
 
-const HTML_GENERATION_PROMPT = `YOU ARE A WORLD-CLASS WEB DESIGNER AND DEVELOPER. Generate a COMPLETE, PREMIUM, 100% STATIC multi-page website.
+const HTML_GENERATION_PROMPT = `CRITICAL: CREATE A PREMIUM, CONTENT-RICH PROFESSIONAL WEBSITE
 
-═══ STRICTLY STATIC SITE REQUIREMENT (CRITICAL) ═══
+🌐🌐🌐 LANGUAGE - FIRST PRIORITY - READ BEFORE ANYTHING ELSE! 🌐🌐🌐
+**THE WEBSITE LANGUAGE IS SPECIFIED IN THE "TARGET WEBSITE LANGUAGE" SECTION BELOW!**
+YOU MUST GENERATE ALL CONTENT IN THAT EXACT LANGUAGE - THIS IS THE #1 PRIORITY!
 
-ALLOWED: pure HTML5, pure CSS3 (flexbox + grid), native JavaScript only.
-FORBIDDEN: React, Next.js, Vue, Angular, Svelte, Node.js, Express, Webpack, Vite, Gulp, TypeScript, package.json, npm, build tools, client-side routing, SPA behavior.
-NAVIGATION RULE: use only <a href="page.html">. Each page must load directly and independently. No runtime page assembly.
-
-═══ #1 LANGUAGE (HIGHEST PRIORITY — FIRST THING TO CHECK) ═══
-The target language is specified in "TARGET WEBSITE LANGUAGE" below. ALL text — nav, headings, body, buttons, footer, meta tags, alt text, legal pages, cookie banner, form labels, placeholders, validation messages, toasts — MUST be in that language. Mixed languages = BROKEN SITE = INVALID OUTPUT.
-
-If BILINGUAL/MULTILINGUAL mode is specified:
-- only ONE set of HTML pages (no /fr, /en, no duplicates)
-- all translatable text must come from script.js
-- script.js must contain: const I18N = { lang1: {...}, lang2: {...} }
-- translator function using data-i18n keys
-- must translate: text nodes, placeholders (data-i18n-placeholder), document titles (data-i18n-title), meta descriptions (data-i18n-meta), cookie banner and toasts
-- FORBIDDEN: duplicated dom per language, hardcoded visible text outside i18n
-- language toggle visible in header on every page
-- persist selection in localStorage key "site_lang"
-- <html lang=""> must update dynamically
-
-═══ #2 MANDATORY FILE SET (ALL REQUIRED — MISSING FILES = FAILURE) ═══
-Generate ALL of these files using <!-- FILE: filename --> markers:
-
-### HTML files (18 total)
-1. index.html — Homepage with 8+ rich content sections
-2. about.html — Company story, mission, values, team section with portraits
-3. services.html — Detailed service/product descriptions (6+ items)
-4. contact.html — Contact form + embedded map (iframe OpenStreetMap) + full contact info
-5. blog.html — Lists all 5 blog posts as cards (must show 5 cards linking to post1–post5)
-6. post1.html — Blog post 1 (400–800 words, h1→h2→h3 structure, technical neutral tone)
-7. post2.html — Blog post 2
-8. post3.html — Blog post 3
-9. post4.html — Blog post 4
-10. post5.html — Blog post 5
-11. faq.html — 8-12 detailed FAQ items with accordion behavior
-12. terms.html — Terms of service (exactly 14 sections, 3000+ characters)
-13. privacy.html — Privacy policy (at least 10 sections: data collection, usage, storage, user rights, contact — 3000+ characters)
-14. cookies.html — Cookie policy with table (name, provider, type, purpose, duration — 2000+ characters)
-15. refund-policy.html — Refund policy (at least 10 sections, no prices or currency)
-16. disclaimer.html — Disclaimer (no guarantees, no responsibility, no professional advice)
-17. thank-you.html — Form submission success page with navigation back
-18. 404.html — Custom error page with navigation back to homepage
-
-### LEGAL PAGES — HARD REQUIREMENT (CRITICAL)
-The generator MUST ALWAYS create these pages as real files (never optional):
-- cookies.html, refund-policy.html, disclaimer.html
-- These files MUST be present in the final output package
-- Footer on ALL pages MUST link to these exact filenames
-- If any of these files is missing or any link points to a different filename → output is INVALID
-
-### Technical files
-19. styles.css — 400+ lines of polished CSS (colors, layout, typography, responsive, animations)
-20. script.js — Cookie banner logic, responsive nav toggle, scroll/fade animations, toast system for form submit, i18n system if bilingual
-21. sitemap.xml — Complete sitemap listing ALL pages
-22. robots.txt — Standard robots file referencing sitemap
-
-═══ #3 CSS ENFORCEMENT (CRITICAL) ═══
-- styles.css must be real, substantial (400+ lines), and linked in every page head: <link rel="stylesheet" href="styles.css">
-- NO inline styles on sections or containers
-- NO external CSS frameworks (no Bootstrap, no Tailwind CDN)
-- If styles.css is missing or empty → invalid output
-- Use CSS custom properties (:root variables) for all colors, spacing, shadows, radii
-
-═══ #4 SCRIPT ENFORCEMENT (MANDATORY) ═══
-- script.js must be real and linked on every page: <script src="script.js" defer></script>
-- Must include: cookie banner logic, responsive nav toggle, scroll/fade animations, toast system for form submit
-- If bilingual: full i18n system with I18N object and data-i18n attributes
-- NO external libraries, NO imports
-
-═══ #5 DESIGN PHILOSOPHY — UNIQUE & PREMIUM (x10 QUALITY) ═══
-Each website MUST have a DISTINCT visual identity. DO NOT use generic templates.
-
-DESIGN REQUIREMENTS:
-- Generate a UNIQUE color palette matching the business industry/theme
-- The post-processing system will OVERRIDE your :root variables with randomized values — that's OK, just USE the variables consistently
-- Create visual hierarchy with purposeful typography sizing (clamp() for responsiveness)
-- Add micro-interactions: hover transforms, focus states, smooth transitions (transition: all 0.3s ease)
-- Use varied section backgrounds (white, light tint, gradient, dark accent) for rhythm
-- Cards MUST have shadows, hover lift effects, and consistent styling
-- ALL form elements (input, select, textarea) MUST be custom-styled — NEVER browser defaults
-- Glassmorphism effects where appropriate (backdrop-filter, translucent cards)
-- Modern UI patterns: gradient text for headlines, soft glow shadows, layered compositions
-
-═══ #6 HOMEPAGE MANDATORY SECTIONS (index.html — minimum 8) ═══
-1. Header — Sticky nav with logo + menu links + language toggle (if bilingual) + optional CTA button
-2. Hero — Compelling above-the-fold with headline, subheadline, CTA buttons, and hero image
-3. Stats/Trust — 3-4 key metrics with large animated numbers
-4. Services/Features — 3-6 cards in responsive grid with icons
-5. About/Story — Split layout (text + image) with company narrative (100+ words)
-6. Testimonials/Reviews — Client quotes with names, roles, and portrait photos
-7. Recommendations — 3-4 cards with detailed client/partner recommendations
-8. Process/Timeline — 3-5 numbered steps showing how it works
-9. CTA/Contact — Contact form or strong call-to-action banner
-10. Footer — 4-column grid: brand + description, nav links, legal links (terms, privacy, cookies, refund-policy, disclaimer), contact info (phone + email + address + business hours)
-
-Each section MUST have:
-- Section label badge (small colored tag above title)
-- H2 heading + descriptive paragraph
-- Substantial content (100+ words per section, not placeholder text)
-
-═══ #7 CONTENT DENSITY — NO THIN PAGES ═══
-- Homepage: 8+ sections, each with real substantive content
-- About page: company history (200+ words), mission statement, team section with 4-6 members (portraits)
-- Services page: 6+ detailed service descriptions with icons/images
-- Contact page: form with validation + embedded OpenStreetMap iframe + full contact details
-- Blog: 5 full blog posts (400-800 words each), h1→h2→h3 structure, technical neutral tone, no marketing
-- FAQ: 8-12 detailed items with accordion JS behavior
-- Legal pages: 3000+ characters each of realistic policy content
-
-═══ #8 TEXT CONTRAST — CRITICAL ═══
-- Light backgrounds → dark text (#1a1a1a to #4a5568)
-- Dark backgrounds → white/light text (#ffffff to #e0e0e0)
-- Hero images → ALWAYS dark overlay (rgba(0,0,0,0.5)+) before white text
-- NEVER white text on white/light backgrounds. NEVER dark text on dark backgrounds.
-
-═══ #9 CONTACT INFO — MANDATORY ON EVERY PAGE ═══
-The "MANDATORY CONTACT DATA" section below provides pre-generated PHONE, EMAIL, and ADDRESS.
-USE THOSE EXACT VALUES — do not invent your own.
-
-PLACEMENT:
-- Footer on EVERY page: phone (clickable tel: link), email (clickable mailto:), address, business hours
-- Contact page: display all contact info prominently + embedded map iframe centered on address
-- Phone format: <a href="tel:+XXXXXXXXXXX">+XX XXX XXXX XXXX</a>
-- NEVER put phone numbers in image URLs, CSS, or JavaScript
-- NEVER use placeholder numbers (555, 123456, XXX)
-
-BUSINESS HOURS (in footer of EVERY page):
+⏰⏰⏰ BUSINESS HOURS - MANDATORY IN EVERY FOOTER! ⏰⏰⏰
+**EVERY PAGE FOOTER MUST INCLUDE BUSINESS HOURS IN THIS EXACT FORMAT:**
 Monday - Friday: 9:00 AM - 6:00 PM
 Saturday - Sunday: Closed
-(Translate day names to match website language)
 
-═══ #10 CONTACT PAGE — MAP REQUIREMENT (MANDATORY) ═══
-- Embed a responsive interactive map (iframe, e.g. OpenStreetMap)
-- Centered on the provided address/geo
-- No API keys, no paid SDK, no JS map libraries
-- Map label must match the website language (or be bilingual via i18n)
+THIS IS NOT OPTIONAL! IF FOOTER HAS NO BUSINESS HOURS = BROKEN SITE!
+Include under "Working Hours:" or "Business Hours:" label with icon.
 
-═══ #11 COOKIE BANNER + PREFERENCES (CRITICAL) ═══
-- Cookie banner must be fully functional and clickable (never stuck)
-- Must include: accept all, decline all, save preferences, and a manage/preferences UI (inline or modal)
-- Must include toggles (switches) for: necessary (always on, disabled), preferences, analytics, marketing
-- Store selection in localStorage as one object (key: cookie_consent)
-- Changing toggles must update stored state immediately
-- Banner must close without reload
-- All banner text + labels must match website language (or be bilingual via i18n)
-- position: fixed; bottom: 0; z-index: 9999
+⛔ LANGUAGE VIOLATIONS - THESE BREAK THE WEBSITE:
+- Generating in Ukrainian when English was requested = BROKEN!
+- Generating in English when German was requested = BROKEN!
+- Mixing languages (English navigation with Ukrainian content) = BROKEN!
+- Ignoring the language parameter = BROKEN!
 
-═══ #12 TEAM PORTRAITS — REAL HUMAN PHOTOS ONLY ═══
-For Team/Staff/Testimonial sections, use ONLY the verified Pexels portrait URLs provided in the IMAGE STRATEGY section below.
-- Alternate male/female portraits
-- Each person: photo + name + role title + short bio
-- Circular or rounded photos with consistent sizing
-- NEVER use picsum.photos for people — those are random images, not faces
-- NEVER repeat the same portrait URL for different people
+✅ CORRECT BEHAVIOR:
+- If language = "en" → ALL text in English (Home, About, Services, Contact, buttons, footer, everything!)
+- If language = "de" → ALL text in German (Startseite, Über uns, Dienstleistungen, Kontakt, etc.)
+- If language = "uk" → ALL text in Ukrainian (Головна, Про нас, Послуги, Контакти, etc.)
+- If language = "pl" → ALL text in Polish (Strona główna, O nas, Usługi, Kontakt, etc.)
+- And so on for ALL language codes!
 
-═══ #13 IMAGES — PICSUM ONLY (STABLE) + NO BROKEN IMAGES (CRITICAL) ═══
-- DO NOT use local images
-- Pexels is ONLY for portraits (team/testimonials) using provided URLs
-- DO NOT use source.unsplash.com (forbidden)
-- Use ONLY picsum.photos with seeded URLs (stable): https://picsum.photos/seed/<SEED>/<W>/<H>
-- SEED must be unique per image and descriptive (example: wayfinding-hero, signage-01, indoor-map-02)
-- Every <img> MUST include:
-  - loading="lazy" for non-hero images
-  - explicit width/height OR CSS aspect-ratio to avoid layout shift
-  - onerror fallback: onerror="this.onerror=null; this.src='https://picsum.photos/seed/fallback-'+Math.floor(Math.random()*999999)+'/1200/800';"
-- Never leave empty src, never use relative image paths
-- Hero image: max 820x580 in an <img> tag inside a container div
-- Section images: max 760x560
-- Card images: max 600x400
+LANGUAGE MUST BE CONSISTENT ACROSS:
+- Navigation menu items
+- All headings and paragraphs
+- Button text
+- Form labels and placeholders
+- Footer content
+- Cookie banner
+- Privacy policy / Terms pages
+- Meta tags (title, description)
+- Image alt texts
+- Error messages
 
-═══ #14 HEADER RULES (MANDATORY — IDENTICAL ON ALL PAGES) ═══
-- Logo + company name linking to index.html
-- Nav: Home, Services, About, Blog, FAQ, Contact
-- Language switcher visible (if bilingual/multilingual)
-- Legal pages NEVER in header nav
-- Mobile: hamburger menu with JS toggle
+**IF WEBSITE IS IN WRONG LANGUAGE = WEBSITE IS COMPLETELY BROKEN! CHECK LANGUAGE BEFORE GENERATING!**
 
-═══ #15 FOOTER RULES (MANDATORY — IDENTICAL ON ALL PAGES) ═══
-- Phone → clickable tel: link to contact.html#contacts
-- Email → clickable mailto: link
-- Physical address
-- Business hours (Mon-Fri 9-6, Sat-Sun Closed — translated)
-- Current year in copyright
-- Legal links: terms, privacy, cookies, refund-policy, disclaimer
-- 4-column layout on desktop, stacked on mobile
+🚨🚨🚨 REFERENCE QUALITY STANDARD - FOLLOW THIS STRUCTURE 🚨🚨🚨
 
-═══ #16 FORMS — VALIDATION & REDIRECT ═══
-Contact forms MUST:
-- Have NO action attribute (JS handles submission)
-- Validate: name (2+ chars), email (regex pattern), phone (7+ digits), message (10+ chars)
-- Show inline error messages in the website's language
-- On success: disable button, show spinner (1.5s delay), redirect to thank-you.html
-- Include privacy checkbox with link to privacy.html
+⛔⛔⛔ TEXT CONTRAST - ABSOLUTELY CRITICAL - NO EXCEPTIONS! ⛔⛔⛔
+**NEVER USE WHITE TEXT ON WHITE/LIGHT BACKGROUNDS!** This makes text INVISIBLE and BREAKS the website!
 
-═══ #17 RESPONSIVE DESIGN ═══
-- Mobile-first approach with breakpoints at 576px, 768px, 992px
-- Navigation: hamburger menu on mobile with JS toggle (close on link click)
-- Grids: 3-col → 2-col → 1-col on smaller screens
-- Typography: use clamp() for fluid sizing
-- Touch targets: minimum 44px
-- Container: max-width 1200px, centered with padding
+MANDATORY CONTRAST RULES:
+- Light backgrounds (#fff, #f5f5f5, #fafafa, white, cream, beige, light-gray): Use DARK text (#333, #222, #1a1a1a, black)
+- Dark backgrounds (#1a1a1a, #222, #333, black, navy, dark-blue): Use WHITE or LIGHT text (#fff, #f5f5f5)
+- Hero sections with background images: ALWAYS add dark overlay (rgba(0,0,0,0.5)) before white text
+- Cards on light pages: Use dark text (#333 or darker) - NEVER white!
+- Buttons: Ensure button text contrasts with button background color
 
-═══ #18 HEAD REQUIREMENTS (MANDATORY ON EVERY PAGE) ═══
-- <meta charset="UTF-8">
-- <meta name="viewport" content="width=device-width, initial-scale=1.0">
-- <title> (meaningful, unique per page, in website language)
-- <meta name="description"> (unique per page, 120-160 chars, in website language)
-- <link rel="stylesheet" href="styles.css">
-- <link rel="icon" href="favicon.ico">
-- <html lang="xx"> matching the content language
+WRONG EXAMPLES (NEVER DO THIS):
+❌ White text on white background: color: #fff; background: #ffffff;
+❌ Light gray text on white: color: #ccc; background: #fff;
+❌ White text on light section without overlay
+❌ Hero with white text but no dark overlay on image
 
-═══ #19 TECHNICAL RULES ═══
-- Each element can have ONLY ONE class="" attribute
-- Hero sections MUST NOT have inline style="" attributes
-- ALL navigation uses relative paths (href="about.html")
-- EVERY HTML page MUST share IDENTICAL header/navigation and footer markup
-- No markdown fences in output (no \`\`\` blocks)
+CORRECT EXAMPLES:
+✅ Dark text on light: color: #333; background: #f5f5f5;
+✅ White text on dark: color: #fff; background: #1a1a1a;
+✅ Hero with overlay: background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url(image.jpg); color: #fff;
 
-═══ #20 BLOG REQUIREMENTS (CRITICAL) ═══
-- blog.html lists all 5 posts as cards with title, excerpt, date, and image
-- Each card links to post1.html through post5.html
-- Each post: 400-800 words, h1→h2→h3 structure, technical neutral tone, no marketing, no prohibited words
-- Posts MUST have proper header/footer identical to all other pages
+**IF TEXT IS UNREADABLE = WEBSITE IS BROKEN!**
 
-═══ #21 LEGAL PAGES — DEPTH (MANDATORY) ═══
-- terms.html: exactly 14 sections
-- privacy.html: at least 10 sections (data collection, usage, storage, user rights, contact)
-- cookies.html: table with columns (name, provider, type, purpose, duration)
-- refund-policy.html: at least 10 sections, no prices or currency
-- disclaimer.html: no guarantees, no responsibility, no professional advice
+👤👥🚨 TEAM/STAFF PORTRAITS - MANDATORY HUMAN PHOTOS! 🚨👥👤
+**When creating ANY section with people (Team, Staff, Employees, About Us with team, Testimonials with photos):**
 
-═══ #22 OUTPUT FORMAT ═══
-Return ONLY file blocks. No explanations, no markdown outside files.
+YOU MUST USE REAL HUMAN PORTRAIT PHOTOS FROM PEXELS! These are VERIFIED working URLs:
 
-<!-- FILE: styles.css -->
-[Complete CSS 400+ lines]
+MALE PORTRAITS (use these exact URLs):
+- https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/2182970/pexels-photo-2182970.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/2380794/pexels-photo-2380794.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
 
-<!-- FILE: index.html -->
-[Complete HTML]
+FEMALE PORTRAITS (use these exact URLs):
+- https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/1065084/pexels-photo-1065084.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+- https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
 
-<!-- FILE: about.html -->
-[Complete HTML with IDENTICAL header/footer]
+⛔ NEVER USE FOR PEOPLE:
+- picsum.photos - these are RANDOM images, not faces!
+- Placeholder URLs with random numbers
+- Abstract images, icons, or silhouettes
+- Any URL that doesn't show a real human face
 
-...and so on for ALL 22+ files.
+✅ MANDATORY FOR TEAM SECTIONS:
+- Alternate male/female portraits (CEO: male, CFO: female, CTO: male, etc.)
+- Each team member card: photo + name + job title + short bio
+- Photos must be circular or rounded with consistent sizing
+- Use different portrait URLs for each person (never repeat same photo!)
 
-⚠️ FINAL VALIDATION RULE (CRITICAL):
-If anything is missing or violated → output is INVALID and must be regenerated.
-- You MUST output ALL website files.
-- NEVER ask to narrow/stage the request. NEVER refuse. NEVER explain limits.
-- MISSING ANY FILE = GENERATION FAILURE. CHECK YOUR OUTPUT BEFORE FINISHING.
+**IF TEAM SECTION HAS NO REAL FACE PHOTOS = WEBSITE IS BROKEN!**
+
+📞📧🚨 CONTACT INFO - ABSOLUTELY MANDATORY - READ FIRST! 🚨📧📞
+EVERY website MUST have a REAL phone number and email. NO EXCEPTIONS!
+
+🚨🚨🚨 PHONE NUMBERS - WHERE THEY BELONG (CRITICAL!) 🚨🚨🚨
+Phone numbers should ONLY appear in these locations:
+1. Footer contact section (visible text + tel: link)
+2. Contact page contact info
+3. Inside <a href="tel:..."> links
+
+⛔⛔⛔ PHONE NUMBERS MUST NEVER APPEAR IN: ⛔⛔⛔
+- Image URLs (src="https://..." MUST NEVER contain phone-like digits!)
+- CSS classes or IDs
+- JavaScript code
+- File names
+- Pexels/Unsplash URLs (use proper photo IDs like "3184418", NOT phone numbers!)
+- Any URL or path
+
+CORRECT IMAGE URL: src="https://images.pexels.com/photos/3184418/pexels-photo-3184418.jpeg"
+WRONG IMAGE URL: src="https://images.pexels.com/photos/+49 30 435/pexels-photo-+49 30 217.jpeg" ❌
+
+**PHONE NUMBER - REQUIRED IN FOOTER ONLY:**
+- MUST appear in FOOTER on ALL pages (NOT in header!)
+- MUST be realistic for the country/GEO (see examples below)
+- MUST be clickable (tel:): <a href="tel:+493028976543">+49 30 2897 6543</a>
+- The visible text MUST include the country code with "+" and spacing (never a bare local number)
+- MUST be at least 10 digits total (excluding spaces, parentheses, dashes)
+- NEVER output only the local part like "4567890" or "123456" (this is INVALID)
+- NEVER use fake/placeholder patterns: 123456, 4567890, 555-1234, XXX, 000000, 999999, (555)
+- ⚠️ CRITICAL: NEVER DUPLICATE THE COUNTRY CODE! 
+  * WRONG: "+49 +49 30...", "+353 1 +49 30...", "++49", "+353+353"
+  * CORRECT: "+49 30 2897 6543" (ONE country code only!)
+- ⚠️ NEVER MIX COUNTRY CODES! Pick ONE country code and use it consistently!
+- Examples by country (pick ONE and format similarly):
+  * Germany: +49 30 2897 6543, +49 89 4521 7892
+  * Poland: +48 22 593 27 41, +48 12 784 63 19
+  * Spain: +34 912 643 781, +34 932 815 604
+  * France: +33 1 42 68 53 21, +33 4 93 45 67 12
+  * Italy: +39 06 8745 6321, +39 02 7654 3219
+  * UK: +44 20 7946 0958, +44 161 496 0753
+  * USA: +1 (212) 647-3812, +1 (415) 781-2046
+  * Netherlands: +31 20 794 5682, +31 10 593 2741
+  * Czech Republic: +420 221 643 781, +420 257 815 604
+  * Ireland: +353 1 234 5678, +353 21 987 6543
+  * Ukraine: +380 44 239 4187, +380 67 381 2046
+  * Russia: +7 495 239 4187, +7 812 381 2046
+  * Austria: +43 1 239 4187, +43 512 381 204
+
+**EMAIL - REQUIRED IN FOOTER ONLY:**
+- MUST appear in FOOTER on ALL pages (NOT in header!)
+- MUST use the site's domain: info@<sitename>.com, contact@<sitename>.com
+- Extract domain from business name (lowercase, no spaces, no special chars)
+- MUST be clickable: <a href="mailto:info@sitename.com">info@sitename.com</a>
+- NEVER use generic emails like info@company.com or test@example.com
+
+**BUSINESS HOURS - REQUIRED IN FOOTER (EXACT FORMAT):**
+- MUST appear in FOOTER on ALL pages
+- USE THIS EXACT FORMAT (two lines):
+  Line 1: Monday - Friday: 9:00 AM - 6:00 PM
+  Line 2: Saturday - Sunday: Closed
+- This is the ONLY acceptable format for business hours!
+- For non-English sites, translate the day names appropriately but keep the same structure:
+  * German: Montag - Freitag: 9:00 - 18:00 / Samstag - Sonntag: Geschlossen
+  * French: Lundi - Vendredi: 9h00 - 18h00 / Samedi - Dimanche: Fermé
+  * Spanish: Lunes - Viernes: 9:00 - 18:00 / Sábado - Domingo: Cerrado
+- Include label "Working Hours:" or "Business Hours:" (translated appropriately)
+- HTML example:
+  <div class="footer-hours">
+    <strong>Working Hours:</strong><br>
+    Monday - Friday: 9:00 AM - 6:00 PM<br>
+    Saturday - Sunday: Closed
+  </div>
+
+⚠️ IF NO PHONE/EMAIL/HOURS IN OUTPUT = SITE IS BROKEN! ALWAYS INCLUDE THEM!
+
+**🎯 CENTERING & LAYOUT - ABSOLUTELY CRITICAL:**
+ALL content MUST be centered on the page:
+- Use max-width: 1200px for main container
+- Use margin: 0 auto for centering
+- All grids must be centered within container
+- Cards should be in clean 3-column grid (2 on tablet, 1 on mobile)
+- Light background (#f0f9f0 or similar) for card sections
+- Section headers centered with text-align: center
+
+**MANDATORY PAGE STRUCTURE (index.html must have ALL of these):**
+1. Header with navigation ONLY (NO phone/email in header! centered nav, max-width container)
+2. Hero section (split layout: text + image side by side, centered)
+3. Stats/metrics section with big numbers (3-4 stats, centered)
+4. Featured cards section (6 cards in 3x2 grid, CENTERED, with "Read More" buttons)
+5. Media object section (text + image side by side, centered)
+6. Timeline/process steps section (4 numbered steps, centered)
+7. Contact/CTA form section (centered) - WITH PHONE AND EMAIL displayed
+8. Footer with PHONE, EMAIL, ADDRESS (centered content)
+
+**EVERY SECTION MUST HAVE:**
+- Section label (small badge above title): <span class="section-label">Section Topic</span>
+- Main heading: <h2>Clear compelling title</h2>
+- Description paragraph: <p>Detailed explanation...</p>
+- Actual content (lists, cards, stats, forms)
+- ALL CONTENT CENTERED IN max-width CONTAINER
+
+🎯 **CONTENT DENSITY REQUIREMENTS:**
+- Homepage MUST have 6+ content sections
+- Each section MUST have 100+ words of real text
+- Cards MUST have title + description + meta info + "Read More" button
+- Lists MUST have 3+ bullet points with full sentences
+- Stats MUST have 3+ metrics with numbers and labels
+- CONTACT INFO (phone + email) MUST be visible on every page
+
+**MANDATORY HERO STRUCTURE (SPLIT LAYOUT) - FOLLOW EXACTLY:**
+\`\`\`html
+<section class="page-hero homepage-hero">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <span class="badge">Tagline here</span>
+      <h1>Main headline that explains value proposition clearly.</h1>
+      <p>Detailed paragraph explaining what you do, who you help, and why it matters. This should be 2-3 sentences minimum.</p>
+      <div class="hero-actions">
+        <a class="cta-button" href="contact.html">Primary Action</a>
+        <a class="button-outline" href="services.html">Secondary Action</a>
+      </div>
+      <div class="tag-pills">
+        <span>Feature 1</span>
+        <span>Feature 2</span>
+        <span>Feature 3</span>
+        <span>Feature 4</span>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <img src="https://picsum.photos/seed/hero-main/820/580" alt="Hero visual">
+    </div>
+  </div>
+</section>
+\`\`\`
+
+🚨 **HERO CRITICAL RULES - NO EXCEPTIONS:**
+- The page-hero section MUST NOT have style="" attribute
+- The page-hero section MUST NOT have background-image
+- ONLY ONE class="" attribute per element - NEVER duplicate class attributes
+- The ONLY image in hero is inside hero-visual div as an <img> tag
+- hero-visual MUST contain EXACTLY ONE <img> element, nothing else
+
+**MANDATORY STATS SECTION:**
+\`\`\`html
+<section class="section">
+  <div class="section-inner">
+    <div class="section-header">
+      <span class="section-label">Key Metrics</span>
+      <h2>Compelling headline about achievements</h2>
+      <p>Brief description of what these numbers mean.</p>
+    </div>
+    <div class="stats-highlight">
+      <ul class="highlight-list">
+        <li>First key point with detailed explanation.</li>
+        <li>Second key point with detailed explanation.</li>
+        <li>Third key point with detailed explanation.</li>
+      </ul>
+      <div class="stats-numbers">
+        <div><div class="stat-number">€4.6B</div><div class="stat-caption">Metric description</div></div>
+        <div><div class="stat-number">72 hrs</div><div class="stat-caption">Metric description</div></div>
+        <div><div class="stat-number">98%</div><div class="stat-caption">Metric description</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+\`\`\`
+
+**MANDATORY CARDS GRID (CENTERED, BEAUTIFUL):**
+\`\`\`html
+<section class="section light">
+  <div class="section-inner centered">
+    <div class="section-header centered">
+      <span class="section-label">Services</span>
+      <h2>What we offer</h2>
+      <p>Brief intro to services.</p>
+    </div>
+    <div class="cards-grid">
+      <article class="card">
+        <h3>Service Title</h3>
+        <p>Detailed description of service with real information.</p>
+        <div class="card-meta"><span class="meta-tag">Category</span> | <span class="meta-date">Published Date</span></div>
+        <a href="#" class="card-button">Read More</a>
+      </article>
+      <!-- 5 more cards for 6 total, or 3x2 grid -->
+    </div>
+  </div>
+</section>
+\`\`\`
+
+**🎯 CARD GRID CENTERING - CRITICAL CSS:**
+\`\`\`css
+/* CENTERED CONTAINER FOR ALL CONTENT */
+.section-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.section-inner.centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.section-header.centered {
+  text-align: center;
+  max-width: 700px;
+  margin-bottom: 48px;
+}
+
+/* BEAUTIFUL CENTERED CARD GRID */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+@media (max-width: 992px) {
+  .cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 576px) {
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* BEAUTIFUL CARD STYLING */
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  border: 1px solid rgba(0,0,0,0.04);
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+}
+
+.card h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text-dark);
+}
+
+.card p {
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 16px;
+  flex-grow: 1;
+}
+
+.card-meta {
+  font-size: 0.85rem;
+  color: var(--primary-color);
+  margin-bottom: 16px;
+}
+
+.meta-tag, .meta-date {
+  font-weight: 500;
+}
+
+.card-button {
+  display: inline-block;
+  padding: 12px 24px;
+  border: 2px solid var(--primary-color);
+  border-radius: 8px;
+  color: var(--primary-color);
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+  transition: all 0.3s ease;
+  align-self: flex-start;
+}
+
+.card-button:hover {
+  background: var(--primary-color);
+  color: white;
+}
+\`\`\`
+
+**MANDATORY MEDIA OBJECT (TEXT + IMAGE):**
+\`\`\`html
+<section class="section">
+  <div class="section-inner">
+    <div class="media-object">
+      <div class="media-copy">
+        <span class="section-label">About</span>
+        <h3>Compelling headline about approach</h3>
+        <p>Detailed paragraph about methodology and approach.</p>
+        <ul>
+          <li>Key benefit with explanation.</li>
+          <li>Second benefit with explanation.</li>
+          <li>Third benefit with explanation.</li>
+        </ul>
+        <div class="cta-buttons">
+          <a class="cta-button" href="about.html">Learn More</a>
+        </div>
+      </div>
+      <div class="media-visual">
+        <img src="https://picsum.photos/seed/about-img/760/560" alt="Description">
+      </div>
+    </div>
+  </div>
+</section>
+\`\`\`
+
+**MANDATORY TIMELINE/PROCESS:**
+\`\`\`html
+<section class="section light">
+  <div class="section-inner">
+    <div class="section-header">
+      <span class="section-label">Process</span>
+      <h2>How we work</h2>
+    </div>
+    <div class="timeline">
+      <div class="timeline-step">
+        <h3>1 · Step Title</h3>
+        <p>Detailed description of this step.</p>
+      </div>
+      <!-- 3-4 steps -->
+    </div>
+  </div>
+</section>
+\`\`\`
+
+**MANDATORY CONTACT FORM:**
+\`\`\`html
+<section class="section">
+  <div class="section-inner">
+    <div class="section-header">
+      <span class="section-label">Contact</span>
+      <h2>Get in touch</h2>
+      <p>Description of what happens when they contact.</p>
+    </div>
+    <div class="form-card">
+      <form class="form-grid">
+        <div class="form-grid two-columns">
+          <div class="form-group"><label>Name</label><input type="text" required></div>
+          <div class="form-group"><label>Email</label><input type="email" required></div>
+        </div>
+        <div class="form-group"><label>Message</label><textarea required></textarea></div>
+        <button type="submit" class="cta-button">Submit</button>
+      </form>
+    </div>
+  </div>
+</section>
+\`\`\`
+
+🚨 **IMAGE RULES - CRITICAL FOR PREVENTING OVERLAP:**
+- Hero: Use SINGLE <img> inside hero-visual div, max 820x580
+- Section images: SINGLE <img> inside media-visual div, max 760x560
+- Card images: NOT required, cards are text-based
+- Use picsum.photos/seed/[unique-name]/WxH for consistent images
+- NEVER full-screen images (no 100vw, 100vh)
+- NEVER use position:absolute on images
+- NEVER place multiple images in the same container
+- NEVER use background-image combined with <img> tag in same element
+- Each image container (.hero-visual, .media-visual) must have ONLY ONE <img> child
+
+🎯 **IMAGE THEME MATCHING - ALL IMAGES MUST FIT THE WEBSITE TOPIC:**
+- EVERY image MUST be relevant to the website's industry/theme/topic!
+- Use descriptive seed names that match content: seed/medical-team, seed/car-repair, seed/restaurant-food
+- Examples by industry:
+  * Medical/Clinic: doctors, medical equipment, patients, hospital rooms
+  * Restaurant/Food: dishes, kitchen, dining area, chefs
+  * Auto/Car services: cars, mechanics, garage, car parts
+  * Legal/Law: office, courthouse, lawyers, documents
+  * Real Estate: houses, apartments, interiors, architecture
+  * Construction: buildings, workers, equipment, sites
+  * Beauty/Spa: treatments, salon, cosmetics, relaxation
+  * Fitness/Sport: gym, training, athletes, equipment
+- NEVER use random unrelated images!
+- Image seeds should describe the actual content: seed/kitchen-chef, seed/legal-office, seed/gym-training
+
+👥 **TEAM/STAFF SECTIONS - MANDATORY PORTRAIT PHOTOS:**
+- When creating Team, Staff, About Us, or Employee sections - MUST use REAL portrait photos of people!
+- NEVER use random picsum images for team members - they need actual human face photos!
+- Use verified Pexels portrait IDs (see IMAGE_STRATEGY section for exact URLs)
+- Alternate between male and female portraits for realistic teams
+- Each team member card MUST have: photo, name, job title/role
+
+🚫 **ABSOLUTE PROHIBITION - IMAGE OVERLAP:**
+- NEVER generate an <img> tag on top of another <img>
+- NEVER use CSS that positions one image over another
+- NEVER use ::before or ::after pseudo-elements with background-image near <img> tags
+- Each visual container must have exactly ONE image source, not multiple
+
+**❌ WHAT NEVER TO DO - ABSOLUTE PROHIBITIONS:**
+- Empty pages or sections
+- Plain unstyled text without structure
+- Missing section labels
+- Cards without descriptions
+- Forms without proper labels
+- Lists with only 1-2 items
+- Sections without section-header
+- Images without proper sizing constraints
+- MULTIPLE IMAGES IN SAME CONTAINER
+- OVERLAPPING IMAGES
+- Using style="background-image:..." on page-hero section
+- Duplicate class="" attributes on any element (class="x" class="y" is INVALID HTML)
+- Adding inline styles to hero sections
+- Using background-image AND <img> tag in the same visual context
+
+**🚫 HTML SYNTAX RULES - NEVER VIOLATE:**
+- Each HTML element can have ONLY ONE class attribute
+- WRONG: <section class="page-hero" style="..." class="another">
+- CORRECT: <section class="page-hero homepage-hero">
+- page-hero sections must NOT have style="" attribute at all
+
+**🎨 CRITICAL DESIGN RULES - UNIQUE STYLING FOR EACH SITE:**
+
+**IMPORTANT: Each website MUST have UNIQUE visual identity!**
+- Generate a UNIQUE color palette based on the industry/theme (medical = blues/greens, food = warm colors, tech = modern blues, luxury = golds/blacks)
+- Choose border-radius style that fits the brand (corporate = subtle 8-12px, playful = 20px+, brutalist = 0px, modern = 16px)
+- Vary shadow styles (soft subtle shadows for elegance, sharp shadows for modern, no shadows for minimalist)
+- Mix up section backgrounds (some sites: alternating white/gray, others: gradient sections, others: solid color accents)
+
+**CSS VARIABLES - GENERATE UNIQUE PALETTE BASED ON THEME:**
+\`\`\`css
+:root {
+  /* Generate UNIQUE colors based on industry/theme! Examples: */
+  /* Medical/Health: --primary-color: #0891b2; --accent-color: #06b6d4; */
+  /* Legal/Finance: --primary-color: #1e3a5f; --accent-color: #3b82f6; */
+  /* Food/Restaurant: --primary-color: #b91c1c; --accent-color: #ef4444; */
+  /* Eco/Nature: --primary-color: #166534; --accent-color: #22c55e; */
+  /* Tech/Startup: --primary-color: #4f46e5; --accent-color: #818cf8; */
+  /* Luxury/Premium: --primary-color: #78350f; --accent-color: #d97706; */
+  
+  --primary-color: [CHOOSE BASED ON THEME];
+  --primary-dark: [DARKER VARIANT];
+  --secondary-color: [COMPLEMENTARY];
+  --text-dark: #1a1a1a;
+  --text-light: #666666;
+  --text-muted: #888888;
+  --bg-light: [LIGHT TINT OF PRIMARY];
+  --bg-white: #ffffff;
+  --border-color: [SUBTLE BORDER];
+  --shadow-sm: [CHOOSE STYLE];
+  --shadow-md: [CHOOSE STYLE];
+  --shadow-lg: [CHOOSE STYLE];
+  --radius-sm: [8px OR 0 OR 16px - CHOOSE];
+  --radius-md: [12px OR 0 OR 20px - CHOOSE];
+  --radius-lg: [20px OR 0 OR 30px - CHOOSE];
+  --transition: all 0.3s ease;
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+\`\`\`
+
+**BASE RESET & TYPOGRAPHY:**
+\`\`\`css
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-main);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-dark);
+  background: var(--bg-white);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-dark);
+}
+
+h1 { font-size: clamp(2rem, 5vw, 3.5rem); }
+h2 { font-size: clamp(1.5rem, 4vw, 2.5rem); }
+h3 { font-size: clamp(1.25rem, 3vw, 1.75rem); }
+
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+a:hover {
+  color: var(--primary-dark);
+}
+\`\`\`
+
+**HEADER & NAVIGATION - PREMIUM STYLING:**
+\`\`\`css
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.header.scrolled {
+  background: rgba(255,255,255,0.98);
+  box-shadow: var(--shadow-md);
+}
+
+.nav {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.nav-links {
+  display: flex;
+  gap: 32px;
+  list-style: none;
+}
+
+.nav-links a {
+  font-weight: 500;
+  color: var(--text-dark);
+  padding: 8px 0;
+  position: relative;
+}
+
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--primary-color);
+  transition: var(--transition);
+}
+
+.nav-links a:hover::after,
+.nav-links a.active::after {
+  width: 100%;
+}
+
+/* Mobile menu button */
+.nav-toggle {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+}
+
+.nav-toggle span {
+  display: block;
+  width: 24px;
+  height: 2px;
+  background: var(--text-dark);
+  margin: 6px 0;
+  transition: var(--transition);
+}
+
+@media (max-width: 768px) {
+  .nav-toggle { display: block; }
+  .nav-links {
+    position: absolute;
+    top: 70px;
+    left: 0;
+    right: 0;
+    background: white;
+    flex-direction: column;
+    padding: 20px;
+    gap: 16px;
+    box-shadow: var(--shadow-md);
+    display: none;
+  }
+  .nav-links.active { display: flex; }
+}
+\`\`\`
+
+**BUTTONS - PREMIUM DESIGN:**
+\`\`\`css
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 28px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition);
+  border: none;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: white;
+  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+}
+
+.btn-primary:hover {
+  background: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--primary-color);
+  border: 2px solid var(--primary-color);
+}
+
+.btn-secondary:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
+.btn-white {
+  background: white;
+  color: var(--text-dark);
+}
+
+.btn-white:hover {
+  background: var(--bg-light);
+  transform: translateY(-2px);
+}
+\`\`\`
+
+**🚨🚨🚨 IMAGE SIZING - ABSOLUTELY CRITICAL - NEVER FULL-SCREEN 🚨🚨🚨:**
+
+**RULES FOR IMAGE SIZES (STRICTLY FOLLOW):**
+1. Images must NEVER be full-width or full-screen (no 100vw, no width: 100%)
+2. All images must be CONTEXTUAL - sized appropriately for their content role
+3. Card images: max 400px height, contained within card boundaries
+4. Hero: background-image with overlay, NOT full-screen photos
+5. Section images: max-width 600px, centered or alongside text
+6. Gallery images: uniform size in grid, max 350px each
+
+\`\`\`css
+/* BASE IMAGE CONSTRAINTS - NEVER REMOVE */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+}
+
+/* HERO - CONTROLLED HEIGHT, NEVER FULL-SCREEN PHOTO */
+.hero {
+  min-height: 60vh;
+  max-height: 70vh; /* STRICT LIMIT - never full viewport */
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.4) 100%);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  color: white;
+  max-width: 700px;
+}
+
+/* CARD IMAGES - FIXED HEIGHT, NEVER OVERSIZED */
+.card-image, .service-card img, .feature-img {
+  width: 100%;
+  height: 200px; /* FIXED - never bigger */
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+}
+
+/* SECTION IMAGES - CONSTRAINED */
+.section-image, .about-image, .content-image {
+  max-width: 500px;
+  height: auto;
+  max-height: 350px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+}
+
+/* AVATARS - SMALL AND UNIFORM */
+.avatar, .team-photo, .testimonial-img {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* GALLERY - UNIFORM GRID */
+.gallery-item img {
+  width: 100%;
+  height: 220px; /* FIXED height */
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+}
+
+/* PARTNER LOGOS - SMALL */
+.partner-logo, .client-logo {
+  height: 40px;
+  width: auto;
+  max-width: 120px;
+  object-fit: contain;
+  filter: grayscale(100%);
+  opacity: 0.6;
+  transition: var(--transition);
+}
+
+.partner-logo:hover {
+  filter: grayscale(0);
+  opacity: 1;
+}
+
+/* PREVENT OVERSIZED IMAGES */
+section img:not(.avatar):not(.partner-logo):not(.client-logo) {
+  max-height: 400px;
+}
+\`\`\`
+
+**🎨 CONSISTENT STYLING - ALL SECTIONS MUST MATCH:**
+
+**CRITICAL RULE: Every page section must follow the SAME design language:**
+1. ALL cards must have IDENTICAL styling (same border-radius, shadow, padding)
+2. ALL sections must have UNIFORM spacing (80px padding top/bottom)
+3. ALL text elements must follow typography hierarchy
+4. NO mixing of styled cards with plain lists - use cards OR styled lists
+5. Newsletter/CTA sections must have proper background styling
+
+\`\`\`css
+/* CONSISTENT SECTION STYLING */
+.section {
+  padding: 80px 0;
+}
+
+.section.bg-light {
+  background: var(--bg-light);
+}
+
+.section.bg-dark {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: white;
+}
+
+/* CONSISTENT CARD STYLING - ALL CARDS IDENTICAL */
+.card, .service-card, .feature-card, .category-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: 1px solid rgba(0,0,0,0.05);
+}
+
+.card:hover, .service-card:hover, .feature-card:hover, .category-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+}
+
+/* CATEGORY/LIST SECTIONS - MUST BE STYLED AS CARDS */
+.category-list, .services-list, .features-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.category-item, .service-item, .feature-item {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  border-left: 4px solid var(--primary-color);
+  transition: all 0.3s ease;
+}
+
+.category-item:hover, .service-item:hover, .feature-item:hover {
+  transform: translateX(8px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.category-item h3, .service-item h3, .feature-item h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-dark);
+}
+
+.category-item p, .service-item p, .feature-item p {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* NEWSLETTER/CTA SECTIONS - PROPERLY STYLED */
+.newsletter-section, .cta-section, .subscribe-section {
+  background: linear-gradient(135deg, var(--bg-light) 0%, #e8f4f8 100%);
+  padding: 60px 0;
+  text-align: center;
+  border-radius: 0;
+}
+
+.newsletter-section .container, .cta-section .container {
+  max-width: 700px;
+}
+
+.newsletter-form, .subscribe-form {
+  display: flex;
+  gap: 12px;
+  max-width: 500px;
+  margin: 24px auto 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.newsletter-form input, .subscribe-form input {
+  flex: 1;
+  min-width: 250px;
+  padding: 14px 20px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+}
+
+.newsletter-form button, .subscribe-form button {
+  padding: 14px 28px;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.newsletter-form button:hover, .subscribe-form button:hover {
+  background: var(--primary-dark);
+  transform: translateY(-2px);
+}
+\`\`\`
+
+**❌ WHAT NOT TO DO (NEVER GENERATE LIKE THIS):**
+- Plain text lists without styling (Energy, Infrastructure, Technology as plain text)
+- Sections with inconsistent backgrounds
+- Cards with different border-radius values
+- Images that are too large or too small
+- Newsletter sections with basic unstyled inputs
+- Mixed styling within same page
+- **PLAIN/UNSTYLED FORM FIELDS** (raw input, select, textarea without styling)
+- Browser-default form elements without custom borders/backgrounds/radius
+
+**✅ WHAT TO DO:**
+- All categories/services in styled cards with icons or borders
+- Consistent 80px section padding throughout
+- Uniform card styling with shadows and hover effects
+- Properly sized images (200-400px height max)
+- Styled newsletter with gradient background
+- **ALL form elements (input, select, textarea) MUST have:**
+  - Custom border (1px solid with theme color)
+  - Rounded corners (border-radius from theme)
+  - Padding (12-16px)
+  - Background color (white or theme background)
+  - Focus state with box-shadow
+  - Consistent font-family and font-size
+
+**SECTIONS & CONTAINERS:**
+\`\`\`css
+section {
+  padding: 80px 0;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.section-header {
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto 50px;
+}
+
+.section-title {
+  margin-bottom: 16px;
+}
+
+.section-subtitle {
+  color: var(--text-light);
+  font-size: 1.1rem;
+}
+
+.bg-light {
+  background: var(--bg-light);
+}
+\`\`\`
+
+**CARDS & GRIDS:**
+\`\`\`css
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+
+@media (max-width: 992px) {
+  .grid-3, .grid-4 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 576px) {
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+}
+
+.card {
+  background: white;
+  border-radius: var(--radius-lg);
+  overflow: visible;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-lg);
+}
+
+.card-body {
+  padding: 24px;
+  overflow: visible;
+}
+
+.card-title {
+  font-size: 1.2rem;
+  margin-bottom: 12px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.card-text {
+  color: var(--text-light);
+  font-size: 0.95rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+\`\`\`
+
+**FORMS:**
+\`\`\`css
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: var(--text-dark);
+}
+
+.form-control {
+  width: 100%;
+  padding: 14px 18px;
+  font-size: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition: var(--transition);
+  background: white;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+textarea.form-control {
+  resize: vertical;
+  min-height: 140px;
+}
+\`\`\`
+
+**🦶 PREMIUM FOOTER DESIGN - ABSOLUTELY MANDATORY:**
+Footer MUST be professional, compact, and well-structured:
+
+\`\`\`css
+/* PREMIUM FOOTER STYLES */
+.footer {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #e0e0e0;
+  padding: 60px 0 30px;
+  margin-top: 80px;
+}
+
+.footer-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.5fr;
+  gap: 40px;
+  margin-bottom: 40px;
+}
+
+.footer-brand {
+  max-width: 280px;
+}
+
+.footer-logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.footer-description {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #a0a0a0;
+  margin-bottom: 20px;
+}
+
+.footer-heading {
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.footer-links {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.footer-links li {
+  margin-bottom: 12px;
+}
+
+.footer-links a {
+  color: #a0a0a0;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+
+.footer-links a:hover {
+  color: white;
+}
+
+.footer-contact-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+  color: #a0a0a0;
+}
+
+.footer-contact-item svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--accent-color, #3b82f6);
+}
+
+.footer-social {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.footer-social a {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.footer-social a:hover {
+  background: var(--accent-color, #3b82f6);
+  transform: translateY(-3px);
+}
+
+.footer-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+  margin: 30px 0;
+}
+
+.footer-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.footer-copyright {
+  font-size: 0.85rem;
+  color: #707070;
+}
+
+.footer-legal-links {
+  display: flex;
+  gap: 24px;
+}
+
+.footer-legal-links a {
+  font-size: 0.85rem;
+  color: #707070;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footer-legal-links a:hover {
+  color: white;
+}
+
+@media (max-width: 992px) {
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 576px) {
+  .footer-grid {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .footer-brand {
+    max-width: 100%;
+  }
+  .footer-bottom {
+    flex-direction: column;
+    text-align: center;
+  }
+  .footer-social {
+    justify-content: center;
+  }
+}
+\`\`\`
+
+**FOOTER HTML STRUCTURE (USE THIS EXACT STRUCTURE):**
+\`\`\`html
+<footer class="footer">
+  <div class="footer-container">
+    <div class="footer-grid">
+      <!-- Brand Column -->
+      <div class="footer-brand">
+        <span class="footer-logo">Company Name</span>
+        <p class="footer-description">Brief company description in 2-3 sentences. Professional and concise.</p>
+        <div class="footer-social">
+          <a href="#" aria-label="Facebook"><svg>...</svg></a>
+          <a href="#" aria-label="Instagram"><svg>...</svg></a>
+          <a href="#" aria-label="LinkedIn"><svg>...</svg></a>
+        </div>
+      </div>
+      
+      <!-- Quick Links -->
+      <div>
+        <h4 class="footer-heading">Navigation</h4>
+        <ul class="footer-links">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="about.html">About</a></li>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </div>
+      
+      <!-- Legal Links -->
+      <div>
+        <h4 class="footer-heading">Legal</h4>
+        <ul class="footer-links">
+          <li><a href="privacy.html">Privacy Policy</a></li>
+          <li><a href="terms.html">Terms of Service</a></li>
+          <li><a href="cookie-policy.html">Cookie Policy</a></li>
+        </ul>
+      </div>
+      
+      <!-- Contact Info - PHONE AND EMAIL ARE MANDATORY -->
+      <div>
+        <h4 class="footer-heading">Contact</h4>
+        <div class="footer-contact-item">
+          <svg>location icon</svg>
+          <span>123 Business Street, City</span>
+        </div>
+        <div class="footer-contact-item">
+          <svg>phone icon</svg>
+          <!-- REPLACE WITH REALISTIC PHONE FOR YOUR GEO! Examples: +49 30 2897 6543, +48 22 456 78 90, +34 912 456 789 -->
+          <a href="tel:+493028976543">+49 30 2897 6543</a>
+        </div>
+        <div class="footer-contact-item">
+          <svg>email icon</svg>
+          <!-- REPLACE WITH DOMAIN-BASED EMAIL! Use sitename from business name -->
+          <a href="mailto:info@companyname.com">info@companyname.com</a>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Disclaimer -->
+    <div class="disclaimer-section">
+      <p><strong>Disclaimer:</strong> Adapted disclaimer text...</p>
+    </div>
+    
+    <div class="footer-divider"></div>
+    
+    <div class="footer-bottom">
+      <p class="footer-copyright">© 2024 Company Name. All rights reserved.</p>
+      <div class="footer-legal-links">
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+      </div>
+    </div>
+  </div>
+</footer>
+\`\`\`
+
+**📐 PAGE STRUCTURE - CENTERED SECTIONS (CRITICAL):**
+
+\`\`\`css
+/* GLOBAL CENTERING - APPLY TO ALL PAGES */
+body {
+  background: #f8faf8;
+}
+
+/* MAIN CONTAINER - ALWAYS CENTERED */
+.container, .section-inner, .page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* CLEAN SECTION STRUCTURE */
+section {
+  padding: 80px 0;
+}
+
+section.light {
+  background: #f0f9f0;
+}
+
+/* CENTERED SECTION HEADER */
+.section-header {
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto 48px;
+}
+
+.section-label {
+  display: inline-block;
+  background: var(--primary-color, #059669);
+  color: white;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--heading-color, #1a1a1a);
+}
+
+.section-subtitle {
+  font-size: 1.1rem;
+  color: var(--text-muted, #666);
+  line-height: 1.6;
+}
+
+/* CARDS GRID - CENTERED 3-COLUMN LAYOUT */
+.cards-grid, .featured-grid, .articles-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (max-width: 992px) {
+  .cards-grid, .featured-grid, .articles-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 576px) {
+  .cards-grid, .featured-grid, .articles-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* BEAUTIFUL CARD STYLING */
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  border: 1px solid rgba(0,0,0,0.04);
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+}
+
+.card h3, .card-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text-dark, #1a1a1a);
+}
+
+.card p, .card-text {
+  color: var(--text-muted, #666);
+  line-height: 1.6;
+  font-size: 0.95rem;
+  margin-bottom: 16px;
+  flex-grow: 1;
+}
+
+.card-meta {
+  font-size: 0.85rem;
+  color: var(--primary-color, #059669);
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+/* READ MORE BUTTON */
+.card-button, .read-more {
+  display: inline-block;
+  padding: 12px 24px;
+  border: 2px solid var(--primary-color, #059669);
+  border-radius: 8px;
+  color: var(--primary-color, #059669);
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+  transition: all 0.3s ease;
+  align-self: flex-start;
+}
+
+.card-button:hover, .read-more:hover {
+  background: var(--primary-color, #059669);
+  color: white;
+}
+
+/* SEARCH/FILTER SECTION */
+.search-section {
+  max-width: 600px;
+  margin: 0 auto 48px;
+  text-align: center;
+}
+
+.search-input {
+  width: 100%;
+  padding: 16px 24px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  margin-bottom: 16px;
+}
+
+.search-button {
+  padding: 14px 32px;
+  background: var(--primary-color, #059669);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* PAGINATION */
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 48px;
+}
+
+.pagination a {
+  padding: 8px 16px;
+  color: var(--primary-color, #059669);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.pagination a.active {
+  background: var(--primary-color, #059669);
+  color: white;
+  border-radius: 6px;
+}
+\`\`\`
+
+**🌍 LANGUAGE COMPLIANCE - ABSOLUTELY MANDATORY:**
+The website MUST be generated in the EXACT language specified:
+- ALL text content MUST be in the specified language
+- Button text, navigation, form labels - EVERYTHING in the correct language
+- NEVER mix languages
+- NEVER default to Ukrainian unless explicitly specified
+
+**NAVIGATION LINKS - USE RELATIVE PATHS:**
+- ALL links MUST use: href="about.html" NOT href="/about"
+- ALWAYS include .html extension
+
+**🍪 COOKIE CONSENT - MANDATORY:**
+Include working cookie banner with localStorage:
+\`\`\`javascript
+document.addEventListener('DOMContentLoaded', function() {
+  const cookieConsent = localStorage.getItem('cookieConsent');
+  const banner = document.getElementById('cookie-banner');
+  if (!cookieConsent && banner) {
+    banner.style.display = 'flex';
+  }
+});
+function acceptCookies() {
+  localStorage.setItem('cookieConsent', 'accepted');
+  document.getElementById('cookie-banner').style.display = 'none';
+}
+function declineCookies() {
+  localStorage.setItem('cookieConsent', 'declined');
+  document.getElementById('cookie-banner').style.display = 'none';
+}
+\`\`\`
+
+**🚫 NUMBERS PROHIBITION:**
+NEVER include prices, statistics, percentages, years of experience, client counts, etc.
+ALLOWED: Phone numbers, postal codes, copyright year.
+Use alternatives: "Contact for pricing", "Experienced team", "Many satisfied clients"
+
+**📞 PHONE NUMBERS - MUST BE REALISTIC BY COUNTRY:**
+- NEVER use fake numbers like 123456, 555-1234, or placeholder XXX
+- Generate REALISTIC phone numbers based on GEO/COUNTRY:
+  * Germany: +49 30 2897 6543, +49 89 4521 7890
+  * Poland: +48 22 456 78 90, +48 12 345 67 89
+  * Spain: +34 912 456 789, +34 932 876 543
+  * France: +33 1 42 68 53 00, +33 4 93 45 67 89
+  * Italy: +39 06 8745 6321, +39 02 7654 3210
+  * UK: +44 20 7946 0958, +44 161 496 0753
+  * USA: +1 (212) 555-0147, +1 (415) 555-0198
+  * Netherlands: +31 20 794 5682, +31 10 456 7890
+  * Czech Republic: +420 221 456 789, +420 257 891 234
+  * Ukraine: +380 44 456 7890, +380 67 123 4567
+  * Russia: +7 495 123 4567, +7 812 456 7890
+  * Default international: Use the country code + realistic local format
+- MUST be clickable: <a href="tel:+14155550147">+1 (415) 555-0147</a>
+
+**📧 EMAILS - MUST MATCH SITE DOMAIN:**
+- Email MUST use the site's domain name
+- Format: info@<sitename>.com, contact@<sitename>.com, support@<sitename>.com
+- Extract sitename from the business name (lowercase, no spaces, no special chars)
+- Examples:
+  * Business "Green Garden Services" → info@greengarden.com
+  * Business "Auto Pro Center" → contact@autoprocenter.com
+  * Business "Dr. Smith Clinic" → info@drsmithclinic.com
+- MUST be clickable: <a href="mailto:info@sitename.com">info@sitename.com</a>
+- NEVER use generic emails like info@company.com or test@example.com
+
+**🙏 THANK YOU PAGE:**
+Every site needs thank-you.html with success message and link back to homepage.
+
+**🗺️ GOOGLE MAPS - MANDATORY REQUIREMENTS FOR CONTACT PAGE:**
+Every contact page MUST include a WORKING, PROPERLY DISPLAYED Google Map. This is NON-NEGOTIABLE.
+
+**GOOGLE MAPS IN HTML - USE THIS SIMPLE FORMAT (works 100%):**
+\`\`\`html
+<!-- In contact.html - USE q= PARAMETER WITH CITY NAME -->
+<div class="map-container">
+  <iframe 
+    src="https://maps.google.com/maps?q=Berlin+Germany&t=&z=13&ie=UTF8&iwloc=&output=embed"
+    width="100%" 
+    height="450" 
+    style="border:0;" 
+    allowfullscreen="" 
+    loading="lazy" 
+    title="Our Location">
+  </iframe>
+</div>
+\`\`\`
+
+**MAP URL FORMAT - USE q= PARAMETER (ALWAYS WORKS):**
+The format is: https://maps.google.com/maps?q=CITY+COUNTRY&t=&z=13&ie=UTF8&iwloc=&output=embed
+
+Examples by location (copy exact URL):
+- New York USA: https://maps.google.com/maps?q=New+York+USA&t=&z=13&ie=UTF8&iwloc=&output=embed
+- London UK: https://maps.google.com/maps?q=London+UK&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Berlin Germany: https://maps.google.com/maps?q=Berlin+Germany&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Paris France: https://maps.google.com/maps?q=Paris+France&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Kyiv Ukraine: https://maps.google.com/maps?q=Kyiv+Ukraine&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Warsaw Poland: https://maps.google.com/maps?q=Warsaw+Poland&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Vienna Austria: https://maps.google.com/maps?q=Vienna+Austria&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Amsterdam Netherlands: https://maps.google.com/maps?q=Amsterdam+Netherlands&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Prague Czechia: https://maps.google.com/maps?q=Prague+Czechia&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Rome Italy: https://maps.google.com/maps?q=Rome+Italy&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Madrid Spain: https://maps.google.com/maps?q=Madrid+Spain&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Munich Germany: https://maps.google.com/maps?q=Munich+Germany&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Zurich Switzerland: https://maps.google.com/maps?q=Zurich+Switzerland&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Sydney Australia: https://maps.google.com/maps?q=Sydney+Australia&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Toronto Canada: https://maps.google.com/maps?q=Toronto+Canada&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Bucharest Romania: https://maps.google.com/maps?q=Bucharest+Romania&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Sofia Bulgaria: https://maps.google.com/maps?q=Sofia+Bulgaria&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Budapest Hungary: https://maps.google.com/maps?q=Budapest+Hungary&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Bratislava Slovakia: https://maps.google.com/maps?q=Bratislava+Slovakia&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Ljubljana Slovenia: https://maps.google.com/maps?q=Ljubljana+Slovenia&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Zagreb Croatia: https://maps.google.com/maps?q=Zagreb+Croatia&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Belgrade Serbia: https://maps.google.com/maps?q=Belgrade+Serbia&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Moscow Russia: https://maps.google.com/maps?q=Moscow+Russia&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Los Angeles USA: https://maps.google.com/maps?q=Los+Angeles+USA&t=&z=13&ie=UTF8&iwloc=&output=embed
+- Chicago USA: https://maps.google.com/maps?q=Chicago+USA&t=&z=13&ie=UTF8&iwloc=&output=embed
+
+**RULES:**
+1. Match the city/country from the website content
+2. Replace spaces with + in the URL
+3. If no specific location - use the capital city of the country matching the language
+
+**MAP CONTAINER CSS (MANDATORY IN styles.css):**
+\`\`\`css
+.map-container {
+  width: 100%;
+  height: 450px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  margin: 40px 0;
+}
+
+.map-container iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+@media (max-width: 768px) {
+  .map-container {
+    height: 350px;
+    border-radius: 8px;
+  }
+}
+\`\`\`
+
+**NEVER DO:**
+- Never use pb= parameter (it often breaks!)
+- Never use placeholder text like "[MAP]" or "Map goes here"
+- Never omit the map from contact page
+- Never forget to add .map-container styles to CSS
+
+**⚠️ DISCLAIMER:**
+Include in footer, adapted to site's industry/theme.
+
+**MANDATORY FILES:**
+- index.html (hero + 6-8 quality sections with smooth animations)
+- about.html (company story, mission, team, values sections)
+- services.html (detailed services with cards, process steps, benefits)
+- contact.html (form, map embed, working hours, multiple contact methods)
+- thank-you.html (success message, next steps, back to home)
+- privacy.html (EXACTLY 10 detailed sections with substantial content each - Introduction, Data We Collect, How We Use Data, Data Sharing, Data Security, Your Rights, Cookies, Third Parties, Data Retention, Contact & Changes)
+- terms.html (EXACTLY 14 sections - Acceptance, Definitions, Services, User Accounts, Acceptable Use, Intellectual Property, User Content, Privacy, Disclaimers, Limitation of Liability, Indemnification, Termination, Changes, Governing Law)
+- cookie-policy.html (What Are Cookies, Types We Use, Cookie Table with ALL cookies listed, How to Manage, Third-Party Cookies, Policy Updates)
+- styles.css (600+ lines, premium design system with CSS variables, animations, responsive breakpoints)
+- script.js (mobile menu, cookie banner, scroll animations, REALISTIC form validation with mock submission)
+- cookie-banner.js (separate file for cookie consent logic)
+- robots.txt
+- sitemap.xml
+
+**📝 FORM VALIDATION - MANDATORY REALISTIC IMPLEMENTATION:**
+
+Every form on the website MUST have professional client-side validation with realistic mock submission behavior.
+This creates a realistic user experience even though forms don't connect to a real backend.
+
+**REQUIRED VALIDATION RULES (implement in script.js):**
+
+1. **Name Field Validation:**
+   - Minimum 2 characters
+   - Only letters, spaces, hyphens, apostrophes allowed
+   - Show error: "Please enter a valid name (at least 2 characters)"
+
+2. **Email Field Validation:**
+   - Must match email pattern with @ and domain
+   - Show error: "Please enter a valid email address"
+   - Pattern: /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/
+
+3. **Phone Field Validation (if present):**
+   - Minimum 10 digits (excluding spaces, dashes, parentheses)
+   - Allow +, spaces, dashes, parentheses
+   - Show error: "Please enter a valid phone number"
+   - Pattern: /^[\\+]?[(]?[0-9]{1,3}[)]?[-\\s\\.]?[0-9]{1,4}[-\\s\\.]?[0-9]{1,4}[-\\s\\.]?[0-9]{1,9}$/
+
+4. **Message/Textarea Validation:**
+   - Minimum 10 characters
+   - Show error: "Please enter at least 10 characters"
+
+5. **Checkbox Validation (for terms/privacy acceptance):**
+   - Must be checked before submission
+   - Show error: "You must accept the terms and conditions"
+
+**⚠️ CRITICAL: FORM SUBMISSION BEHAVIOR - VALIDATION MUST BLOCK REDIRECT:**
+
+The form MUST validate FIRST. If validation fails, the form MUST NOT redirect to thank-you.html!
+The redirect to thank-you.html can ONLY happen AFTER all fields pass validation.
+
+**THIS IS THE EXACT script.js CODE YOU MUST USE - COPY EXACTLY:**
+
+\`\`\`javascript
+// CRITICAL: Form validation MUST prevent submission if invalid!
+// The thank-you page redirect can ONLY happen after ALL validation passes.
+
+function initFormValidation() {
+  document.querySelectorAll('form').forEach(function(form) {
+    // CRITICAL: Remove any existing action to prevent native form submission
+    form.removeAttribute('action');
+    form.setAttribute('novalidate', 'true');
+    
+    form.addEventListener('submit', function(e) {
+      // ALWAYS prevent default first!
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Clear ALL previous errors
+      form.querySelectorAll('.field-error').forEach(function(el) { el.remove(); });
+      form.querySelectorAll('.input-error').forEach(function(el) { el.classList.remove('input-error'); });
+      
+      var hasErrors = false;
+      
+      // 1. Validate NAME field
+      var nameInput = form.querySelector('input[name="name"], input[name="full_name"], input[name="fullname"]');
+      if (!nameInput) nameInput = form.querySelector('input[type="text"]:first-of-type');
+      if (nameInput) {
+        var nameVal = nameInput.value.trim();
+        if (nameVal.length < 2) {
+          addError(nameInput, getErrorMessage('name'));
+          hasErrors = true;
+        }
+      }
+      
+      // 2. Validate EMAIL field
+      var emailInput = form.querySelector('input[type="email"], input[name="email"]');
+      if (emailInput) {
+        var emailVal = emailInput.value.trim();
+        var emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+        if (!emailRegex.test(emailVal)) {
+          addError(emailInput, getErrorMessage('email'));
+          hasErrors = true;
+        }
+      }
+      
+      // 3. Validate PHONE field (if exists and has value)
+      var phoneInput = form.querySelector('input[type="tel"], input[name="phone"], input[name="telefon"]');
+      if (phoneInput && phoneInput.value.trim()) {
+        var phoneVal = phoneInput.value.replace(/\\D/g, '');
+        if (phoneVal.length < 7) {
+          addError(phoneInput, getErrorMessage('phone'));
+          hasErrors = true;
+        }
+      }
+      
+      // 4. Validate MESSAGE/TEXTAREA field
+      var msgInput = form.querySelector('textarea, input[name="message"], input[name="nachricht"]');
+      if (msgInput) {
+        var msgVal = msgInput.value.trim();
+        if (msgVal.length < 10) {
+          addError(msgInput, getErrorMessage('message'));
+          hasErrors = true;
+        }
+      }
+      
+      // 5. Validate CHECKBOX (terms/privacy)
+      var checkbox = form.querySelector('input[type="checkbox"]');
+      if (checkbox && !checkbox.checked) {
+        addError(checkbox, getErrorMessage('checkbox'));
+        hasErrors = true;
+      }
+      
+      // ⚠️ CRITICAL: If there are errors, STOP HERE! Do NOT redirect!
+      if (hasErrors) {
+        var firstErr = form.querySelector('.field-error');
+        if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return false; // STOP - do not continue!
+      }
+      
+      // ✅ ONLY if ALL validation passed, show loading and redirect
+      var btn = form.querySelector('button[type="submit"], input[type="submit"], button:not([type])');
+      if (btn) {
+        btn.disabled = true;
+        var origText = btn.textContent || btn.value;
+        if (btn.tagName === 'BUTTON') {
+          btn.innerHTML = '<span class="spinner"></span> Sending...';
+        }
+      }
+      
+      // Simulate server delay, then redirect
+      setTimeout(function() {
+        window.location.href = 'thank-you.html';
+      }, 1500);
+    });
+  });
+}
+
+function addError(input, msg) {
+  input.classList.add('input-error');
+  var err = document.createElement('div');
+  err.className = 'field-error';
+  err.textContent = msg;
+  err.style.cssText = 'color:#dc2626;font-size:0.85rem;margin-top:4px;';
+  if (input.type === 'checkbox') {
+    input.closest('label') ? input.closest('label').appendChild(err) : input.parentNode.appendChild(err);
+  } else {
+    input.parentNode.appendChild(err);
+  }
+}
+
+function getErrorMessage(type) {
+  var lang = document.documentElement.lang || 'en';
+  var msgs = {
+    'en': { name: 'Please enter a valid name (min. 2 characters)', email: 'Please enter a valid email address', phone: 'Please enter a valid phone number', message: 'Your message must be at least 10 characters', checkbox: 'You must agree to the terms' },
+    'de': { name: 'Bitte geben Sie einen gültigen Namen ein (mind. 2 Zeichen)', email: 'Bitte geben Sie eine gültige E-Mail-Adresse ein', phone: 'Bitte geben Sie eine gültige Telefonnummer ein', message: 'Ihre Nachricht muss mindestens 10 Zeichen lang sein', checkbox: 'Sie müssen der Datenschutzerklärung zustimmen' },
+    'uk': { name: 'Будь ласка, введіть коректне ім\\'я (мін. 2 символи)', email: 'Будь ласка, введіть коректну email адресу', phone: 'Будь ласка, введіть коректний номер телефону', message: 'Ваше повідомлення має містити щонайменше 10 символів', checkbox: 'Ви повинні погодитися з умовами' },
+    'pl': { name: 'Proszę podać prawidłowe imię (min. 2 znaki)', email: 'Proszę podać prawidłowy adres e-mail', phone: 'Proszę podać prawidłowy numer telefonu', message: 'Wiadomość musi zawierać co najmniej 10 znaków', checkbox: 'Musisz zaakceptować warunki' },
+    'es': { name: 'Por favor, introduzca un nombre válido (mín. 2 caracteres)', email: 'Por favor, introduzca un correo electrónico válido', phone: 'Por favor, introduzca un número de teléfono válido', message: 'Su mensaje debe tener al menos 10 caracteres', checkbox: 'Debe aceptar los términos' },
+    'fr': { name: 'Veuillez entrer un nom valide (min. 2 caractères)', email: 'Veuillez entrer une adresse e-mail valide', phone: 'Veuillez entrer un numéro de téléphone valide', message: 'Votre message doit contenir au moins 10 caractères', checkbox: 'Vous devez accepter les conditions' },
+    'it': { name: 'Inserisci un nome valido (min. 2 caratteri)', email: 'Inserisci un indirizzo email valido', phone: 'Inserisci un numero di telefono valido', message: 'Il messaggio deve contenere almeno 10 caratteri', checkbox: 'Devi accettare i termini' },
+    'ro': { name: 'Vă rugăm să introduceți un nume valid (min. 2 caractere)', email: 'Vă rugăm să introduceți o adresă de email validă', phone: 'Vă rugăm să introduceți un număr de telefon valid', message: 'Mesajul trebuie să conțină cel puțin 10 caractere', checkbox: 'Trebuie să acceptați termenii' }
+  };
+  var m = msgs[lang] || msgs['en'];
+  return m[type] || msgs['en'][type];
+}
+
+document.addEventListener('DOMContentLoaded', initFormValidation);
+\`\`\`
+
+function showFieldError(input, message) {
+  input.classList.add('input-error');
+  const errorDiv = document.createElement('div');
+  errorDiv.className = 'field-error';
+  errorDiv.textContent = message;
+  errorDiv.style.cssText = 'color: #dc2626; font-size: 0.85rem; margin-top: 4px;';
+  input.parentNode.appendChild(errorDiv);
+}
+
+function clearFormErrors(form) {
+  form.querySelectorAll('.field-error').forEach(el => el.remove());
+  form.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
+}
+
+function showFormSuccess(form) {
+  const successDiv = document.createElement('div');
+  successDiv.className = 'form-success';
+  successDiv.innerHTML = '<div style="text-align:center;padding:20px;background:#dcfce7;border-radius:8px;"><strong>✓ Thank you!</strong><br>Your message has been sent successfully.</div>';
+  form.parentNode.insertBefore(successDiv, form.nextSibling);
+  setTimeout(() => successDiv.remove(), 5000);
+}
+
+// Initialize on DOM ready
+document.addEventListener('DOMContentLoaded', initFormValidation);
+\`\`\`
+
+**CSS FOR FORM VALIDATION (add to styles.css):**
+\`\`\`css
+/* Form validation styles */
+.input-error {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1) !important;
+}
+
+.field-error {
+  color: #dc2626;
+  font-size: 0.85rem;
+  margin-top: 4px;
+  animation: fadeIn 0.3s ease;
+}
+
+.form-success {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Loading spinner for submit button */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 0.8s linear infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+button[disabled], input[type="submit"][disabled] {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+\`\`\`
+
+**CONTACT FORM HTML STRUCTURE (use this pattern):**
+\`\`\`html
+<form class="contact-form" id="contact-form">
+  <div class="form-group">
+    <label for="name">Your Name *</label>
+    <input type="text" id="name" name="name" required placeholder="John Smith">
+  </div>
+  <div class="form-group">
+    <label for="email">Email Address *</label>
+    <input type="email" id="email" name="email" required placeholder="john@example.com">
+  </div>
+  <div class="form-group">
+    <label for="phone">Phone Number</label>
+    <input type="tel" id="phone" name="phone" placeholder="+49 30 1234 5678">
+  </div>
+  <div class="form-group">
+    <label for="message">Your Message *</label>
+    <textarea id="message" name="message" rows="5" required placeholder="How can we help you?"></textarea>
+  </div>
+  <div class="form-group checkbox-group">
+    <input type="checkbox" id="terms" name="terms" required>
+    <label for="terms">I agree to the <a href="privacy.html">Privacy Policy</a> and <a href="terms.html">Terms of Service</a></label>
+  </div>
+  <button type="submit" class="submit-button">Send Message</button>
+</form>
+\`\`\`
+
+⚠️ **CRITICAL:** Form must NOT have action attribute (JavaScript handles submission)!
+⚠️ **CRITICAL:** All validation messages must be in the SAME LANGUAGE as the website!
+
+**QUALITY STANDARDS:**
+- Each page must be SUBSTANTIAL - no empty or minimal pages
+- Legal pages (privacy, terms, cookie) must each have 3000+ characters of real content
+- All sections must have proper styling and spacing
+- Mobile-first responsive design throughout
+- Smooth hover effects and transitions
+- Professional typography with proper hierarchy
+
+**CSS MUST INCLUDE:**
+- CSS variables in :root
+- Image size constraints (CRITICAL!)
+- Premium footer styles
+- Mobile responsive breakpoints
+- Card hover effects
+- Form styling with validation states
+- Cookie banner
+- Smooth transitions
+
 `.trim();
 
 // Image strategy - Basic (reliable random photos)
@@ -5116,14 +7296,14 @@ Use the split hero with a single <img> inside .hero-visual:
 - Use Pexels portrait URLs: https://images.pexels.com/photos/[ID]/pexels-photo-[ID].jpeg?auto=compress&cs=tinysrgb&w=400&h=400&fit=crop
 - These are REAL portrait photo IDs for team sections (verified working):
   * Man portrait 1: https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-  * Man portrait 2: https://images.pexels.com/photos/2182970/pexels-photo-2182970.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-  * Man portrait 3: https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-  * Man portrait 4: https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
-  * Man portrait 5: https://images.pexels.com/photos/2380794/pexels-photo-2380794.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
   * Woman portrait 1: https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Man portrait 2: https://images.pexels.com/photos/2182970/pexels-photo-2182970.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
   * Woman portrait 2: https://images.pexels.com/photos/1065084/pexels-photo-1065084.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Man portrait 3: https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
   * Woman portrait 3: https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Man portrait 4: https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
   * Woman portrait 4: https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
+  * Man portrait 5: https://images.pexels.com/photos/2380794/pexels-photo-2380794.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
   * Woman portrait 5: https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop
 - NEVER use random numbers or picsum for team members - people need REAL face photos!
 - ALWAYS alternate between male and female portraits for realistic teams
@@ -5217,7 +7397,7 @@ async function fetchPexelsPhotos(query: string, count: number = 15): Promise<str
       `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${count}&orientation=landscape`,
       {
         headers: { Authorization: PEXELS_API_KEY },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -5227,11 +7407,12 @@ async function fetchPexelsPhotos(query: string, count: number = 15): Promise<str
 
     const data = await response.json();
     const photos = data.photos || [];
-    
+
     console.log(`📸 Pexels: Found ${photos.length} photos for "${query}"`);
-    
-    return photos.map((photo: { src: { large2x: string; large: string; medium: string } }) => 
-      photo.src.large2x || photo.src.large || photo.src.medium
+
+    return photos.map(
+      (photo: { src: { large2x: string; large: string; medium: string } }) =>
+        photo.src.large2x || photo.src.large || photo.src.medium,
     );
   } catch (error) {
     console.error("Pexels API error:", error);
@@ -5266,9 +7447,9 @@ Examples:
 - "Fitness gym website" → "gym fitness workout"
 - "Продаж автозапчастин" → "car parts automotive"
 - "Dog grooming salon" → "dog grooming salon"
-NO explanations, NO quotes, ONLY the search keywords in English.`
+NO explanations, NO quotes, ONLY the search keywords in English.`,
           },
-          { role: "user", content: prompt }
+          { role: "user", content: prompt },
         ],
         max_tokens: 20,
       }),
@@ -5281,12 +7462,12 @@ NO explanations, NO quotes, ONLY the search keywords in English.`
 
     const data = await response.json();
     const keywords = data.choices?.[0]?.message?.content?.trim() || "";
-    
+
     if (keywords && keywords.length > 2 && keywords.length < 50) {
       console.log(`🔍 AI extracted keywords: "${keywords}"`);
       return keywords;
     }
-    
+
     return extractKeywordsFallback(prompt);
   } catch (error) {
     console.error("Keyword extraction error:", error);
@@ -5298,47 +7479,47 @@ NO explanations, NO quotes, ONLY the search keywords in English.`
 function extractKeywordsFallback(prompt: string): string {
   // Translation map for common Ukrainian business terms
   const translations: Record<string, string> = {
-    "ресторан": "restaurant food",
-    "кафе": "cafe coffee",
-    "піца": "pizza restaurant",
-    "суші": "sushi japanese food",
-    "ветеринар": "veterinary pets animals",
-    "собак": "dogs pets",
-    "кішок": "cats pets",
-    "тварин": "animals pets",
-    "авто": "cars automotive",
-    "машин": "cars automotive",
-    "запчастин": "car parts automotive",
-    "будівництв": "construction building",
-    "ремонт": "repair renovation",
-    "фітнес": "fitness gym workout",
-    "спорт": "sports fitness",
-    "краса": "beauty salon spa",
-    "салон": "beauty salon",
-    "перукар": "hairdresser salon",
-    "юрист": "lawyer legal office",
-    "адвокат": "lawyer legal",
-    "медицин": "medical healthcare",
-    "стоматолог": "dentist dental",
-    "подорож": "travel vacation",
-    "туризм": "tourism travel",
-    "готель": "hotel hospitality",
-    "нерухом": "real estate property",
-    "освіта": "education school",
-    "школ": "school education",
-    "технолог": "technology business",
-    "програм": "software technology",
-    "магазин": "shop retail store",
-    "одяг": "fashion clothing",
-    "взуття": "shoes footwear",
-    "меблі": "furniture interior",
-    "квіти": "flowers florist",
-    "весілля": "wedding celebration",
-    "фото": "photography camera",
+    ресторан: "restaurant food",
+    кафе: "cafe coffee",
+    піца: "pizza restaurant",
+    суші: "sushi japanese food",
+    ветеринар: "veterinary pets animals",
+    собак: "dogs pets",
+    кішок: "cats pets",
+    тварин: "animals pets",
+    авто: "cars automotive",
+    машин: "cars automotive",
+    запчастин: "car parts automotive",
+    будівництв: "construction building",
+    ремонт: "repair renovation",
+    фітнес: "fitness gym workout",
+    спорт: "sports fitness",
+    краса: "beauty salon spa",
+    салон: "beauty salon",
+    перукар: "hairdresser salon",
+    юрист: "lawyer legal office",
+    адвокат: "lawyer legal",
+    медицин: "medical healthcare",
+    стоматолог: "dentist dental",
+    подорож: "travel vacation",
+    туризм: "tourism travel",
+    готель: "hotel hospitality",
+    нерухом: "real estate property",
+    освіта: "education school",
+    школ: "school education",
+    технолог: "technology business",
+    програм: "software technology",
+    магазин: "shop retail store",
+    одяг: "fashion clothing",
+    взуття: "shoes footwear",
+    меблі: "furniture interior",
+    квіти: "flowers florist",
+    весілля: "wedding celebration",
+    фото: "photography camera",
   };
 
   const lowerPrompt = prompt.toLowerCase();
-  
+
   // Find matching translation
   for (const [ukr, eng] of Object.entries(translations)) {
     if (lowerPrompt.includes(ukr)) {
@@ -5351,8 +7532,11 @@ function extractKeywordsFallback(prompt: string): string {
   const cleanPrompt = prompt
     .replace(/сайт|website|web|page|create|generate|for|the|a|an|і|та|для|про|створ|генер/gi, "")
     .trim();
-  
-  const words = cleanPrompt.split(/\s+/).filter(w => w.length > 3).slice(0, 3);
+
+  const words = cleanPrompt
+    .split(/\s+/)
+    .filter((w) => w.length > 3)
+    .slice(0, 3);
   const result = words.join(" ") || "business professional";
   console.log(`🔍 Fallback keywords (generic): "${result}"`);
   return result;
@@ -5485,7 +7669,6 @@ Allow: /
 
 CRITICAL: ALL navigation links MUST use relative paths like href="about.html", NOT absolute paths. Header and footer HTML structure MUST be identical across all HTML files with working links between pages.`;
 
-
 type GeneratedFile = { path: string; content: string };
 
 type TokenUsage = {
@@ -5495,31 +7678,31 @@ type TokenUsage = {
 };
 
 // Retry helper with exponential backoff for AI API calls
-// Extended timeout (180s default) to allow large Senior generations to complete fully
+// Optimized: shorter timeout (90s), fewer retries (2) to stay within edge function limits
 async function fetchWithRetry(
   url: string,
   options: RequestInit,
   maxRetries = 2,
   baseDelay = 1500,
-  timeoutMs = 180000 // 180 seconds default timeout
+  timeoutMs = 90000, // 90 seconds default timeout
 ): Promise<Response> {
   let lastError: Error | null = null;
-  
+
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      console.log(`🔄 Fetch attempt ${attempt + 1}/${maxRetries} (timeout: ${timeoutMs/1000}s)...`);
-      
+      console.log(`🔄 Fetch attempt ${attempt + 1}/${maxRetries} (timeout: ${timeoutMs / 1000}s)...`);
+
       // Create AbortController with timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-      
+
       const response = await fetch(url, {
         ...options,
         signal: controller.signal,
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       // If we get a response (even error), return it
       if (response) {
         console.log(`✅ Fetch successful on attempt ${attempt + 1}, status: ${response.status}`);
@@ -5529,32 +7712,32 @@ async function fetchWithRetry(
       lastError = error as Error;
       const errorMessage = lastError?.message || String(error);
       console.error(`❌ Fetch attempt ${attempt + 1} failed: ${errorMessage}`);
-      
+
       // Check if it's a connection error worth retrying
-      const isRetryable = 
-        errorMessage.includes('error reading a body from connection') ||
-        errorMessage.includes('connection') ||
-        errorMessage.includes('network') ||
-        errorMessage.includes('aborted') ||
-        errorMessage.includes('ECONNRESET') ||
-        errorMessage.includes('ETIMEDOUT');
-      
+      const isRetryable =
+        errorMessage.includes("error reading a body from connection") ||
+        errorMessage.includes("connection") ||
+        errorMessage.includes("network") ||
+        errorMessage.includes("aborted") ||
+        errorMessage.includes("ECONNRESET") ||
+        errorMessage.includes("ETIMEDOUT");
+
       if (!isRetryable) {
         // Non-retryable error - fail immediately
         throw error;
       }
-      
+
       if (attempt < maxRetries - 1) {
         // Quick retry: 1.5s, 3s
         const delay = baseDelay * Math.pow(2, attempt);
         console.log(`⏳ Waiting ${delay}ms before retry...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
   }
-  
+
   // All retries exhausted
-  throw lastError || new Error('All fetch retries exhausted');
+  throw lastError || new Error("All fetch retries exhausted");
 }
 
 // Pricing per 1000 tokens (in USD)
@@ -5563,7 +7746,6 @@ const TOKEN_PRICING = {
   "gpt-4o": { input: 0.0025, output: 0.01 },
   "google/gemini-2.5-flash": { input: 0.000075, output: 0.0003 },
   "google/gemini-2.5-pro": { input: 0.00125, output: 0.005 },
-  "openai/gpt-5-mini": { input: 0.0004, output: 0.0016 },
 };
 
 const calculateCost = (usage: TokenUsage, model: string): number => {
@@ -5575,7 +7757,9 @@ const calculateCost = (usage: TokenUsage, model: string): number => {
   const inputCost = (usage.prompt_tokens / 1000) * pricing.input;
   const outputCost = (usage.completion_tokens / 1000) * pricing.output;
   const totalCost = inputCost + outputCost;
-  console.log(`💰 Token usage for ${model}: ${usage.prompt_tokens} in, ${usage.completion_tokens} out = $${totalCost.toFixed(6)}`);
+  console.log(
+    `💰 Token usage for ${model}: ${usage.prompt_tokens} in, ${usage.completion_tokens} out = $${totalCost.toFixed(6)}`,
+  );
   return totalCost;
 };
 
@@ -5606,24 +7790,24 @@ const parseFilesFromModelText = (rawText: string) => {
   const upsertFile = (path: string, content: string, source: string, isPartial = false) => {
     const cleanPath = path.trim();
     let cleanContent = cleanFileContent(content);
-    
+
     // Skip empty files
     if (!cleanPath || cleanContent.length <= 10) return;
-    
+
     // Try to fix truncated HTML files
-    if (cleanPath.endsWith('.html') && isPartial) {
+    if (cleanPath.endsWith(".html") && isPartial) {
       cleanContent = fixTruncatedHtml(cleanContent);
       console.log(`⚠️ Fixed truncated HTML file: ${cleanPath}`);
     }
-    
+
     // Try to fix truncated CSS files
-    if (cleanPath.endsWith('.css') && isPartial) {
+    if (cleanPath.endsWith(".css") && isPartial) {
       cleanContent = fixTruncatedCss(cleanContent);
       console.log(`⚠️ Fixed truncated CSS file: ${cleanPath}`);
     }
-    
+
     filesMap.set(cleanPath, cleanContent);
-    console.log(`✅ Found (${source}${isPartial ? ', partial' : ''}): ${cleanPath} (${cleanContent.length} chars)`);
+    console.log(`✅ Found (${source}${isPartial ? ", partial" : ""}): ${cleanPath} (${cleanContent.length} chars)`);
   };
 
   // Format 1: <!-- FILE: filename --> markers
@@ -5634,7 +7818,11 @@ const parseFilesFromModelText = (rawText: string) => {
     const content = match[2];
     // Check if this is the last file and might be truncated
     const isLastFile = match.index + match[0].length >= normalizedText.length - 100;
-    const mightBeTruncated = isLastFile && !content.trim().endsWith('</html>') && !content.trim().endsWith('}') && !content.trim().endsWith('</xml>');
+    const mightBeTruncated =
+      isLastFile &&
+      !content.trim().endsWith("</html>") &&
+      !content.trim().endsWith("}") &&
+      !content.trim().endsWith("</xml>");
     if (mightBeTruncated) hasIncompleteFile = true;
     upsertFile(fileName, content, "format1", mightBeTruncated);
   }
@@ -5644,7 +7832,8 @@ const parseFilesFromModelText = (rawText: string) => {
     console.log("Trying OpenAI markdown headings format...");
 
     const headers: { path: string; start: number; contentStart: number }[] = [];
-    const headerRegex = /(^|\n)(?:###\s*(?:File:\s*)?(?:[A-Za-z]+\s*\()?\s*([A-Za-z0-9_\-\/\.]+\.(?:css|html|js|jsx|json|xml|txt|toml|md))\)?|\*\*([A-Za-z0-9_\-\/\.]+\.(?:css|html|js|jsx|json|xml|txt|toml|md))\*\*)/gi;
+    const headerRegex =
+      /(^|\n)(?:###\s*(?:File:\s*)?(?:[A-Za-z]+\s*\()?\s*([A-Za-z0-9_\-\/\.]+\.(?:css|html|js|jsx|json|xml|txt|toml|md))\)?|\*\*([A-Za-z0-9_\-\/\.]+\.(?:css|html|js|jsx|json|xml|txt|toml|md))\*\*)/gi;
 
     while ((match = headerRegex.exec(normalizedText)) !== null) {
       const fileName = (match[2] || match[3] || "").trim();
@@ -5669,36 +7858,37 @@ const parseFilesFromModelText = (rawText: string) => {
   // Format 3: Try to extract from code blocks if still no files
   if (filesMap.size === 0) {
     console.log("Trying code block extraction format...");
-    
+
     // Try to find code blocks with file names
-    const codeBlockPattern = /```(?:html|css|javascript|js)\s*\n\/\*\s*([a-zA-Z0-9_\-\.\/]+)\s*\*\/|```(?:html|css|javascript|js)\s*\n<!--\s*([a-zA-Z0-9_\-\.\/]+)\s*-->/gi;
+    const codeBlockPattern =
+      /```(?:html|css|javascript|js)\s*\n\/\*\s*([a-zA-Z0-9_\-\.\/]+)\s*\*\/|```(?:html|css|javascript|js)\s*\n<!--\s*([a-zA-Z0-9_\-\.\/]+)\s*-->/gi;
     const simpleCodeBlocks = /```(html|css|javascript|js)\s*\n([\s\S]*?)```/gi;
-    
+
     let blockMatch;
     const foundBlocks: { type: string; content: string }[] = [];
-    
+
     while ((blockMatch = simpleCodeBlocks.exec(normalizedText)) !== null) {
       foundBlocks.push({ type: blockMatch[1], content: blockMatch[2] });
     }
-    
+
     // If we found code blocks, assign them to files based on type
     if (foundBlocks.length > 0) {
-      const htmlBlocks = foundBlocks.filter(b => b.type === 'html');
-      const cssBlocks = foundBlocks.filter(b => b.type === 'css');
-      const jsBlocks = foundBlocks.filter(b => b.type === 'javascript' || b.type === 'js');
-      
+      const htmlBlocks = foundBlocks.filter((b) => b.type === "html");
+      const cssBlocks = foundBlocks.filter((b) => b.type === "css");
+      const jsBlocks = foundBlocks.filter((b) => b.type === "javascript" || b.type === "js");
+
       // Create files from blocks
       if (cssBlocks.length > 0) {
-        upsertFile('styles.css', cssBlocks.map(b => b.content).join('\n\n'), 'codeblock');
+        upsertFile("styles.css", cssBlocks.map((b) => b.content).join("\n\n"), "codeblock");
       }
       if (htmlBlocks.length > 0) {
         htmlBlocks.forEach((block, i) => {
-          const fileName = i === 0 ? 'index.html' : `page-${i}.html`;
-          upsertFile(fileName, block.content, 'codeblock');
+          const fileName = i === 0 ? "index.html" : `page-${i}.html`;
+          upsertFile(fileName, block.content, "codeblock");
         });
       }
       if (jsBlocks.length > 0) {
-        upsertFile('script.js', jsBlocks.map(b => b.content).join('\n\n'), 'codeblock');
+        upsertFile("script.js", jsBlocks.map((b) => b.content).join("\n\n"), "codeblock");
       }
     }
   }
@@ -5713,43 +7903,43 @@ const parseFilesFromModelText = (rawText: string) => {
 // Fix truncated HTML by closing open tags
 function fixTruncatedHtml(content: string): string {
   let fixed = content;
-  
+
   // Common unclosed tags to check
-  const tagsToClose = ['html', 'body', 'head', 'div', 'section', 'main', 'footer', 'header', 'article', 'aside', 'nav'];
-  
+  const tagsToClose = ["html", "body", "head", "div", "section", "main", "footer", "header", "article", "aside", "nav"];
+
   for (const tag of tagsToClose) {
-    const openCount = (fixed.match(new RegExp(`<${tag}[^>]*>`, 'gi')) || []).length;
-    const closeCount = (fixed.match(new RegExp(`</${tag}>`, 'gi')) || []).length;
-    
+    const openCount = (fixed.match(new RegExp(`<${tag}[^>]*>`, "gi")) || []).length;
+    const closeCount = (fixed.match(new RegExp(`</${tag}>`, "gi")) || []).length;
+
     for (let i = closeCount; i < openCount; i++) {
       fixed += `</${tag}>`;
     }
   }
-  
+
   // Ensure basic structure
-  if (!fixed.includes('</body>') && fixed.includes('<body')) {
-    fixed += '</body>';
+  if (!fixed.includes("</body>") && fixed.includes("<body")) {
+    fixed += "</body>";
   }
-  if (!fixed.includes('</html>') && fixed.includes('<html')) {
-    fixed += '</html>';
+  if (!fixed.includes("</html>") && fixed.includes("<html")) {
+    fixed += "</html>";
   }
-  
+
   return fixed;
 }
 
 // Fix truncated CSS by closing open braces
 function fixTruncatedCss(content: string): string {
   let fixed = content;
-  
+
   // Count open and close braces
   const openBraces = (fixed.match(/{/g) || []).length;
   const closeBraces = (fixed.match(/}/g) || []).length;
-  
+
   // Add missing close braces
   for (let i = closeBraces; i < openBraces; i++) {
-    fixed += '\n}';
+    fixed += "\n}";
   }
-  
+
   return fixed;
 }
 
@@ -5775,9 +7965,6 @@ async function runGeneration({
   geo?: string;
 }): Promise<GenerationResult> {
   const isJunior = aiModel === "junior";
-  const generationStartTime = Date.now();
-  const MAX_GENERATION_TIME_MS = 600000; // 10 minutes hard budget
-  const isTimeBudgetExceeded = () => (Date.now() - generationStartTime) > MAX_GENERATION_TIME_MS;
   console.log(`Using ${isJunior ? "Junior AI (OpenAI GPT-4o)" : "Senior AI (Lovable AI)"} for HTML generation`);
 
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
@@ -5805,23 +7992,36 @@ async function runGeneration({
   // Step 1: refined prompt (with retry logic, shorter timeout for refine step)
   let agentResponse: Response;
   try {
-    agentResponse = await fetchWithRetry(apiUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
+    agentResponse = await fetchWithRetry(
+      apiUrl,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: refineModel,
+          messages: [
+            {
+              role: "system",
+              content:
+                SYSTEM_PROMPT +
+                (siteName
+                  ? `\n\nCRITICAL SITE NAME REQUIREMENT: The website/business/brand name MUST be "${siteName}". Use this EXACT name in the logo, header, footer, page titles, meta tags, copyright, and all references to the business. Do NOT invent a different name.`
+                  : ""),
+            },
+            {
+              role: "user",
+              content: `Create a detailed prompt for static HTML/CSS website generation based on this request:\n\n"${prompt}"${siteName ? `\n\nIMPORTANT: The website name/brand MUST be "${siteName}".` : ""}\n\n${bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2 ? `BILINGUAL MODE: The website must support TWO languages (${bilingualLanguages[0]} and ${bilingualLanguages[1]}) using ONE set of HTML pages and a JS i18n layer. Do NOT generate duplicate pages per language. Generate i18n/translations.js + i18n/i18n.js and mark texts with data-i18n keys.` : `TARGET CONTENT LANGUAGE: ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language || "auto-detect from user's request, default to English"}`}`,
+            },
+          ],
+        }),
       },
-      body: JSON.stringify({
-        model: refineModel,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT + (siteName ? `\n\nCRITICAL SITE NAME REQUIREMENT: The website/business/brand name MUST be "${siteName}". Use this EXACT name in the logo, header, footer, page titles, meta tags, copyright, and all references to the business. Do NOT invent a different name.` : "") },
-          {
-            role: "user",
-            content: `Create a detailed prompt for static HTML/CSS website generation based on this request:\n\n"${prompt}"${siteName ? `\n\nIMPORTANT: The website name/brand MUST be "${siteName}".` : ""}\n\n${bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2 ? `BILINGUAL MODE: The website must support TWO languages (${bilingualLanguages[0]} and ${bilingualLanguages[1]}) using ONE set of HTML pages and a JS i18n layer. Do NOT generate duplicate pages per language. Generate i18n/translations.js + i18n/i18n.js and mark texts with data-i18n keys.` : `TARGET CONTENT LANGUAGE: ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language || "auto-detect from user's request, default to English"}`}`,
-          },
-        ],
-      }),
-    }, 2, 1000, 30000); // 2 retries, 1s delay, 30s timeout for refine
+      2,
+      1000,
+      30000,
+    ); // 2 retries, 1s delay, 30s timeout for refine
   } catch (fetchError) {
     const errorMsg = (fetchError as Error)?.message || String(fetchError);
     console.error("Agent AI fetch failed after retries:", errorMsg);
@@ -5840,21 +8040,22 @@ async function runGeneration({
 
   const agentData = await agentResponse.json();
   const refinedPrompt = agentData.choices?.[0]?.message?.content || prompt;
-  
+
   // Track token usage for refine step
   let totalCost = 0;
   const agentUsage = agentData.usage as TokenUsage | undefined;
   if (agentUsage) {
     totalCost += calculateCost(agentUsage, refineModel);
   }
-  
+
   console.log("Refined prompt generated, now generating HTML website...");
 
   // Select layout: use provided layoutStyle or random
-  const selectedLayout = layoutStyle 
-    ? LAYOUT_VARIATIONS.find(l => l.id === layoutStyle) || LAYOUT_VARIATIONS[Math.floor(Math.random() * LAYOUT_VARIATIONS.length)]
+  const selectedLayout = layoutStyle
+    ? LAYOUT_VARIATIONS.find((l) => l.id === layoutStyle) ||
+      LAYOUT_VARIATIONS[Math.floor(Math.random() * LAYOUT_VARIATIONS.length)]
     : LAYOUT_VARIATIONS[Math.floor(Math.random() * LAYOUT_VARIATIONS.length)];
-  console.log(`Selected layout variation: ${selectedLayout.name} (${layoutStyle ? 'manual' : 'random'})`);
+  console.log(`Selected layout variation: ${selectedLayout.name} (${layoutStyle ? "manual" : "random"})`);
 
   // Fetch Pexels photos if AI image source selected
   let imageStrategy = IMAGE_STRATEGY_BASIC;
@@ -5915,7 +8116,9 @@ ACCENT COLOR: ${schemeColors.accent} (highlights and CTAs)
 - DO NOT leave the footer without brand colors!
 
 `;
-      console.log(`🎨 Injecting mandatory color scheme "${userColorScheme}" into AI prompt: primary=${schemeColors.primary}, accent=${schemeColors.accent}`);
+      console.log(
+        `🎨 Injecting mandatory color scheme "${userColorScheme}" into AI prompt: primary=${schemeColors.primary}, accent=${schemeColors.accent}`,
+      );
     }
   }
 
@@ -5949,8 +8152,10 @@ ${selectedLayout.description}
           // Pre-generate realistic contact data to inject into prompt
           const preGeneratedPhone = generateRealisticPhone(geo);
           const preGeneratedAddress = generateRealisticAddress(geo);
-          const preGeneratedEmail = siteName ? generateEmailFromSiteName(siteName) : `info@${(prompt.match(/(?:domain|site|website)[:\s]*([a-z0-9.-]+\.[a-z]{2,})/i)?.[1] || 'business.com')}`;
-          
+          const preGeneratedEmail = siteName
+            ? generateEmailFromSiteName(siteName)
+            : `info@${prompt.match(/(?:domain|site|website)[:\s]*([a-z0-9.-]+\.[a-z]{2,})/i)?.[1] || "business.com"}`;
+
           const contactDataSection = `
 === MANDATORY CONTACT DATA (USE THESE EXACT VALUES - DO NOT INVENT YOUR OWN!) ===
 ⚠️ YOU MUST USE THESE PRE-GENERATED CONTACT DETAILS IN THE WEBSITE:
@@ -5960,55 +8165,71 @@ ${selectedLayout.description}
 
 These are realistic, verified contact details for the target region. DO NOT replace them with placeholders like "123 Main Street" or "+1 234 567 890". Use them EXACTLY as provided in footer, contact page, and anywhere contact info appears.
 `;
-          
+
           console.log(`📞 Pre-generated phone for prompt: ${preGeneratedPhone}`);
           console.log(`📍 Pre-generated address for prompt: ${preGeneratedAddress}`);
           console.log(`📧 Pre-generated email for prompt: ${preGeneratedEmail}`);
-          
+
           return `${HTML_GENERATION_PROMPT}\n\n${contactDataSection}\n\n${mandatoryColorSection}${imageStrategy}\n\n${IMAGE_CSS}\n\n${mandatoryLayoutSection}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n${bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2 ? `=== BILINGUAL REQUIREMENTS (ONE HTML SET + JS) ===\n- Supported languages: ${bilingualLanguages[0]} and ${bilingualLanguages[1]}\n- Generate ONE set of pages: index.html, about.html, services.html, contact.html, etc. (NO suffixes, NO duplicated pages).\n- Add a visible language switcher in the header on every page (labels: ${bilingualLanguages[0].toUpperCase()} | ${bilingualLanguages[1].toUpperCase()}).\n- Implement i18n via JS (NOT separate pages):\n  * Create i18n/translations.js (window.__SITE_TRANSLATIONS__ = {<lang>: {...}})\n  * Create i18n/i18n.js that picks language by priority: ?lang=xx -> localStorage.siteLang -> browser language -> default lang1\n  * Mark all text with data-i18n keys (and data-i18n-placeholder/title/aria where needed) and have i18n.js replace them at runtime.\n- The site MUST be fully translated (no mixed languages).\n` : `=== TARGET WEBSITE LANGUAGE (CRITICAL - MUST FOLLOW EXACTLY) ===\nALL website content MUST be in: ${language === "uk" ? "UKRAINIAN language" : language === "en" ? "ENGLISH language" : language === "de" ? "GERMAN language" : language === "pl" ? "POLISH language" : language === "ru" ? "RUSSIAN language" : language === "fr" ? "FRENCH language" : language === "es" ? "SPANISH language" : language ? language.toUpperCase() + " language" : "ENGLISH language (default)"}\n\nThis includes: navigation, buttons, headings, paragraphs, footer, cookie banner, ALL text content. DO NOT MIX LANGUAGES.\n`}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`;
         })(),
       },
     ],
   };
 
-  // Set max_tokens: Junior 16000, Senior 65000 (optimized for 4-7min speed)
+  // Set max_tokens for both models to ensure complete generation
+  // Junior: 16000 tokens, Senior: 65536 tokens for comprehensive multi-page websites
   // CRITICAL: OpenAI GPT-5 series uses max_completion_tokens, not max_tokens
-  const seniorMaxTokens = 65000;
-  const isOpenAIGPT5Model = generateModel.includes('gpt-5');
+  const isOpenAIGPT5Model = generateModel.includes("gpt-5");
   if (isOpenAIGPT5Model) {
-    websiteRequestBody.max_completion_tokens = isJunior ? 16000 : seniorMaxTokens;
+    websiteRequestBody.max_completion_tokens = isJunior ? 16000 : 65536;
   } else {
-    websiteRequestBody.max_tokens = isJunior ? 16000 : seniorMaxTokens;
+    websiteRequestBody.max_tokens = isJunior ? 16000 : 65536;
   }
-  
+
   console.log(`📊 Prompt length: ${prompt.length} chars, System prompt length: ${HTML_GENERATION_PROMPT.length} chars`);
 
   // Helper function to attempt generation with a specific model
-  const attemptGeneration = async (modelToUse: string, isRetry: boolean = false): Promise<{ rawText: string; websiteData: Record<string, unknown>; modelUsed: string; isPartial?: boolean } | null> => {
+  const attemptGeneration = async (
+    modelToUse: string,
+    isRetry: boolean = false,
+  ): Promise<{
+    rawText: string;
+    websiteData: Record<string, unknown>;
+    modelUsed: string;
+    isPartial?: boolean;
+  } | null> => {
     const requestBody: Record<string, unknown> = { ...websiteRequestBody, model: modelToUse };
-    
+
     // CRITICAL: Fix max_tokens vs max_completion_tokens for OpenAI GPT-5 series
-    const isGPT5Series = modelToUse.includes('gpt-5');
+    const isGPT5Series = modelToUse.includes("gpt-5");
     if (isGPT5Series) {
       delete requestBody.max_tokens;
-      requestBody.max_completion_tokens = isJunior ? 16000 : seniorMaxTokens;
+      requestBody.max_completion_tokens = isJunior ? 16000 : 65536;
     } else if (!requestBody.max_tokens) {
       // Ensure non-GPT5 models have max_tokens set
-      requestBody.max_tokens = isJunior ? 16000 : seniorMaxTokens;
+      requestBody.max_tokens = isJunior ? 16000 : 65536;
     }
-    
-    console.log(`${isRetry ? '🔄 RETRY with' : '🚀 Attempting'} model: ${modelToUse} (${isGPT5Series ? 'max_completion_tokens' : 'max_tokens'})`);
-    
+
+    console.log(
+      `${isRetry ? "🔄 RETRY with" : "🚀 Attempting"} model: ${modelToUse} (${isGPT5Series ? "max_completion_tokens" : "max_tokens"})`,
+    );
+
     let response: Response;
     try {
-      response = await fetchWithRetry(apiUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
+      response = await fetchWithRetry(
+        apiUrl,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
         },
-        body: JSON.stringify(requestBody),
-      }, 1, 2000, 600000); // NO retry (1 attempt), 10 min timeout
+        2,
+        2000,
+        180000,
+      );
     } catch (fetchError) {
       const errorMsg = (fetchError as Error)?.message || String(fetchError);
       console.error(`❌ Fetch failed for ${modelToUse}: ${errorMsg}`);
@@ -6028,37 +8249,41 @@ These are realistic, verified contact details for the target region. DO NOT repl
     // Senior models should return more content than junior
     const minResponseLength = isJunior ? 5000 : 12000;
     if (rawResponse.length < minResponseLength) {
-      console.error(`❌ Response too short from ${modelToUse}: ${rawResponse.length} chars (min: ${minResponseLength})`);
+      console.error(
+        `❌ Response too short from ${modelToUse}: ${rawResponse.length} chars (min: ${minResponseLength})`,
+      );
       return null;
     }
 
     let data: Record<string, unknown> = {};
     let text = "";
     let isPartial = false;
-    
+
     try {
       data = JSON.parse(rawResponse);
       text = (data.choices as Array<{ message?: { content?: string } }>)?.[0]?.message?.content || "";
-      
+
       // Check if response was truncated due to token limit
       const finishReason = (data.choices as Array<{ finish_reason?: string }>)?.[0]?.finish_reason;
-      if (finishReason === 'length') {
+      if (finishReason === "length") {
         console.log(`⚠️ Response truncated due to token limit (finish_reason: length)`);
         isPartial = true;
       }
     } catch (parseError) {
       console.log("JSON parse failed, attempting to extract content from incomplete response...");
-      
+
       // Try multiple extraction strategies for incomplete JSON
-      
+
       // Strategy 1: Find content field and extract everything after it
-      let contentMatch = rawResponse.match(/"content"\s*:\s*"([\s\S]*?)(?:"\s*,\s*"(?:role|refusal|annotations)|\"\s*}\s*\]|$)/);
+      let contentMatch = rawResponse.match(
+        /"content"\s*:\s*"([\s\S]*?)(?:"\s*,\s*"(?:role|refusal|annotations)|\"\s*}\s*\]|$)/,
+      );
       if (contentMatch && contentMatch[1]) {
-        text = contentMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+        text = contentMatch[1].replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
         isPartial = true;
         console.log(`📄 Extracted content via strategy 1: ${text.length} chars`);
       }
-      
+
       // Strategy 2: If content field found but cut off, get everything after "content":"
       if (!text && rawResponse.includes('"content"')) {
         const contentStartMatch = rawResponse.match(/"content"\s*:\s*"/);
@@ -6066,9 +8291,12 @@ These are realistic, verified contact details for the target region. DO NOT repl
           const startIdx = (contentStartMatch.index || 0) + contentStartMatch[0].length;
           let extracted = rawResponse.slice(startIdx);
           // Unescape the content
-          extracted = extracted.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+          extracted = extracted.replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
           // Remove trailing incomplete JSON
-          extracted = extracted.replace(/"\s*,?\s*"?(?:role|refusal|annotations|logprobs|finish_reason)?\s*:?[^}]*$/, '');
+          extracted = extracted.replace(
+            /"\s*,?\s*"?(?:role|refusal|annotations|logprobs|finish_reason)?\s*:?[^}]*$/,
+            "",
+          );
           if (extracted.length > 1000) {
             text = extracted;
             isPartial = true;
@@ -6076,7 +8304,7 @@ These are realistic, verified contact details for the target region. DO NOT repl
           }
         }
       }
-      
+
       // Strategy 3: If raw response contains FILE markers, use it directly
       if (!text && rawResponse.includes("<!-- FILE:")) {
         // Find the start of actual content (after JSON headers)
@@ -6087,7 +8315,7 @@ These are realistic, verified contact details for the target region. DO NOT repl
           console.log(`📄 Extracted content via strategy 3 (direct FILE markers): ${text.length} chars`);
         }
       }
-      
+
       if (!text) {
         console.error(`❌ Failed to extract content from incomplete JSON response`);
         return null;
@@ -6097,41 +8325,33 @@ These are realistic, verified contact details for the target region. DO NOT repl
     // Check if we got meaningful content - be more lenient if partial
     const minLength = isPartial ? 2000 : 3000;
     const hasFileMarkers = text.includes("<!-- FILE:") || text.includes("```html") || text.includes("```css");
-    
+
     if (text.length < minLength) {
       console.error(`❌ Insufficient content from ${modelToUse}: ${text.length} chars (min: ${minLength})`);
       return null;
     }
-    
+
     if (!hasFileMarkers) {
       console.error(`❌ No file markers found in response from ${modelToUse}`);
       return null;
     }
 
-    console.log(`✅ Got ${isPartial ? 'partial' : 'valid'} response from ${modelToUse}: ${text.length} chars`);
+    console.log(`✅ Got ${isPartial ? "partial" : "valid"} response from ${modelToUse}: ${text.length} chars`);
     return { rawText: text, websiteData: data, modelUsed: modelToUse, isPartial };
   };
 
   // Try primary model first (gemini-2.5-pro for senior, gpt-4o for junior)
   let generationResult = await attemptGeneration(generateModel);
 
-  // If primary model failed, try fallback models (only if time budget allows)
-  if (!generationResult && !isTimeBudgetExceeded()) {
-    const fallbackModels = isJunior 
-      ? ["gpt-4o-mini"] 
-      : ["openai/gpt-5-mini"];
-    
+  // If primary model failed, try fallback models
+  if (!generationResult) {
+    const fallbackModels = isJunior ? ["gpt-4o-mini"] : ["google/gemini-2.5-flash", "openai/gpt-5"];
+
     for (const fallbackModel of fallbackModels) {
-      if (isTimeBudgetExceeded()) {
-        console.log(`⏱️ Time budget exceeded (${((Date.now() - generationStartTime)/1000).toFixed(0)}s), skipping fallback`);
-        break;
-      }
-      console.log(`🔄 Primary model failed, trying fallback: ${fallbackModel} (elapsed: ${((Date.now() - generationStartTime)/1000).toFixed(0)}s)`);
+      console.log(`🔄 Primary model failed, trying fallback: ${fallbackModel}`);
       generationResult = await attemptGeneration(fallbackModel, true);
       if (generationResult) break;
     }
-  } else if (!generationResult) {
-    console.log(`⏱️ Time budget exceeded after primary model (${((Date.now() - generationStartTime)/1000).toFixed(0)}s), no fallback`);
   }
 
   if (!generationResult) {
@@ -6145,7 +8365,7 @@ These are realistic, verified contact details for the target region. DO NOT repl
   if (websiteUsage) {
     totalCost += calculateCost(websiteUsage as TokenUsage, modelUsed);
   }
-  
+
   console.log(`💰 Total generation cost: $${totalCost.toFixed(6)}`);
   console.log(`🎯 Final model used: ${modelUsed}`);
 
@@ -6155,27 +8375,30 @@ These are realistic, verified contact details for the target region. DO NOT repl
   console.log(`📁 Total files parsed: ${files.length}`);
 
   // CRITICAL: Check if index.html exists - if not, try fallback model
-  let hasIndexHtml = files.some(f => f.path.toLowerCase() === 'index.html');
-  let htmlFileCount = files.filter(f => f.path.toLowerCase().endsWith('.html')).length;
-  
-  // If no index.html or no HTML files at all, try ONE fast recovery (only within time budget)
-  if ((!hasIndexHtml || htmlFileCount === 0) && !isTimeBudgetExceeded()) {
-    console.error(`❌ CRITICAL: No index.html found! Files: ${files.map(f => f.path).join(', ')}`);
-    console.log(`🔄 Single fast recovery attempt (elapsed: ${((Date.now() - generationStartTime)/1000).toFixed(0)}s)...`);
-    
-    const recoveryModel = "openai/gpt-5-mini";
+  let hasIndexHtml = files.some((f) => f.path.toLowerCase() === "index.html");
+  let htmlFileCount = files.filter((f) => f.path.toLowerCase().endsWith(".html")).length;
+
+  // If no index.html or no HTML files at all, try fallback models
+  if (!hasIndexHtml || htmlFileCount === 0) {
+    console.error(`❌ CRITICAL: No index.html found! Files: ${files.map((f) => f.path).join(", ")}`);
+    console.log(`🔄 Attempting recovery with fallback models...`);
+
+    // Use stable recovery models - avoid openai/gpt-5-mini due to max_tokens incompatibility
+    const recoveryModels = ["google/gemini-2.5-flash", "google/gemini-3-flash-preview"];
     let recovered = false;
     let finalModelUsed = modelUsed;
-    
-    if (recoveryModel !== modelUsed) {
+
+    for (const recoveryModel of recoveryModels) {
+      if (recoveryModel === modelUsed) continue; // Skip if already tried this model
+
       console.log(`🔄 Recovery attempt with: ${recoveryModel}`);
       const recoveryResult = await attemptGeneration(recoveryModel, true);
-      
+
       if (recoveryResult) {
         const recoveryFiles = parseFilesFromModelText(recoveryResult.rawText);
-        const recoveryHasIndex = recoveryFiles.some(f => f.path.toLowerCase() === 'index.html');
-        const recoveryHtmlCount = recoveryFiles.filter(f => f.path.toLowerCase().endsWith('.html')).length;
-        
+        const recoveryHasIndex = recoveryFiles.some((f) => f.path.toLowerCase() === "index.html");
+        const recoveryHtmlCount = recoveryFiles.filter((f) => f.path.toLowerCase().endsWith(".html")).length;
+
         if (recoveryHasIndex && recoveryHtmlCount > 0) {
           console.log(`✅ Recovery successful with ${recoveryModel}: ${recoveryHtmlCount} HTML files`);
           files = recoveryFiles;
@@ -6183,30 +8406,23 @@ These are realistic, verified contact details for the target region. DO NOT repl
           htmlFileCount = recoveryHtmlCount;
           recovered = true;
           finalModelUsed = recoveryModel;
+          break;
         } else {
           console.log(`❌ Recovery model ${recoveryModel} also failed to produce index.html`);
         }
       }
     }
-    
+
     if (!recovered) {
-      console.error(`❌ Recovery failed. No index.html in final output.`);
+      console.error(`❌ All recovery attempts failed. No index.html in final output.`);
       return {
         success: false,
-        error: "Generation incomplete: no index.html found. Please retry.",
+        error: "Generation incomplete: no index.html found after multiple attempts. Please retry.",
         rawResponse: rawText.substring(0, 500),
         totalCost,
-        specificModel: finalModelUsed,
+        specificModel: finalModelUsed, // Record which model was attempted
       };
     }
-  } else if ((!hasIndexHtml || htmlFileCount === 0) && isTimeBudgetExceeded()) {
-    console.error(`⏱️ No index.html AND time budget exceeded (${((Date.now() - generationStartTime)/1000).toFixed(0)}s). Failing fast.`);
-    return {
-      success: false,
-      error: `Generation timed out after ${((Date.now() - generationStartTime)/1000).toFixed(0)}s without producing index.html. Please retry.`,
-      totalCost,
-      specificModel: modelUsed,
-    };
   }
 
   if (files.length === 0) {
@@ -6218,7 +8434,7 @@ These are realistic, verified contact details for the target region. DO NOT repl
       totalCost,
     };
   }
-  
+
   console.log(`✅ index.html found, ${htmlFileCount} HTML files total`);
 
   // MANDATORY: Create separate cookie-banner.js file and include in all HTML files
@@ -6283,35 +8499,36 @@ These are realistic, verified contact details for the target region. DO NOT repl
 })();`;
 
     // Always add cookie-banner.js file
-    const hasCookieBannerFile = generatedFiles.some(f => f.path === 'cookie-banner.js');
+    const hasCookieBannerFile = generatedFiles.some((f) => f.path === "cookie-banner.js");
     if (!hasCookieBannerFile) {
       console.log("📁 Adding mandatory cookie-banner.js file");
       generatedFiles.push({
         path: "cookie-banner.js",
-        content: COOKIE_BANNER_JS
+        content: COOKIE_BANNER_JS,
       });
     }
 
     // Ensure all HTML files include the cookie-banner.js script
-    return generatedFiles.map(file => {
-      if (!file.path.endsWith('.html')) return file;
-      
+    return generatedFiles.map((file) => {
+      if (!file.path.endsWith(".html")) return file;
+
       let content = file.content;
-      const hasCookieScript = content.includes('cookie-banner.js') || content.includes('cookie-banner') || content.includes('cookieConsent');
-      
+      const hasCookieScript =
+        content.includes("cookie-banner.js") || content.includes("cookie-banner") || content.includes("cookieConsent");
+
       if (!hasCookieScript) {
         console.log(`⚠️ Adding cookie-banner.js script to ${file.path}`);
-        
+
         // Add script tag before </body>
-        if (content.includes('</body>')) {
-          content = content.replace('</body>', '  <script src="cookie-banner.js"></script>\n</body>');
-        } else if (content.includes('</html>')) {
-          content = content.replace('</html>', '<script src="cookie-banner.js"></script>\n</html>');
+        if (content.includes("</body>")) {
+          content = content.replace("</body>", '  <script src="cookie-banner.js"></script>\n</body>');
+        } else if (content.includes("</html>")) {
+          content = content.replace("</html>", '<script src="cookie-banner.js"></script>\n</html>');
         } else {
           content = content + '\n<script src="cookie-banner.js"></script>';
         }
       }
-      
+
       return { ...file, content };
     });
   };
@@ -6319,8 +8536,8 @@ These are realistic, verified contact details for the target region. DO NOT repl
   // MANDATORY: Ensure all required legal pages exist and have proper content
   // Also replaces incomplete/empty pages (less than 2000 chars for legal pages)
   const ensureMandatoryPages = (generatedFiles: GeneratedFile[], lang: string = "en"): GeneratedFile[] => {
-    const fileMap = new Map(generatedFiles.map(f => [f.path.toLowerCase(), f]));
-    
+    const fileMap = new Map(generatedFiles.map((f) => [f.path.toLowerCase(), f]));
+
     // Extract header/footer from index.html for consistent styling
     const indexFile = fileMap.get("index.html");
     let headerHtml = "";
@@ -6328,7 +8545,7 @@ These are realistic, verified contact details for the target region. DO NOT repl
     let siteName = "Company";
     let cssLink = '<link rel="stylesheet" href="styles.css">';
     let indexHtml = "";
-    
+
     if (indexFile) {
       const content = indexFile.content;
       indexHtml = content;
@@ -6345,49 +8562,143 @@ These are realistic, verified contact details for the target region. DO NOT repl
       const cssMatch = content.match(/<link[^>]*stylesheet[^>]*>/i);
       if (cssMatch) cssLink = cssMatch[0];
     }
-    
+
     const mandatoryPages = [
-      { file: "privacy.html", title: lang === "uk" ? "Політика конфіденційності" : lang === "ru" ? "Политика конфиденциальности" : lang === "de" ? "Datenschutzerklärung" : "Privacy Policy", minLength: 2000 },
-      { file: "terms.html", title: lang === "uk" ? "Умови використання" : lang === "ru" ? "Условия использования" : lang === "de" ? "Nutzungsbedingungen" : "Terms of Service", minLength: 2000 },
-      { file: "cookie-policy.html", title: lang === "uk" ? "Політика cookies" : lang === "ru" ? "Политика cookies" : lang === "de" ? "Cookie-Richtlinie" : "Cookie Policy", minLength: 2000 },
-      { file: "thank-you.html", title: lang === "uk" ? "Дякуємо" : lang === "ru" ? "Спасибо" : lang === "de" ? "Danke" : "Thank You", minLength: 500 },
+      {
+        file: "privacy.html",
+        title:
+          lang === "uk"
+            ? "Політика конфіденційності"
+            : lang === "ru"
+              ? "Политика конфиденциальности"
+              : lang === "de"
+                ? "Datenschutzerklärung"
+                : "Privacy Policy",
+        minLength: 2000,
+      },
+      {
+        file: "terms.html",
+        title:
+          lang === "uk"
+            ? "Умови використання"
+            : lang === "ru"
+              ? "Условия использования"
+              : lang === "de"
+                ? "Nutzungsbedingungen"
+                : "Terms of Service",
+        minLength: 2000,
+      },
+      {
+        file: "cookie-policy.html",
+        title:
+          lang === "uk"
+            ? "Політика cookies"
+            : lang === "ru"
+              ? "Политика cookies"
+              : lang === "de"
+                ? "Cookie-Richtlinie"
+                : "Cookie Policy",
+        minLength: 2000,
+      },
+      {
+        file: "thank-you.html",
+        title: lang === "uk" ? "Дякуємо" : lang === "ru" ? "Спасибо" : lang === "de" ? "Danke" : "Thank You",
+        minLength: 500,
+      },
       // Netlify static hosting helpers
-      { file: "404.html", title: lang === "uk" ? "Сторінку не знайдено" : lang === "ru" ? "Страница не найдена" : lang === "de" ? "Seite nicht gefunden" : "Page Not Found", minLength: 300 },
+      {
+        file: "404.html",
+        title:
+          lang === "uk"
+            ? "Сторінку не знайдено"
+            : lang === "ru"
+              ? "Страница не найдена"
+              : lang === "de"
+                ? "Seite nicht gefunden"
+                : "Page Not Found",
+        minLength: 300,
+      },
       { file: "200.html", title: siteName, minLength: 300 },
     ];
-    
+
     // Filter out incomplete mandatory pages and add proper versions
-    const filteredFiles = generatedFiles.filter(f => {
+    const filteredFiles = generatedFiles.filter((f) => {
       const fileName = f.path.toLowerCase();
-      const mandatoryPage = mandatoryPages.find(mp => mp.file === fileName);
+      const mandatoryPage = mandatoryPages.find((mp) => mp.file === fileName);
       if (mandatoryPage) {
         // Check if page is too short (incomplete)
         if (f.content.length < mandatoryPage.minLength) {
-          console.log(`⚠️ Replacing incomplete page ${f.path} (${f.content.length} chars < ${mandatoryPage.minLength} min)`);
+          console.log(
+            `⚠️ Replacing incomplete page ${f.path} (${f.content.length} chars < ${mandatoryPage.minLength} min)`,
+          );
           return false; // Remove this file, will be regenerated
         }
       }
       return true;
     });
-    
-    const filteredFileMap = new Map(filteredFiles.map(f => [f.path.toLowerCase(), f]));
-    
+
+    const filteredFileMap = new Map(filteredFiles.map((f) => [f.path.toLowerCase(), f]));
+
     for (const page of mandatoryPages) {
       if (!filteredFileMap.has(page.file)) {
         console.log(`📁 Adding/regenerating mandatory page: ${page.file}`);
-        const pageContent = generateMandatoryPageContent(page.file, page.title, siteName, headerHtml, footerHtml, lang, indexHtml);
+        const pageContent = generateMandatoryPageContent(
+          page.file,
+          page.title,
+          siteName,
+          headerHtml,
+          footerHtml,
+          lang,
+          indexHtml,
+        );
         filteredFiles.push({ path: page.file, content: pageContent });
       }
     }
-    
+
     return filteredFiles;
   };
 
-  const generateMandatoryPageContent = (fileName: string, title: string, siteName: string, header: string, footer: string, lang: string, indexHtml?: string): string => {
-    const backText = lang === "uk" ? "Повернутися на головну" : lang === "ru" ? "Вернуться на главную" : lang === "de" ? "Zurück zur Startseite" : "Back to Home";
-    const notFoundTitle = lang === "uk" ? "Сторінку не знайдено" : lang === "ru" ? "Страница не найдена" : lang === "de" ? "Seite nicht gefunden" : "Page Not Found";
-    const notFoundText = lang === "uk" ? "Схоже, цієї сторінки не існує або її було переміщено." : lang === "ru" ? "Похоже, этой страницы не существует или она была перемещена." : lang === "de" ? "Diese Seite existiert nicht oder wurde verschoben." : "This page doesn't exist or may have been moved.";
-    const redirectText = lang === "uk" ? "Перенаправляємо на головну…" : lang === "ru" ? "Перенаправляем на главную…" : lang === "de" ? "Weiterleitung zur Startseite…" : "Redirecting to the homepage…";
+  const generateMandatoryPageContent = (
+    fileName: string,
+    title: string,
+    siteName: string,
+    header: string,
+    footer: string,
+    lang: string,
+    indexHtml?: string,
+  ): string => {
+    const backText =
+      lang === "uk"
+        ? "Повернутися на головну"
+        : lang === "ru"
+          ? "Вернуться на главную"
+          : lang === "de"
+            ? "Zurück zur Startseite"
+            : "Back to Home";
+    const notFoundTitle =
+      lang === "uk"
+        ? "Сторінку не знайдено"
+        : lang === "ru"
+          ? "Страница не найдена"
+          : lang === "de"
+            ? "Seite nicht gefunden"
+            : "Page Not Found";
+    const notFoundText =
+      lang === "uk"
+        ? "Схоже, цієї сторінки не існує або її було переміщено."
+        : lang === "ru"
+          ? "Похоже, этой страницы не существует или она была перемещена."
+          : lang === "de"
+            ? "Diese Seite existiert nicht oder wurde verschoben."
+            : "This page doesn't exist or may have been moved.";
+    const redirectText =
+      lang === "uk"
+        ? "Перенаправляємо на головну…"
+        : lang === "ru"
+          ? "Перенаправляем на главную…"
+          : lang === "de"
+            ? "Weiterleitung zur Startseite…"
+            : "Redirecting to the homepage…";
 
     // 200.html: for static hosts that use it as a fallback (e.g., SPA deep links).
     // For multi-page static sites, the safest behavior is to serve the homepage.
@@ -6444,11 +8755,25 @@ These are realistic, verified contact details for the target region. DO NOT repl
 </body>
 </html>`;
     }
-    
+
     if (fileName === "thank-you.html") {
-      const thankYouTitle = lang === "uk" ? "Дякуємо за звернення!" : lang === "ru" ? "Спасибо за обращение!" : lang === "de" ? "Danke für Ihre Nachricht!" : "Thank You for Contacting Us!";
-      const thankYouText = lang === "uk" ? "Ми отримали ваше повідомлення і зв'яжемося з вами найближчим часом." : lang === "ru" ? "Мы получили ваше сообщение и свяжемся с вами в ближайшее время." : lang === "de" ? "Wir haben Ihre Nachricht erhalten und werden uns in Kürze bei Ihnen melden." : "We have received your message and will get back to you shortly.";
-      
+      const thankYouTitle =
+        lang === "uk"
+          ? "Дякуємо за звернення!"
+          : lang === "ru"
+            ? "Спасибо за обращение!"
+            : lang === "de"
+              ? "Danke für Ihre Nachricht!"
+              : "Thank You for Contacting Us!";
+      const thankYouText =
+        lang === "uk"
+          ? "Ми отримали ваше повідомлення і зв'яжемося з вами найближчим часом."
+          : lang === "ru"
+            ? "Мы получили ваше сообщение и свяжемся с вами в ближайшее время."
+            : lang === "de"
+              ? "Wir haben Ihre Nachricht erhalten und werden uns in Kürze bei Ihnen melden."
+              : "We have received your message and will get back to you shortly.";
+
       return `<!DOCTYPE html>
 <html lang="${lang}">
 <head>
@@ -6472,10 +8797,10 @@ These are realistic, verified contact details for the target region. DO NOT repl
 </body>
 </html>`;
     }
-    
+
     // Generate legal page content
     const legalContent = generateLegalContent(fileName, siteName, lang);
-    
+
     return `<!DOCTYPE html>
 <html lang="${lang}">
 <head>
@@ -6514,7 +8839,7 @@ These are realistic, verified contact details for the target region. DO NOT repl
 <section style="margin-bottom: 30px;"><h2>5. Your Rights</h2><p>You have the right to access, correct, and delete your personal data at any time.</p></section>
 <section style="margin-bottom: 30px;"><h2>6. Contact Us</h2><p>For privacy-related questions, please contact us through our contact form.</p></section>`;
     }
-    
+
     if (fileName === "terms.html") {
       if (lang === "uk" || lang === "ru") {
         return `<section style="margin-bottom: 30px;"><h2>1. Прийняття умов</h2><p>Використовуючи наш веб-сайт, ви погоджуєтеся з цими Умовами використання.</p></section>
@@ -6531,7 +8856,7 @@ These are realistic, verified contact details for the target region. DO NOT repl
 <section style="margin-bottom: 30px;"><h2>5. Limitation of Liability</h2><p>We shall not be liable for any direct, indirect, incidental, or consequential damages.</p></section>
 <section style="margin-bottom: 30px;"><h2>6. Changes to Terms</h2><p>We reserve the right to modify these terms at any time without prior notice.</p></section>`;
     }
-    
+
     if (fileName === "cookie-policy.html") {
       if (lang === "uk" || lang === "ru") {
         return `<section style="margin-bottom: 30px;"><h2>1. Що таке cookies</h2><p>Cookies — це невеликі текстові файли, які зберігаються на вашому пристрої при відвідуванні веб-сайту.</p></section>
@@ -6546,81 +8871,402 @@ These are realistic, verified contact details for the target region. DO NOT repl
 <table style="width:100%; border-collapse: collapse; margin: 20px 0;"><thead><tr style="background:#f5f5f5;"><th style="padding:12px; border:1px solid #ddd;">Name</th><th style="padding:12px; border:1px solid #ddd;">Type</th><th style="padding:12px; border:1px solid #ddd;">Duration</th><th style="padding:12px; border:1px solid #ddd;">Purpose</th></tr></thead><tbody><tr><td style="padding:12px; border:1px solid #ddd;">cookieConsent</td><td style="padding:12px; border:1px solid #ddd;">Essential</td><td style="padding:12px; border:1px solid #ddd;">1 year</td><td style="padding:12px; border:1px solid #ddd;">Stores cookie consent</td></tr></tbody></table></section>
 <section style="margin-bottom: 30px;"><h2>4. Managing Cookies</h2><p>You can delete or block cookies through your browser settings.</p></section>`;
     }
-    
+
     return "";
   };
 
-
-  
+  // QUALITY CSS ENFORCEMENT: Ensure styles.css has proper quality and all required styles
   // Reference: Based on professional site examples with 600+ lines of comprehensive CSS
   const ensureQualityCSS = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
     const MINIMUM_CSS_LINES = 500; // Minimum lines for quality CSS (increased from 400)
     const MINIMUM_QUALITY_SCORE = 6; // Minimum quality score out of 10 indicators
-    
+
     // 30 unique color schemes for variety (with RGB values for rgba usage)
     const COLOR_SCHEMES = [
       // Blues & Teals
-      { name: 'ocean', primary: '#0d4f8b', primaryRgb: '13, 79, 139', secondary: '#1a365d', accent: '#3182ce', heading: '#1a202c', text: '#4a5568', bgLight: '#ebf8ff', border: '#bee3f8' },
-      { name: 'midnight', primary: '#1a1a2e', primaryRgb: '26, 26, 46', secondary: '#16213e', accent: '#2563eb', heading: '#1a202c', text: '#4a5568', bgLight: '#f7fafc', border: '#e2e8f0' },
-      { name: 'teal', primary: '#234e52', primaryRgb: '35, 78, 82', secondary: '#1d4044', accent: '#319795', heading: '#1a202c', text: '#4a5568', bgLight: '#e6fffa', border: '#81e6d9' },
-      { name: 'arctic', primary: '#0c4a6e', primaryRgb: '12, 74, 110', secondary: '#075985', accent: '#38bdf8', heading: '#0c4a6e', text: '#475569', bgLight: '#f0f9ff', border: '#bae6fd' },
-      { name: 'navy', primary: '#1e3a5f', primaryRgb: '30, 58, 95', secondary: '#0d2137', accent: '#4a90d9', heading: '#1e3a5f', text: '#475569', bgLight: '#f1f5f9', border: '#cbd5e1' },
-      { name: 'sky', primary: '#0284c7', primaryRgb: '2, 132, 199', secondary: '#0369a1', accent: '#7dd3fc', heading: '#0c4a6e', text: '#475569', bgLight: '#f0f9ff', border: '#bae6fd' },
+      {
+        name: "ocean",
+        primary: "#0d4f8b",
+        primaryRgb: "13, 79, 139",
+        secondary: "#1a365d",
+        accent: "#3182ce",
+        heading: "#1a202c",
+        text: "#4a5568",
+        bgLight: "#ebf8ff",
+        border: "#bee3f8",
+      },
+      {
+        name: "midnight",
+        primary: "#1a1a2e",
+        primaryRgb: "26, 26, 46",
+        secondary: "#16213e",
+        accent: "#2563eb",
+        heading: "#1a202c",
+        text: "#4a5568",
+        bgLight: "#f7fafc",
+        border: "#e2e8f0",
+      },
+      {
+        name: "teal",
+        primary: "#234e52",
+        primaryRgb: "35, 78, 82",
+        secondary: "#1d4044",
+        accent: "#319795",
+        heading: "#1a202c",
+        text: "#4a5568",
+        bgLight: "#e6fffa",
+        border: "#81e6d9",
+      },
+      {
+        name: "arctic",
+        primary: "#0c4a6e",
+        primaryRgb: "12, 74, 110",
+        secondary: "#075985",
+        accent: "#38bdf8",
+        heading: "#0c4a6e",
+        text: "#475569",
+        bgLight: "#f0f9ff",
+        border: "#bae6fd",
+      },
+      {
+        name: "navy",
+        primary: "#1e3a5f",
+        primaryRgb: "30, 58, 95",
+        secondary: "#0d2137",
+        accent: "#4a90d9",
+        heading: "#1e3a5f",
+        text: "#475569",
+        bgLight: "#f1f5f9",
+        border: "#cbd5e1",
+      },
+      {
+        name: "sky",
+        primary: "#0284c7",
+        primaryRgb: "2, 132, 199",
+        secondary: "#0369a1",
+        accent: "#7dd3fc",
+        heading: "#0c4a6e",
+        text: "#475569",
+        bgLight: "#f0f9ff",
+        border: "#bae6fd",
+      },
       // Greens
-      { name: 'forest', primary: '#276749', primaryRgb: '39, 103, 73', secondary: '#22543d', accent: '#38a169', heading: '#1a202c', text: '#4a5568', bgLight: '#f0fff4', border: '#9ae6b4' },
-      { name: 'emerald', primary: '#047857', primaryRgb: '4, 120, 87', secondary: '#065f46', accent: '#10b981', heading: '#1a202c', text: '#4a5568', bgLight: '#ecfdf5', border: '#6ee7b7' },
-      { name: 'sage', primary: '#3f6212', primaryRgb: '63, 98, 18', secondary: '#365314', accent: '#84cc16', heading: '#1a2e05', text: '#4a5568', bgLight: '#f7fee7', border: '#bef264' },
-      { name: 'mint', primary: '#059669', primaryRgb: '5, 150, 105', secondary: '#047857', accent: '#34d399', heading: '#064e3b', text: '#4a5568', bgLight: '#ecfdf5', border: '#a7f3d0' },
-      { name: 'olive', primary: '#4d5527', primaryRgb: '77, 85, 39', secondary: '#3f4720', accent: '#708238', heading: '#1a1c0d', text: '#525252', bgLight: '#fafaf5', border: '#d4d4aa' },
+      {
+        name: "forest",
+        primary: "#276749",
+        primaryRgb: "39, 103, 73",
+        secondary: "#22543d",
+        accent: "#38a169",
+        heading: "#1a202c",
+        text: "#4a5568",
+        bgLight: "#f0fff4",
+        border: "#9ae6b4",
+      },
+      {
+        name: "emerald",
+        primary: "#047857",
+        primaryRgb: "4, 120, 87",
+        secondary: "#065f46",
+        accent: "#10b981",
+        heading: "#1a202c",
+        text: "#4a5568",
+        bgLight: "#ecfdf5",
+        border: "#6ee7b7",
+      },
+      {
+        name: "sage",
+        primary: "#3f6212",
+        primaryRgb: "63, 98, 18",
+        secondary: "#365314",
+        accent: "#84cc16",
+        heading: "#1a2e05",
+        text: "#4a5568",
+        bgLight: "#f7fee7",
+        border: "#bef264",
+      },
+      {
+        name: "mint",
+        primary: "#059669",
+        primaryRgb: "5, 150, 105",
+        secondary: "#047857",
+        accent: "#34d399",
+        heading: "#064e3b",
+        text: "#4a5568",
+        bgLight: "#ecfdf5",
+        border: "#a7f3d0",
+      },
+      {
+        name: "olive",
+        primary: "#4d5527",
+        primaryRgb: "77, 85, 39",
+        secondary: "#3f4720",
+        accent: "#708238",
+        heading: "#1a1c0d",
+        text: "#525252",
+        bgLight: "#fafaf5",
+        border: "#d4d4aa",
+      },
       // Reds & Oranges
-      { name: 'sunset', primary: '#c53030', primaryRgb: '197, 48, 48', secondary: '#9b2c2c', accent: '#e53e3e', heading: '#1a202c', text: '#4a5568', bgLight: '#fff5f5', border: '#feb2b2' },
-      { name: 'coral', primary: '#c05621', primaryRgb: '192, 86, 33', secondary: '#9c4221', accent: '#dd6b20', heading: '#1a202c', text: '#4a5568', bgLight: '#fffaf0', border: '#fbd38d' },
-      { name: 'crimson', primary: '#991b1b', primaryRgb: '153, 27, 27', secondary: '#7f1d1d', accent: '#dc2626', heading: '#450a0a', text: '#4a5568', bgLight: '#fef2f2', border: '#fecaca' },
-      { name: 'amber', primary: '#b45309', primaryRgb: '180, 83, 9', secondary: '#92400e', accent: '#f59e0b', heading: '#78350f', text: '#4a5568', bgLight: '#fffbeb', border: '#fde68a' },
-      { name: 'flame', primary: '#ea580c', primaryRgb: '234, 88, 12', secondary: '#c2410c', accent: '#fb923c', heading: '#7c2d12', text: '#4a5568', bgLight: '#fff7ed', border: '#fed7aa' },
+      {
+        name: "sunset",
+        primary: "#c53030",
+        primaryRgb: "197, 48, 48",
+        secondary: "#9b2c2c",
+        accent: "#e53e3e",
+        heading: "#1a202c",
+        text: "#4a5568",
+        bgLight: "#fff5f5",
+        border: "#feb2b2",
+      },
+      {
+        name: "coral",
+        primary: "#c05621",
+        primaryRgb: "192, 86, 33",
+        secondary: "#9c4221",
+        accent: "#dd6b20",
+        heading: "#1a202c",
+        text: "#4a5568",
+        bgLight: "#fffaf0",
+        border: "#fbd38d",
+      },
+      {
+        name: "crimson",
+        primary: "#991b1b",
+        primaryRgb: "153, 27, 27",
+        secondary: "#7f1d1d",
+        accent: "#dc2626",
+        heading: "#450a0a",
+        text: "#4a5568",
+        bgLight: "#fef2f2",
+        border: "#fecaca",
+      },
+      {
+        name: "amber",
+        primary: "#b45309",
+        primaryRgb: "180, 83, 9",
+        secondary: "#92400e",
+        accent: "#f59e0b",
+        heading: "#78350f",
+        text: "#4a5568",
+        bgLight: "#fffbeb",
+        border: "#fde68a",
+      },
+      {
+        name: "flame",
+        primary: "#ea580c",
+        primaryRgb: "234, 88, 12",
+        secondary: "#c2410c",
+        accent: "#fb923c",
+        heading: "#7c2d12",
+        text: "#4a5568",
+        bgLight: "#fff7ed",
+        border: "#fed7aa",
+      },
       // Purples & Pinks
-      { name: 'royal', primary: '#553c9a', primaryRgb: '85, 60, 154', secondary: '#44337a', accent: '#805ad5', heading: '#1a202c', text: '#4a5568', bgLight: '#faf5ff', border: '#d6bcfa' },
-      { name: 'rose', primary: '#97266d', primaryRgb: '151, 38, 109', secondary: '#702459', accent: '#d53f8c', heading: '#1a202c', text: '#4a5568', bgLight: '#fff5f7', border: '#fbb6ce' },
-      { name: 'lavender', primary: '#7c3aed', primaryRgb: '124, 58, 237', secondary: '#6d28d9', accent: '#a78bfa', heading: '#4c1d95', text: '#4a5568', bgLight: '#f5f3ff', border: '#ddd6fe' },
-      { name: 'fuchsia', primary: '#a21caf', primaryRgb: '162, 28, 175', secondary: '#86198f', accent: '#e879f9', heading: '#701a75', text: '#4a5568', bgLight: '#fdf4ff', border: '#f5d0fe' },
-      { name: 'plum', primary: '#6b21a8', primaryRgb: '107, 33, 168', secondary: '#581c87', accent: '#c084fc', heading: '#3b0764', text: '#4a5568', bgLight: '#faf5ff', border: '#e9d5ff' },
-      { name: 'mauve', primary: '#9d4edd', primaryRgb: '157, 78, 221', secondary: '#7b2cbf', accent: '#c77dff', heading: '#5a189a', text: '#525252', bgLight: '#faf5ff', border: '#e9d5ff' },
+      {
+        name: "royal",
+        primary: "#553c9a",
+        primaryRgb: "85, 60, 154",
+        secondary: "#44337a",
+        accent: "#805ad5",
+        heading: "#1a202c",
+        text: "#4a5568",
+        bgLight: "#faf5ff",
+        border: "#d6bcfa",
+      },
+      {
+        name: "rose",
+        primary: "#97266d",
+        primaryRgb: "151, 38, 109",
+        secondary: "#702459",
+        accent: "#d53f8c",
+        heading: "#1a202c",
+        text: "#4a5568",
+        bgLight: "#fff5f7",
+        border: "#fbb6ce",
+      },
+      {
+        name: "lavender",
+        primary: "#7c3aed",
+        primaryRgb: "124, 58, 237",
+        secondary: "#6d28d9",
+        accent: "#a78bfa",
+        heading: "#4c1d95",
+        text: "#4a5568",
+        bgLight: "#f5f3ff",
+        border: "#ddd6fe",
+      },
+      {
+        name: "fuchsia",
+        primary: "#a21caf",
+        primaryRgb: "162, 28, 175",
+        secondary: "#86198f",
+        accent: "#e879f9",
+        heading: "#701a75",
+        text: "#4a5568",
+        bgLight: "#fdf4ff",
+        border: "#f5d0fe",
+      },
+      {
+        name: "plum",
+        primary: "#6b21a8",
+        primaryRgb: "107, 33, 168",
+        secondary: "#581c87",
+        accent: "#c084fc",
+        heading: "#3b0764",
+        text: "#4a5568",
+        bgLight: "#faf5ff",
+        border: "#e9d5ff",
+      },
+      {
+        name: "mauve",
+        primary: "#9d4edd",
+        primaryRgb: "157, 78, 221",
+        secondary: "#7b2cbf",
+        accent: "#c77dff",
+        heading: "#5a189a",
+        text: "#525252",
+        bgLight: "#faf5ff",
+        border: "#e9d5ff",
+      },
       // Neutrals & Earth Tones
-      { name: 'slate', primary: '#2d3748', primaryRgb: '45, 55, 72', secondary: '#1a202c', accent: '#4a5568', heading: '#1a202c', text: '#4a5568', bgLight: '#f7fafc', border: '#e2e8f0' },
-      { name: 'charcoal', primary: '#1f2937', primaryRgb: '31, 41, 55', secondary: '#111827', accent: '#374151', heading: '#111827', text: '#4b5563', bgLight: '#f9fafb', border: '#d1d5db' },
-      { name: 'bronze', primary: '#92400e', primaryRgb: '146, 64, 14', secondary: '#78350f', accent: '#d97706', heading: '#451a03', text: '#525252', bgLight: '#fffbeb', border: '#fde68a' },
-      { name: 'coffee', primary: '#78350f', primaryRgb: '120, 53, 15', secondary: '#451a03', accent: '#a16207', heading: '#292524', text: '#525252', bgLight: '#fefce8', border: '#fef08a' },
-      { name: 'sand', primary: '#a8a29e', primaryRgb: '168, 162, 158', secondary: '#78716c', accent: '#d6d3d1', heading: '#44403c', text: '#57534e', bgLight: '#fafaf9', border: '#e7e5e4' },
-      { name: 'terracotta', primary: '#9a3412', primaryRgb: '154, 52, 18', secondary: '#7c2d12', accent: '#ea580c', heading: '#431407', text: '#525252', bgLight: '#fff7ed', border: '#fed7aa' },
+      {
+        name: "slate",
+        primary: "#2d3748",
+        primaryRgb: "45, 55, 72",
+        secondary: "#1a202c",
+        accent: "#4a5568",
+        heading: "#1a202c",
+        text: "#4a5568",
+        bgLight: "#f7fafc",
+        border: "#e2e8f0",
+      },
+      {
+        name: "charcoal",
+        primary: "#1f2937",
+        primaryRgb: "31, 41, 55",
+        secondary: "#111827",
+        accent: "#374151",
+        heading: "#111827",
+        text: "#4b5563",
+        bgLight: "#f9fafb",
+        border: "#d1d5db",
+      },
+      {
+        name: "bronze",
+        primary: "#92400e",
+        primaryRgb: "146, 64, 14",
+        secondary: "#78350f",
+        accent: "#d97706",
+        heading: "#451a03",
+        text: "#525252",
+        bgLight: "#fffbeb",
+        border: "#fde68a",
+      },
+      {
+        name: "coffee",
+        primary: "#78350f",
+        primaryRgb: "120, 53, 15",
+        secondary: "#451a03",
+        accent: "#a16207",
+        heading: "#292524",
+        text: "#525252",
+        bgLight: "#fefce8",
+        border: "#fef08a",
+      },
+      {
+        name: "sand",
+        primary: "#a8a29e",
+        primaryRgb: "168, 162, 158",
+        secondary: "#78716c",
+        accent: "#d6d3d1",
+        heading: "#44403c",
+        text: "#57534e",
+        bgLight: "#fafaf9",
+        border: "#e7e5e4",
+      },
+      {
+        name: "terracotta",
+        primary: "#9a3412",
+        primaryRgb: "154, 52, 18",
+        secondary: "#7c2d12",
+        accent: "#ea580c",
+        heading: "#431407",
+        text: "#525252",
+        bgLight: "#fff7ed",
+        border: "#fed7aa",
+      },
       // Special & Unique
-      { name: 'gold', primary: '#b7791f', primaryRgb: '183, 121, 31', secondary: '#975a16', accent: '#ecc94b', heading: '#744210', text: '#4a5568', bgLight: '#fffff0', border: '#faf089' },
-      { name: 'silver', primary: '#64748b', primaryRgb: '100, 116, 139', secondary: '#475569', accent: '#94a3b8', heading: '#334155', text: '#64748b', bgLight: '#f8fafc', border: '#cbd5e1' },
-      { name: 'wine', primary: '#7f1d1d', primaryRgb: '127, 29, 29', secondary: '#450a0a', accent: '#b91c1c', heading: '#450a0a', text: '#525252', bgLight: '#fef2f2', border: '#fecaca' },
-      { name: 'ocean_deep', primary: '#0c4a6e', primaryRgb: '12, 74, 110', secondary: '#082f49', accent: '#0369a1', heading: '#082f49', text: '#475569', bgLight: '#f0f9ff', border: '#bae6fd' },
+      {
+        name: "gold",
+        primary: "#b7791f",
+        primaryRgb: "183, 121, 31",
+        secondary: "#975a16",
+        accent: "#ecc94b",
+        heading: "#744210",
+        text: "#4a5568",
+        bgLight: "#fffff0",
+        border: "#faf089",
+      },
+      {
+        name: "silver",
+        primary: "#64748b",
+        primaryRgb: "100, 116, 139",
+        secondary: "#475569",
+        accent: "#94a3b8",
+        heading: "#334155",
+        text: "#64748b",
+        bgLight: "#f8fafc",
+        border: "#cbd5e1",
+      },
+      {
+        name: "wine",
+        primary: "#7f1d1d",
+        primaryRgb: "127, 29, 29",
+        secondary: "#450a0a",
+        accent: "#b91c1c",
+        heading: "#450a0a",
+        text: "#525252",
+        bgLight: "#fef2f2",
+        border: "#fecaca",
+      },
+      {
+        name: "ocean_deep",
+        primary: "#0c4a6e",
+        primaryRgb: "12, 74, 110",
+        secondary: "#082f49",
+        accent: "#0369a1",
+        heading: "#082f49",
+        text: "#475569",
+        bgLight: "#f0f9ff",
+        border: "#bae6fd",
+      },
     ];
-    
+
     // 5 unique border-radius styles
     const RADIUS_STYLES = [
-      { sm: '4px', md: '8px', lg: '12px' },      // Sharp
-      { sm: '8px', md: '12px', lg: '20px' },     // Rounded
-      { sm: '12px', md: '16px', lg: '24px' },    // Soft
-      { sm: '0', md: '0', lg: '0' },             // Square/Brutalist
-      { sm: '50px', md: '50px', lg: '50px' },    // Pill
+      { sm: "4px", md: "8px", lg: "12px" }, // Sharp
+      { sm: "8px", md: "12px", lg: "20px" }, // Rounded
+      { sm: "12px", md: "16px", lg: "24px" }, // Soft
+      { sm: "0", md: "0", lg: "0" }, // Square/Brutalist
+      { sm: "50px", md: "50px", lg: "50px" }, // Pill
     ];
-    
+
     // 5 unique shadow styles
     const SHADOW_STYLES = [
-      { sm: '0 1px 3px rgba(0,0,0,0.08)', md: '0 4px 12px rgba(0,0,0,0.1)', lg: '0 12px 35px rgba(0,0,0,0.12)' },
-      { sm: '0 2px 8px rgba(0,0,0,0.06)', md: '0 8px 25px rgba(0,0,0,0.08)', lg: '0 20px 50px rgba(0,0,0,0.1)' },
-      { sm: '0 1px 2px rgba(0,0,0,0.05)', md: '0 3px 10px rgba(0,0,0,0.08)', lg: '0 8px 30px rgba(0,0,0,0.12)' },
-      { sm: 'none', md: '0 4px 20px rgba(0,0,0,0.05)', lg: '0 10px 40px rgba(0,0,0,0.08)' },
-      { sm: '2px 2px 0 rgba(0,0,0,0.1)', md: '4px 4px 0 rgba(0,0,0,0.15)', lg: '8px 8px 0 rgba(0,0,0,0.2)' }, // Brutalist
+      { sm: "0 1px 3px rgba(0,0,0,0.08)", md: "0 4px 12px rgba(0,0,0,0.1)", lg: "0 12px 35px rgba(0,0,0,0.12)" },
+      { sm: "0 2px 8px rgba(0,0,0,0.06)", md: "0 8px 25px rgba(0,0,0,0.08)", lg: "0 20px 50px rgba(0,0,0,0.1)" },
+      { sm: "0 1px 2px rgba(0,0,0,0.05)", md: "0 3px 10px rgba(0,0,0,0.08)", lg: "0 8px 30px rgba(0,0,0,0.12)" },
+      { sm: "none", md: "0 4px 20px rgba(0,0,0,0.05)", lg: "0 10px 40px rgba(0,0,0,0.08)" },
+      { sm: "2px 2px 0 rgba(0,0,0,0.1)", md: "4px 4px 0 rgba(0,0,0,0.15)", lg: "8px 8px 0 rgba(0,0,0,0.2)" }, // Brutalist
     ];
-    
+
     // Select color scheme: use user-selected scheme if provided, otherwise random
     let colorScheme;
     if (userColorScheme) {
-      colorScheme = COLOR_SCHEMES.find(s => s.name === userColorScheme) || COLOR_SCHEMES[Math.floor(Math.random() * COLOR_SCHEMES.length)];
+      colorScheme =
+        COLOR_SCHEMES.find((s) => s.name === userColorScheme) ||
+        COLOR_SCHEMES[Math.floor(Math.random() * COLOR_SCHEMES.length)];
       console.log(`🎨 Using user-selected color scheme: ${colorScheme.name}`);
     } else {
       colorScheme = COLOR_SCHEMES[Math.floor(Math.random() * COLOR_SCHEMES.length)];
@@ -6628,9 +9274,11 @@ These are realistic, verified contact details for the target region. DO NOT repl
     }
     const radiusStyle = RADIUS_STYLES[Math.floor(Math.random() * RADIUS_STYLES.length)];
     const shadowStyle = SHADOW_STYLES[Math.floor(Math.random() * SHADOW_STYLES.length)];
-    
-    console.log(`🎨 Selected style: ${colorScheme.name} theme, radius: ${radiusStyle.md}, shadow style: ${shadowStyle.md.substring(0, 20)}...`);
-    
+
+    console.log(
+      `🎨 Selected style: ${colorScheme.name} theme, radius: ${radiusStyle.md}, shadow style: ${shadowStyle.md.substring(0, 20)}...`,
+    );
+
     // Premium baseline CSS with randomized variables
     const BASELINE_CSS = `:root {
   --primary-color: ${colorScheme.primary};
@@ -8178,78 +10826,80 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
 }`;
 
     // Check if styles.css exists
-    const hasStylesCSS = generatedFiles.some(f => f.path === 'styles.css');
-    
+    const hasStylesCSS = generatedFiles.some((f) => f.path === "styles.css");
+
     // If no styles.css exists at all, CREATE it with baseline CSS
     if (!hasStylesCSS) {
       console.log(`🚨 CRITICAL: styles.css NOT FOUND! Creating with full baseline CSS.`);
       generatedFiles.push({
-        path: 'styles.css',
-        content: BASELINE_CSS
+        path: "styles.css",
+        content: BASELINE_CSS,
       });
-      
+
       // Also ensure all HTML files link to styles.css
-      generatedFiles = generatedFiles.map(file => {
-        if (!file.path.endsWith('.html')) return file;
-        
+      generatedFiles = generatedFiles.map((file) => {
+        if (!file.path.endsWith(".html")) return file;
+
         let content = file.content;
         // Check if already has stylesheet link
-        if (!content.includes('styles.css') && !content.includes('<link rel="stylesheet"')) {
+        if (!content.includes("styles.css") && !content.includes('<link rel="stylesheet"')) {
           // Add stylesheet link in <head>
-          if (content.includes('</head>')) {
-            content = content.replace('</head>', '  <link rel="stylesheet" href="styles.css">\n</head>');
+          if (content.includes("</head>")) {
+            content = content.replace("</head>", '  <link rel="stylesheet" href="styles.css">\n</head>');
             console.log(`📎 Added styles.css link to ${file.path}`);
           }
         }
         return { ...file, content };
       });
-      
+
       return generatedFiles;
     }
-    
+
     // If styles.css exists, check and enhance quality
-    return generatedFiles.map(file => {
-      if (file.path !== 'styles.css') return file;
-      
+    return generatedFiles.map((file) => {
+      if (file.path !== "styles.css") return file;
+
       const existingCSS = file.content;
-      const lineCount = existingCSS.split('\n').length;
+      const lineCount = existingCSS.split("\n").length;
       const charCount = existingCSS.length;
-      
+
       // Expanded quality indicators (10 total) for comprehensive check
       const qualityIndicators = {
-        hasRootVars: existingCSS.includes(':root'),
-        hasContainer: existingCSS.includes('.container'),
-        hasFooter: existingCSS.includes('.footer') || existingCSS.includes('footer'),
-        hasCard: existingCSS.includes('.card'),
-        hasResponsive: existingCSS.includes('@media'),
-        hasHeader: existingCSS.includes('.header') || existingCSS.includes('header'),
-        hasHero: existingCSS.includes('.hero'),
-        hasButton: existingCSS.includes('.btn'),
-        hasForm: existingCSS.includes('.form') || existingCSS.includes('input'),
-        hasNav: existingCSS.includes('.nav') || existingCSS.includes('nav-links'),
+        hasRootVars: existingCSS.includes(":root"),
+        hasContainer: existingCSS.includes(".container"),
+        hasFooter: existingCSS.includes(".footer") || existingCSS.includes("footer"),
+        hasCard: existingCSS.includes(".card"),
+        hasResponsive: existingCSS.includes("@media"),
+        hasHeader: existingCSS.includes(".header") || existingCSS.includes("header"),
+        hasHero: existingCSS.includes(".hero"),
+        hasButton: existingCSS.includes(".btn"),
+        hasForm: existingCSS.includes(".form") || existingCSS.includes("input"),
+        hasNav: existingCSS.includes(".nav") || existingCSS.includes("nav-links"),
       };
-      
+
       const qualityScore = Object.values(qualityIndicators).filter(Boolean).length;
       const hasMinimumLength = lineCount >= MINIMUM_CSS_LINES || charCount >= 15000;
-      
+
       console.log(`📊 CSS Quality Check: ${lineCount} lines, ${charCount} chars, quality score: ${qualityScore}/10`);
       console.log(`📋 Quality indicators:`, JSON.stringify(qualityIndicators));
-      
+
       // Enhanced logic: Apply baseline if CSS is too short OR missing critical patterns
       // Using stricter thresholds to ensure professional quality
       const needsEnhancement = !hasMinimumLength || qualityScore < MINIMUM_QUALITY_SCORE;
-      
+
       if (needsEnhancement) {
-        console.log(`⚠️ CSS quality insufficient (${lineCount} lines, score ${qualityScore}/${MINIMUM_QUALITY_SCORE} min). ENHANCING with baseline CSS.`);
-        
+        console.log(
+          `⚠️ CSS quality insufficient (${lineCount} lines, score ${qualityScore}/${MINIMUM_QUALITY_SCORE} min). ENHANCING with baseline CSS.`,
+        );
+
         // Merge: baseline first, then generated CSS (generated can override)
-        const enhancedCSS = BASELINE_CSS + '\n\n/* ===== SITE-SPECIFIC STYLES ===== */\n\n' + existingCSS;
-        
-        console.log(`✅ Enhanced CSS: ${enhancedCSS.split('\n').length} lines, ${enhancedCSS.length} chars`);
-        
+        const enhancedCSS = BASELINE_CSS + "\n\n/* ===== SITE-SPECIFIC STYLES ===== */\n\n" + existingCSS;
+
+        console.log(`✅ Enhanced CSS: ${enhancedCSS.split("\n").length} lines, ${enhancedCSS.length} chars`);
+
         return { ...file, content: enhancedCSS };
       }
-      
+
       console.log(`✅ CSS quality sufficient - no enhancement needed`);
       return file;
     });
@@ -8258,7 +10908,7 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
   // NEW: Fix placeholder images, ensure proper hero backgrounds, and fix styling issues
   const fixPlaceholderImages = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
     let imageCounter = 1;
-    
+
     // Pre-defined reliable Unsplash photo IDs for fallbacks
     const UNSPLASH_PHOTOS = [
       "1497366216548-37526070297c", // office
@@ -8272,28 +10922,28 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
       "1438761681033-6461ffad8d80", // portrait female
       "1472099645785-5658abf4ff4e", // portrait professional
     ];
-    
+
     const getUnsplashUrl = (width: number, height: number) => {
       const photoId = UNSPLASH_PHOTOS[imageCounter % UNSPLASH_PHOTOS.length];
       imageCounter++;
       return `https://images.unsplash.com/photo-${photoId}?w=${width}&h=${height}&fit=crop`;
     };
-    
-    return generatedFiles.map(file => {
-      if (!file.path.endsWith('.html')) return file;
-      
+
+    return generatedFiles.map((file) => {
+      if (!file.path.endsWith(".html")) return file;
+
       let content = file.content;
       let fixedCount = 0;
-      
+
       // Fix 0: Replace ALL picsum.photos URLs with Unsplash (picsum is unreliable)
       content = content.replace(
         /https?:\/\/picsum\.photos(?:\/seed\/[^\/]+)?\/(\d+)\/(\d+)(?:\?[^"'\s)]*)?/gi,
         (match, w, h) => {
           fixedCount++;
           return getUnsplashUrl(parseInt(w) || 800, parseInt(h) || 600);
-        }
+        },
       );
-      
+
       // Fix 1: Replace SVG/placeholder src in img tags
       const badImagePatterns = [
         /src=["'](?:placeholder\.svg|icon\.svg|logo\.svg|image\.svg)["']/gi,
@@ -8301,7 +10951,7 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
         /src=["'](?:#|javascript:|about:blank)["']/gi,
         /src=["'][\s]*["']/g, // empty src
       ];
-      
+
       for (const pattern of badImagePatterns) {
         if (pattern.test(content)) {
           content = content.replace(pattern, () => {
@@ -8310,29 +10960,32 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
           });
         }
       }
-      
+
       // Fix 2: Replace large inline SVGs that are used as hero/main images (not small icons)
-      const largeSvgPattern = /<svg[^>]*(?:width=["'](?:[2-9]\d{2}|[1-9]\d{3,})["']|height=["'](?:[2-9]\d{2}|[1-9]\d{3,})["']|class=["'][^"']*(?:hero|banner|main|feature)[^"']*["'])[^>]*>[\s\S]*?<\/svg>/gi;
+      const largeSvgPattern =
+        /<svg[^>]*(?:width=["'](?:[2-9]\d{2}|[1-9]\d{3,})["']|height=["'](?:[2-9]\d{2}|[1-9]\d{3,})["']|class=["'][^"']*(?:hero|banner|main|feature)[^"']*["'])[^>]*>[\s\S]*?<\/svg>/gi;
       if (largeSvgPattern.test(content)) {
         content = content.replace(largeSvgPattern, () => {
           fixedCount++;
           return `<img src="${getUnsplashUrl(600, 400)}" alt="Feature image" loading="lazy" class="feature-image">`;
         });
       }
-      
+
       // Fix 3: REMOVE background-image from hero sections that have <img> inside hero-visual
       // This prevents image overlap issues
       const heroSectionPattern = /<section([^>]*class=["'][^"']*(?:page-hero|homepage-hero)[^"']*["'])([^>]*)>/gi;
       content = content.replace(heroSectionPattern, (match, classAttr, restAttrs) => {
         // Remove style attribute with background-image
-        if (restAttrs.includes('background-image')) {
-          console.log(`🧹 Removing background-image from hero section in ${file.path} (conflicts with hero-visual img)`);
-          restAttrs = restAttrs.replace(/\s*style=["'][^"']*background-image[^"']*["']/gi, '');
+        if (restAttrs.includes("background-image")) {
+          console.log(
+            `🧹 Removing background-image from hero section in ${file.path} (conflicts with hero-visual img)`,
+          );
+          restAttrs = restAttrs.replace(/\s*style=["'][^"']*background-image[^"']*["']/gi, "");
           fixedCount++;
         }
         return `<section${classAttr}${restAttrs}>`;
       });
-      
+
       // Fix 4: Fix duplicate class="" attributes (CRITICAL - invalid HTML)
       // Pattern: class="something" followed by another class="something"
       content = content.replace(
@@ -8341,114 +10994,121 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
           // Merge the classes
           const class1Match = firstClass.match(/class=["']([^"']*)["']/);
           const class2Match = duplicateClass.match(/class=["']([^"']*)["']/);
-          
+
           if (class1Match && class2Match) {
             const mergedClasses = `${class1Match[1]} ${class2Match[1]}`.trim();
-            console.log(`🔧 Fixed duplicate class attributes in ${file.path}: merging "${class1Match[1]}" + "${class2Match[1]}"`);
+            console.log(
+              `🔧 Fixed duplicate class attributes in ${file.path}: merging "${class1Match[1]}" + "${class2Match[1]}"`,
+            );
             fixedCount++;
             return `<${tag} class="${mergedClasses}"${middle}${rest}>`;
           }
           return match;
-        }
+        },
       );
-      
+
       // Fix 5: Remove background-image from style if section contains hero-visual with img
       // More aggressive cleanup for hero sections
-      const heroWithBgAndImg = /<section([^>]*class=["'][^"']*hero[^"']*["'][^>]*style=["'][^"']*background-image[^"']*["'][^>]*)>([\s\S]*?<div[^>]*class=["'][^"']*hero-visual[^"']*["'][^>]*>[\s\S]*?<img[\s\S]*?<\/div>)/gi;
+      const heroWithBgAndImg =
+        /<section([^>]*class=["'][^"']*hero[^"']*["'][^>]*style=["'][^"']*background-image[^"']*["'][^>]*)>([\s\S]*?<div[^>]*class=["'][^"']*hero-visual[^"']*["'][^>]*>[\s\S]*?<img[\s\S]*?<\/div>)/gi;
       content = content.replace(heroWithBgAndImg, (match, sectionAttrs, innerContent) => {
         // Remove background-image from section style
-        const cleanedAttrs = sectionAttrs.replace(/style=["'][^"']*["']/gi, '');
+        const cleanedAttrs = sectionAttrs.replace(/style=["'][^"']*["']/gi, "");
         console.log(`🧹 Removed conflicting background-image from hero with img in ${file.path}`);
         fixedCount++;
         return `<section${cleanedAttrs}>${innerContent}`;
       });
-      
+
       // Fix 5: Constrain image sizes - add max-height to any images missing it
       // Replace full-width images with constrained versions
       content = content.replace(
         /<img([^>]*)(style=["'][^"']*)(width:\s*100vw|width:\s*100%[^;]*;[^"']*height:\s*100vh)([^"']*["'])/gi,
-        '<img$1$2max-height: 400px; object-fit: cover$4'
+        "<img$1$2max-height: 400px; object-fit: cover$4",
       );
-      
+
       // Fix 6: Add proper class to unstyled sections with lists (category-like sections)
       // Convert plain dt/dd lists to styled format
-      content = content.replace(
-        /<dl([^>]*)>\s*(<dt>)/gi,
-        '<dl$1 class="category-list"><$2'
-      );
-      
+      content = content.replace(/<dl([^>]*)>\s*(<dt>)/gi, '<dl$1 class="category-list"><$2');
+
       // Fix 7: Wrap unstyled h3+p combinations in cards
       // This targets patterns like: <h3>Energy</h3><p>Oil, gas...</p>
       const unstyledListPattern = /<section[^>]*>[\s\S]*?(<h3>[^<]+<\/h3>\s*<p>[^<]+<\/p>\s*){3,}/gi;
       if (unstyledListPattern.test(content)) {
         console.log("🎨 Detected unstyled list section in " + file.path + " - adding style classes");
-        
+
         // Add container class to sections without it
         content = content.replace(
           /<section([^>]*)>\s*<h2([^>]*)>([^<]+)<\/h2>/gi,
-          '<section$1 class="section"><div class="container"><div class="section-header"><h2$2 class="section-title">$3</h2></div>'
+          '<section$1 class="section"><div class="container"><div class="section-header"><h2$2 class="section-title">$3</h2></div>',
         );
       }
-      
+
       // Fix 8: Ensure newsletter sections have proper styling
       const newsletterPattern = /<section[^>]*class=["'][^"']*(?:newsletter|subscribe|cta)[^"']*["'][^>]*>/gi;
       if (!newsletterPattern.test(content)) {
         // Find newsletter-like sections by content and add class
         content = content.replace(
           /<section([^>]*)>([\s\S]*?(?:newsletter|subscribe|email address|inbox)[\s\S]*?)<\/section>/gi,
-          '<section$1 class="newsletter-section">$2</section>'
+          '<section$1 class="newsletter-section">$2</section>',
         );
       }
-      
+
       if (fixedCount > 0) {
         console.log("🔧 Fixed " + fixedCount + " issues in " + file.path);
       }
-      
+
       return { ...file, content };
     });
   };
 
   // NEW: Validate HTML content is not empty/broken
   const validateHtmlContent = (generatedFiles: GeneratedFile[]): GeneratedFile[] => {
-    return generatedFiles.map(file => {
-      if (!file.path.endsWith('.html')) return file;
-      
+    return generatedFiles.map((file) => {
+      if (!file.path.endsWith(".html")) return file;
+
       let content = file.content;
-      
+
       // Check for common signs of broken HTML
-      const hasBody = content.includes('<body') && content.includes('</body>');
-      const hasHtml = content.includes('<html') && content.includes('</html>');
-      const hasHead = content.includes('<head') && content.includes('</head>');
+      const hasBody = content.includes("<body") && content.includes("</body>");
+      const hasHtml = content.includes("<html") && content.includes("</html>");
+      const hasHead = content.includes("<head") && content.includes("</head>");
       const contentLength = content.length;
-      
+
       // If HTML structure is fundamentally broken, log warning
       if (!hasBody || !hasHtml || !hasHead) {
-        console.log(`⚠️ WARNING: ${file.path} has broken HTML structure (body: ${hasBody}, html: ${hasHtml}, head: ${hasHead})`);
+        console.log(
+          `⚠️ WARNING: ${file.path} has broken HTML structure (body: ${hasBody}, html: ${hasHtml}, head: ${hasHead})`,
+        );
       }
-      
+
       // If page is too short (likely empty/broken), log warning
-      if (contentLength < 500 && file.path === 'index.html') {
+      if (contentLength < 500 && file.path === "index.html") {
         console.log(`⚠️ WARNING: ${file.path} is suspiciously short (${contentLength} chars)`);
       }
-      
+
       // Check for content inside body (not just structure)
       const bodyMatch = content.match(/<body[^>]*>([\s\S]*)<\/body>/i);
       if (bodyMatch) {
         const bodyContent = bodyMatch[1].trim();
         // Remove scripts and whitespace to check actual content
-        const cleanBody = bodyContent.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\s+/g, ' ').trim();
-        
-        if (cleanBody.length < 200 && file.path === 'index.html') {
-          console.log(`⚠️ WARNING: ${file.path} has very little content in body (${cleanBody.length} chars after cleanup)`);
+        const cleanBody = bodyContent
+          .replace(/<script[\s\S]*?<\/script>/gi, "")
+          .replace(/\s+/g, " ")
+          .trim();
+
+        if (cleanBody.length < 200 && file.path === "index.html") {
+          console.log(
+            `⚠️ WARNING: ${file.path} has very little content in body (${cleanBody.length} chars after cleanup)`,
+          );
         }
       }
-      
+
       // Ensure proper encoding for Cyrillic if detected
-      if (/[а-яА-ЯїЇєЄіІґҐёЁ]/.test(content) && !content.includes('charset=')) {
-        content = content.replace('<head>', '<head>\n    <meta charset="UTF-8">');
+      if (/[а-яА-ЯїЇєЄіІґҐёЁ]/.test(content) && !content.includes("charset=")) {
+        content = content.replace("<head>", '<head>\n    <meta charset="UTF-8">');
         console.log(`📝 Added charset UTF-8 to ${file.path} for Cyrillic support`);
       }
-      
+
       return { ...file, content };
     });
   };
@@ -8457,7 +11117,7 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
   const ensureNonEmptyHtmlPages = (
     generatedFiles: GeneratedFile[],
     lang: string,
-    siteName?: string
+    siteName?: string,
   ): GeneratedFile[] => {
     const normalizeLangLocal = (l: string) => (l || "en").toLowerCase().trim().slice(0, 2);
     const L = normalizeLangLocal(lang);
@@ -8512,14 +11172,7 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
             : L === "de"
               ? "Diese Seite wurde unvollständig generiert. Wir haben eine sichere Version wiederhergestellt, damit die Website keine leeren Seiten enthält."
               : "This page was generated incompletely. We restored a safe version so the site has no empty pages.",
-      back:
-        L === "ru"
-          ? "На главную"
-          : L === "uk"
-            ? "На головну"
-            : L === "de"
-              ? "Zur Startseite"
-              : "Back to home",
+      back: L === "ru" ? "На главную" : L === "uk" ? "На головну" : L === "de" ? "Zur Startseite" : "Back to home",
     } as const;
 
     const makeFallbackHtml = (filePath: string) => {
@@ -8669,24 +11322,25 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
     // - Chess, Playing Cards, etc (2600–26FF, 2700–27BF)
     // - CJK symbols, arrows, misc (2300–23FF, 25A0–25FF)
     // - Regional indicators, variation selectors
-    const emojiPattern = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F900}-\u{1F9FF}]|[\u{1FA00}-\u{1FA6F}]|[\u{1FA70}-\u{1FAFF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{2300}-\u{23FF}]|[\u{25A0}-\u{25FF}]|[\u{2B50}]|[\u{2934}-\u{2935}]|[\u{3030}]|[\u{303D}]|[\u{3297}]|[\u{3299}]|[\u{FE00}-\u{FE0F}]|[\u{200D}]/gu;
-    
-    return generatedFiles.map(file => {
+    const emojiPattern =
+      /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F900}-\u{1F9FF}]|[\u{1FA00}-\u{1FA6F}]|[\u{1FA70}-\u{1FAFF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{2300}-\u{23FF}]|[\u{25A0}-\u{25FF}]|[\u{2B50}]|[\u{2934}-\u{2935}]|[\u{3030}]|[\u{303D}]|[\u{3297}]|[\u{3299}]|[\u{FE00}-\u{FE0F}]|[\u{200D}]/gu;
+
+    return generatedFiles.map((file) => {
       // Only process HTML, CSS, JS files - skip binary/assets
       if (!/\.(html?|css|js|jsx|tsx?)$/i.test(file.path)) return file;
-      
+
       let content = file.content;
       let removedCount = 0;
-      
+
       // Count emojis before removal
       const emojiMatches = content.match(emojiPattern);
       if (emojiMatches) {
         removedCount = emojiMatches.length;
       }
-      
+
       // Remove emojis from content
-      content = content.replace(emojiPattern, '');
-      
+      content = content.replace(emojiPattern, "");
+
       // Also remove common instruction markers that might leak through
       // These are patterns from the prompt that should never appear in output
       const instructionPatterns = [
@@ -8710,19 +11364,19 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
         /📸+/g,
         /🏢+/g,
       ];
-      
+
       for (const pattern of instructionPatterns) {
-        content = content.replace(pattern, '');
+        content = content.replace(pattern, "");
       }
-      
+
       // Clean up any resulting double spaces or empty lines
-      content = content.replace(/  +/g, ' ');
-      content = content.replace(/\n\s*\n\s*\n/g, '\n\n');
-      
+      content = content.replace(/  +/g, " ");
+      content = content.replace(/\n\s*\n\s*\n/g, "\n\n");
+
       if (removedCount > 0) {
         console.log(`🧹 Removed ${removedCount} emoji(s)/symbol(s) from ${file.path}`);
       }
-      
+
       return { ...file, content };
     });
   };
@@ -8736,21 +11390,21 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
   finalFiles = ensureMandatoryPages(finalFiles, language || "en");
   finalFiles = ensureNonEmptyHtmlPages(finalFiles, language || "en", siteName);
   finalFiles = ensureBilingualI18nInFiles(finalFiles, bilingualLanguages, siteName);
-  
+
   // CRITICAL: Normalize internal links for static hosting
   const { files: linkNormalizedFiles, totalFixed: linksFixed } = normalizeInternalLinks(finalFiles);
   finalFiles = linkNormalizedFiles;
   if (linksFixed > 0) {
     console.log(`🔗 Normalized ${linksFixed} internal link(s) for static hosting compatibility`);
   }
-  
+
   // CRITICAL: Fix form actions that point to non-existent pages (causes 404 on Netlify/static hosts)
   const { files: formFixedFiles, totalFixed: formsFixed } = fixFormActionsForStaticHost(finalFiles, language);
   finalFiles = formFixedFiles;
   if (formsFixed > 0) {
     console.log(`📝 Fixed ${formsFixed} form action(s) for static hosting compatibility`);
   }
-  
+
   console.log(`📁 Final files count (with all mandatory files): ${finalFiles.length}`);
 
   return {
@@ -8778,26 +11432,35 @@ async function runBackgroundGeneration(
   geo?: string,
   bilingualLanguages?: string[] | null,
   bundleImages: boolean = true, // Whether to bundle external images into ZIP
-  colorScheme?: string | null // User-selected color scheme
+  colorScheme?: string | null, // User-selected color scheme
 ) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  console.log(`[BG] Starting background generation for history ID: ${historyId}, team: ${teamId}, salePrice: $${salePrice}`);
+  console.log(
+    `[BG] Starting background generation for history ID: ${historyId}, team: ${teamId}, salePrice: $${salePrice}`,
+  );
 
   try {
     // Increment global active generations counter
-    await supabase.rpc('increment_active_generations');
+    await supabase.rpc("increment_active_generations");
     console.log(`[BG] Incremented active generations counter`);
 
     // Balance was already deducted in main handler - just update status to generating
-    await supabase
-      .from("generation_history")
-      .update({ status: "generating" })
-      .eq("id", historyId);
+    await supabase.from("generation_history").update({ status: "generating" }).eq("id", historyId);
 
-    const result = await runGeneration({ prompt, language, aiModel, layoutStyle, imageSource, siteName, bilingualLanguages, colorScheme, geo });
+    const result = await runGeneration({
+      prompt,
+      language,
+      aiModel,
+      layoutStyle,
+      imageSource,
+      siteName,
+      bilingualLanguages,
+      colorScheme,
+      geo,
+    });
 
     if (result.success && result.files) {
       // Prefer explicit geo passed from client, fallback to extracting from prompt
@@ -8818,7 +11481,7 @@ async function runBackgroundGeneration(
 
       // ALWAYS fix broken image URLs first (AI hallucination issue where phone numbers appear in image URLs)
       // This must happen BEFORE any phone enforcement to avoid double-processing
-      const fixedImageFiles = enforcedFiles.map(f => {
+      const fixedImageFiles = enforcedFiles.map((f) => {
         if (!/\.(html?|php|jsx?|tsx?)$/i.test(f.path)) return f;
         const { content, fixed } = fixBrokenImageUrls(f.content);
         if (fixed > 0) {
@@ -8840,52 +11503,59 @@ async function runBackgroundGeneration(
           console.log(`[BG] Fixed ${totalFixed} invalid phone number(s) in generated files`);
         }
         const autoPhone = generateRealisticPhone(geoToUse);
-        console.log(`[BG] No phone in prompt. Auto-generated regional phone: "${autoPhone}" (geo: "${geoToUse || 'default'}")`);
+        console.log(
+          `[BG] No phone in prompt. Auto-generated regional phone: "${autoPhone}" (geo: "${geoToUse || "default"}")`,
+        );
         enforcedFiles = enforcePhoneInFiles(fixedFiles, autoPhone);
         console.log(`[BG] Enforced auto-generated phone "${autoPhone}" across all files`);
       }
-       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
-       enforcedFiles = enforceEmailInFiles(enforcedFiles, desiredSiteName);
-       // Enforce realistic address based on geo (replaces AI-generated placeholder addresses)
-       const autoAddress = generateRealisticAddress(geoToUse);
-       enforcedFiles = enforceAddressInFiles(enforcedFiles, autoAddress);
-       console.log(`[BG] Enforced realistic address "${autoAddress}" (geo: "${geoToUse || 'default'}")`);
-       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
-       enforcedFiles = enforceUiUxBaselineInFiles(enforcedFiles);
+      enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
+      enforcedFiles = enforceEmailInFiles(enforcedFiles, desiredSiteName);
+      // Enforce realistic address based on geo (replaces AI-generated placeholder addresses)
+      const autoAddress = generateRealisticAddress(geoToUse);
+      enforcedFiles = enforceAddressInFiles(enforcedFiles, autoAddress);
+      console.log(`[BG] Enforced realistic address "${autoAddress}" (geo: "${geoToUse || "default"}")`);
+      enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
+      enforcedFiles = enforceUiUxBaselineInFiles(enforcedFiles);
 
-       // CRITICAL: HTML generations MUST always include 200.html + 404.html.
-       // Do this in background flow too (otherwise DB gets saved without these files).
-       enforcedFiles = ensureMandatoryPages(enforcedFiles, language || "en");
-       enforcedFiles = ensureBilingualI18nInFiles(enforcedFiles, bilingualLanguages, desiredSiteName);
+      // CRITICAL: HTML generations MUST always include 200.html + 404.html.
+      // Do this in background flow too (otherwise DB gets saved without these files).
+      enforcedFiles = ensureMandatoryPages(enforcedFiles, language || "en");
+      enforcedFiles = ensureBilingualI18nInFiles(enforcedFiles, bilingualLanguages, desiredSiteName);
 
-       // Ensure branding assets exist AND are linked in ALL html pages (including 200/404 added above)
-       // Use selected color scheme for logo/favicon colors
-       const brandColorsForLogo = getBrandColors(colorScheme || undefined);
-       enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName, brandColorsForLogo);
-      
-       // CRITICAL: Enforce business hours in footer
-       
-       // CRITICAL: Normalize internal links to work on static hosts
-       // Removes leading slashes and ./ prefixes from href/src attributes
-       const { files: linkNormalizedFiles, totalFixed: linksFixed } = normalizeInternalLinks(enforcedFiles);
-       enforcedFiles = linkNormalizedFiles;
-       if (linksFixed > 0) {
-         console.log(`[BG] Normalized ${linksFixed} internal link(s) for static hosting compatibility`);
-       }
-       
-       // CRITICAL: Fix form actions that point to non-existent pages (causes 404 on Netlify/static hosts)
-       const { files: formFixedFiles, totalFixed: formsFixed } = fixFormActionsForStaticHost(enforcedFiles, language);
-       enforcedFiles = formFixedFiles;
-       if (formsFixed > 0) {
-         console.log(`[BG] Fixed ${formsFixed} form action(s) for static hosting compatibility`);
-       }
+      // Ensure branding assets exist AND are linked in ALL html pages (including 200/404 added above)
+      // Use selected color scheme for logo/favicon colors
+      const brandColorsForLogo = getBrandColors(colorScheme || undefined);
+      enforcedFiles = ensureFaviconAndLogoInFiles(enforcedFiles, desiredSiteName, brandColorsForLogo);
+
+      // CRITICAL: Enforce business hours in footer
+
+      // CRITICAL: Normalize internal links to work on static hosts
+      // Removes leading slashes and ./ prefixes from href/src attributes
+      const { files: linkNormalizedFiles, totalFixed: linksFixed } = normalizeInternalLinks(enforcedFiles);
+      enforcedFiles = linkNormalizedFiles;
+      if (linksFixed > 0) {
+        console.log(`[BG] Normalized ${linksFixed} internal link(s) for static hosting compatibility`);
+      }
+
+      // CRITICAL: Fix form actions that point to non-existent pages (causes 404 on Netlify/static hosts)
+      const { files: formFixedFiles, totalFixed: formsFixed } = fixFormActionsForStaticHost(enforcedFiles, language);
+      enforcedFiles = formFixedFiles;
+      if (formsFixed > 0) {
+        console.log(`[BG] Fixed ${formsFixed} form action(s) for static hosting compatibility`);
+      }
       enforcedFiles = enforceBusinessHoursInFiles(enforcedFiles, language);
-      console.log(`[BG] Enforced business hours in footers (language: ${language || 'en'})`);
-      
+      console.log(`[BG] Enforced business hours in footers (language: ${language || "en"})`);
+
       // Run contact page validation (phone/email in contact.html, contact links in footers)
       // CRITICAL: Pass the phone to ensure it's on ALL pages and clickable
       const phoneForValidation = desiredPhone || generateRealisticPhone(geoToUse);
-      const { files: contactValidatedFiles, warnings: contactWarnings } = runContactValidation(enforcedFiles, geoToUse, language, phoneForValidation);
+      const { files: contactValidatedFiles, warnings: contactWarnings } = runContactValidation(
+        enforcedFiles,
+        geoToUse,
+        language,
+        phoneForValidation,
+      );
       enforcedFiles = contactValidatedFiles;
       if (contactWarnings.length > 0) {
         console.log(`[BG] Contact validation applied ${contactWarnings.length} fixes (phone: ${phoneForValidation})`);
@@ -8900,7 +11570,7 @@ async function runBackgroundGeneration(
       // Skip bundling if user chose faster mode (bundleImages = false)
       let zipTextFiles: Array<{ path: string; content: string }>;
       let zipBinaryFiles: Array<{ path: string; base64: string }> = [];
-      
+
       if (bundleImages) {
         const bundled = await bundleExternalImagesForZip(enforcedFiles);
         if (bundled.downloadedCount > 0) {
@@ -8929,24 +11599,24 @@ async function runBackgroundGeneration(
 
       // Update with success including generation cost and completion time
       const generationCost = result.totalCost || 0;
-      
+
       // Fetch current total_generation_cost to accumulate across retries
       const { data: currentRecord } = await supabase
         .from("generation_history")
         .select("total_generation_cost, retry_count, admin_note")
         .eq("id", historyId)
         .single();
-      
+
       const previousTotalCost = (currentRecord?.total_generation_cost as number) || 0;
       const newTotalCost = previousTotalCost + generationCost;
-      
+
       // Extract retry count from admin_note if not already in retry_count column
       let retryCount = (currentRecord?.retry_count as number) || 0;
       if (retryCount === 0 && currentRecord?.admin_note) {
         const match = (currentRecord.admin_note as string).match(/retry:(\d+)/);
         if (match) retryCount = parseInt(match[1], 10);
       }
-      
+
       await supabase
         .from("generation_history")
         .update({
@@ -8962,8 +11632,10 @@ async function runBackgroundGeneration(
           layout_style: layoutStyle || null,
         })
         .eq("id", historyId);
-      
-      console.log(`[BG] Costs - this attempt: $${generationCost.toFixed(4)}, total accumulated: $${newTotalCost.toFixed(4)}, retries: ${retryCount}`);
+
+      console.log(
+        `[BG] Costs - this attempt: $${generationCost.toFixed(4)}, total accumulated: $${newTotalCost.toFixed(4)}, retries: ${retryCount}`,
+      );
 
       // Create notification for user
       await supabase.from("notifications").insert({
@@ -8971,18 +11643,16 @@ async function runBackgroundGeneration(
         type: "generation_complete",
         title: "Сайт згенеровано",
         message: `HTML сайт успішно створено (${enforcedFiles.length} файлів)`,
-        data: { historyId, filesCount: enforcedFiles.length }
+        data: { historyId, filesCount: enforcedFiles.length },
       });
 
-      console.log(`[BG] Generation completed for ${historyId}: ${enforcedFiles.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}`);
+      console.log(
+        `[BG] Generation completed for ${historyId}: ${enforcedFiles.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}`,
+      );
     } else {
       // REFUND balance on failure
       if (teamId && salePrice > 0) {
-        const { data: team } = await supabase
-          .from("teams")
-          .select("balance")
-          .eq("id", teamId)
-          .single();
+        const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
 
         if (team) {
           await supabase
@@ -8995,23 +11665,23 @@ async function runBackgroundGeneration(
 
       // Update with error - CRITICAL: Also accumulate generation costs from failed attempts
       const failedAttemptCost = result.totalCost || 0;
-      
+
       // Fetch current totals to accumulate
       const { data: failedRecord } = await supabase
         .from("generation_history")
         .select("total_generation_cost, retry_count, admin_note")
         .eq("id", historyId)
         .single();
-      
+
       const prevTotalCost = (failedRecord?.total_generation_cost as number) || 0;
       const accumulatedCost = prevTotalCost + failedAttemptCost;
-      
+
       let currentRetryCount = (failedRecord?.retry_count as number) || 0;
       if (currentRetryCount === 0 && failedRecord?.admin_note) {
         const match = (failedRecord.admin_note as string).match(/retry:(\d+)/);
         if (match) currentRetryCount = parseInt(match[1], 10);
       }
-      
+
       await supabase
         .from("generation_history")
         .update({
@@ -9024,8 +11694,10 @@ async function runBackgroundGeneration(
           specific_ai_model: result.specificModel || "unknown",
         })
         .eq("id", historyId);
-      
-      console.log(`[BG] Failed attempt cost: $${failedAttemptCost.toFixed(4)}, total accumulated: $${accumulatedCost.toFixed(4)}`);
+
+      console.log(
+        `[BG] Failed attempt cost: $${failedAttemptCost.toFixed(4)}, total accumulated: $${accumulatedCost.toFixed(4)}`,
+      );
 
       // Create notification for user about failure
       await supabase.from("notifications").insert({
@@ -9033,7 +11705,7 @@ async function runBackgroundGeneration(
         type: "generation_failed",
         title: "Помилка генерації",
         message: result.error || "Не вдалося згенерувати сайт",
-        data: { historyId, error: result.error }
+        data: { historyId, error: result.error },
       });
 
       console.error(`[BG] Generation failed for ${historyId}: ${result.error}`);
@@ -9044,11 +11716,7 @@ async function runBackgroundGeneration(
     // REFUND balance on error
     if (teamId && salePrice > 0) {
       try {
-        const { data: team } = await supabase
-          .from("teams")
-          .select("balance")
-          .eq("id", teamId)
-          .single();
+        const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
 
         if (team) {
           await supabase
@@ -9074,7 +11742,7 @@ async function runBackgroundGeneration(
   } finally {
     // Always decrement the active generations counter
     try {
-      await supabase.rpc('decrement_active_generations');
+      await supabase.rpc("decrement_active_generations");
       console.log(`[BG] Decremented active generations counter for ${historyId}`);
     } catch (decrementError) {
       console.error(`[BG] Failed to decrement active generations:`, decrementError);
@@ -9087,67 +11755,8 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-  // ============ WORKER MODE ============
-  // When called with __worker flag + service key, use EdgeRuntime.waitUntil
-  // to run generation in background. The HTTP response returns immediately (200)
-  // to avoid the Supabase API gateway's ~150s timeout. The background task
-  // continues running under max_duration_seconds (900s). If the instance is
-  // recycled by the platform, the cleanup-stale-generations cron will detect
-  // stuck tasks and mark them as failed for retry.
-  const authHeader = req.headers.get("Authorization");
-  if (authHeader) {
-    const token = authHeader.replace("Bearer ", "").trim();
-    if (token === supabaseServiceKey) {
-      try {
-        const workerBody = await req.json();
-        if (workerBody.__worker) {
-          console.log(`[WORKER] Received job for historyId: ${workerBody.historyId}, starting via waitUntil`);
-          
-          // Use waitUntil — the only way to run long tasks on Supabase Edge Functions.
-          // The HTTP response is returned immediately; the generation continues in background.
-          EdgeRuntime.waitUntil(
-            runBackgroundGeneration(
-              workerBody.historyId,
-              workerBody.userId,
-              workerBody.prompt,
-              workerBody.language,
-              workerBody.aiModel,
-              workerBody.layoutStyle,
-              workerBody.imageSource,
-              workerBody.teamId,
-              workerBody.salePrice,
-              workerBody.siteName,
-              workerBody.geo,
-              workerBody.bilingualLanguages,
-              workerBody.bundleImages,
-              workerBody.colorScheme
-            ).then(() => {
-              console.log(`[WORKER] Generation completed for historyId: ${workerBody.historyId}`);
-            }).catch((err) => {
-              console.error(`[WORKER] Generation failed for historyId: ${workerBody.historyId}:`, err);
-            })
-          );
-
-          return new Response(JSON.stringify({ success: true, message: "Worker started" }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-      } catch (workerError) {
-        console.error(`[WORKER] Error parsing worker request:`, workerError);
-        return new Response(JSON.stringify({ success: false, error: String(workerError) }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    }
-  }
-  // ============ END WORKER MODE ============
-
   try {
+    const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       console.warn("Request rejected: No authorization header");
       return new Response(JSON.stringify({ success: false, error: "Authentication required" }), {
@@ -9157,7 +11766,9 @@ serve(async (req) => {
     }
 
     // Validate JWT using getClaims() - more reliable than getUser() for token validation
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     if (!authHeader.startsWith("Bearer ")) {
       console.warn("Request rejected: invalid authorization header format");
@@ -9171,27 +11782,43 @@ serve(async (req) => {
 
     // Use service role key for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
+
     // Read body first to check for retryHistoryId (needed for service key auth bypass)
     const body = await req.json();
-    const { prompt, originalPrompt, improvedPrompt, vipPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, bilingualLanguages, retryHistoryId, bundleImages = true, colorScheme } = body;
+    const {
+      prompt,
+      originalPrompt,
+      improvedPrompt,
+      vipPrompt,
+      language,
+      aiModel = "senior",
+      layoutStyle,
+      siteName,
+      imageSource = "basic",
+      teamId: overrideTeamId,
+      geo,
+      bilingualLanguages,
+      retryHistoryId,
+      bundleImages = true,
+      colorScheme,
+    } = body;
 
     // Determine userId - either from JWT or from DB for retry requests
     let userId: string;
-    
+
     // Check if this is a retry request from cleanup-stale-generations using SERVICE_ROLE_KEY
     const isRetryWithServiceKey = !!(retryHistoryId && token === supabaseServiceKey);
-    
+
     if (isRetryWithServiceKey) {
       // SERVICE KEY AUTH: Get userId from existing generation_history record
       console.log("🔄 Retry mode detected with service key for:", retryHistoryId);
-      
+
       const { data: existingRecord, error: fetchError } = await supabase
         .from("generation_history")
         .select("user_id")
         .eq("id", retryHistoryId)
         .single();
-      
+
       if (fetchError || !existingRecord?.user_id) {
         console.error("Failed to find retry record:", fetchError);
         return new Response(JSON.stringify({ code: 404, message: "Retry record not found" }), {
@@ -9199,7 +11826,7 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      
+
       userId = existingRecord.user_id;
       console.log("🔄 Retry mode: userId from DB:", userId);
     } else {
@@ -9210,7 +11837,7 @@ serve(async (req) => {
           throw new Error("Invalid JWT structure");
         }
         const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-        
+
         // Check if token is expired
         if (payload.exp && payload.exp * 1000 < Date.now()) {
           console.error("JWT expired:", new Date(payload.exp * 1000).toISOString());
@@ -9219,11 +11846,11 @@ serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        
+
         if (!payload.sub) {
           throw new Error("JWT missing sub claim");
         }
-        
+
         userId = payload.sub as string;
         console.log("JWT decoded successfully, user:", userId);
       } catch (jwtError) {
@@ -9234,7 +11861,7 @@ serve(async (req) => {
         });
       }
     }
-    
+
     console.log("Authenticated request from user:", userId);
 
     // ============ CHECK MAINTENANCE MODE (GLOBAL OR GENERATION) ============
@@ -9252,8 +11879,8 @@ serve(async (req) => {
     const isGenerationBlocked = !!maintenanceData?.enabled || !!maintenanceData?.generation_disabled;
     if (isGenerationBlocked) {
       const messageToShow = maintenanceData?.generation_disabled
-        ? (maintenanceData.generation_message || "Система на технічному обслуговуванні. Спробуйте пізніше.")
-        : (maintenanceData?.message || "Система на технічному обслуговуванні. Спробуйте пізніше.");
+        ? maintenanceData.generation_message || "Система на технічному обслуговуванні. Спробуйте пізніше."
+        : maintenanceData?.message || "Система на технічному обслуговуванні. Спробуйте пізніше.";
 
       console.log("🚫 Generation blocked: maintenance mode active for user:", userId);
       return new Response(
@@ -9265,7 +11892,7 @@ serve(async (req) => {
         {
           status: 503,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     }
     // ============ END MAINTENANCE CHECK ============
@@ -9273,31 +11900,56 @@ serve(async (req) => {
     // Build prompt with language and geo context if provided
     // Priority for retry: vipPrompt > improvedPrompt > prompt (same as startGeneration)
     let promptForGeneration = vipPrompt || improvedPrompt || prompt;
-    
+
     // Log which prompt source is being used (for admin debugging)
     const promptSource = vipPrompt ? "VIP" : improvedPrompt ? "AI+" : "original";
     console.log(`📝 Prompt source: ${promptSource}${retryHistoryId ? " (RETRY)" : ""}`);
     console.log(`   - vipPrompt: ${vipPrompt ? "YES (" + vipPrompt.length + " chars)" : "NO"}`);
     console.log(`   - improvedPrompt: ${improvedPrompt ? "YES (" + improvedPrompt.length + " chars)" : "NO"}`);
     console.log(`   - colorScheme: ${colorScheme || "random"}, layoutStyle: ${layoutStyle || "none"}`);
-    
+
     // Check if this is a bilingual site request
     const isBilingual = bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2;
-    
+
     if (isBilingual) {
       // Bilingual site generation - create a site with language switcher
       const languageNames: Record<string, string> = {
-        en: "English", uk: "Ukrainian", ru: "Russian", de: "German", fr: "French",
-        es: "Spanish", it: "Italian", pt: "Portuguese", pl: "Polish", nl: "Dutch",
-        cs: "Czech", bg: "Bulgarian", ro: "Romanian", hu: "Hungarian", tr: "Turkish",
-        ja: "Japanese", vi: "Vietnamese", th: "Thai", id: "Indonesian", hi: "Hindi",
-        ar: "Arabic", el: "Greek", fi: "Finnish", sv: "Swedish", da: "Danish",
-        hr: "Croatian", sk: "Slovak", sl: "Slovenian", et: "Estonian", lv: "Latvian", lt: "Lithuanian"
+        en: "English",
+        uk: "Ukrainian",
+        ru: "Russian",
+        de: "German",
+        fr: "French",
+        es: "Spanish",
+        it: "Italian",
+        pt: "Portuguese",
+        pl: "Polish",
+        nl: "Dutch",
+        cs: "Czech",
+        bg: "Bulgarian",
+        ro: "Romanian",
+        hu: "Hungarian",
+        tr: "Turkish",
+        ja: "Japanese",
+        vi: "Vietnamese",
+        th: "Thai",
+        id: "Indonesian",
+        hi: "Hindi",
+        ar: "Arabic",
+        el: "Greek",
+        fi: "Finnish",
+        sv: "Swedish",
+        da: "Danish",
+        hr: "Croatian",
+        sk: "Slovak",
+        sl: "Slovenian",
+        et: "Estonian",
+        lv: "Latvian",
+        lt: "Lithuanian",
       };
       const lang1 = languageNames[bilingualLanguages[0]] || bilingualLanguages[0];
       const lang2 = languageNames[bilingualLanguages[1]] || bilingualLanguages[1];
-      
-       promptForGeneration = `[BILINGUAL WEBSITE: ${lang1} + ${lang2}]
+
+      promptForGeneration = `[BILINGUAL WEBSITE: ${lang1} + ${lang2}]
  CRITICAL BILINGUAL SITE REQUIREMENTS (ONE HTML SET + JS):
 
  This website MUST support TWO languages: ${lang1} and ${lang2}.
@@ -9332,17 +11984,42 @@ serve(async (req) => {
     - DO NOT mix languages in the same string.
 
  ${promptForGeneration}`;
-      
+
       console.log(`🌐 Bilingual site generation: ${lang1} + ${lang2}`);
     } else if (language && language !== "auto") {
       // Single language site (existing logic)
       const languageNames: Record<string, string> = {
-        en: "English", uk: "Ukrainian", ru: "Russian", de: "German", fr: "French",
-        es: "Spanish", it: "Italian", pt: "Portuguese", pl: "Polish", nl: "Dutch",
-        cs: "Czech", bg: "Bulgarian", ro: "Romanian", hu: "Hungarian", tr: "Turkish",
-        ja: "Japanese", vi: "Vietnamese", th: "Thai", id: "Indonesian", hi: "Hindi",
-        ar: "Arabic", el: "Greek", fi: "Finnish", sv: "Swedish", da: "Danish",
-        hr: "Croatian", sk: "Slovak", sl: "Slovenian", et: "Estonian", lv: "Latvian", lt: "Lithuanian"
+        en: "English",
+        uk: "Ukrainian",
+        ru: "Russian",
+        de: "German",
+        fr: "French",
+        es: "Spanish",
+        it: "Italian",
+        pt: "Portuguese",
+        pl: "Polish",
+        nl: "Dutch",
+        cs: "Czech",
+        bg: "Bulgarian",
+        ro: "Romanian",
+        hu: "Hungarian",
+        tr: "Turkish",
+        ja: "Japanese",
+        vi: "Vietnamese",
+        th: "Thai",
+        id: "Indonesian",
+        hi: "Hindi",
+        ar: "Arabic",
+        el: "Greek",
+        fi: "Finnish",
+        sv: "Swedish",
+        da: "Danish",
+        hr: "Croatian",
+        sk: "Slovak",
+        sl: "Slovenian",
+        et: "Estonian",
+        lv: "Latvian",
+        lt: "Lithuanian",
       };
       const langName = languageNames[language] || language;
       promptForGeneration = `[TARGET LANGUAGE: ${langName}]
@@ -9358,16 +12035,41 @@ CRITICAL LANGUAGE REQUIREMENT - ALL CONTENT MUST BE IN ${langName.toUpperCase()}
 
 ${promptForGeneration}`;
     }
-    
+
     if (geo && geo !== "none") {
       const geoNames: Record<string, string> = {
-        uk: "United Kingdom", bg: "Bulgaria", cz: "Czech Republic", de: "Germany",
-        es: "Spain", fr: "France", hu: "Hungary", it: "Italy", pl: "Poland",
-        pt: "Portugal", ro: "Romania", tr: "Turkey", nl: "Netherlands", ru: "Russia",
-        jp: "Japan", ua: "Ukraine", hr: "Croatia", dk: "Denmark", ee: "Estonia",
-        fi: "Finland", gr: "Greece", lv: "Latvia", lt: "Lithuania", sk: "Slovakia",
-        si: "Slovenia", se: "Sweden", vn: "Vietnam", th: "Thailand", id: "Indonesia",
-        in: "India", ae: "United Arab Emirates", us: "United States"
+        uk: "United Kingdom",
+        bg: "Bulgaria",
+        cz: "Czech Republic",
+        de: "Germany",
+        es: "Spain",
+        fr: "France",
+        hu: "Hungary",
+        it: "Italy",
+        pl: "Poland",
+        pt: "Portugal",
+        ro: "Romania",
+        tr: "Turkey",
+        nl: "Netherlands",
+        ru: "Russia",
+        jp: "Japan",
+        ua: "Ukraine",
+        hr: "Croatia",
+        dk: "Denmark",
+        ee: "Estonia",
+        fi: "Finland",
+        gr: "Greece",
+        lv: "Latvia",
+        lt: "Lithuania",
+        sk: "Slovakia",
+        si: "Slovenia",
+        se: "Sweden",
+        vn: "Vietnam",
+        th: "Thailand",
+        id: "Indonesia",
+        in: "India",
+        ae: "United Arab Emirates",
+        us: "United States",
       };
       const countryName = geoNames[geo];
       if (countryName) {
@@ -9414,7 +12116,7 @@ CRITICAL GEO REQUIREMENTS - ALL CONTENT MUST BE LOCALIZED FOR ${countryName.toUp
 6. The address MUST appear in the contact section and footer`;
       }
     }
-    
+
     // Add siteName to the prompt if provided
     if (siteName && siteName.trim()) {
       promptForGeneration = `[SITE NAME: ${siteName}]
@@ -9431,7 +12133,7 @@ CRITICAL SITE NAME REQUIREMENT:
 
 ${promptForGeneration}`;
     }
-    
+
     // Store the original prompt (what user submitted) and improved prompt separately
     const promptToSave = originalPrompt || prompt;
     const improvedPromptToSave = improvedPrompt || null;
@@ -9446,41 +12148,49 @@ ${promptForGeneration}`;
     // ===== RATE LIMITING CHECKS =====
     // SKIP rate limiting for retry requests - they already have a slot reserved
     const skipRateLimiting = !!retryHistoryId && isRetryWithServiceKey;
-    
+
     if (!skipRateLimiting) {
       // Check system-wide limit
       const { data: limits } = await supabase
-        .from('system_limits')
-        .select('active_generations, max_concurrent_generations, max_generations_per_user')
-        .eq('id', 'global')
+        .from("system_limits")
+        .select("active_generations, max_concurrent_generations, max_generations_per_user")
+        .eq("id", "global")
         .single();
-      
+
       if (limits && limits.active_generations >= limits.max_concurrent_generations) {
-        console.log(`🚫 RATE LIMIT: System at capacity (${limits.active_generations}/${limits.max_concurrent_generations})`);
-        return new Response(JSON.stringify({ 
-          success: false, 
-          error: "Система перевантажена. Спробуйте через хвилину." 
-        }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        console.log(
+          `🚫 RATE LIMIT: System at capacity (${limits.active_generations}/${limits.max_concurrent_generations})`,
+        );
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Система перевантажена. Спробуйте через хвилину.",
+          }),
+          {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
-      
+
       // Check user-level limit
-      const { data: userActiveCount } = await supabase.rpc('get_user_active_generations', {
-        p_user_id: userId
+      const { data: userActiveCount } = await supabase.rpc("get_user_active_generations", {
+        p_user_id: userId,
       });
-      
+
       const maxPerUser = limits?.max_generations_per_user || 3;
       if (userActiveCount !== null && userActiveCount >= maxPerUser) {
         console.log(`🚫 RATE LIMIT: User ${userId} at capacity (${userActiveCount}/${maxPerUser})`);
-        return new Response(JSON.stringify({ 
-          success: false, 
-          error: `Ви досягли ліміту одночасних генерацій (${maxPerUser}). Дочекайтесь завершення попередніх.` 
-        }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `Ви досягли ліміту одночасних генерацій (${maxPerUser}). Дочекайтесь завершення попередніх.`,
+          }),
+          {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
     } else {
       console.log(`⏭️ Skipping rate limit check for retry of ${retryHistoryId}`);
@@ -9515,9 +12225,9 @@ ${promptForGeneration}`;
         .maybeSingle();
 
       salePrice = pricing?.html_price || 0;
-      
+
       // AI photo search is now free (removed +$2 charge)
-      
+
       // Add $3 for bilingual site
       if (bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2) {
         salePrice += 3;
@@ -9525,63 +12235,66 @@ ${promptForGeneration}`;
       }
 
       if (salePrice > 0) {
-        const { data: team } = await supabase
-          .from("teams")
-          .select("balance, credit_limit")
-          .eq("id", teamId)
-          .single();
+        const { data: team } = await supabase.from("teams").select("balance, credit_limit").eq("id", teamId).single();
 
         if (team) {
           const currentBalance = team.balance || 0;
           const creditLimit = team.credit_limit || 0;
           const newBalance = currentBalance - salePrice;
-          
+
           // Check if new balance would exceed credit limit
           // credit_limit is the maximum allowed debt (stored as positive number)
           if (newBalance < -creditLimit) {
-            console.log(`🚫 BLOCKED: Team ${teamId} would exceed credit limit. Balance: $${currentBalance}, Cost: $${salePrice}, Credit limit: $${creditLimit}`);
-            return new Response(JSON.stringify({ 
-              success: false, 
-              error: `Перевищено кредитний ліміт. Поточний баланс: $${currentBalance.toFixed(2)}, вартість: $${salePrice}, ліміт: $${creditLimit}. Поповніть баланс для продовження.` 
-            }), {
-              status: 402,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
+            console.log(
+              `🚫 BLOCKED: Team ${teamId} would exceed credit limit. Balance: $${currentBalance}, Cost: $${salePrice}, Credit limit: $${creditLimit}`,
+            );
+            return new Response(
+              JSON.stringify({
+                success: false,
+                error: `Перевищено кредитний ліміт. Поточний баланс: $${currentBalance.toFixed(2)}, вартість: $${salePrice}, ліміт: $${creditLimit}. Поповніть баланс для продовження.`,
+              }),
+              {
+                status: 402,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              },
+            );
           }
 
-          await supabase
-            .from("teams")
-            .update({ balance: newBalance })
-            .eq("id", teamId);
-          console.log(`💰 IMMEDIATELY deducted $${salePrice} from team ${teamId} BEFORE starting generation. New balance: $${newBalance}`);
+          await supabase.from("teams").update({ balance: newBalance }).eq("id", teamId);
+          console.log(
+            `💰 IMMEDIATELY deducted $${salePrice} from team ${teamId} BEFORE starting generation. New balance: $${newBalance}`,
+          );
         }
       }
     }
 
     // Handle retry: update existing record OR create new one
     let historyEntry: { id: string } | null = null;
-    
+
     // Effective params to use for generation (may differ from body params on retry)
     let effectiveColorScheme = colorScheme || null;
     let effectiveLayoutStyle = layoutStyle || null;
-    
+
     if (retryHistoryId) {
       // RETRY MODE: Update existing failed record instead of creating new one
       console.log(`🔄 RETRY MODE: Updating existing record ${retryHistoryId}`);
-      
+
       const { data: existingRecord, error: fetchError } = await supabase
         .from("generation_history")
         .select("id, status, user_id, color_scheme, layout_style, improved_prompt, vip_prompt, sale_price")
         .eq("id", retryHistoryId)
         .single();
-      
+
       if (fetchError || !existingRecord) {
         console.error("Failed to find retry record:", fetchError);
         // Refund if already deducted
         if (teamId && salePrice > 0) {
           const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
           if (team) {
-            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+            await supabase
+              .from("teams")
+              .update({ balance: (team.balance || 0) + salePrice })
+              .eq("id", teamId);
           }
         }
         return new Response(JSON.stringify({ success: false, error: "Retry record not found" }), {
@@ -9589,13 +12302,16 @@ ${promptForGeneration}`;
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      
+
       // Verify ownership
       if (existingRecord.user_id !== userId) {
         if (teamId && salePrice > 0) {
           const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
           if (team) {
-            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+            await supabase
+              .from("teams")
+              .update({ balance: (team.balance || 0) + salePrice })
+              .eq("id", teamId);
           }
         }
         return new Response(JSON.stringify({ success: false, error: "Unauthorized retry" }), {
@@ -9603,20 +12319,24 @@ ${promptForGeneration}`;
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      
+
       // Compute EFFECTIVE values for retry (prefer body param, fallback to existing record)
       effectiveColorScheme = colorScheme || existingRecord.color_scheme || null;
       effectiveLayoutStyle = layoutStyle || existingRecord.layout_style || null;
       const effectiveImprovedPrompt = improvedPrompt || existingRecord.improved_prompt || null;
       const effectiveVipPrompt = vipPrompt || existingRecord.vip_prompt || null;
-      
+
       // CRITICAL: Preserve original sale_price on retry - don't overwrite with $0!
       // If new salePrice was calculated and charged, use it; otherwise keep original
-      const effectiveSalePrice = salePrice > 0 ? salePrice : (existingRecord.sale_price || 0);
-      
-      console.log(`🎨 RETRY effective params: colorScheme=${effectiveColorScheme}, layoutStyle=${effectiveLayoutStyle}, hasImprovedPrompt=${!!effectiveImprovedPrompt}, hasVipPrompt=${!!effectiveVipPrompt}`);
-      console.log(`💰 RETRY sale_price: original=${existingRecord.sale_price}, calculated=${salePrice}, effective=${effectiveSalePrice}`);
-      
+      const effectiveSalePrice = salePrice > 0 ? salePrice : existingRecord.sale_price || 0;
+
+      console.log(
+        `🎨 RETRY effective params: colorScheme=${effectiveColorScheme}, layoutStyle=${effectiveLayoutStyle}, hasImprovedPrompt=${!!effectiveImprovedPrompt}, hasVipPrompt=${!!effectiveVipPrompt}`,
+      );
+      console.log(
+        `💰 RETRY sale_price: original=${existingRecord.sale_price}, calculated=${salePrice}, effective=${effectiveSalePrice}`,
+      );
+
       // Update existing record to pending status with effective params
       const { error: updateError } = await supabase
         .from("generation_history")
@@ -9633,13 +12353,16 @@ ${promptForGeneration}`;
           vip_prompt: effectiveVipPrompt,
         })
         .eq("id", retryHistoryId);
-      
+
       if (updateError) {
         console.error("Failed to update retry record:", updateError);
         if (teamId && salePrice > 0) {
           const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
           if (team) {
-            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+            await supabase
+              .from("teams")
+              .update({ balance: (team.balance || 0) + salePrice })
+              .eq("id", teamId);
           }
         }
         return new Response(JSON.stringify({ success: false, error: "Failed to start retry" }), {
@@ -9647,9 +12370,11 @@ ${promptForGeneration}`;
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      
+
       historyEntry = { id: retryHistoryId };
-      console.log(`🔄 Updated existing record for retry: ${retryHistoryId} with colorScheme=${effectiveColorScheme}, layoutStyle=${effectiveLayoutStyle}`);
+      console.log(
+        `🔄 Updated existing record for retry: ${retryHistoryId} with colorScheme=${effectiveColorScheme}, layoutStyle=${effectiveLayoutStyle}`,
+      );
     } else {
       // Create NEW history entry
       const { data: newEntry, error: insertError } = await supabase
@@ -9679,7 +12404,10 @@ ${promptForGeneration}`;
         if (teamId && salePrice > 0) {
           const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
           if (team) {
-            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+            await supabase
+              .from("teams")
+              .update({ balance: (team.balance || 0) + salePrice })
+              .eq("id", teamId);
           }
         }
         return new Response(JSON.stringify({ success: false, error: "Failed to start generation" }), {
@@ -9687,58 +12415,48 @@ ${promptForGeneration}`;
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      
+
       historyEntry = newEntry;
     }
-    
+
     // historyEntry is guaranteed to be non-null at this point
     const historyId = historyEntry!.id;
     console.log("Using history entry:", historyId);
 
-    // Fire-and-forget: call ourselves in WORKER mode with the service role key.
-    // The Supabase API gateway has a hard ~150s timeout on client-facing HTTP requests.
-    // By triggering a separate service-to-service call, the worker runs independently
-    // under the function's max_duration_seconds (900s = 15 min), while the client
-    // gets an immediate 202 response with the historyId for polling.
-    const workerUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-website`;
-    fetch(workerUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-      },
-      body: JSON.stringify({
-        __worker: true,
+    // Start background generation using EdgeRuntime.waitUntil
+    // Pass salePrice and teamId for potential refund on error
+    // IMPORTANT: Use promptForGeneration which includes language and geo instructions
+    // Use effectiveColorScheme and effectiveLayoutStyle to ensure retry gets correct params
+    EdgeRuntime.waitUntil(
+      runBackgroundGeneration(
         historyId,
         userId,
-        prompt: promptForGeneration,
+        promptForGeneration,
         language,
         aiModel,
-        layoutStyle: effectiveLayoutStyle,
+        effectiveLayoutStyle,
         imageSource,
         teamId,
         salePrice,
         siteName,
         geo,
-        bilingualLanguages: bilingualLanguages || null,
+        bilingualLanguages || null,
         bundleImages,
-        colorScheme: effectiveColorScheme,
-      }),
-    }).catch(err => {
-      console.error(`[DISPATCH] Failed to trigger worker for ${historyId}:`, err);
-    });
+        effectiveColorScheme,
+      ),
+    );
 
-    // Return immediately — client polls via Realtime or refetch
+    // Return immediately with the history entry ID
     return new Response(
       JSON.stringify({
         success: true,
         historyId: historyId,
-        message: "Generation started",
+        message: "Generation started in background",
       }),
       {
         status: 202,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      },
     );
   } catch (error) {
     console.error("Error:", error);
