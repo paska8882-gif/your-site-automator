@@ -4827,16 +4827,26 @@ The generator MUST ALWAYS create these pages as real files (never optional):
 ═══ #5 DESIGN PHILOSOPHY — UNIQUE & PREMIUM (x10 QUALITY) ═══
 Each website MUST have a DISTINCT visual identity. DO NOT use generic templates.
 
+UNIQUENESS MANDATE — EVERY GENERATION MUST BE DIFFERENT:
+- RANDOMIZE the hero layout: sometimes split 50/50, sometimes full-width image with overlay, sometimes video-style with large text
+- VARY card styles: sometimes rounded with shadows, sometimes flat with borders, sometimes glassmorphic, sometimes with colored top borders
+- ALTERNATE section patterns: use different background treatments (solid, gradient, subtle pattern, full-bleed image with overlay)
+- MIX typography approaches: sometimes uppercase tracking headings, sometimes elegant serif, sometimes bold geometric sans
+- CHANGE spacing rhythm: some sites breathe with huge whitespace, others are dense and information-rich
+
 DESIGN REQUIREMENTS:
 - Generate a UNIQUE color palette matching the business industry/theme
 - The post-processing system will OVERRIDE your :root variables with randomized values — that's OK, just USE the variables consistently
-- Create visual hierarchy with purposeful typography sizing (clamp() for responsiveness)
-- Add micro-interactions: hover transforms, focus states, smooth transitions (transition: all 0.3s ease)
-- Use varied section backgrounds (white, light tint, gradient, dark accent) for rhythm
-- Cards MUST have shadows, hover lift effects, and consistent styling
-- ALL form elements (input, select, textarea) MUST be custom-styled — NEVER browser defaults
-- Glassmorphism effects where appropriate (backdrop-filter, translucent cards)
-- Modern UI patterns: gradient text for headlines, soft glow shadows, layered compositions
+- Create STRONG visual hierarchy: hero headline should be massive (clamp(2.8rem, 6vw, 5rem)), section titles large (clamp(1.8rem, 3vw, 2.8rem))
+- Add MEANINGFUL micro-interactions: cards lift on hover (translateY(-12px) + shadow expansion), buttons scale slightly, images zoom in container on hover
+- Use VARIED section backgrounds for visual rhythm: white → light tint → white → gradient → dark accent → white
+- Cards MUST have multi-layered shadows (e.g., 0 4px 6px rgba(0,0,0,0.07), 0 12px 28px rgba(0,0,0,0.12)), hover lift effects with smooth 0.4s transitions
+- ALL form elements (input, select, textarea) MUST be custom-styled with focus glow effects — NEVER browser defaults
+- Use CSS Grid for complex layouts, not just flexbox — create asymmetric, editorial-style compositions
+- Add scroll-triggered fade-in animations via IntersectionObserver in script.js
+- Section transitions: use subtle diagonal clips, wave SVGs, or gradient fades between sections
+- Typography: use font-weight contrast (300 light for body, 700-800 bold for headings), letter-spacing: 0.05em for labels/badges
+- Buttons: generous padding (16px 36px), slight border-radius (8-12px), visible hover state with color shift + shadow
 
 ═══ #6 HOMEPAGE MANDATORY SECTIONS (index.html — minimum 8) ═══
 1. Header — Sticky nav with logo + menu links + language toggle (if bilingual) + optional CTA button
