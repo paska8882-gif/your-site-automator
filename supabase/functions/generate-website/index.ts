@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void };
+// Worker mode: background generation runs in a separate self-invocation via fetch, not waitUntil
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9052,6 +9052,44 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // ============ WORKER MODE: Run background generation synchronously ============
+  // When called with __workerMode, this is a self-invocation from the main handler.
+  // The generation runs in this independent invocation, so it won't be killed by
+  // the original runtime shutdown (unlike EdgeRuntime.waitUntil).
+  const workerHeader = req.headers.get("x-worker-mode");
+  if (workerHeader === "true") {
+    try {
+      const workerBody = await req.json();
+      console.log(`[WORKER] Starting background generation for ${workerBody.historyId}`);
+      await runBackgroundGeneration(
+        workerBody.historyId,
+        workerBody.userId,
+        workerBody.prompt,
+        workerBody.language,
+        workerBody.aiModel,
+        workerBody.layoutStyle,
+        workerBody.imageSource,
+        workerBody.teamId,
+        workerBody.salePrice,
+        workerBody.siteName,
+        workerBody.geo,
+        workerBody.bilingualLanguages,
+        workerBody.bundleImages,
+        workerBody.colorScheme
+      );
+      console.log(`[WORKER] Background generation completed for ${workerBody.historyId}`);
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    } catch (workerError) {
+      console.error(`[WORKER] Fatal error:`, workerError);
+      return new Response(JSON.stringify({ success: false, error: String(workerError) }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -9603,28 +9641,40 @@ ${promptForGeneration}`;
     const historyId = historyEntry!.id;
     console.log("Using history entry:", historyId);
 
-    // Start background generation using EdgeRuntime.waitUntil
-    // Pass salePrice and teamId for potential refund on error
-    // IMPORTANT: Use promptForGeneration which includes language and geo instructions
-    // Use effectiveColorScheme and effectiveLayoutStyle to ensure retry gets correct params
-    EdgeRuntime.waitUntil(
-      runBackgroundGeneration(
+    // Start background generation in a SEPARATE invocation via fire-and-forget fetch.
+    // This replaces EdgeRuntime.waitUntil which gets killed on runtime shutdown/deploy,
+    // causing tasks to hang in "generating" state forever.
+    const selfUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-website`;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    
+    console.log(`[MAIN] Triggering worker invocation for ${historyId}...`);
+    
+    fetch(selfUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${serviceKey}`,
+        "x-worker-mode": "true",
+      },
+      body: JSON.stringify({
         historyId,
         userId,
-        promptForGeneration,
+        prompt: promptForGeneration,
         language,
         aiModel,
-        effectiveLayoutStyle,
+        layoutStyle: effectiveLayoutStyle,
         imageSource,
         teamId,
         salePrice,
         siteName,
         geo,
-        bilingualLanguages || null,
+        bilingualLanguages: bilingualLanguages || null,
         bundleImages,
-        effectiveColorScheme
-      )
-    );
+        colorScheme: effectiveColorScheme,
+      }),
+    }).catch(err => {
+      console.error(`[MAIN] Failed to trigger worker for ${historyId}:`, err);
+    });
 
     // Return immediately with the history entry ID
     return new Response(
