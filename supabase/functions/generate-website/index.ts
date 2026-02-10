@@ -2,8 +2,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// NOTE: EdgeRuntime.waitUntil removed — synchronous await is used for stability
-// (waitUntil background tasks get killed when instances are recycled by the platform)
+// Architecture: Self-calling worker pattern.
+// Client request → validates, creates history, deducts balance → fires self-call with __worker flag → returns 202 immediately.
+// Worker call (service key) → runs runBackgroundGeneration synchronously under max_duration_seconds (900s).
+// This avoids the Supabase API gateway's ~150s HTTP timeout for client-facing requests.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
