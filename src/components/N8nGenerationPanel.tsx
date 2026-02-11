@@ -813,7 +813,7 @@ export function N8nGenerationPanel() {
               ) : (
                 <>
                   <div className="space-y-2">
-                    <Label>Категорія *</Label>
+                    <Label>{t("n8n.category")} *</Label>
                     <Select 
                       value={selectedCategory} 
                       onValueChange={handleCategoryChange}
