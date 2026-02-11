@@ -724,8 +724,8 @@ export function N8nGenerationPanel() {
                 {/* Site count */}
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
-                    <Layers className="h-4 w-4" />
-                    Кількість сайтів
+                   <Layers className="h-4 w-4" />
+                   {t("n8n.siteCount")}
                   </Label>
                   <Select 
                     value={siteCount.toString()} 
