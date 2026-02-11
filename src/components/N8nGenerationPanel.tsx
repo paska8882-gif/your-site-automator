@@ -710,10 +710,10 @@ export function N8nGenerationPanel() {
 
                 {/* Banned words */}
                 <div className="space-y-2">
-                  <Label htmlFor="nx-banned">Banned words</Label>
+                  <Label htmlFor="nx-banned">{t("n8n.nxBannedWords")}</Label>
                   <Textarea
                     id="nx-banned"
-                    placeholder="bank, online banking, money, earn..."
+                    placeholder={t("n8n.nxBannedPlaceholder")}
                     value={forbiddenWords}
                     onChange={(e) => setForbiddenWords(e.target.value)}
                     disabled={isSubmitting}
