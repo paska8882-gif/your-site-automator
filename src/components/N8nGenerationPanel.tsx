@@ -459,14 +459,14 @@ export function N8nGenerationPanel() {
       }
       
       if (successCount === siteCount) {
-        toast.success(`🚀 ${siteCount > 1 ? `${siteCount} запитів відправлено` : "Запит відправлено"}`, {
+        toast.success(`🚀 ${siteCount > 1 ? `${siteCount} ${t("n8n.requestsSent")}` : t("n8n.requestSent")}`, {
           description: promptMode === "theme" 
-            ? `AI згенерував ${siteCount > 1 ? "унікальні описи" : "опис"} для "${selectedTopic}". Очікуйте результат.`
-            : `${siteCount > 1 ? "Генерації додані" : "Генерація додана"} в історію. Очікуйте результат.`,
+            ? `${t("n8n.aiGeneratedDesc")} "${selectedTopic}".`
+            : t("n8n.addedToHistory"),
         });
       } else if (successCount > 0) {
-        toast.warning(`Частково успішно`, {
-          description: `Відправлено ${successCount} з ${siteCount} запитів`,
+        toast.warning(t("n8n.partiallySent"), {
+          description: `${successCount} / ${siteCount}`,
         });
       }
 
