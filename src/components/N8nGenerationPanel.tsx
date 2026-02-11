@@ -995,18 +995,32 @@ export function N8nGenerationPanel() {
               {/* Languages */}
               <div className="space-y-2">
                 <Label>{t("n8n.siteLanguages")}</Label>
-                <div className="flex flex-wrap gap-2">
-                  {languages.map(lang => (
-                    <Badge
-                      key={lang.value}
-                      variant={selectedLanguages.includes(lang.value) ? "default" : "outline"}
-                      className="cursor-pointer transition-all hover:scale-105"
-                      onClick={() => !isSubmitting && toggleLanguage(lang.value)}
-                    >
-                      {lang.label}
-                    </Badge>
-                  ))}
-                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between font-normal" disabled={isSubmitting}>
+                      <span className="truncate">
+                        {selectedLanguages.length === 0
+                          ? t("n8n.selectLanguages")
+                          : selectedLanguages.map(v => languages.find(l => l.value === v)?.label || v).join(", ")}
+                      </span>
+                      <ChevronDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-2 max-h-72 overflow-y-auto" align="start">
+                    {languages.map(lang => (
+                      <label
+                        key={lang.value}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-accent cursor-pointer text-sm"
+                      >
+                        <Checkbox
+                          checked={selectedLanguages.includes(lang.value)}
+                          onCheckedChange={() => toggleLanguage(lang.value)}
+                        />
+                        {lang.label}
+                      </label>
+                    ))}
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 
