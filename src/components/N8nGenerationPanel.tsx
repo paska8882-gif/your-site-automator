@@ -571,6 +571,7 @@ export function N8nGenerationPanel() {
             </Tabs>
             <p className="text-xs text-muted-foreground">
               {currentBot.id === "nextjs_bot" ? t("n8n.nextjsBotDesc") : t("n8n.htmlBotDesc")}
+            </p>
           </div>
         </CardContent>
       </Card>
