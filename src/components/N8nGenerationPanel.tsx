@@ -117,7 +117,7 @@ const SITE_TYPES: { key: string; uk: string; ru: string; en: string }[] = [
 export function N8nGenerationPanel() {
   const { user } = useAuth();
   const { isAdmin } = useAdmin();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   
   // Selected bot
   const [selectedBot, setSelectedBot] = useState<BotId>("2lang_html");
