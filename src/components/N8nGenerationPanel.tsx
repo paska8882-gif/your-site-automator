@@ -11,6 +11,7 @@ import { Loader2, Send, Bot, Sparkles, Globe, Wand2, Layers, Code2, FileCode, Al
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 import { N8nGenerationHistory } from "./N8nGenerationHistory";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
