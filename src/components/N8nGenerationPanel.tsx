@@ -697,10 +697,10 @@ export function N8nGenerationPanel() {
 
                 {/* Keywords */}
                 <div className="space-y-2">
-                  <Label htmlFor="nx-keywords">Keywords</Label>
+                  <Label htmlFor="nx-keywords">{t("n8n.nxKeywords")}</Label>
                   <Textarea
                     id="nx-keywords"
-                    placeholder="business systems, operational technology, financial infrastructure..."
+                    placeholder={t("n8n.nxKeywordsPlaceholder")}
                     value={keywords}
                     onChange={(e) => setKeywords(e.target.value)}
                     disabled={isSubmitting}
