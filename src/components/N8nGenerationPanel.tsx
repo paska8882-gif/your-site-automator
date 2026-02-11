@@ -554,7 +554,7 @@ export function N8nGenerationPanel() {
         <CardContent className="pt-0">
           {/* Bot Selector */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Оберіть бота</Label>
+            <Label className="text-sm font-medium">{t("n8n.selectBot")}</Label>
             <Tabs value={selectedBot} onValueChange={(v) => handleBotChange(v as BotId)} className="w-full">
               <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${N8N_BOTS.length}, 1fr)` }}>
                 {N8N_BOTS.map((bot) => {
