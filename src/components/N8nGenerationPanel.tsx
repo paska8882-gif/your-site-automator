@@ -192,9 +192,14 @@ export function N8nGenerationPanel() {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
+  // Bot-specific pricing: $9 for HTML, $8 for Next.js
+  const getBotPrice = () => {
+    return selectedBot === "nextjs_bot" ? 8 : 9;
+  };
+
   // Cost calculation
   const calculateTotalCost = () => {
-    return (teamPricing?.externalPrice || 7) * siteCount;
+    return getBotPrice() * siteCount;
   };
 
   const insufficientBalance = teamPricing
