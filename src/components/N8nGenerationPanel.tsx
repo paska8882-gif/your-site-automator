@@ -409,7 +409,7 @@ export function N8nGenerationPanel() {
     }
 
     if (selectedLanguages.length === 0) {
-      toast.error("Виберіть хоча б одну мову");
+      toast.error(t("n8n.selectLanguage"));
       return;
     }
 
