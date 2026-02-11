@@ -604,10 +604,10 @@ export function N8nGenerationPanel() {
 
                 {/* Name */}
                 <div className="space-y-2">
-                  <Label htmlFor="nx-name">Name *</Label>
+                  <Label htmlFor="nx-name">{t("n8n.nxName")} *</Label>
                   <Input
                     id="nx-name"
-                    placeholder="Systems & Business Operations"
+                    placeholder={t("n8n.nxNamePlaceholder")}
                     value={siteName}
                     onChange={(e) => setSiteName(e.target.value)}
                     disabled={isSubmitting}
