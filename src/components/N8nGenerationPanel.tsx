@@ -657,10 +657,10 @@ export function N8nGenerationPanel() {
 
                 {/* Topic */}
                 <div className="space-y-2">
-                  <Label htmlFor="nx-topic">Topic *</Label>
+                  <Label htmlFor="nx-topic">{t("n8n.nxTopic")} *</Label>
                   <Input
                     id="nx-topic"
-                    placeholder="Financial Technology Systems"
+                    placeholder={t("n8n.nxTopicPlaceholder")}
                     value={siteTopic}
                     onChange={(e) => setSiteTopic(e.target.value)}
                     disabled={isSubmitting}
