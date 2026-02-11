@@ -7,7 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Send, Bot, Sparkles, Globe, Wand2, Layers, Code2, FileCode, AlertTriangle, Wallet } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2, Send, Bot, Sparkles, Globe, Wand2, Layers, Code2, FileCode, AlertTriangle, Wallet, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -43,15 +45,39 @@ type BotId = typeof N8N_BOTS[number]["id"];
 
 // Languages
 const languages = [
+  { value: "uk", label: "🇺🇦 Українська" },
   { value: "en", label: "🇬🇧 English" },
-  { value: "fr", label: "🇫🇷 Français" },
   { value: "de", label: "🇩🇪 Deutsch" },
+  { value: "fr", label: "🇫🇷 Français" },
   { value: "es", label: "🇪🇸 Español" },
   { value: "it", label: "🇮🇹 Italiano" },
-  { value: "nl", label: "🇳🇱 Nederlands" },
   { value: "pl", label: "🇵🇱 Polski" },
-  { value: "uk", label: "🇺🇦 Українська" },
+  { value: "pt", label: "🇵🇹 Português" },
+  { value: "nl", label: "🇳🇱 Nederlands" },
+  { value: "cs", label: "🇨🇿 Čeština" },
+  { value: "sk", label: "🇸🇰 Slovenčina" },
+  { value: "hu", label: "🇭🇺 Magyar" },
+  { value: "ro", label: "🇷🇴 Română" },
+  { value: "bg", label: "🇧🇬 Български" },
+  { value: "el", label: "🇬🇷 Ελληνικά" },
+  { value: "sv", label: "🇸🇪 Svenska" },
+  { value: "da", label: "🇩🇰 Dansk" },
+  { value: "fi", label: "🇫🇮 Suomi" },
+  { value: "no", label: "🇳🇴 Norsk" },
+  { value: "hr", label: "🇭🇷 Hrvatski" },
+  { value: "sl", label: "🇸🇮 Slovenščina" },
+  { value: "lt", label: "🇱🇹 Lietuvių" },
+  { value: "lv", label: "🇱🇻 Latviešu" },
+  { value: "et", label: "🇪🇪 Eesti" },
+  { value: "kk", label: "🇰🇿 Қазақша" },
+  { value: "ja", label: "🇯🇵 日本語" },
   { value: "ru", label: "🇷🇺 Русский" },
+  { value: "tr", label: "🇹🇷 Türkçe" },
+  { value: "vi", label: "🇻🇳 Tiếng Việt" },
+  { value: "th", label: "🇹🇭 ไทย" },
+  { value: "id", label: "🇮🇩 Bahasa Indonesia" },
+  { value: "hi", label: "🇮🇳 हिन्दी" },
+  { value: "ar", label: "🇸🇦 العربية" },
 ];
 
 // ISO mapping for flag images
@@ -971,18 +997,32 @@ export function N8nGenerationPanel() {
               {/* Languages */}
               <div className="space-y-2">
                 <Label>{t("n8n.siteLanguages")}</Label>
-                <div className="flex flex-wrap gap-2">
-                  {languages.map(lang => (
-                    <Badge
-                      key={lang.value}
-                      variant={selectedLanguages.includes(lang.value) ? "default" : "outline"}
-                      className="cursor-pointer transition-all hover:scale-105"
-                      onClick={() => !isSubmitting && toggleLanguage(lang.value)}
-                    >
-                      {lang.label}
-                    </Badge>
-                  ))}
-                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between font-normal" disabled={isSubmitting}>
+                      <span className="truncate">
+                        {selectedLanguages.length === 0
+                          ? t("selectLanguages")
+                          : selectedLanguages.map(v => languages.find(l => l.value === v)?.label || v).join(", ")}
+                      </span>
+                      <ChevronDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-2 max-h-72 overflow-y-auto" align="start">
+                    {languages.map(lang => (
+                      <label
+                        key={lang.value}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-accent cursor-pointer text-sm"
+                      >
+                        <Checkbox
+                          checked={selectedLanguages.includes(lang.value)}
+                          onCheckedChange={() => toggleLanguage(lang.value)}
+                        />
+                        {lang.label}
+                      </label>
+                    ))}
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 
