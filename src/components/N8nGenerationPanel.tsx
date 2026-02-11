@@ -942,7 +942,7 @@ export function N8nGenerationPanel() {
 
               {/* Keywords */}
               <div className="space-y-2">
-                <Label htmlFor="keywords">Ключові слова</Label>
+                <Label htmlFor="keywords">{t("n8n.keywords")}</Label>
                 <Textarea
                   id="keywords"
                   placeholder="keyword1, keyword2, keyword3..."
