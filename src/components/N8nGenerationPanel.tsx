@@ -546,8 +546,8 @@ export function N8nGenerationPanel() {
           )}
           {!teamPricing && !teamLoading && !isAdmin && (
             <Alert variant="destructive" className="mt-2">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>Ви не прив'язані до команди. Генерація неможлива.</AlertDescription>
+               <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{t("n8n.noTeam")}</AlertDescription>
             </Alert>
           )}
         </CardHeader>
