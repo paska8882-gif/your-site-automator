@@ -539,7 +539,7 @@ export function N8nGenerationPanel() {
               {insufficientBalance && (
                 <Badge variant="destructive" className="flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" />
-                  Недостатньо коштів
+                  {t("n8n.insufficientFunds")}
                 </Badge>
               )}
             </div>
