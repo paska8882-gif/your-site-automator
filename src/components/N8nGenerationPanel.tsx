@@ -56,7 +56,11 @@ const languages = [
 
 // ISO mapping for flag images
 const geoIsoMap: Record<string, string> = {
-  be: "be", nl: "nl", de: "de", fr: "fr", uk: "gb", us: "us", pl: "pl", it: "it", es: "es",
+  uk: "gb", bg: "bg", be: "be", vn: "vn", gr: "gr", dk: "dk", ee: "ee",
+  id: "id", in: "in", ie: "ie", es: "es", it: "it", ca: "ca", lv: "lv",
+  lt: "lt", nl: "nl", de: "de", ae: "ae", pl: "pl", pt: "pt", ru: "ru",
+  ro: "ro", sk: "sk", si: "si", us: "us", th: "th", tr: "tr", ua: "ua",
+  hu: "hu", fi: "fi", fr: "fr", hr: "hr", cz: "cz", se: "se", jp: "jp",
 };
 
 const GeoFlag = ({ value, size = 16 }: { value: string; size?: number }) => {
@@ -67,15 +71,41 @@ const GeoFlag = ({ value, size = 16 }: { value: string; size?: number }) => {
 
 // Geo options
 const geoOptions = [
+  { value: "uk", label: "Великобританія", geoName: "UK" },
+  { value: "bg", label: "Болгарія", geoName: "Bulgaria" },
   { value: "be", label: "Бельгія", geoName: "Belgium" },
+  { value: "vn", label: "В'єтнам", geoName: "Vietnam" },
+  { value: "gr", label: "Греція", geoName: "Greece" },
+  { value: "dk", label: "Данія", geoName: "Denmark" },
+  { value: "ee", label: "Естонія", geoName: "Estonia" },
+  { value: "id", label: "Індонезія", geoName: "Indonesia" },
+  { value: "in", label: "Індія", geoName: "India" },
+  { value: "ie", label: "Ірландія", geoName: "Ireland" },
+  { value: "es", label: "Іспанія", geoName: "Spain" },
+  { value: "it", label: "Італія", geoName: "Italy" },
+  { value: "ca", label: "Канада", geoName: "Canada" },
+  { value: "lv", label: "Латвія", geoName: "Latvia" },
+  { value: "lt", label: "Литва", geoName: "Lithuania" },
   { value: "nl", label: "Нідерланди", geoName: "Netherlands" },
   { value: "de", label: "Німеччина", geoName: "Germany" },
-  { value: "fr", label: "Франція", geoName: "France" },
-  { value: "uk", label: "Великобританія", geoName: "UK" },
-  { value: "us", label: "США", geoName: "USA" },
+  { value: "ae", label: "ОАЕ", geoName: "UAE" },
   { value: "pl", label: "Польща", geoName: "Poland" },
-  { value: "it", label: "Італія", geoName: "Italy" },
-  { value: "es", label: "Іспанія", geoName: "Spain" },
+  { value: "pt", label: "Португалія", geoName: "Portugal" },
+  { value: "ru", label: "Росія", geoName: "Russia" },
+  { value: "ro", label: "Румунія", geoName: "Romania" },
+  { value: "sk", label: "Словаччина", geoName: "Slovakia" },
+  { value: "si", label: "Словенія", geoName: "Slovenia" },
+  { value: "us", label: "США", geoName: "USA" },
+  { value: "th", label: "Таїланд", geoName: "Thailand" },
+  { value: "tr", label: "Туреччина", geoName: "Turkey" },
+  { value: "ua", label: "Україна", geoName: "Ukraine" },
+  { value: "hu", label: "Угорщина", geoName: "Hungary" },
+  { value: "fi", label: "Фінляндія", geoName: "Finland" },
+  { value: "fr", label: "Франція", geoName: "France" },
+  { value: "hr", label: "Хорватія", geoName: "Croatia" },
+  { value: "cz", label: "Чехія", geoName: "Czech Republic" },
+  { value: "se", label: "Швеція", geoName: "Sweden" },
+  { value: "jp", label: "Японія", geoName: "Japan" },
 ];
 
 // Topic categories (same as in WebsiteGenerator)
