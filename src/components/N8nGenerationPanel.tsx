@@ -416,8 +416,8 @@ export function N8nGenerationPanel() {
     // Balance check (skip for admins without team)
     if (teamPricing && insufficientBalance) {
       const totalCost = calculateTotalCost();
-      toast.error("Недостатньо коштів", {
-        description: `Потрібно: $${totalCost.toFixed(2)}, Баланс: $${teamPricing.balance.toFixed(2)}, Ліміт: $${teamPricing.creditLimit.toFixed(2)}`,
+      toast.error(t("n8n.insufficientBalance"), {
+        description: `${t("n8n.total")}: $${totalCost.toFixed(2)}, ${t("sidebar.balance")}: $${teamPricing.balance.toFixed(2)}, Limit: $${teamPricing.creditLimit.toFixed(2)}`,
       });
       return;
     }
