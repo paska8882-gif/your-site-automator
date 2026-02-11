@@ -831,7 +831,7 @@ export function N8nGenerationPanel() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Тематика *</Label>
+                    <Label>{t("n8n.topic")} *</Label>
                     <Select 
                       value={selectedTopic} 
                       onValueChange={setSelectedTopic}
