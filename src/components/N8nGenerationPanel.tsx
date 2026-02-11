@@ -318,7 +318,6 @@ export function N8nGenerationPanel() {
     // Next.js bot: structured format matching n8n expectations
     if (selectedBot === "nextjs_bot") {
       let result = "";
-      if (domain) result += `Domain: ${domain}\n\n`;
       if (siteName) result += `Name: ${siteName}\n\n`;
       
       const geoOption = geoOptions.find(g => g.value === geo);
