@@ -980,8 +980,8 @@ export function N8nGenerationPanel() {
                   <>
                     <Send className="h-4 w-4 mr-2" />
                     {siteCount > 1 
-                      ? `Відправити ${siteCount} сайтів`
-                      : "Відправити на генерацію"}
+                      ? `Відправити ${siteCount} сайтів — $${calculateTotalCost()}`
+                      : `Відправити на генерацію — $${getBotPrice()}`}
                   </>
                 )}
               </Button>
