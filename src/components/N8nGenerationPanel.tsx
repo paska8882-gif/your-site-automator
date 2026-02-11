@@ -636,7 +636,7 @@ export function N8nGenerationPanel() {
 
                 {/* Language (single select for Next.js) */}
                 <div className="space-y-2">
-                  <Label>Language</Label>
+                  <Label>{t("n8n.nxLanguage")}</Label>
                   <Select 
                     value={selectedLanguages[0] || "en"} 
                     onValueChange={(v) => setSelectedLanguages([v])} 
