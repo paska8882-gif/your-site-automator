@@ -86,38 +86,38 @@ const TOPIC_CATEGORIES: Record<string, string[]> = {
   "🖥️ IT (Послуги)": ["Розробка мобільних додатків", "Програмування", "Відеомонтаж", "Веб-дизайн", "SEO", "Системне адміністрування", "AR/VR розробка", "3D-дизайн", "ШІ (штучний інтелект)", "Кібербезпека", "Розробка ігор", "Тестування ПЗ", "Блокчейн-розробка", "Розробка чат-ботів", "Управління базами даних"]
 };
 
-const SITE_TYPES = [
-  "Blog",
-  "Portfolio",
-  "Landing Page",
-  "Corporate Website",
-  "E-commerce",
-  "SaaS Platform",
-  "Educational Platform",
-  "News / Magazine",
-  "Community / Forum",
-  "Personal Website",
-  "Agency Website",
-  "Nonprofit / Charity",
-  "Event / Conference",
-  "Real Estate",
-  "Healthcare / Medical",
-  "Restaurant / Food",
-  "Travel / Tourism",
-  "Fitness / Wellness",
-  "Legal / Law Firm",
-  "Finance / Fintech",
-  "Entertainment",
-  "Technology / Startup",
-  "Government / Public",
-  "Directory / Listing",
-  "Wiki / Knowledge Base",
+const SITE_TYPES: { key: string; uk: string; ru: string; en: string }[] = [
+  { key: "blog", uk: "Блог", ru: "Блог", en: "Blog" },
+  { key: "portfolio", uk: "Портфоліо", ru: "Портфолио", en: "Portfolio" },
+  { key: "landing", uk: "Лендінг", ru: "Лендинг", en: "Landing Page" },
+  { key: "corporate", uk: "Корпоративний сайт", ru: "Корпоративный сайт", en: "Corporate Website" },
+  { key: "ecommerce", uk: "Інтернет-магазин", ru: "Интернет-магазин", en: "E-commerce" },
+  { key: "saas", uk: "SaaS-платформа", ru: "SaaS-платформа", en: "SaaS Platform" },
+  { key: "education", uk: "Освітня платформа", ru: "Образовательная платформа", en: "Educational Platform" },
+  { key: "news", uk: "Новини / Журнал", ru: "Новости / Журнал", en: "News / Magazine" },
+  { key: "community", uk: "Спільнота / Форум", ru: "Сообщество / Форум", en: "Community / Forum" },
+  { key: "personal", uk: "Персональний сайт", ru: "Персональный сайт", en: "Personal Website" },
+  { key: "agency", uk: "Сайт агенції", ru: "Сайт агентства", en: "Agency Website" },
+  { key: "nonprofit", uk: "Благодійність", ru: "Благотворительность", en: "Nonprofit / Charity" },
+  { key: "event", uk: "Подія / Конференція", ru: "Событие / Конференция", en: "Event / Conference" },
+  { key: "realestate", uk: "Нерухомість", ru: "Недвижимость", en: "Real Estate" },
+  { key: "healthcare", uk: "Медицина / Здоров'я", ru: "Медицина / Здоровье", en: "Healthcare / Medical" },
+  { key: "restaurant", uk: "Ресторан / Їжа", ru: "Ресторан / Еда", en: "Restaurant / Food" },
+  { key: "travel", uk: "Подорожі / Туризм", ru: "Путешествия / Туризм", en: "Travel / Tourism" },
+  { key: "fitness", uk: "Фітнес / Велнес", ru: "Фитнес / Велнес", en: "Fitness / Wellness" },
+  { key: "legal", uk: "Юридичні послуги", ru: "Юридические услуги", en: "Legal / Law Firm" },
+  { key: "finance", uk: "Фінанси / Фінтех", ru: "Финансы / Финтех", en: "Finance / Fintech" },
+  { key: "entertainment", uk: "Розваги", ru: "Развлечения", en: "Entertainment" },
+  { key: "tech", uk: "Технології / Стартап", ru: "Технологии / Стартап", en: "Technology / Startup" },
+  { key: "government", uk: "Державний / Публічний", ru: "Государственный / Публичный", en: "Government / Public" },
+  { key: "directory", uk: "Каталог / Лістинг", ru: "Каталог / Листинг", en: "Directory / Listing" },
+  { key: "wiki", uk: "Вікі / База знань", ru: "Вики / База знаний", en: "Wiki / Knowledge Base" },
 ];
 
 export function N8nGenerationPanel() {
   const { user } = useAuth();
   const { isAdmin } = useAdmin();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   
   // Selected bot
   const [selectedBot, setSelectedBot] = useState<BotId>("2lang_html");
@@ -261,7 +261,10 @@ export function N8nGenerationPanel() {
       result += `Language: ${langLabel}\n\n`;
       
       if (siteTopic) result += `Topic: ${siteTopic}\n\n`;
-      if (siteType) result += `Type: ${siteType}\n\n`;
+      if (siteType) {
+        const typeObj = SITE_TYPES.find(st => st.key === siteType);
+        result += `Type: ${typeObj?.en || siteType}\n\n`;
+      }
       if (siteDescription.trim()) result += `Description:\n\n${siteDescription}\n\n`;
       if (keywords.trim()) result += `Keywords:\n\n${keywords}\n\n`;
       if (forbiddenWords.trim()) result += `Banned words:\n\n${forbiddenWords}\n`;
@@ -703,8 +706,10 @@ export function N8nGenerationPanel() {
                       <SelectValue placeholder={t("n8n.nxTypePlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {SITE_TYPES.map(type => (
-                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      {SITE_TYPES.map(st => (
+                        <SelectItem key={st.key} value={st.key}>
+                          {language === "ru" ? st.ru : st.uk}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
