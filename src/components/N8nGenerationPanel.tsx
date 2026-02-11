@@ -852,7 +852,7 @@ export function N8nGenerationPanel() {
                     <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
                       <p className="text-sm text-muted-foreground">
                         <Wand2 className="h-4 w-4 inline mr-1" />
-                        AI автоматично згенерує детальний опис для <strong>{selectedTopic}</strong>
+                        {t("n8n.aiAutoGenerate")} <strong>{selectedTopic}</strong>
                       </p>
                     </div>
                   )}
