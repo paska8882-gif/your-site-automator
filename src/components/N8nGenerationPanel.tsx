@@ -1002,7 +1002,7 @@ export function N8nGenerationPanel() {
                     <Button variant="outline" className="w-full justify-between font-normal" disabled={isSubmitting}>
                       <span className="truncate">
                         {selectedLanguages.length === 0
-                          ? t("n8n.selectLanguages")
+                          ? t("selectLanguages")
                           : selectedLanguages.map(v => languages.find(l => l.value === v)?.label || v).join(", ")}
                       </span>
                       <ChevronDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
