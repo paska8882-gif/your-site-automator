@@ -423,7 +423,7 @@ export function N8nGenerationPanel() {
     }
 
     if (!isAdmin && !teamPricing) {
-      toast.error("Ви не прив'язані до жодної команди");
+      toast.error(t("n8n.noTeamError"));
       return;
     }
 
