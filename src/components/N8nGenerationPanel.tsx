@@ -398,7 +398,7 @@ export function N8nGenerationPanel() {
       }
     } else if (promptMode === "manual") {
       if (!prompt.trim()) {
-        toast.error("Введіть тему сайту");
+        toast.error(t("n8n.enterSiteTopic"));
         return;
       }
     } else {
