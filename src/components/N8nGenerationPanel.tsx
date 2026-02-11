@@ -861,7 +861,7 @@ export function N8nGenerationPanel() {
 
               {/* Domain */}
               <div className="space-y-2">
-                <Label htmlFor="domain">Домен (опціонально)</Label>
+                <Label htmlFor="domain">{t("n8n.domainOptional")}</Label>
                 <Input
                   id="domain"
                   placeholder="example.com"
