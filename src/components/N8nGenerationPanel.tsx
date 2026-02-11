@@ -21,8 +21,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const N8N_BOTS = [
   {
     id: "2lang_html",
-    name: "2lang HTML",
-    description: "Статичні HTML сайти з 2 мовами",
+    nameKey: "n8n.htmlBotName",
+    descKey: "n8n.htmlBotDesc",
     icon: FileCode,
     webhookUrl: "https://n8n.dragonwhite-n8n.top/webhook/lovable-generate",
     defaultLanguages: ["fr", "en"],
@@ -30,8 +30,8 @@ const N8N_BOTS = [
   },
   {
     id: "nextjs_bot",
-    name: "Next.js Bot",
-    description: "Next.js додатки з React компонентами",
+    nameKey: "n8n.nextjsBotName",
+    descKey: "n8n.nextjsBotDesc",
     icon: Code2,
     webhookUrl: "https://n8n.dragonwhite-n8n.top/webhook/d26af941-69aa-4b93-82f8-fd5cd1d1c5ea",
     defaultLanguages: ["en"],
@@ -562,15 +562,15 @@ export function N8nGenerationPanel() {
                   return (
                     <TabsTrigger key={bot.id} value={bot.id} className="flex items-center gap-2">
                       <Icon className="h-4 w-4" />
-                      <span className="hidden sm:inline">{bot.name}</span>
-                      <span className="sm:hidden">{bot.name.split(" ")[0]}</span>
+                      <span className="hidden sm:inline">{t(bot.nameKey)}</span>
+                      <span className="sm:hidden">{t(bot.nameKey).split(" ")[0]}</span>
                     </TabsTrigger>
                   );
                 })}
               </TabsList>
             </Tabs>
             <p className="text-xs text-muted-foreground">
-              {currentBot.id === "nextjs_bot" ? t("n8n.nextjsBotDesc") : t("n8n.htmlBotDesc")}
+              {t(currentBot.descKey)}
             </p>
           </div>
         </CardContent>
@@ -592,10 +592,10 @@ export function N8nGenerationPanel() {
               <div className="space-y-4">
                 {/* Domain */}
                 <div className="space-y-2">
-                  <Label htmlFor="nx-domain">Domain *</Label>
+                  <Label htmlFor="nx-domain">{t("n8n.nxDomain")} *</Label>
                   <Input
                     id="nx-domain"
-                    placeholder="sbofl.pro"
+                    placeholder={t("n8n.nxDomainPlaceholder")}
                     value={domain}
                     onChange={(e) => setDomain(e.target.value)}
                     disabled={isSubmitting}
@@ -604,10 +604,10 @@ export function N8nGenerationPanel() {
 
                 {/* Name */}
                 <div className="space-y-2">
-                  <Label htmlFor="nx-name">Name *</Label>
+                  <Label htmlFor="nx-name">{t("n8n.nxName")} *</Label>
                   <Input
                     id="nx-name"
-                    placeholder="Systems & Business Operations"
+                    placeholder={t("n8n.nxNamePlaceholder")}
                     value={siteName}
                     onChange={(e) => setSiteName(e.target.value)}
                     disabled={isSubmitting}
@@ -618,7 +618,7 @@ export function N8nGenerationPanel() {
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <Globe className="h-4 w-4" />
-                    Geo
+                    {t("n8n.nxGeo")}
                   </Label>
                   <Select value={geo} onValueChange={setGeo} disabled={isSubmitting}>
                     <SelectTrigger>
@@ -636,7 +636,7 @@ export function N8nGenerationPanel() {
 
                 {/* Language (single select for Next.js) */}
                 <div className="space-y-2">
-                  <Label>Language</Label>
+                  <Label>{t("n8n.nxLanguage")}</Label>
                   <Select 
                     value={selectedLanguages[0] || "en"} 
                     onValueChange={(v) => setSelectedLanguages([v])} 
@@ -657,10 +657,10 @@ export function N8nGenerationPanel() {
 
                 {/* Topic */}
                 <div className="space-y-2">
-                  <Label htmlFor="nx-topic">Topic *</Label>
+                  <Label htmlFor="nx-topic">{t("n8n.nxTopic")} *</Label>
                   <Input
                     id="nx-topic"
-                    placeholder="Financial Technology Systems"
+                    placeholder={t("n8n.nxTopicPlaceholder")}
                     value={siteTopic}
                     onChange={(e) => setSiteTopic(e.target.value)}
                     disabled={isSubmitting}
@@ -669,10 +669,10 @@ export function N8nGenerationPanel() {
 
                 {/* Type */}
                 <div className="space-y-2">
-                  <Label htmlFor="nx-type">Type</Label>
+                  <Label htmlFor="nx-type">{t("n8n.nxType")}</Label>
                   <Input
                     id="nx-type"
-                    placeholder="Enterprise Platform"
+                    placeholder={t("n8n.nxTypePlaceholder")}
                     value={siteType}
                     onChange={(e) => setSiteType(e.target.value)}
                     disabled={isSubmitting}
@@ -684,10 +684,10 @@ export function N8nGenerationPanel() {
               <div className="space-y-4">
                 {/* Description */}
                 <div className="space-y-2">
-                  <Label htmlFor="nx-description">Description *</Label>
+                  <Label htmlFor="nx-description">{t("n8n.nxDescription")} *</Label>
                   <Textarea
                     id="nx-description"
-                    placeholder="Systems & Business Operations presents comprehensive financial technology systems with enterprise-grade animations..."
+                    placeholder={t("n8n.nxDescriptionPlaceholder")}
                     value={siteDescription}
                     onChange={(e) => setSiteDescription(e.target.value)}
                     disabled={isSubmitting}
@@ -697,10 +697,10 @@ export function N8nGenerationPanel() {
 
                 {/* Keywords */}
                 <div className="space-y-2">
-                  <Label htmlFor="nx-keywords">Keywords</Label>
+                  <Label htmlFor="nx-keywords">{t("n8n.nxKeywords")}</Label>
                   <Textarea
                     id="nx-keywords"
-                    placeholder="business systems, operational technology, financial infrastructure..."
+                    placeholder={t("n8n.nxKeywordsPlaceholder")}
                     value={keywords}
                     onChange={(e) => setKeywords(e.target.value)}
                     disabled={isSubmitting}
@@ -710,10 +710,10 @@ export function N8nGenerationPanel() {
 
                 {/* Banned words */}
                 <div className="space-y-2">
-                  <Label htmlFor="nx-banned">Banned words</Label>
+                  <Label htmlFor="nx-banned">{t("n8n.nxBannedWords")}</Label>
                   <Textarea
                     id="nx-banned"
-                    placeholder="bank, online banking, money, earn..."
+                    placeholder={t("n8n.nxBannedPlaceholder")}
                     value={forbiddenWords}
                     onChange={(e) => setForbiddenWords(e.target.value)}
                     disabled={isSubmitting}
