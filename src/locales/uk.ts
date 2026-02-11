@@ -50,7 +50,7 @@ export const uk = {
   sidebar: {
     menu: "Меню",
     generator: "Генератор",
-    n8nGenerator: "n8n Генератор",
+    n8nGenerator: "Генератор Beta",
     history: "Історія",
     spends: "Спенди",
     balance: "Баланс",
