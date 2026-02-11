@@ -820,7 +820,7 @@ export function N8nGenerationPanel() {
                       disabled={isSubmitting}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Оберіть категорію" />
+                        <SelectValue placeholder={t("n8n.selectCategory")} />
                       </SelectTrigger>
                       <SelectContent>
                         {Object.keys(TOPIC_CATEGORIES).map((category) => (
