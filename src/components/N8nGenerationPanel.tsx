@@ -935,7 +935,7 @@ export function N8nGenerationPanel() {
                 </Select>
                 {siteCount > 1 && (
                   <p className="text-xs text-muted-foreground">
-                    Кожен сайт отримає унікальний AI-промпт. Відправка послідовна.
+                    {t("n8n.uniquePromptNote")}
                   </p>
                 )}
               </div>
