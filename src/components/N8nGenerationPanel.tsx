@@ -533,7 +533,7 @@ export function N8nGenerationPanel() {
               </Badge>
               {siteCount > 1 && (
                 <Badge variant="secondary">
-                  Всього: ${calculateTotalCost().toFixed(2)}
+                  {t("n8n.total")}: ${calculateTotalCost().toFixed(2)}
                 </Badge>
               )}
               {insufficientBalance && (
