@@ -515,11 +515,11 @@ export function N8nGenerationPanel() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Bot className="h-5 w-5 text-primary" />
-            n8n Генератор сайтів
+            {t("n8n.title")}
             <Badge variant="secondary" className="ml-2">Beta</Badge>
           </CardTitle>
           <CardDescription>
-            Відправте запит на генерацію через зовнішнього n8n бота. Час очікування — до 20 хвилин. Можна запускати кілька генерацій паралельно.
+            {t("n8n.description")}
           </CardDescription>
           {/* Balance info */}
           {teamPricing && (
