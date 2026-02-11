@@ -688,18 +688,6 @@ export function N8nGenerationPanel() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Left column */}
               <div className="space-y-4">
-                {/* Domain */}
-                <div className="space-y-2">
-                  <Label htmlFor="nx-domain">{t("n8n.nxDomain")} *</Label>
-                  <Input
-                    id="nx-domain"
-                    placeholder={t("n8n.nxDomainPlaceholder")}
-                    value={domain}
-                    onChange={(e) => setDomain(e.target.value)}
-                    disabled={isSubmitting}
-                  />
-                </div>
-
                 {/* Name */}
                 <div className="space-y-2">
                   <Label htmlFor="nx-name">{t("n8n.nxName")} *</Label>
