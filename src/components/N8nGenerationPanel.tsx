@@ -756,15 +756,15 @@ export function N8nGenerationPanel() {
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       {submissionProgress.total > 1 
-                        ? `Відправка ${submissionProgress.current}/${submissionProgress.total}...`
-                        : "Відправка..."}
+                        ? `${t("n8n.submitting")} ${submissionProgress.current}/${submissionProgress.total}`
+                        : t("n8n.submitting")}
                     </>
                   ) : (
                     <>
                       <Send className="h-4 w-4 mr-2" />
                       {siteCount > 1 
-                        ? `Відправити ${siteCount} сайтів`
-                        : "Відправити на генерацію"}
+                        ? `${t("n8n.submit")} (${siteCount}) — $${calculateTotalCost()}`
+                        : `${t("n8n.submit")} — $${getBotPrice()}`}
                     </>
                   )}
                 </Button>
