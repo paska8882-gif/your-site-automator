@@ -684,10 +684,10 @@ export function N8nGenerationPanel() {
               <div className="space-y-4">
                 {/* Description */}
                 <div className="space-y-2">
-                  <Label htmlFor="nx-description">Description *</Label>
+                  <Label htmlFor="nx-description">{t("n8n.nxDescription")} *</Label>
                   <Textarea
                     id="nx-description"
-                    placeholder="Systems & Business Operations presents comprehensive financial technology systems with enterprise-grade animations..."
+                    placeholder={t("n8n.nxDescriptionPlaceholder")}
                     value={siteDescription}
                     onChange={(e) => setSiteDescription(e.target.value)}
                     disabled={isSubmitting}
