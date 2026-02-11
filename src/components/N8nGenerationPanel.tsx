@@ -403,7 +403,7 @@ export function N8nGenerationPanel() {
       }
     } else {
       if (!selectedTopic) {
-        toast.error("Оберіть тематику для генерації");
+        toast.error(t("n8n.selectTopicRequired"));
         return;
       }
     }
