@@ -527,7 +527,7 @@ export function N8nGenerationPanel() {
                 {teamPricing.teamName}: ${teamPricing.balance.toFixed(2)}
               </Badge>
               <Badge variant="outline" className="text-muted-foreground">
-                Ціна: ${teamPricing.externalPrice}/сайт
+                Ціна: ${getBotPrice()}/сайт
               </Badge>
               {siteCount > 1 && (
                 <Badge variant="secondary">
