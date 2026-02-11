@@ -669,10 +669,10 @@ export function N8nGenerationPanel() {
 
                 {/* Type */}
                 <div className="space-y-2">
-                  <Label htmlFor="nx-type">Type</Label>
+                  <Label htmlFor="nx-type">{t("n8n.nxType")}</Label>
                   <Input
                     id="nx-type"
-                    placeholder="Enterprise Platform"
+                    placeholder={t("n8n.nxTypePlaceholder")}
                     value={siteType}
                     onChange={(e) => setSiteType(e.target.value)}
                     disabled={isSubmitting}
