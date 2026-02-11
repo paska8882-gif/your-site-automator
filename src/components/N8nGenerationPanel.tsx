@@ -775,7 +775,7 @@ export function N8nGenerationPanel() {
             <>
           {/* Prompt Mode Selector */}
           <div className="mb-6">
-            <Label className="mb-3 block">Режим опису</Label>
+            <Label className="mb-3 block">{t("n8n.promptMode")}</Label>
             <RadioGroup 
               value={promptMode} 
               onValueChange={(v) => setPromptMode(v as "manual" | "theme")}
