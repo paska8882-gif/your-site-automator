@@ -433,7 +433,7 @@ export function N8nGenerationPanel() {
     try {
       const { data: session } = await supabase.auth.getSession();
       if (!session?.session) {
-        toast.error("Сесія закінчилась, увійдіть знову");
+        toast.error(t("n8n.sessionExpired"));
         setIsSubmitting(false);
         return;
       }
