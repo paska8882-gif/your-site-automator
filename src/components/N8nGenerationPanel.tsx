@@ -192,14 +192,9 @@ export function N8nGenerationPanel() {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  // Bot-specific pricing: $9 for HTML, $8 for Next.js
-  const getBotPrice = () => {
-    return selectedBot === "nextjs_bot" ? 8 : 9;
-  };
-
   // Cost calculation
   const calculateTotalCost = () => {
-    return getBotPrice() * siteCount;
+    return (teamPricing?.externalPrice || 7) * siteCount;
   };
 
   const insufficientBalance = teamPricing
@@ -317,8 +312,8 @@ export function N8nGenerationPanel() {
         generatedSiteName = siteCount > 1 ? `${baseName} (${index + 1})` : baseName;
       }
 
-      // Calculate sale price per site (bot-specific)
-      const salePrice = getBotPrice();
+      // Calculate sale price per site
+      const salePrice = teamPricing?.externalPrice || 7;
 
       // Create generation history record
       const { data: historyData, error: historyError } = await supabase
@@ -527,7 +522,7 @@ export function N8nGenerationPanel() {
                 {teamPricing.teamName}: ${teamPricing.balance.toFixed(2)}
               </Badge>
               <Badge variant="outline" className="text-muted-foreground">
-                Ціна: ${getBotPrice()}/сайт
+                Ціна: ${teamPricing.externalPrice}/сайт
               </Badge>
               {siteCount > 1 && (
                 <Badge variant="secondary">
