@@ -618,7 +618,7 @@ export function N8nGenerationPanel() {
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <Globe className="h-4 w-4" />
-                    Geo
+                    {t("n8n.nxGeo")}
                   </Label>
                   <Select value={geo} onValueChange={setGeo} disabled={isSubmitting}>
                     <SelectTrigger>
