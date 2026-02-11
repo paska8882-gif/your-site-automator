@@ -386,7 +386,7 @@ export function N8nGenerationPanel() {
 
   const handleSubmit = async () => {
     if (!user) {
-      toast.error("Потрібна авторизація");
+      toast.error(t("n8n.authRequired"));
       return;
     }
 
