@@ -409,7 +409,7 @@ export function N8nGenerationPanel() {
           : basePrompt;
         
         const baseName = selectedBot === "nextjs_bot"
-          ? (siteName || domain || prompt.slice(0, 40))
+          ? (siteName || prompt.slice(0, 40))
           : (domain 
             ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "")
             : prompt.slice(0, 40));
