@@ -485,7 +485,7 @@ export function N8nGenerationPanel() {
 
     } catch (error: any) {
       console.error("Submit error:", error);
-      toast.error("Помилка відправки", {
+      toast.error(t("n8n.sendError"), {
         description: error.message,
       });
     } finally {
