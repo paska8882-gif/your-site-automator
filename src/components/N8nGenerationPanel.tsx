@@ -669,14 +669,17 @@ export function N8nGenerationPanel() {
 
                 {/* Type */}
                 <div className="space-y-2">
-                  <Label htmlFor="nx-type">{t("n8n.nxType")}</Label>
-                  <Input
-                    id="nx-type"
-                    placeholder={t("n8n.nxTypePlaceholder")}
-                    value={siteType}
-                    onChange={(e) => setSiteType(e.target.value)}
-                    disabled={isSubmitting}
-                  />
+                  <Label>{t("n8n.nxType")}</Label>
+                  <Select value={siteType} onValueChange={setSiteType} disabled={isSubmitting}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("n8n.nxTypePlaceholder")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SITE_TYPES.map(type => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
