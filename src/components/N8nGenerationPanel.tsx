@@ -955,7 +955,7 @@ export function N8nGenerationPanel() {
 
               {/* Forbidden words */}
               <div className="space-y-2">
-                <Label htmlFor="forbidden">Заборонені слова</Label>
+                <Label htmlFor="forbidden">{t("n8n.forbiddenWords")}</Label>
                 <Textarea
                   id="forbidden"
                   placeholder="crypto, bitcoin, casino..."
