@@ -704,7 +704,7 @@ export function N8nGenerationPanel() {
                     </SelectTrigger>
                     <SelectContent>
                       {SITE_TYPES.map(type => (
-                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                        <SelectItem key={type} value={type}>{t(`n8n.siteTypes.${type}`) !== `n8n.siteTypes.${type}` ? t(`n8n.siteTypes.${type}`) : type}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
