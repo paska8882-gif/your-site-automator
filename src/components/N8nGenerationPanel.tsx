@@ -783,7 +783,7 @@ export function N8nGenerationPanel() {
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="manual" id="manual" />
-                <Label htmlFor="manual" className="cursor-pointer">Написати вручну</Label>
+                <Label htmlFor="manual" className="cursor-pointer">{t("n8n.manualMode")}</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="theme" id="theme" />
