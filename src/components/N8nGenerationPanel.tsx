@@ -11,6 +11,7 @@ import { Loader2, Send, Bot, Sparkles, Globe, Wand2, Layers, Code2, FileCode, Al
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 import { N8nGenerationHistory } from "./N8nGenerationHistory";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -88,6 +89,7 @@ const TOPIC_CATEGORIES: Record<string, string[]> = {
 export function N8nGenerationPanel() {
   const { user } = useAuth();
   const { isAdmin } = useAdmin();
+  const { t } = useLanguage();
   
   // Selected bot
   const [selectedBot, setSelectedBot] = useState<BotId>("2lang_html");
@@ -384,44 +386,44 @@ export function N8nGenerationPanel() {
 
   const handleSubmit = async () => {
     if (!user) {
-      toast.error("Потрібна авторизація");
+      toast.error(t("n8n.authRequired"));
       return;
     }
 
     // Validation based on bot and mode
     if (selectedBot === "nextjs_bot") {
       if (!domain.trim() || !siteName.trim() || !siteTopic.trim() || !siteDescription.trim()) {
-        toast.error("Заповніть обов'язкові поля: Domain, Name, Topic, Description");
+        toast.error(t("n8n.fillRequired"));
         return;
       }
     } else if (promptMode === "manual") {
       if (!prompt.trim()) {
-        toast.error("Введіть тему сайту");
+        toast.error(t("n8n.enterSiteTopic"));
         return;
       }
     } else {
       if (!selectedTopic) {
-        toast.error("Оберіть тематику для генерації");
+        toast.error(t("n8n.selectTopicRequired"));
         return;
       }
     }
 
     if (selectedLanguages.length === 0) {
-      toast.error("Виберіть хоча б одну мову");
+      toast.error(t("n8n.selectLanguage"));
       return;
     }
 
     // Balance check (skip for admins without team)
     if (teamPricing && insufficientBalance) {
       const totalCost = calculateTotalCost();
-      toast.error("Недостатньо коштів", {
-        description: `Потрібно: $${totalCost.toFixed(2)}, Баланс: $${teamPricing.balance.toFixed(2)}, Ліміт: $${teamPricing.creditLimit.toFixed(2)}`,
+      toast.error(t("n8n.insufficientBalance"), {
+        description: `${t("n8n.total")}: $${totalCost.toFixed(2)}, ${t("sidebar.balance")}: $${teamPricing.balance.toFixed(2)}, Limit: $${teamPricing.creditLimit.toFixed(2)}`,
       });
       return;
     }
 
     if (!isAdmin && !teamPricing) {
-      toast.error("Ви не прив'язані до жодної команди");
+      toast.error(t("n8n.noTeamError"));
       return;
     }
 
@@ -431,7 +433,7 @@ export function N8nGenerationPanel() {
     try {
       const { data: session } = await supabase.auth.getSession();
       if (!session?.session) {
-        toast.error("Сесія закінчилась, увійдіть знову");
+        toast.error(t("n8n.sessionExpired"));
         setIsSubmitting(false);
         return;
       }
@@ -457,14 +459,14 @@ export function N8nGenerationPanel() {
       }
       
       if (successCount === siteCount) {
-        toast.success(`🚀 ${siteCount > 1 ? `${siteCount} запитів відправлено` : "Запит відправлено"}`, {
+        toast.success(`🚀 ${siteCount > 1 ? `${siteCount} ${t("n8n.requestsSent")}` : t("n8n.requestSent")}`, {
           description: promptMode === "theme" 
-            ? `AI згенерував ${siteCount > 1 ? "унікальні описи" : "опис"} для "${selectedTopic}". Очікуйте результат.`
-            : `${siteCount > 1 ? "Генерації додані" : "Генерація додана"} в історію. Очікуйте результат.`,
+            ? `${t("n8n.aiGeneratedDesc")} "${selectedTopic}".`
+            : t("n8n.addedToHistory"),
         });
       } else if (successCount > 0) {
-        toast.warning(`Частково успішно`, {
-          description: `Відправлено ${successCount} з ${siteCount} запитів`,
+        toast.warning(t("n8n.partiallySent"), {
+          description: `${successCount} / ${siteCount}`,
         });
       }
 
@@ -483,7 +485,7 @@ export function N8nGenerationPanel() {
 
     } catch (error: any) {
       console.error("Submit error:", error);
-      toast.error("Помилка відправки", {
+      toast.error(t("n8n.sendError"), {
         description: error.message,
       });
     } finally {
@@ -513,11 +515,11 @@ export function N8nGenerationPanel() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Bot className="h-5 w-5 text-primary" />
-            n8n Генератор сайтів
+            {t("n8n.title")}
             <Badge variant="secondary" className="ml-2">Beta</Badge>
           </CardTitle>
           <CardDescription>
-            Відправте запит на генерацію через зовнішнього n8n бота. Час очікування — до 20 хвилин. Можна запускати кілька генерацій паралельно.
+            {t("n8n.description")}
           </CardDescription>
           {/* Balance info */}
           {teamPricing && (
@@ -527,32 +529,32 @@ export function N8nGenerationPanel() {
                 {teamPricing.teamName}: ${teamPricing.balance.toFixed(2)}
               </Badge>
               <Badge variant="outline" className="text-muted-foreground">
-                Ціна: ${teamPricing.externalPrice}/сайт
+                {t("n8n.price")}: ${getBotPrice()}{t("n8n.perSite")}
               </Badge>
               {siteCount > 1 && (
                 <Badge variant="secondary">
-                  Всього: ${calculateTotalCost().toFixed(2)}
+                  {t("n8n.total")}: ${calculateTotalCost().toFixed(2)}
                 </Badge>
               )}
               {insufficientBalance && (
                 <Badge variant="destructive" className="flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" />
-                  Недостатньо коштів
+                  {t("n8n.insufficientFunds")}
                 </Badge>
               )}
             </div>
           )}
           {!teamPricing && !teamLoading && !isAdmin && (
             <Alert variant="destructive" className="mt-2">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>Ви не прив'язані до команди. Генерація неможлива.</AlertDescription>
+               <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{t("n8n.noTeam")}</AlertDescription>
             </Alert>
           )}
         </CardHeader>
         <CardContent className="pt-0">
           {/* Bot Selector */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Оберіть бота</Label>
+            <Label className="text-sm font-medium">{t("n8n.selectBot")}</Label>
             <Tabs value={selectedBot} onValueChange={(v) => handleBotChange(v as BotId)} className="w-full">
               <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${N8N_BOTS.length}, 1fr)` }}>
                 {N8N_BOTS.map((bot) => {
@@ -567,7 +569,9 @@ export function N8nGenerationPanel() {
                 })}
               </TabsList>
             </Tabs>
-            <p className="text-xs text-muted-foreground">{currentBot.description}</p>
+            <p className="text-xs text-muted-foreground">
+              {currentBot.id === "nextjs_bot" ? t("n8n.nextjsBotDesc") : t("n8n.htmlBotDesc")}
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -577,7 +581,7 @@ export function N8nGenerationPanel() {
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
             <Sparkles className="h-4 w-4" />
-            Параметри генерації
+            {t("n8n.generationParams")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -720,8 +724,8 @@ export function N8nGenerationPanel() {
                 {/* Site count */}
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
-                    <Layers className="h-4 w-4" />
-                    Кількість сайтів
+                   <Layers className="h-4 w-4" />
+                   {t("n8n.siteCount")}
                   </Label>
                   <Select 
                     value={siteCount.toString()} 
@@ -734,12 +738,12 @@ export function N8nGenerationPanel() {
                     <SelectContent>
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
                         <SelectItem key={n} value={n.toString()}>
-                          {n} {n === 1 ? "сайт" : n < 5 ? "сайти" : "сайтів"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                        {n} {n === 1 ? t("n8n.site1") : n < 5 ? t("n8n.sites2to4") : t("n8n.sites5plus")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
                 {/* Submit */}
                 <Button
@@ -752,15 +756,15 @@ export function N8nGenerationPanel() {
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       {submissionProgress.total > 1 
-                        ? `Відправка ${submissionProgress.current}/${submissionProgress.total}...`
-                        : "Відправка..."}
+                        ? `${t("n8n.submitting")} ${submissionProgress.current}/${submissionProgress.total}`
+                        : t("n8n.submitting")}
                     </>
                   ) : (
                     <>
                       <Send className="h-4 w-4 mr-2" />
                       {siteCount > 1 
-                        ? `Відправити ${siteCount} сайтів`
-                        : "Відправити на генерацію"}
+                        ? `${t("n8n.submit")} (${siteCount}) — $${calculateTotalCost()}`
+                        : `${t("n8n.submit")} — $${getBotPrice()}`}
                     </>
                   )}
                 </Button>
@@ -771,7 +775,7 @@ export function N8nGenerationPanel() {
             <>
           {/* Prompt Mode Selector */}
           <div className="mb-6">
-            <Label className="mb-3 block">Режим опису</Label>
+            <Label className="mb-3 block">{t("n8n.promptMode")}</Label>
             <RadioGroup 
               value={promptMode} 
               onValueChange={(v) => setPromptMode(v as "manual" | "theme")}
@@ -779,13 +783,13 @@ export function N8nGenerationPanel() {
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="manual" id="manual" />
-                <Label htmlFor="manual" className="cursor-pointer">Написати вручну</Label>
+                <Label htmlFor="manual" className="cursor-pointer">{t("n8n.manualMode")}</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="theme" id="theme" />
                 <Label htmlFor="theme" className="cursor-pointer flex items-center gap-1">
                   <Wand2 className="h-4 w-4" />
-                  Обрати тематику (AI)
+                  {t("n8n.themeMode")}
                 </Label>
               </div>
             </RadioGroup>
@@ -796,7 +800,7 @@ export function N8nGenerationPanel() {
             <div className="space-y-4">
               {promptMode === "manual" ? (
                 <div className="space-y-2">
-                  <Label htmlFor="prompt">Тема сайту *</Label>
+                  <Label htmlFor="prompt">{t("n8n.siteTopic")} *</Label>
                   <Textarea
                     id="prompt"
                     placeholder="Digital Wayfinding & Spatial Orientation"
@@ -809,14 +813,14 @@ export function N8nGenerationPanel() {
               ) : (
                 <>
                   <div className="space-y-2">
-                    <Label>Категорія *</Label>
+                    <Label>{t("n8n.category")} *</Label>
                     <Select 
                       value={selectedCategory} 
                       onValueChange={handleCategoryChange}
                       disabled={isSubmitting}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Оберіть категорію" />
+                        <SelectValue placeholder={t("n8n.selectCategory")} />
                       </SelectTrigger>
                       <SelectContent>
                         {Object.keys(TOPIC_CATEGORIES).map((category) => (
@@ -827,14 +831,14 @@ export function N8nGenerationPanel() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Тематика *</Label>
+                    <Label>{t("n8n.topic")} *</Label>
                     <Select 
                       value={selectedTopic} 
                       onValueChange={setSelectedTopic}
                       disabled={isSubmitting || !selectedCategory}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder={selectedCategory ? "Оберіть тематику" : "Спочатку оберіть категорію"} />
+                        <SelectValue placeholder={selectedCategory ? t("n8n.selectTopic") : t("n8n.selectCategoryFirst")} />
                       </SelectTrigger>
                       <SelectContent>
                         {selectedCategory && TOPIC_CATEGORIES[selectedCategory]?.map((topic) => (
@@ -848,7 +852,7 @@ export function N8nGenerationPanel() {
                     <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
                       <p className="text-sm text-muted-foreground">
                         <Wand2 className="h-4 w-4 inline mr-1" />
-                        AI автоматично згенерує детальний опис для <strong>{selectedTopic}</strong>
+                        {t("n8n.aiAutoGenerate")} <strong>{selectedTopic}</strong>
                       </p>
                     </div>
                   )}
@@ -857,7 +861,7 @@ export function N8nGenerationPanel() {
 
               {/* Domain */}
               <div className="space-y-2">
-                <Label htmlFor="domain">Домен (опціонально)</Label>
+                <Label htmlFor="domain">{t("n8n.domainOptional")}</Label>
                 <Input
                   id="domain"
                   placeholder="example.com"
@@ -870,8 +874,8 @@ export function N8nGenerationPanel() {
               {/* Geo */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
-                  <Globe className="h-4 w-4" />
-                  Географія
+                   <Globe className="h-4 w-4" />
+                  {t("n8n.geography")}
                 </Label>
                 <Select value={geo} onValueChange={setGeo} disabled={isSubmitting}>
                   <SelectTrigger>
@@ -889,7 +893,7 @@ export function N8nGenerationPanel() {
 
               {/* Languages */}
               <div className="space-y-2">
-                <Label>Мови сайту</Label>
+                <Label>{t("n8n.siteLanguages")}</Label>
                 <div className="flex flex-wrap gap-2">
                   {languages.map(lang => (
                     <Badge
@@ -910,8 +914,8 @@ export function N8nGenerationPanel() {
               {/* Site count selector */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
-                  <Layers className="h-4 w-4" />
-                  Кількість сайтів
+                   <Layers className="h-4 w-4" />
+                  {t("n8n.siteCount")}
                 </Label>
                 <Select 
                   value={siteCount.toString()} 
@@ -924,21 +928,21 @@ export function N8nGenerationPanel() {
                   <SelectContent>
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
                       <SelectItem key={n} value={n.toString()}>
-                        {n} {n === 1 ? "сайт" : n < 5 ? "сайти" : "сайтів"}
+                        {n} {n === 1 ? t("n8n.site1") : n < 5 ? t("n8n.sites2to4") : t("n8n.sites5plus")}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 {siteCount > 1 && (
                   <p className="text-xs text-muted-foreground">
-                    Кожен сайт отримає унікальний AI-промпт. Відправка послідовна.
+                    {t("n8n.uniquePromptNote")}
                   </p>
                 )}
               </div>
 
               {/* Keywords */}
               <div className="space-y-2">
-                <Label htmlFor="keywords">Ключові слова</Label>
+                <Label htmlFor="keywords">{t("n8n.keywords")}</Label>
                 <Textarea
                   id="keywords"
                   placeholder="keyword1, keyword2, keyword3..."
@@ -951,7 +955,7 @@ export function N8nGenerationPanel() {
 
               {/* Forbidden words */}
               <div className="space-y-2">
-                <Label htmlFor="forbidden">Заборонені слова</Label>
+                <Label htmlFor="forbidden">{t("n8n.forbiddenWords")}</Label>
                 <Textarea
                   id="forbidden"
                   placeholder="crypto, bitcoin, casino..."
@@ -973,15 +977,15 @@ export function N8nGenerationPanel() {
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     {submissionProgress.total > 1 
-                      ? `Відправка ${submissionProgress.current}/${submissionProgress.total}...`
-                      : promptMode === "theme" ? "Генерація опису..." : "Відправка..."}
+                      ? `${t("n8n.submitting")} ${submissionProgress.current}/${submissionProgress.total}`
+                      : promptMode === "theme" ? t("n8n.generatingDescription") : t("n8n.submitting")}
                   </>
                 ) : (
                   <>
                     <Send className="h-4 w-4 mr-2" />
                     {siteCount > 1 
-                      ? `Відправити ${siteCount} сайтів — $${calculateTotalCost()}`
-                      : `Відправити на генерацію — $${getBotPrice()}`}
+                      ? `${t("n8n.submit")} (${siteCount}) — $${calculateTotalCost()}`
+                      : `${t("n8n.submit")} — $${getBotPrice()}`}
                   </>
                 )}
               </Button>

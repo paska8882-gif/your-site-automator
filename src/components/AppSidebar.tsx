@@ -81,7 +81,7 @@ const getAdminNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.teams"), tab: "teams", icon: Users },
   { title: t("sidebar.sites"), tab: "sites", icon: FileCode },
   { title: t("sidebar.manualRequests"), tab: "manual-requests", icon: FileCode, highlight: "purple" },
-  { title: "n8n Генератор", tab: "n8n-generator", icon: Sparkles, highlight: "cyan" },
+  
   { title: "AI Редактор", tab: "ai-editor", icon: Bot, highlight: "violet" },
   { title: t("sidebar.users"), tab: "users", icon: UserCog },
   { title: t("sidebar.appeals"), tab: "appeals", icon: MessageSquare },
