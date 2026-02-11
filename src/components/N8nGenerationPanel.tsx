@@ -931,7 +931,7 @@ export function N8nGenerationPanel() {
                   <SelectContent>
                     {geoOptions.map(opt => (
                       <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
+                        <span className="flex items-center gap-2"><GeoFlag value={opt.value} /> {opt.label}</span>
                       </SelectItem>
                     ))}
                   </SelectContent>
