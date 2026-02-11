@@ -393,7 +393,7 @@ export function N8nGenerationPanel() {
     // Validation based on bot and mode
     if (selectedBot === "nextjs_bot") {
       if (!domain.trim() || !siteName.trim() || !siteTopic.trim() || !siteDescription.trim()) {
-        toast.error("Заповніть обов'язкові поля: Domain, Name, Topic, Description");
+        toast.error(t("n8n.fillRequired"));
         return;
       }
     } else if (promptMode === "manual") {
