@@ -317,8 +317,8 @@ export function N8nGenerationPanel() {
         generatedSiteName = siteCount > 1 ? `${baseName} (${index + 1})` : baseName;
       }
 
-      // Calculate sale price per site
-      const salePrice = teamPricing?.externalPrice || 7;
+      // Calculate sale price per site (bot-specific)
+      const salePrice = getBotPrice();
 
       // Create generation history record
       const { data: historyData, error: historyError } = await supabase
