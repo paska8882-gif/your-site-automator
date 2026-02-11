@@ -789,7 +789,7 @@ export function N8nGenerationPanel() {
                 <RadioGroupItem value="theme" id="theme" />
                 <Label htmlFor="theme" className="cursor-pointer flex items-center gap-1">
                   <Wand2 className="h-4 w-4" />
-                  Обрати тематику (AI)
+                  {t("n8n.themeMode")}
                 </Label>
               </div>
             </RadioGroup>
