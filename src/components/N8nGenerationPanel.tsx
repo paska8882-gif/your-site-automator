@@ -86,6 +86,34 @@ const TOPIC_CATEGORIES: Record<string, string[]> = {
   "🖥️ IT (Послуги)": ["Розробка мобільних додатків", "Програмування", "Відеомонтаж", "Веб-дизайн", "SEO", "Системне адміністрування", "AR/VR розробка", "3D-дизайн", "ШІ (штучний інтелект)", "Кібербезпека", "Розробка ігор", "Тестування ПЗ", "Блокчейн-розробка", "Розробка чат-ботів", "Управління базами даних"]
 };
 
+const SITE_TYPES = [
+  "Blog",
+  "Portfolio",
+  "Landing Page",
+  "Corporate Website",
+  "E-commerce",
+  "SaaS Platform",
+  "Educational Platform",
+  "News / Magazine",
+  "Community / Forum",
+  "Personal Website",
+  "Agency Website",
+  "Nonprofit / Charity",
+  "Event / Conference",
+  "Real Estate",
+  "Healthcare / Medical",
+  "Restaurant / Food",
+  "Travel / Tourism",
+  "Fitness / Wellness",
+  "Legal / Law Firm",
+  "Finance / Fintech",
+  "Entertainment",
+  "Technology / Startup",
+  "Government / Public",
+  "Directory / Listing",
+  "Wiki / Knowledge Base",
+];
+
 export function N8nGenerationPanel() {
   const { user } = useAuth();
   const { isAdmin } = useAdmin();
