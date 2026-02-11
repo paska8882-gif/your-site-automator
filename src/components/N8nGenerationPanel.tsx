@@ -592,10 +592,10 @@ export function N8nGenerationPanel() {
               <div className="space-y-4">
                 {/* Domain */}
                 <div className="space-y-2">
-                  <Label htmlFor="nx-domain">Domain *</Label>
+                  <Label htmlFor="nx-domain">{t("n8n.nxDomain")} *</Label>
                   <Input
                     id="nx-domain"
-                    placeholder="sbofl.pro"
+                    placeholder={t("n8n.nxDomainPlaceholder")}
                     value={domain}
                     onChange={(e) => setDomain(e.target.value)}
                     disabled={isSubmitting}
