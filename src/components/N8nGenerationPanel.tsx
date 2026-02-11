@@ -89,6 +89,7 @@ const TOPIC_CATEGORIES: Record<string, string[]> = {
 export function N8nGenerationPanel() {
   const { user } = useAuth();
   const { isAdmin } = useAdmin();
+  const { t } = useLanguage();
   
   // Selected bot
   const [selectedBot, setSelectedBot] = useState<BotId>("2lang_html");
