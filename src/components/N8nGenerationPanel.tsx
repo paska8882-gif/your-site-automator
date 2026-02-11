@@ -580,7 +580,7 @@ export function N8nGenerationPanel() {
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
             <Sparkles className="h-4 w-4" />
-            Параметри генерації
+            {t("n8n.generationParams")}
           </CardTitle>
         </CardHeader>
         <CardContent>
