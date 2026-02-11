@@ -54,17 +54,28 @@ const languages = [
   { value: "ru", label: "🇷🇺 Русский" },
 ];
 
+// ISO mapping for flag images
+const geoIsoMap: Record<string, string> = {
+  be: "be", nl: "nl", de: "de", fr: "fr", uk: "gb", us: "us", pl: "pl", it: "it", es: "es",
+};
+
+const GeoFlag = ({ value, size = 16 }: { value: string; size?: number }) => {
+  const iso = geoIsoMap[value];
+  if (!iso) return null;
+  return <img src={`https://flagcdn.com/w40/${iso}.png`} alt="" width={size} height={Math.round(size * 0.75)} className="inline-block shrink-0" style={{ borderRadius: 2 }} />;
+};
+
 // Geo options
 const geoOptions = [
-  { value: "be", label: "🇧🇪 Бельгія", geoName: "Belgium" },
-  { value: "nl", label: "🇳🇱 Нідерланди", geoName: "Netherlands" },
-  { value: "de", label: "🇩🇪 Німеччина", geoName: "Germany" },
-  { value: "fr", label: "🇫🇷 Франція", geoName: "France" },
-  { value: "uk", label: "🇬🇧 Великобританія", geoName: "UK" },
-  { value: "us", label: "🇺🇸 США", geoName: "USA" },
-  { value: "pl", label: "🇵🇱 Польща", geoName: "Poland" },
-  { value: "it", label: "🇮🇹 Італія", geoName: "Italy" },
-  { value: "es", label: "🇪🇸 Іспанія", geoName: "Spain" },
+  { value: "be", label: "Бельгія", geoName: "Belgium" },
+  { value: "nl", label: "Нідерланди", geoName: "Netherlands" },
+  { value: "de", label: "Німеччина", geoName: "Germany" },
+  { value: "fr", label: "Франція", geoName: "France" },
+  { value: "uk", label: "Великобританія", geoName: "UK" },
+  { value: "us", label: "США", geoName: "USA" },
+  { value: "pl", label: "Польща", geoName: "Poland" },
+  { value: "it", label: "Італія", geoName: "Italy" },
+  { value: "es", label: "Іспанія", geoName: "Spain" },
 ];
 
 // Topic categories (same as in WebsiteGenerator)
@@ -658,7 +669,7 @@ export function N8nGenerationPanel() {
                     <SelectContent>
                       {geoOptions.map(opt => (
                         <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
+                          <span className="flex items-center gap-2"><GeoFlag value={opt.value} /> {opt.label}</span>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -920,7 +931,7 @@ export function N8nGenerationPanel() {
                   <SelectContent>
                     {geoOptions.map(opt => (
                       <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
+                        <span className="flex items-center gap-2"><GeoFlag value={opt.value} /> {opt.label}</span>
                       </SelectItem>
                     ))}
                   </SelectContent>
