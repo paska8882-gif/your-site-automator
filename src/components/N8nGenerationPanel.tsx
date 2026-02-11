@@ -706,8 +706,10 @@ export function N8nGenerationPanel() {
                       <SelectValue placeholder={t("n8n.nxTypePlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {SITE_TYPES.map(type => (
-                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      {SITE_TYPES.map(st => (
+                        <SelectItem key={st.key} value={st.key}>
+                          {language === "ru" ? st.ru : st.uk}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
