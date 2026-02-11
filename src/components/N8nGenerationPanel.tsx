@@ -318,7 +318,6 @@ export function N8nGenerationPanel() {
     // Next.js bot: structured format matching n8n expectations
     if (selectedBot === "nextjs_bot") {
       let result = "";
-      if (domain) result += `Domain: ${domain}\n\n`;
       if (siteName) result += `Name: ${siteName}\n\n`;
       
       const geoOption = geoOptions.find(g => g.value === geo);
@@ -410,7 +409,7 @@ export function N8nGenerationPanel() {
           : basePrompt;
         
         const baseName = selectedBot === "nextjs_bot"
-          ? (siteName || domain || prompt.slice(0, 40))
+          ? (siteName || prompt.slice(0, 40))
           : (domain 
             ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "")
             : prompt.slice(0, 40));
@@ -688,18 +687,6 @@ export function N8nGenerationPanel() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Left column */}
               <div className="space-y-4">
-                {/* Domain */}
-                <div className="space-y-2">
-                  <Label htmlFor="nx-domain">{t("n8n.nxDomain")} *</Label>
-                  <Input
-                    id="nx-domain"
-                    placeholder={t("n8n.nxDomainPlaceholder")}
-                    value={domain}
-                    onChange={(e) => setDomain(e.target.value)}
-                    disabled={isSubmitting}
-                  />
-                </div>
-
                 {/* Name */}
                 <div className="space-y-2">
                   <Label htmlFor="nx-name">{t("n8n.nxName")} *</Label>
