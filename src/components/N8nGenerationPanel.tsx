@@ -562,8 +562,8 @@ export function N8nGenerationPanel() {
                   return (
                     <TabsTrigger key={bot.id} value={bot.id} className="flex items-center gap-2">
                       <Icon className="h-4 w-4" />
-                      <span className="hidden sm:inline">{bot.name}</span>
-                      <span className="sm:hidden">{bot.name.split(" ")[0]}</span>
+                      <span className="hidden sm:inline">{t(bot.nameKey)}</span>
+                      <span className="sm:hidden">{t(bot.nameKey).split(" ")[0]}</span>
                     </TabsTrigger>
                   );
                 })}
