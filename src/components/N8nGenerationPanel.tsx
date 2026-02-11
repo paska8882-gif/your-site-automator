@@ -261,7 +261,10 @@ export function N8nGenerationPanel() {
       result += `Language: ${langLabel}\n\n`;
       
       if (siteTopic) result += `Topic: ${siteTopic}\n\n`;
-      if (siteType) result += `Type: ${siteType}\n\n`;
+      if (siteType) {
+        const typeObj = SITE_TYPES.find(st => st.key === siteType);
+        result += `Type: ${typeObj?.en || siteType}\n\n`;
+      }
       if (siteDescription.trim()) result += `Description:\n\n${siteDescription}\n\n`;
       if (keywords.trim()) result += `Keywords:\n\n${keywords}\n\n`;
       if (forbiddenWords.trim()) result += `Banned words:\n\n${forbiddenWords}\n`;
