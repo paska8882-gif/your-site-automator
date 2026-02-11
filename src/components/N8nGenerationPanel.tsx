@@ -893,7 +893,7 @@ export function N8nGenerationPanel() {
 
               {/* Languages */}
               <div className="space-y-2">
-                <Label>Мови сайту</Label>
+                <Label>{t("n8n.siteLanguages")}</Label>
                 <div className="flex flex-wrap gap-2">
                   {languages.map(lang => (
                     <Badge
