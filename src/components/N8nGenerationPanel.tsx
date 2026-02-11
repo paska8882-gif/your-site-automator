@@ -800,7 +800,7 @@ export function N8nGenerationPanel() {
             <div className="space-y-4">
               {promptMode === "manual" ? (
                 <div className="space-y-2">
-                  <Label htmlFor="prompt">Тема сайту *</Label>
+                  <Label htmlFor="prompt">{t("n8n.siteTopic")} *</Label>
                   <Textarea
                     id="prompt"
                     placeholder="Digital Wayfinding & Spatial Orientation"
