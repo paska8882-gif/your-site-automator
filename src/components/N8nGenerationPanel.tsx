@@ -21,8 +21,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const N8N_BOTS = [
   {
     id: "2lang_html",
-    name: "2lang HTML",
-    description: "Статичні HTML сайти з 2 мовами",
+    nameKey: "n8n.htmlBotName",
+    descKey: "n8n.htmlBotDesc",
     icon: FileCode,
     webhookUrl: "https://n8n.dragonwhite-n8n.top/webhook/lovable-generate",
     defaultLanguages: ["fr", "en"],
@@ -30,8 +30,8 @@ const N8N_BOTS = [
   },
   {
     id: "nextjs_bot",
-    name: "Next.js Bot",
-    description: "Next.js додатки з React компонентами",
+    nameKey: "n8n.nextjsBotName",
+    descKey: "n8n.nextjsBotDesc",
     icon: Code2,
     webhookUrl: "https://n8n.dragonwhite-n8n.top/webhook/d26af941-69aa-4b93-82f8-fd5cd1d1c5ea",
     defaultLanguages: ["en"],
