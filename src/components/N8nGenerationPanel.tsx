@@ -192,9 +192,14 @@ export function N8nGenerationPanel() {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
+  // Fixed prices per bot type
+  const getBotPrice = (): number => {
+    return selectedBot === "nextjs_bot" ? 8 : 9;
+  };
+
   // Cost calculation
   const calculateTotalCost = () => {
-    return (teamPricing?.externalPrice || 7) * siteCount;
+    return getBotPrice() * siteCount;
   };
 
   const insufficientBalance = teamPricing
@@ -313,7 +318,7 @@ export function N8nGenerationPanel() {
       }
 
       // Calculate sale price per site
-      const salePrice = teamPricing?.externalPrice || 7;
+      const salePrice = getBotPrice();
 
       // Create generation history record
       const { data: historyData, error: historyError } = await supabase
@@ -975,8 +980,8 @@ export function N8nGenerationPanel() {
                   <>
                     <Send className="h-4 w-4 mr-2" />
                     {siteCount > 1 
-                      ? `Відправити ${siteCount} сайтів`
-                      : "Відправити на генерацію"}
+                      ? `Відправити ${siteCount} сайтів — $${calculateTotalCost()}`
+                      : `Відправити на генерацію — $${getBotPrice()}`}
                   </>
                 )}
               </Button>
