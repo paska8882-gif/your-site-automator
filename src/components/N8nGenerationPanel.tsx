@@ -838,7 +838,7 @@ export function N8nGenerationPanel() {
                       disabled={isSubmitting || !selectedCategory}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder={selectedCategory ? "Оберіть тематику" : "Спочатку оберіть категорію"} />
+                        <SelectValue placeholder={selectedCategory ? t("n8n.selectTopic") : t("n8n.selectCategoryFirst")} />
                       </SelectTrigger>
                       <SelectContent>
                         {selectedCategory && TOPIC_CATEGORIES[selectedCategory]?.map((topic) => (
