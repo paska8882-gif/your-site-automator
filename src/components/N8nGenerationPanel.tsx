@@ -318,7 +318,7 @@ export function N8nGenerationPanel() {
       }
 
       // Calculate sale price per site
-      const salePrice = teamPricing?.externalPrice || 7;
+      const salePrice = getBotPrice();
 
       // Create generation history record
       const { data: historyData, error: historyError } = await supabase
