@@ -361,7 +361,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, geo, phone } = await req.json();
+    const { prompt, geo, phone, language } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
