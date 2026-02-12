@@ -456,7 +456,7 @@ CRITICAL RULES:
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Create a structured website brief for this business:\n\n${prompt.trim()}\n\nGeo: ${geo || "International"}\nLanguage: Auto-detect from prompt or English` },
+          { role: "user", content: `Create a structured website brief for this business:\n\n${prompt.trim()}\n\nGeo: ${normalizedGeo}\nLanguage: ${normalizedLanguage || "Auto-detect from prompt"}${normalizedLanguage ? `\n\nREMINDER: Write ALL content in ${normalizedLanguage}. This is mandatory.` : ""}` },
         ],
         max_tokens: 2000,
         temperature: 0.7,
