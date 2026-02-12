@@ -3996,11 +3996,19 @@ Your job:
 - Extract the required pages/sections, brand details, geo/country, and contact info
 - Produce a clear GENERATION BRIEF that a separate website generator will follow
 
+TOPIC/THEME (CRITICAL, NON-NEGOTIABLE):
+- NEVER change the business type or topic specified by the user.
+- If the user says "cleaning services", the brief MUST be about cleaning services.
+- If the user says "digital marketing", the brief MUST be about digital marketing.
+- Do NOT substitute, reinterpret, or "improve" the user's chosen topic.
+- The domain name does NOT determine the topic — only the user's explicit description does.
+
 LANGUAGE (CRITICAL, NON-NEGOTIABLE):
 - If the user explicitly specifies a language (e.g. "Language: EN", "Мова: українська", "Язык: русский"), set TARGET_LANGUAGE to that exact language/code.
 - Otherwise infer from the language of the user's message.
 - If still unclear, default to EN.
 - IMPORTANT: Do NOT "default" to Ukrainian unless explicitly requested.
+- IMPORTANT: Do NOT infer language from domain name or geo — ONLY from explicit language parameter or user's message text.
 
 OUTPUT RULES:
 - Write the brief itself in ENGLISH (meta-instructions), but keep TARGET_LANGUAGE exactly as determined.
@@ -4010,6 +4018,7 @@ Return ONLY this structure:
 TARGET_LANGUAGE: <value>
 SITE_NAME: <value if present>
 GEO/COUNTRY: <value if present>
+TOPIC: <EXACT topic/theme from user's request — do NOT change>
 PAGES:
 - <page 1>
 - <page 2>
@@ -8013,7 +8022,7 @@ async function runGeneration({
             },
             {
               role: "user",
-              content: `Create a detailed prompt for static HTML/CSS website generation based on this request:\n\n"${prompt}"${siteName ? `\n\nIMPORTANT: The website name/brand MUST be "${siteName}".` : ""}\n\n${bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2 ? `BILINGUAL MODE: The website must support TWO languages (${bilingualLanguages[0]} and ${bilingualLanguages[1]}) using ONE set of HTML pages and a JS i18n layer. Do NOT generate duplicate pages per language. Generate i18n/translations.js + i18n/i18n.js and mark texts with data-i18n keys.` : `TARGET CONTENT LANGUAGE: ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language || "auto-detect from user's request, default to English"}`}`,
+              content: `Create a detailed prompt for static HTML/CSS website generation based on this request:\n\n"${prompt}"${siteName ? `\n\nIMPORTANT: The website name/brand MUST be "${siteName}".` : ""}\n\n${bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2 ? `BILINGUAL MODE: The website must support TWO languages (${bilingualLanguages[0]} and ${bilingualLanguages[1]}) using ONE set of HTML pages and a JS i18n layer. Do NOT generate duplicate pages per language. Generate i18n/translations.js + i18n/i18n.js and mark texts with data-i18n keys.` : `TARGET CONTENT LANGUAGE: ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language || "auto-detect from user's request, default to English"}`}\n\nCRITICAL: Do NOT change the TOPIC or BUSINESS TYPE described in the user's request. If the user says "cleaning services", the website MUST be about cleaning services. Do NOT substitute with a different industry.`,
             },
           ],
         }),
@@ -8039,7 +8048,12 @@ async function runGeneration({
   }
 
   const agentData = await agentResponse.json();
-  const refinedPrompt = agentData.choices?.[0]?.message?.content || prompt;
+  let refinedPrompt = agentData.choices?.[0]?.message?.content || prompt;
+
+  // CRITICAL FIX: Strip TARGET_LANGUAGE from refined prompt to prevent it from overriding
+  // the explicit language setting that we inject separately. The refiner sometimes sets
+  // a wrong language (e.g., French instead of Russian) based on domain name or geo.
+  refinedPrompt = refinedPrompt.replace(/^TARGET_LANGUAGE\s*:\s*.+$/gim, "").trim();
 
   // Track token usage for refine step
   let totalCost = 0;
@@ -8170,7 +8184,13 @@ These are realistic, verified contact details for the target region. DO NOT repl
           console.log(`📍 Pre-generated address for prompt: ${preGeneratedAddress}`);
           console.log(`📧 Pre-generated email for prompt: ${preGeneratedEmail}`);
 
-          return `${HTML_GENERATION_PROMPT}\n\n${contactDataSection}\n\n${mandatoryColorSection}${imageStrategy}\n\n${IMAGE_CSS}\n\n${mandatoryLayoutSection}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n${bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2 ? `=== BILINGUAL REQUIREMENTS (ONE HTML SET + JS) ===\n- Supported languages: ${bilingualLanguages[0]} and ${bilingualLanguages[1]}\n- Generate ONE set of pages: index.html, about.html, services.html, contact.html, etc. (NO suffixes, NO duplicated pages).\n- Add a visible language switcher in the header on every page (labels: ${bilingualLanguages[0].toUpperCase()} | ${bilingualLanguages[1].toUpperCase()}).\n- Implement i18n via JS (NOT separate pages):\n  * Create i18n/translations.js (window.__SITE_TRANSLATIONS__ = {<lang>: {...}})\n  * Create i18n/i18n.js that picks language by priority: ?lang=xx -> localStorage.siteLang -> browser language -> default lang1\n  * Mark all text with data-i18n keys (and data-i18n-placeholder/title/aria where needed) and have i18n.js replace them at runtime.\n- The site MUST be fully translated (no mixed languages).\n` : `=== TARGET WEBSITE LANGUAGE (CRITICAL - MUST FOLLOW EXACTLY) ===\nALL website content MUST be in: ${language === "uk" ? "UKRAINIAN language" : language === "en" ? "ENGLISH language" : language === "de" ? "GERMAN language" : language === "pl" ? "POLISH language" : language === "ru" ? "RUSSIAN language" : language === "fr" ? "FRENCH language" : language === "es" ? "SPANISH language" : language ? language.toUpperCase() + " language" : "ENGLISH language (default)"}\n\nThis includes: navigation, buttons, headings, paragraphs, footer, cookie banner, ALL text content. DO NOT MIX LANGUAGES.\n`}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL) ===\n${refinedPrompt}`;
+          // CRITICAL FIX: Language block MUST come LAST (after refined prompt) so it cannot be overridden.
+          // Previously, refinedPrompt came last and sometimes contained wrong TARGET_LANGUAGE.
+          const languageBlock = bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2
+            ? `=== BILINGUAL REQUIREMENTS (ONE HTML SET + JS) ===\n- Supported languages: ${bilingualLanguages[0]} and ${bilingualLanguages[1]}\n- Generate ONE set of pages: index.html, about.html, services.html, contact.html, etc. (NO suffixes, NO duplicated pages).\n- Add a visible language switcher in the header on every page (labels: ${bilingualLanguages[0].toUpperCase()} | ${bilingualLanguages[1].toUpperCase()}).\n- Implement i18n via JS (NOT separate pages):\n  * Create i18n/translations.js (window.__SITE_TRANSLATIONS__ = {<lang>: {...}})\n  * Create i18n/i18n.js that picks language by priority: ?lang=xx -> localStorage.siteLang -> browser language -> default lang1\n  * Mark all text with data-i18n keys (and data-i18n-placeholder/title/aria where needed) and have i18n.js replace them at runtime.\n- The site MUST be fully translated (no mixed languages).\n`
+            : `=== ⚠️⚠️⚠️ TARGET WEBSITE LANGUAGE (FINAL, ABSOLUTE, NON-NEGOTIABLE) ⚠️⚠️⚠️ ===\nALL website content MUST be in: ${language === "uk" ? "UKRAINIAN language" : language === "en" ? "ENGLISH language" : language === "de" ? "GERMAN language" : language === "pl" ? "POLISH language" : language === "ru" ? "RUSSIAN language" : language === "fr" ? "FRENCH language" : language === "es" ? "SPANISH language" : language ? language.toUpperCase() + " language" : "ENGLISH language (default)"}\n\nThis OVERRIDES any language mentioned in the brief above. ALL navigation, buttons, headings, paragraphs, footer, cookie banner, ALL text content MUST be in this language. DO NOT MIX LANGUAGES. IGNORE any conflicting TARGET_LANGUAGE from the brief.\n`;
+
+          return `${HTML_GENERATION_PROMPT}\n\n${contactDataSection}\n\n${mandatoryColorSection}${imageStrategy}\n\n${IMAGE_CSS}\n\n${mandatoryLayoutSection}\n\n=== USER'S ORIGINAL REQUEST (MUST FOLLOW EXACTLY) ===\n${prompt}\n\n=== ENHANCED DETAILS (KEEP FIDELITY TO ORIGINAL, BUT DO NOT CHANGE THE LANGUAGE OR TOPIC) ===\n${refinedPrompt}\n\n${languageBlock}`;
         })(),
       },
     ],
