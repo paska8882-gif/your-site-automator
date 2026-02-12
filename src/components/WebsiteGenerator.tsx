@@ -1182,11 +1182,18 @@ export function WebsiteGenerator() {
         : (selectedGeo ? geoOptions.find(g => g.value === selectedGeo)?.label || selectedGeo : undefined);
       const effectivePhone = vipPhone || undefined;
       
+      // Get effective language for improved prompt
+      const allLangs = getAllSelectedLanguages();
+      const effectiveLang = allLangs.length > 0 
+        ? languages.find(l => l.value === allLangs[0])?.label || allLangs[0] 
+        : undefined;
+
       const { data, error } = await supabase.functions.invoke('improve-prompt', {
         body: { 
           prompt,
           geo: effectiveGeo,
           phone: effectivePhone,
+          language: effectiveLang,
         },
         headers: {
           Authorization: `Bearer ${sessionData.session.access_token}`,

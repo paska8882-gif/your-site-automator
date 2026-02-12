@@ -5,6 +5,92 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ============ GEO NAME MAPPING (Ukrainian/localized → English) ============
+const GEO_NAME_MAP: Record<string, string> = {
+  // Ukrainian names
+  "великобританія": "UK", "болгарія": "Bulgaria", "бельгія": "Belgium", "в'єтнам": "Vietnam",
+  "греція": "Greece", "данія": "Denmark", "естонія": "Estonia", "індонезія": "Indonesia",
+  "індія": "India", "ірландія": "Ireland", "іспанія": "Spain", "італія": "Italy",
+  "канада": "Canada", "латвія": "Latvia", "литва": "Lithuania", "нідерланди": "Netherlands",
+  "німеччина": "Germany", "оае": "UAE", "польща": "Poland", "португалія": "Portugal",
+  "росія": "Russia", "румунія": "Romania", "словаччина": "Slovakia", "словенія": "Slovenia",
+  "сша": "USA", "таїланд": "Thailand", "туреччина": "Turkey", "україна": "Ukraine",
+  "угорщина": "Hungary", "фінляндія": "Finland", "франція": "France", "хорватія": "Croatia",
+  "чехія": "Czech Republic", "швеція": "Sweden", "японія": "Japan", "казахстан": "Kazakhstan",
+  "австрія": "Austria", "швейцарія": "Switzerland", "норвегія": "Norway",
+  "австралія": "Australia", "нова зеландія": "New Zealand", "бразилія": "Brazil",
+  "мексика": "Mexico", "аргентина": "Argentina", "чилі": "Chile", "сінгапур": "Singapore",
+  "гонконг": "Hong Kong", "південна корея": "South Korea", "саудівська аравія": "Saudi Arabia",
+  "південна африка": "South Africa", "ізраїль": "Israel",
+  // Russian names
+  "великобритания": "UK", "болгария": "Bulgaria", "бельгия": "Belgium", "вьетнам": "Vietnam",
+  "греция": "Greece", "дания": "Denmark", "эстония": "Estonia", "индонезия": "Indonesia",
+  "индия": "India", "ирландия": "Ireland", "испания": "Spain", "италия": "Italy",
+  "канада": "Canada", "латвия": "Latvia", "литва": "Lithuania", "нидерланды": "Netherlands",
+  "германия": "Germany", "оаэ": "UAE", "польша": "Poland", "португалия": "Portugal",
+  "россия": "Russia", "румыния": "Romania", "словакия": "Slovakia", "словения": "Slovenia",
+  "таиланд": "Thailand", "турция": "Turkey", "украина": "Ukraine", "венгрия": "Hungary",
+  "финляндия": "Finland", "франция": "France", "хорватия": "Croatia", "чехия": "Czech Republic",
+  "швеция": "Sweden", "япония": "Japan", "казахстан": "Kazakhstan",
+  "австрия": "Austria", "швейцария": "Switzerland", "норвегия": "Norway",
+  "австралия": "Australia", "новая зеландия": "New Zealand", "бразилия": "Brazil",
+  "мексика": "Mexico", "аргентина": "Argentina", "чили": "Chile", "сингапур": "Singapore",
+  "гонконг": "Hong Kong", "южная корея": "South Korea", "саудовская аравия": "Saudi Arabia",
+  "южная африка": "South Africa", "израиль": "Israel",
+  // English names (passthrough)
+  "usa": "USA", "uk": "UK", "canada": "Canada", "germany": "Germany", "france": "France",
+  "spain": "Spain", "italy": "Italy", "portugal": "Portugal", "poland": "Poland",
+  "netherlands": "Netherlands", "belgium": "Belgium", "austria": "Austria",
+  "switzerland": "Switzerland", "ireland": "Ireland", "sweden": "Sweden", "norway": "Norway",
+  "denmark": "Denmark", "finland": "Finland", "australia": "Australia", "new zealand": "New Zealand",
+  "japan": "Japan", "south korea": "South Korea", "singapore": "Singapore", "hong kong": "Hong Kong",
+  "brazil": "Brazil", "mexico": "Mexico", "argentina": "Argentina", "chile": "Chile",
+  "india": "India", "uae": "UAE", "saudi arabia": "Saudi Arabia", "south africa": "South Africa",
+  "romania": "Romania", "czech republic": "Czech Republic", "hungary": "Hungary",
+  "greece": "Greece", "turkey": "Turkey", "israel": "Israel", "kazakhstan": "Kazakhstan",
+  "bulgaria": "Bulgaria", "croatia": "Croatia", "slovakia": "Slovakia", "slovenia": "Slovenia",
+  "estonia": "Estonia", "latvia": "Latvia", "lithuania": "Lithuania", "vietnam": "Vietnam",
+  "indonesia": "Indonesia", "thailand": "Thailand", "russia": "Russia", "ukraine": "Ukraine",
+};
+
+function normalizeGeoName(geo: string): string {
+  // Strip emoji flags and trim
+  const cleaned = geo.replace(/[\u{1F1E0}-\u{1F1FF}]/gu, '').trim().toLowerCase();
+  return GEO_NAME_MAP[cleaned] || geo;
+}
+
+// ============ LANGUAGE NAME MAPPING ============
+const LANGUAGE_NAME_MAP: Record<string, string> = {
+  "uk": "Ukrainian", "en": "English", "de": "German", "fr": "French", "es": "Spanish",
+  "it": "Italian", "pt": "Portuguese", "pl": "Polish", "nl": "Dutch", "ro": "Romanian",
+  "cs": "Czech", "sk": "Slovak", "hu": "Hungarian", "bg": "Bulgarian", "hr": "Croatian",
+  "sl": "Slovenian", "el": "Greek", "sv": "Swedish", "da": "Danish", "fi": "Finnish",
+  "no": "Norwegian", "lt": "Lithuanian", "lv": "Latvian", "et": "Estonian", "ja": "Japanese",
+  "ko": "Korean", "zh": "Chinese", "ar": "Arabic", "hi": "Hindi", "th": "Thai",
+  "vi": "Vietnamese", "id": "Indonesian", "tr": "Turkish", "ru": "Russian",
+  // Full names passthrough
+  "ukrainian": "Ukrainian", "english": "English", "german": "German", "french": "French",
+  "spanish": "Spanish", "italian": "Italian", "portuguese": "Portuguese", "polish": "Polish",
+  "dutch": "Dutch", "romanian": "Romanian", "czech": "Czech", "slovak": "Slovak",
+  "hungarian": "Hungarian", "russian": "Russian", "japanese": "Japanese",
+  // Ukrainian language names
+  "українська": "Ukrainian", "англійська": "English", "німецька": "German", "французька": "French",
+  "іспанська": "Spanish", "італійська": "Italian", "португальська": "Portuguese", "польська": "Polish",
+  "нідерландська": "Dutch", "румунська": "Romanian", "чеська": "Czech", "словацька": "Slovak",
+  "угорська": "Hungarian", "болгарська": "Bulgarian", "хорватська": "Croatian", "словенська": "Slovenian",
+  "грецька": "Greek", "шведська": "Swedish", "данська": "Danish", "фінська": "Finnish",
+  "норвезька": "Norwegian", "литовська": "Lithuanian", "латвійська": "Latvian", "естонська": "Estonian",
+  "японська": "Japanese", "російська": "Russian", "турецька": "Turkish",
+  // Russian language names
+  "русский": "Russian", "английский": "English", "немецкий": "German", "французский": "French",
+  "испанский": "Spanish", "итальянский": "Italian", "португальский": "Portuguese", "польский": "Polish",
+};
+
+function normalizeLanguageName(lang: string): string {
+  const cleaned = lang.trim().toLowerCase();
+  return LANGUAGE_NAME_MAP[cleaned] || lang;
+}
+
 // ============ GEO DATA HELPERS ============
 
 const GEO_PHONE_FORMATS: Record<string, { code: string; area: string[]; format: (area: string, num: string) => string }> = {
@@ -275,7 +361,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, geo, phone } = await req.json();
+    const { prompt, geo, phone, language } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
@@ -290,26 +376,36 @@ serve(async (req) => {
     }
 
     console.log("Improving prompt:", prompt.substring(0, 100) + "...");
-    console.log("Geo:", geo || "not specified", "Phone:", phone || "not specified");
+    console.log("Geo:", geo || "not specified", "Phone:", phone || "not specified", "Language:", language || "not specified");
+
+    // Normalize geo name from Ukrainian/Russian to English
+    const normalizedGeo = geo ? normalizeGeoName(geo) : "USA";
+    
+    // Normalize language
+    const normalizedLanguage = language ? normalizeLanguageName(language) : null;
 
     // Detect industry and get data
     const industry = detectIndustry(prompt);
     const industryData = getIndustryData(industry);
     
     // Generate geo-based data
-    const generatedPhone = phone || generatePhoneByGeo(geo || "USA");
-    const generatedAddress = generateAddressByGeo(geo || "USA");
+    const generatedPhone = phone || generatePhoneByGeo(normalizedGeo);
+    const generatedAddress = generateAddressByGeo(normalizedGeo);
     const paletteString = industryData.palette.map(c => `${c.name} (${c.hex})`).join(", ");
 
-    const systemPrompt = `You are an expert website brief writer. Your task is to create a STRUCTURED, COMPACT website brief.
+    const languageInstruction = normalizedLanguage 
+      ? `\n\n⚠️ LANGUAGE — ABSOLUTE PRIORITY ⚠️\nThe ENTIRE brief MUST be written in ${normalizedLanguage}. ALL text content — company name variations, taglines, descriptions, section names, audience descriptions — MUST be in ${normalizedLanguage}. This is NON-NEGOTIABLE. Do NOT use English unless the language IS English. The Language field must say: ${normalizedLanguage}.`
+      : `\n\nWrite in the same language as the input prompt.`;
+
+    const systemPrompt = `You are an expert website brief writer. Your task is to create a STRUCTURED, COMPACT website brief.${languageInstruction}
 
 OUTPUT FORMAT (follow EXACTLY):
 
 [creative-domain].com ([Industry Type])
 
 Company Name: [Creative Business Name]
-Geo: [Country/Region]
-Language: [Language]
+Geo: ${normalizedGeo}
+Language: ${normalizedLanguage || "Auto-detect from prompt"}
 Industry: [Industry Type]
 Core Theme: [One sentence describing what the company does]
 
@@ -343,10 +439,10 @@ Restrictions: Do not use: gratuit, miracle, free, profit, money, price, guarante
 CRITICAL RULES:
 - Use this EXACT phone: ${generatedPhone}
 - Use this EXACT address: ${generatedAddress}
+- The address MUST be located in ${normalizedGeo} — do NOT use addresses from other countries
 - Keep the entire brief under 400 words
-- Be SPECIFIC and UNIQUE to the niche
+- Be SPECIFIC and UNIQUE to the niche described in the user prompt — do NOT change the topic
 - Use the provided HEX color codes
-- Write in the same language as the input prompt
 - Domain should be creative and memorable
 - Each page must have 3-5 unique sections`;
 
@@ -360,7 +456,7 @@ CRITICAL RULES:
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Create a structured website brief for this business:\n\n${prompt.trim()}\n\nGeo: ${geo || "International"}\nLanguage: Auto-detect from prompt or English` },
+          { role: "user", content: `Create a structured website brief for this business:\n\n${prompt.trim()}\n\nGeo: ${normalizedGeo}\nLanguage: ${normalizedLanguage || "Auto-detect from prompt"}${normalizedLanguage ? `\n\nREMINDER: Write ALL content in ${normalizedLanguage}. This is mandatory.` : ""}` },
         ],
         max_tokens: 2000,
         temperature: 0.7,

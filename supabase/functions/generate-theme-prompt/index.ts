@@ -5,7 +5,76 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Complete topic categories with all niches
+// ============ GEO NAME MAPPING (Ukrainian/Russian/localized → English) ============
+const GEO_NAME_MAP: Record<string, string> = {
+  "великобританія": "UK", "болгарія": "Bulgaria", "бельгія": "Belgium", "в'єтнам": "Vietnam",
+  "греція": "Greece", "данія": "Denmark", "естонія": "Estonia", "індонезія": "Indonesia",
+  "індія": "India", "ірландія": "Ireland", "іспанія": "Spain", "італія": "Italy",
+  "канада": "Canada", "латвія": "Latvia", "литва": "Lithuania", "нідерланди": "Netherlands",
+  "німеччина": "Germany", "оае": "UAE", "польща": "Poland", "португалія": "Portugal",
+  "росія": "Russia", "румунія": "Romania", "словаччина": "Slovakia", "словенія": "Slovenia",
+  "сша": "USA", "таїланд": "Thailand", "туреччина": "Turkey", "україна": "Ukraine",
+  "угорщина": "Hungary", "фінляндія": "Finland", "франція": "France", "хорватія": "Croatia",
+  "чехія": "Czech Republic", "швеція": "Sweden", "японія": "Japan", "казахстан": "Kazakhstan",
+  "австрія": "Austria", "швейцарія": "Switzerland", "норвегія": "Norway",
+  "австралія": "Australia", "нова зеландія": "New Zealand",
+  "великобритания": "UK", "болгария": "Bulgaria", "бельгия": "Belgium", "вьетнам": "Vietnam",
+  "греция": "Greece", "дания": "Denmark", "эстония": "Estonia", "индонезия": "Indonesia",
+  "индия": "India", "ирландия": "Ireland", "испания": "Spain", "италия": "Italy",
+  "латвия": "Latvia", "литва": "Lithuania", "нидерланды": "Netherlands",
+  "германия": "Germany", "оаэ": "UAE", "польша": "Poland", "португалия": "Portugal",
+  "россия": "Russia", "румыния": "Romania", "словакия": "Slovakia", "словения": "Slovenia",
+  "таиланд": "Thailand", "турция": "Turkey", "украина": "Ukraine", "венгрия": "Hungary",
+  "финляндия": "Finland", "франция": "France", "хорватия": "Croatia", "чехия": "Czech Republic",
+  "швеция": "Sweden", "япония": "Japan", "казахстан": "Kazakhstan",
+  "австрия": "Austria", "швейцария": "Switzerland", "норвегия": "Norway",
+  "австралия": "Australia", "новая зеландия": "New Zealand",
+  "usa": "USA", "uk": "UK", "canada": "Canada", "germany": "Germany", "france": "France",
+  "spain": "Spain", "italy": "Italy", "portugal": "Portugal", "poland": "Poland",
+  "netherlands": "Netherlands", "belgium": "Belgium", "austria": "Austria",
+  "switzerland": "Switzerland", "ireland": "Ireland", "sweden": "Sweden", "norway": "Norway",
+  "denmark": "Denmark", "finland": "Finland", "australia": "Australia", "new zealand": "New Zealand",
+  "japan": "Japan", "romania": "Romania", "czech republic": "Czech Republic", "hungary": "Hungary",
+  "greece": "Greece", "turkey": "Turkey", "kazakhstan": "Kazakhstan",
+  "bulgaria": "Bulgaria", "croatia": "Croatia", "slovakia": "Slovakia", "slovenia": "Slovenia",
+  "estonia": "Estonia", "latvia": "Latvia", "lithuania": "Lithuania", "vietnam": "Vietnam",
+  "indonesia": "Indonesia", "thailand": "Thailand", "russia": "Russia", "ukraine": "Ukraine",
+  "india": "India", "uae": "UAE",
+};
+
+function normalizeGeoName(geo: string): string {
+  const cleaned = geo.replace(/[\u{1F1E0}-\u{1F1FF}]/gu, '').trim().toLowerCase();
+  return GEO_NAME_MAP[cleaned] || geo;
+}
+
+// ============ LANGUAGE NAME MAPPING ============
+const LANGUAGE_NAME_MAP: Record<string, string> = {
+  "uk": "Ukrainian", "en": "English", "de": "German", "fr": "French", "es": "Spanish",
+  "it": "Italian", "pt": "Portuguese", "pl": "Polish", "nl": "Dutch", "ro": "Romanian",
+  "cs": "Czech", "sk": "Slovak", "hu": "Hungarian", "bg": "Bulgarian", "hr": "Croatian",
+  "sl": "Slovenian", "el": "Greek", "sv": "Swedish", "da": "Danish", "fi": "Finnish",
+  "no": "Norwegian", "lt": "Lithuanian", "lv": "Latvian", "et": "Estonian", "ja": "Japanese",
+  "ru": "Russian", "tr": "Turkish",
+  "ukrainian": "Ukrainian", "english": "English", "german": "German", "french": "French",
+  "spanish": "Spanish", "italian": "Italian", "portuguese": "Portuguese", "polish": "Polish",
+  "dutch": "Dutch", "romanian": "Romanian", "czech": "Czech", "slovak": "Slovak",
+  "hungarian": "Hungarian", "russian": "Russian", "japanese": "Japanese",
+  "українська": "Ukrainian", "англійська": "English", "німецька": "German", "французька": "French",
+  "іспанська": "Spanish", "італійська": "Italian", "португальська": "Portuguese", "польська": "Polish",
+  "нідерландська": "Dutch", "румунська": "Romanian", "чеська": "Czech", "словацька": "Slovak",
+  "угорська": "Hungarian", "болгарська": "Bulgarian", "хорватська": "Croatian", "словенська": "Slovenian",
+  "грецька": "Greek", "шведська": "Swedish", "данська": "Danish", "фінська": "Finnish",
+  "норвезька": "Norwegian", "литовська": "Lithuanian", "латвійська": "Latvian", "естонська": "Estonian",
+  "японська": "Japanese", "російська": "Russian", "турецька": "Turkish",
+  "русский": "Russian", "английский": "English", "немецкий": "German", "французский": "French",
+  "испанский": "Spanish", "итальянский": "Italian", "португальский": "Portuguese", "польский": "Polish",
+};
+
+function normalizeLanguageName(lang: string): string {
+  const cleaned = lang.trim().toLowerCase();
+  return LANGUAGE_NAME_MAP[cleaned] || lang;
+}
+
 const TOPIC_CATEGORIES: Record<string, string[]> = {
   "Фінанси (Освіта)": ["Ведення бюджету", "Інвестування", "Робота з криптовалютами", "Фінансова грамотність", "Побудова бізнесу", "Краудфандинг", "Фінансовий аналітик", "Трейдинг", "Машинне навчання у фінансах"],
   "Здоров'я (Освіта)": ["Здоровий спосіб життя", "Правильне харчування", "Гімнастика", "Йога", "Вегетаріанство", "Кросфіт"],
@@ -167,10 +236,14 @@ serve(async (req) => {
       console.log(`Batch generation: ${batchIndex}/${batchTotal}`);
     }
 
+    // Normalize geo and language
+    const normalizedGeo = geo ? normalizeGeoName(geo) : "USA";
+    const normalizedLanguage = language ? normalizeLanguageName(language) : "English";
+
     // Get niche-specific data
     const nicheData = getNicheData(topic);
-    const generatedPhone = phone || generatePhoneByGeo(geo || "USA");
-    const generatedAddress = generateAddressByGeo(geo || "USA");
+    const generatedPhone = phone || generatePhoneByGeo(normalizedGeo);
+    const generatedAddress = generateAddressByGeo(normalizedGeo);
     const suggestedDomain = generateDomainFromNiche(topic);
     const paletteString = nicheData.palette.map(c => `${c.name} (${c.hex})`).join(", ");
     
@@ -186,13 +259,16 @@ serve(async (req) => {
 
     const systemPrompt = `You are an expert website brief writer. Create a STRUCTURED, COMPACT website brief for the given niche.
 
+⚠️ LANGUAGE — ABSOLUTE PRIORITY ⚠️
+The ENTIRE brief MUST be written in ${normalizedLanguage}. ALL text — company overview, taglines, audience descriptions, section names, keywords — MUST be in ${normalizedLanguage}. This is NON-NEGOTIABLE. Do NOT write in English unless the language IS English. The Language field must say: ${normalizedLanguage}.
+
 OUTPUT FORMAT (follow EXACTLY):
 
 ${suggestedDomain} (${nicheData.industry})
 
 Company Name: [Creative Business Name - make it memorable and relevant]
-Geo: ${geo || "International"}
-Language: ${language || "English"}
+Geo: ${normalizedGeo}
+Language: ${normalizedLanguage}
 Industry: ${nicheData.industry}
 Core Theme: [One compelling sentence about what makes this business unique]
 
@@ -228,8 +304,9 @@ RULES:
 - Keep the brief under 400 words total
 - Be specific to the "${topic}" niche
 - Use the exact phone and address provided
+- The address MUST be in ${normalizedGeo}
 - The tagline must be catchy and memorable
-- Write in ${language || "the same language as the niche"}${batchInstruction}`;
+- ALL content MUST be in ${normalizedLanguage}${batchInstruction}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -241,7 +318,7 @@ RULES:
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Create a complete structured website brief for this niche: "${topic}"${siteName ? `\nBusiness name: ${siteName}` : ''}${isBatch ? `\n\nThis is variant ${batchIndex} of ${batchTotal} - make it completely unique and different!` : ''}` },
+          { role: "user", content: `Create a complete structured website brief for this niche: "${topic}"${siteName ? `\nBusiness name: ${siteName}` : ''}\n\nREMINDER: Write ALL content in ${normalizedLanguage}. Language = ${normalizedLanguage}. Geo = ${normalizedGeo}.${isBatch ? `\n\nThis is variant ${batchIndex} of ${batchTotal} - make it completely unique and different!` : ''}` },
         ],
         max_tokens: 2000,
         temperature: isBatch ? 0.9 : 0.7, // Higher temperature for batch to ensure variety
