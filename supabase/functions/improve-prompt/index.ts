@@ -458,7 +458,7 @@ CRITICAL RULES:
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Create a structured website brief for this business:\n\n${prompt.trim()}\n\nGeo: ${normalizedGeo}\nLanguage: ${normalizedLanguage || "Auto-detect from prompt"}${normalizedLanguage ? `\n\nREMINDER: Write ALL content in ${normalizedLanguage}. This is mandatory.` : ""}` },
+          { role: "user", content: `Create a structured website brief for this business:\n\n${prompt.trim()}\n\n⚠️ THE TOPIC IS: "${prompt.trim()}" — do NOT deviate from this topic under any circumstances.\n\nGeo: ${normalizedGeo}\nLanguage: ${normalizedLanguage || "Auto-detect from prompt"}${normalizedLanguage ? `\n\nREMINDER: Write ALL content in ${normalizedLanguage}. This is mandatory.` : ""}` },
         ],
         max_tokens: 2000,
         temperature: 0.7,
