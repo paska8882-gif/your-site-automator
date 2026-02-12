@@ -318,7 +318,7 @@ RULES:
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Create a complete structured website brief for this niche: "${topic}"${siteName ? `\nBusiness name: ${siteName}` : ''}${isBatch ? `\n\nThis is variant ${batchIndex} of ${batchTotal} - make it completely unique and different!` : ''}` },
+          { role: "user", content: `Create a complete structured website brief for this niche: "${topic}"${siteName ? `\nBusiness name: ${siteName}` : ''}\n\nREMINDER: Write ALL content in ${normalizedLanguage}. Language = ${normalizedLanguage}. Geo = ${normalizedGeo}.${isBatch ? `\n\nThis is variant ${batchIndex} of ${batchTotal} - make it completely unique and different!` : ''}` },
         ],
         max_tokens: 2000,
         temperature: isBatch ? 0.9 : 0.7, // Higher temperature for batch to ensure variety
