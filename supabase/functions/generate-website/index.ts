@@ -8039,7 +8039,12 @@ async function runGeneration({
   }
 
   const agentData = await agentResponse.json();
-  const refinedPrompt = agentData.choices?.[0]?.message?.content || prompt;
+  let refinedPrompt = agentData.choices?.[0]?.message?.content || prompt;
+
+  // CRITICAL FIX: Strip TARGET_LANGUAGE from refined prompt to prevent it from overriding
+  // the explicit language setting that we inject separately. The refiner sometimes sets
+  // a wrong language (e.g., French instead of Russian) based on domain name or geo.
+  refinedPrompt = refinedPrompt.replace(/^TARGET_LANGUAGE\s*:\s*.+$/gim, "").trim();
 
   // Track token usage for refine step
   let totalCost = 0;
