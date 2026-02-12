@@ -393,15 +393,19 @@ serve(async (req) => {
     const generatedAddress = generateAddressByGeo(normalizedGeo);
     const paletteString = industryData.palette.map(c => `${c.name} (${c.hex})`).join(", ");
 
-    const systemPrompt = `You are an expert website brief writer. Your task is to create a STRUCTURED, COMPACT website brief.
+    const languageInstruction = normalizedLanguage 
+      ? `\n\n⚠️ LANGUAGE — ABSOLUTE PRIORITY ⚠️\nThe ENTIRE brief MUST be written in ${normalizedLanguage}. ALL text content — company name variations, taglines, descriptions, section names, audience descriptions — MUST be in ${normalizedLanguage}. This is NON-NEGOTIABLE. Do NOT use English unless the language IS English. The Language field must say: ${normalizedLanguage}.`
+      : `\n\nWrite in the same language as the input prompt.`;
+
+    const systemPrompt = `You are an expert website brief writer. Your task is to create a STRUCTURED, COMPACT website brief.${languageInstruction}
 
 OUTPUT FORMAT (follow EXACTLY):
 
 [creative-domain].com ([Industry Type])
 
 Company Name: [Creative Business Name]
-Geo: [Country/Region]
-Language: [Language]
+Geo: ${normalizedGeo}
+Language: ${normalizedLanguage || "Auto-detect from prompt"}
 Industry: [Industry Type]
 Core Theme: [One sentence describing what the company does]
 
@@ -435,10 +439,10 @@ Restrictions: Do not use: gratuit, miracle, free, profit, money, price, guarante
 CRITICAL RULES:
 - Use this EXACT phone: ${generatedPhone}
 - Use this EXACT address: ${generatedAddress}
+- The address MUST be located in ${normalizedGeo} — do NOT use addresses from other countries
 - Keep the entire brief under 400 words
-- Be SPECIFIC and UNIQUE to the niche
+- Be SPECIFIC and UNIQUE to the niche described in the user prompt — do NOT change the topic
 - Use the provided HEX color codes
-- Write in the same language as the input prompt
 - Domain should be creative and memorable
 - Each page must have 3-5 unique sections`;
 
