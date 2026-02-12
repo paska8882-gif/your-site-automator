@@ -3996,11 +3996,19 @@ Your job:
 - Extract the required pages/sections, brand details, geo/country, and contact info
 - Produce a clear GENERATION BRIEF that a separate website generator will follow
 
+TOPIC/THEME (CRITICAL, NON-NEGOTIABLE):
+- NEVER change the business type or topic specified by the user.
+- If the user says "cleaning services", the brief MUST be about cleaning services.
+- If the user says "digital marketing", the brief MUST be about digital marketing.
+- Do NOT substitute, reinterpret, or "improve" the user's chosen topic.
+- The domain name does NOT determine the topic — only the user's explicit description does.
+
 LANGUAGE (CRITICAL, NON-NEGOTIABLE):
 - If the user explicitly specifies a language (e.g. "Language: EN", "Мова: українська", "Язык: русский"), set TARGET_LANGUAGE to that exact language/code.
 - Otherwise infer from the language of the user's message.
 - If still unclear, default to EN.
 - IMPORTANT: Do NOT "default" to Ukrainian unless explicitly requested.
+- IMPORTANT: Do NOT infer language from domain name or geo — ONLY from explicit language parameter or user's message text.
 
 OUTPUT RULES:
 - Write the brief itself in ENGLISH (meta-instructions), but keep TARGET_LANGUAGE exactly as determined.
@@ -4010,6 +4018,7 @@ Return ONLY this structure:
 TARGET_LANGUAGE: <value>
 SITE_NAME: <value if present>
 GEO/COUNTRY: <value if present>
+TOPIC: <EXACT topic/theme from user's request — do NOT change>
 PAGES:
 - <page 1>
 - <page 2>
