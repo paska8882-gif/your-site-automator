@@ -436,12 +436,14 @@ JSON-LD: ${industryData.jsonLd}
 Keywords: [8-12 industry-specific keywords]
 Restrictions: Do not use: gratuit, miracle, free, profit, money, price, guarantee, 100%, crypto, health claims
 
+⚠️ TOPIC — ABSOLUTE PRIORITY ⚠️
+The brief MUST be about the EXACT topic/niche described in the user prompt. Do NOT change, reinterpret, or substitute the topic. If the user says "cleaning" — the site is about cleaning. If the user says "dental care" — the site is about dental care. NEVER generate a brief about a different industry than what the user specified. This is NON-NEGOTIABLE.
+
 CRITICAL RULES:
 - Use this EXACT phone: ${generatedPhone}
 - Use this EXACT address: ${generatedAddress}
 - The address MUST be located in ${normalizedGeo} — do NOT use addresses from other countries
 - Keep the entire brief under 400 words
-- Be SPECIFIC and UNIQUE to the niche described in the user prompt — do NOT change the topic
 - Use the provided HEX color codes
 - Domain should be creative and memorable
 - Each page must have 3-5 unique sections`;
