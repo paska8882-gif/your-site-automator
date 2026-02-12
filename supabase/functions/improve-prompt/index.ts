@@ -376,15 +376,21 @@ serve(async (req) => {
     }
 
     console.log("Improving prompt:", prompt.substring(0, 100) + "...");
-    console.log("Geo:", geo || "not specified", "Phone:", phone || "not specified");
+    console.log("Geo:", geo || "not specified", "Phone:", phone || "not specified", "Language:", language || "not specified");
+
+    // Normalize geo name from Ukrainian/Russian to English
+    const normalizedGeo = geo ? normalizeGeoName(geo) : "USA";
+    
+    // Normalize language
+    const normalizedLanguage = language ? normalizeLanguageName(language) : null;
 
     // Detect industry and get data
     const industry = detectIndustry(prompt);
     const industryData = getIndustryData(industry);
     
     // Generate geo-based data
-    const generatedPhone = phone || generatePhoneByGeo(geo || "USA");
-    const generatedAddress = generateAddressByGeo(geo || "USA");
+    const generatedPhone = phone || generatePhoneByGeo(normalizedGeo);
+    const generatedAddress = generateAddressByGeo(normalizedGeo);
     const paletteString = industryData.palette.map(c => `${c.name} (${c.hex})`).join(", ");
 
     const systemPrompt = `You are an expert website brief writer. Your task is to create a STRUCTURED, COMPACT website brief.
