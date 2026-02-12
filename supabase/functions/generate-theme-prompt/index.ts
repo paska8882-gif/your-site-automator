@@ -236,10 +236,14 @@ serve(async (req) => {
       console.log(`Batch generation: ${batchIndex}/${batchTotal}`);
     }
 
+    // Normalize geo and language
+    const normalizedGeo = geo ? normalizeGeoName(geo) : "USA";
+    const normalizedLanguage = language ? normalizeLanguageName(language) : "English";
+
     // Get niche-specific data
     const nicheData = getNicheData(topic);
-    const generatedPhone = phone || generatePhoneByGeo(geo || "USA");
-    const generatedAddress = generateAddressByGeo(geo || "USA");
+    const generatedPhone = phone || generatePhoneByGeo(normalizedGeo);
+    const generatedAddress = generateAddressByGeo(normalizedGeo);
     const suggestedDomain = generateDomainFromNiche(topic);
     const paletteString = nicheData.palette.map(c => `${c.name} (${c.hex})`).join(", ");
     
@@ -255,13 +259,16 @@ serve(async (req) => {
 
     const systemPrompt = `You are an expert website brief writer. Create a STRUCTURED, COMPACT website brief for the given niche.
 
+⚠️ LANGUAGE — ABSOLUTE PRIORITY ⚠️
+The ENTIRE brief MUST be written in ${normalizedLanguage}. ALL text — company overview, taglines, audience descriptions, section names, keywords — MUST be in ${normalizedLanguage}. This is NON-NEGOTIABLE. Do NOT write in English unless the language IS English. The Language field must say: ${normalizedLanguage}.
+
 OUTPUT FORMAT (follow EXACTLY):
 
 ${suggestedDomain} (${nicheData.industry})
 
 Company Name: [Creative Business Name - make it memorable and relevant]
-Geo: ${geo || "International"}
-Language: ${language || "English"}
+Geo: ${normalizedGeo}
+Language: ${normalizedLanguage}
 Industry: ${nicheData.industry}
 Core Theme: [One compelling sentence about what makes this business unique]
 
@@ -297,8 +304,9 @@ RULES:
 - Keep the brief under 400 words total
 - Be specific to the "${topic}" niche
 - Use the exact phone and address provided
+- The address MUST be in ${normalizedGeo}
 - The tagline must be catchy and memorable
-- Write in ${language || "the same language as the niche"}${batchInstruction}`;
+- ALL content MUST be in ${normalizedLanguage}${batchInstruction}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
