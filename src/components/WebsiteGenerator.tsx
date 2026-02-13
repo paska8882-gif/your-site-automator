@@ -139,6 +139,7 @@ const geoIsoMap: Record<string, string> = {
   lt: "lt", nl: "nl", de: "de", ae: "ae", pl: "pl", pt: "pt", ru: "ru",
   ro: "ro", sk: "sk", si: "si", us: "us", th: "th", tr: "tr", ua: "ua",
   hu: "hu", fi: "fi", fr: "fr", hr: "hr", cz: "cz", se: "se", jp: "jp",
+  kz: "kz",
 };
 
 const GeoFlag = ({ value, size = 16 }: { value: string; size?: number }) => {
@@ -189,6 +190,7 @@ const geoOptions = [
   { value: "hr", label: "🇭🇷 Хорватія" },
   { value: "cz", label: "🇨🇿 Чехія" },
   { value: "se", label: "🇸🇪 Швеція" },
+  { value: "kz", label: "🇰🇿 Казахстан" },
   { value: "jp", label: "🇯🇵 Японія" },
 ];
 
@@ -531,6 +533,8 @@ export function WebsiteGenerator() {
   const [isOtherGeoSelected, setIsOtherGeoSelected] = useState(draft.isOtherGeoSelected || false);
   const [customLanguage, setCustomLanguage] = useState(draft.customLanguage || "");
   const [isOtherSelected, setIsOtherSelected] = useState(draft.isOtherSelected || false);
+  const [geoSearch, setGeoSearch] = useState("");
+  const [langSearch, setLangSearch] = useState("");
   const [selectedStyles, setSelectedStyles] = useState<string[]>(draft.selectedStyles || []);
   const [customStyle, setCustomStyle] = useState(draft.customStyle || "");
   const [isOtherStyleSelected, setIsOtherStyleSelected] = useState(draft.isOtherStyleSelected || false);
@@ -2378,7 +2382,16 @@ export function WebsiteGenerator() {
                         <SelectValue placeholder="Гео..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {geoOptions.map((geo) => (
+                        <div className="px-2 py-1.5 sticky top-0 bg-popover z-10">
+                          <Input
+                            placeholder="Пошук країни..."
+                            value={geoSearch}
+                            onChange={(e) => setGeoSearch(e.target.value)}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            className="h-7 text-xs"
+                          />
+                        </div>
+                        {geoOptions.filter(g => !geoSearch || getGeoText(g.label).toLowerCase().includes(geoSearch.toLowerCase()) || g.value.includes(geoSearch.toLowerCase())).map((geo) => (
                           <SelectItem key={geo.value || "none"} value={geo.value || "none"}>
                             <span className="inline-flex items-center gap-1.5">
                               {geo.value ? <GeoFlag value={geo.value} size={16} /> : "🌍"}
@@ -2738,8 +2751,14 @@ export function WebsiteGenerator() {
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-56 p-2" align="start">
-                            <div className="space-y-1 max-h-64 overflow-y-auto">
-                              {languages.map((lang) => (
+                            <div className="space-y-1 max-h-72 overflow-y-auto">
+                              <Input
+                                placeholder="Пошук мови..."
+                                value={langSearch}
+                                onChange={(e) => setLangSearch(e.target.value)}
+                                className="h-7 text-xs mb-1"
+                              />
+                              {languages.filter(l => !langSearch || l.label.toLowerCase().includes(langSearch.toLowerCase()) || l.value.includes(langSearch.toLowerCase())).map((lang) => (
                                 <label 
                                   key={lang.value} 
                                   className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer"
@@ -2794,9 +2813,15 @@ export function WebsiteGenerator() {
                               <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-56 p-2 max-h-64 overflow-y-auto" align="start">
+                          <PopoverContent className="w-56 p-2 max-h-72 overflow-y-auto" align="start">
                             <div className="space-y-1">
-                              {geoOptions.map((geo) => (
+                              <Input
+                                placeholder="Пошук країни..."
+                                value={geoSearch}
+                                onChange={(e) => setGeoSearch(e.target.value)}
+                                className="h-7 text-xs mb-1"
+                              />
+                              {geoOptions.filter(g => !geoSearch || getGeoText(g.label).toLowerCase().includes(geoSearch.toLowerCase()) || g.value.includes(geoSearch.toLowerCase())).map((geo) => (
                                 <label key={geo.value || "none"} className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
                                   <Checkbox
                                     checked={!isOtherGeoSelected && selectedGeo === geo.value}
@@ -3212,8 +3237,14 @@ export function WebsiteGenerator() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-56 p-2" align="start">
-                    <div className="space-y-1 max-h-64 overflow-y-auto">
-                      {languages.map((lang) => (
+                    <div className="space-y-1 max-h-72 overflow-y-auto">
+                      <Input
+                        placeholder="Пошук мови..."
+                        value={langSearch}
+                        onChange={(e) => setLangSearch(e.target.value)}
+                        className="h-7 text-xs mb-1"
+                      />
+                      {languages.filter(l => !langSearch || l.label.toLowerCase().includes(langSearch.toLowerCase()) || l.value.includes(langSearch.toLowerCase())).map((lang) => (
                         <label 
                           key={lang.value} 
                           className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer"
