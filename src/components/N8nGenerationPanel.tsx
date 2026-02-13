@@ -212,6 +212,10 @@ export function N8nGenerationPanel() {
   const [customGeo, setCustomGeo] = useState("");
   const [customLanguage, setCustomLanguage] = useState("");
   
+  // Search filters for dropdowns
+  const [geoSearch, setGeoSearch] = useState("");
+  const [langSearch, setLangSearch] = useState("");
+  
   // Theme selection state
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedTopic, setSelectedTopic] = useState<string>("");
@@ -311,6 +315,22 @@ export function N8nGenerationPanel() {
 
   // Get current bot config
   const currentBot = N8N_BOTS.find(b => b.id === selectedBot) || N8N_BOTS[0];
+
+  // Filtered geo/language options
+  const filteredGeoOptions = geoSearch
+    ? geoOptions.filter(opt => 
+        opt.label.toLowerCase().includes(geoSearch.toLowerCase()) || 
+        opt.geoName.toLowerCase().includes(geoSearch.toLowerCase()) ||
+        opt.value.toLowerCase().includes(geoSearch.toLowerCase())
+      )
+    : geoOptions;
+
+  const filteredLanguages = langSearch
+    ? languages.filter(lang => 
+        lang.label.toLowerCase().includes(langSearch.toLowerCase()) ||
+        lang.value.toLowerCase().includes(langSearch.toLowerCase())
+      )
+    : languages;
 
   const toggleLanguage = (lang: string) => {
     setSelectedLanguages(prev => 
@@ -719,7 +739,16 @@ export function N8nGenerationPanel() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {geoOptions.map(opt => (
+                      <div className="px-2 py-1.5 sticky top-0 bg-popover z-10">
+                        <Input
+                          placeholder={language === "ru" ? "Поиск страны..." : "Пошук країни..."}
+                          value={geoSearch}
+                          onChange={(e) => setGeoSearch(e.target.value)}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      {filteredGeoOptions.map(opt => (
                         <SelectItem key={opt.value} value={opt.value}>
                           <span className="flex items-center gap-2"><GeoFlag value={opt.value} /> {opt.label}</span>
                         </SelectItem>
@@ -750,7 +779,16 @@ export function N8nGenerationPanel() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {languages.map(lang => (
+                      <div className="px-2 py-1.5 sticky top-0 bg-popover z-10">
+                        <Input
+                          placeholder={language === "ru" ? "Поиск языка..." : "Пошук мови..."}
+                          value={langSearch}
+                          onChange={(e) => setLangSearch(e.target.value)}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      {filteredLanguages.map(lang => (
                         <SelectItem key={lang.value} value={lang.value}>
                           {lang.label}
                         </SelectItem>
@@ -1001,7 +1039,16 @@ export function N8nGenerationPanel() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {geoOptions.map(opt => (
+                    <div className="px-2 py-1.5 sticky top-0 bg-popover z-10">
+                      <Input
+                        placeholder={language === "ru" ? "Поиск страны..." : "Пошук країни..."}
+                        value={geoSearch}
+                        onChange={(e) => setGeoSearch(e.target.value)}
+                        onKeyDown={(e) => e.stopPropagation()}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    {filteredGeoOptions.map(opt => (
                       <SelectItem key={opt.value} value={opt.value}>
                         <span className="flex items-center gap-2"><GeoFlag value={opt.value} /> {opt.label}</span>
                       </SelectItem>
@@ -1037,8 +1084,16 @@ export function N8nGenerationPanel() {
                       <ChevronDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-64 p-2 max-h-72 overflow-y-auto" align="start">
-                    {languages.map(lang => (
+                  <PopoverContent className="w-64 p-2 max-h-80 overflow-y-auto" align="start">
+                    <div className="pb-1.5 sticky top-0 bg-popover z-10">
+                      <Input
+                        placeholder={language === "ru" ? "Поиск языка..." : "Пошук мови..."}
+                        value={langSearch}
+                        onChange={(e) => setLangSearch(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    {filteredLanguages.map(lang => (
                       <label
                         key={lang.value}
                         className="flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-accent cursor-pointer text-sm"
