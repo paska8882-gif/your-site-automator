@@ -87,6 +87,7 @@ const geoIsoMap: Record<string, string> = {
   lt: "lt", nl: "nl", de: "de", ae: "ae", pl: "pl", pt: "pt", ru: "ru",
   ro: "ro", sk: "sk", si: "si", us: "us", th: "th", tr: "tr", ua: "ua",
   hu: "hu", fi: "fi", fr: "fr", hr: "hr", cz: "cz", se: "se", jp: "jp",
+  kz: "kz",
 };
 
 const GeoFlag = ({ value, size = 16 }: { value: string; size?: number }) => {
@@ -131,6 +132,7 @@ const geoOptions = [
   { value: "hr", label: "Хорватія", geoName: "Croatia" },
   { value: "cz", label: "Чехія", geoName: "Czech Republic" },
   { value: "se", label: "Швеція", geoName: "Sweden" },
+  { value: "kz", label: "Казахстан", geoName: "Kazakhstan" },
   { value: "jp", label: "Японія", geoName: "Japan" },
 ];
 
@@ -205,6 +207,10 @@ export function N8nGenerationPanel() {
   const [siteTopic, setSiteTopic] = useState("");
   const [siteType, setSiteType] = useState("");
   const [siteDescription, setSiteDescription] = useState("");
+  
+  // Custom geo/language
+  const [customGeo, setCustomGeo] = useState("");
+  const [customLanguage, setCustomLanguage] = useState("");
   
   // Theme selection state
   const [selectedCategory, setSelectedCategory] = useState<string>("");
@@ -321,9 +327,11 @@ export function N8nGenerationPanel() {
       if (siteName) result += `Name: ${siteName}\n\n`;
       
       const geoOption = geoOptions.find(g => g.value === geo);
-      result += `Geo: ${geoOption?.geoName || geo}\n\n`;
+      const geoText = geo === "custom" ? customGeo : (geoOption?.geoName || geo);
+      result += `Geo: ${geoText}\n\n`;
       
-      const langLabel = languages.find(l => l.value === selectedLanguages[0])?.label?.replace(/^..\s/, "") || selectedLanguages[0];
+      const langCode = selectedLanguages[0] || "en";
+      const langLabel = langCode === "custom" ? customLanguage : (languages.find(l => l.value === langCode)?.label?.replace(/^..\s/, "") || langCode);
       result += `Language: ${langLabel}\n\n`;
       
       if (siteTopic) result += `Topic: ${siteTopic}\n\n`;
@@ -345,12 +353,13 @@ export function N8nGenerationPanel() {
       result += `Домен: ${domain}\n`;
     }
     
-    const geoLabel = geoOptions.find(g => g.value === geo)?.label || geo;
+    const geoLabel = geo === "custom" ? customGeo : (geoOptions.find(g => g.value === geo)?.label || geo);
     result += `Гео: ${geoLabel}\n`;
     
-    const langLabels = selectedLanguages.map(l => 
-      languages.find(lang => lang.value === l)?.label || l
-    ).join(", ");
+    const langLabels = selectedLanguages.map(l => {
+      if (l === "custom") return customLanguage;
+      return languages.find(lang => lang.value === l)?.label || l;
+    }).join(", ");
     result += `Мови: ${langLabels}\n`;
     
     if (keywords.trim()) {
@@ -373,7 +382,7 @@ export function N8nGenerationPanel() {
 
       if (promptMode === "theme" && selectedTopic) {
         // Generate unique prompt from theme using edge function
-        const geoName = geoOptions.find(g => g.value === geo)?.geoName || "USA";
+        const geoName = geo === "custom" ? customGeo : (geoOptions.find(g => g.value === geo)?.geoName || "USA");
         
         const { data, error } = await supabase.functions.invoke('generate-theme-prompt', {
           body: { 
@@ -489,7 +498,7 @@ export function N8nGenerationPanel() {
 
     // Validation based on bot and mode
     if (selectedBot === "nextjs_bot") {
-      if (!domain.trim() || !siteName.trim() || !siteTopic.trim() || !siteDescription.trim()) {
+      if (!siteName.trim() || !siteTopic.trim() || !siteDescription.trim()) {
         toast.error(t("n8n.fillRequired"));
         return;
       }
@@ -705,7 +714,7 @@ export function N8nGenerationPanel() {
                     <Globe className="h-4 w-4" />
                     {t("n8n.nxGeo")}
                   </Label>
-                  <Select value={geo} onValueChange={setGeo} disabled={isSubmitting}>
+                  <Select value={geo} onValueChange={(v) => { setGeo(v); if (v !== "custom") setCustomGeo(""); }} disabled={isSubmitting}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -715,8 +724,18 @@ export function N8nGenerationPanel() {
                           <span className="flex items-center gap-2"><GeoFlag value={opt.value} /> {opt.label}</span>
                         </SelectItem>
                       ))}
+                      <SelectItem value="custom">✏️ {language === "ru" ? "Своё значение" : "Своє значення"}</SelectItem>
                     </SelectContent>
                   </Select>
+                  {geo === "custom" && (
+                    <Input
+                      placeholder={language === "ru" ? "Введите страну / регион" : "Введіть країну / регіон"}
+                      value={customGeo}
+                      onChange={(e) => setCustomGeo(e.target.value)}
+                      disabled={isSubmitting}
+                      className="mt-2"
+                    />
+                  )}
                 </div>
 
                 {/* Language (single select for Next.js) */}
@@ -724,7 +743,7 @@ export function N8nGenerationPanel() {
                   <Label>{t("n8n.nxLanguage")}</Label>
                   <Select 
                     value={selectedLanguages[0] || "en"} 
-                    onValueChange={(v) => setSelectedLanguages([v])} 
+                    onValueChange={(v) => { setSelectedLanguages([v]); if (v !== "custom") setCustomLanguage(""); }}
                     disabled={isSubmitting}
                   >
                     <SelectTrigger>
@@ -736,8 +755,18 @@ export function N8nGenerationPanel() {
                           {lang.label}
                         </SelectItem>
                       ))}
+                      <SelectItem value="custom">✏️ {language === "ru" ? "Своё значение" : "Своє значення"}</SelectItem>
                     </SelectContent>
                   </Select>
+                  {selectedLanguages[0] === "custom" && (
+                    <Input
+                      placeholder={language === "ru" ? "Введите язык" : "Введіть мову"}
+                      value={customLanguage}
+                      onChange={(e) => setCustomLanguage(e.target.value)}
+                      disabled={isSubmitting}
+                      className="mt-2"
+                    />
+                  )}
                 </div>
 
                 {/* Topic */}
@@ -838,7 +867,7 @@ export function N8nGenerationPanel() {
                 {/* Submit */}
                 <Button
                   onClick={handleSubmit}
-                  disabled={isSubmitting || insufficientBalance || (!isAdmin && !teamPricing) || !domain.trim() || !siteName.trim() || !siteTopic.trim() || !siteDescription.trim()}
+                  disabled={isSubmitting || insufficientBalance || (!isAdmin && !teamPricing) || !siteName.trim() || !siteTopic.trim() || !siteDescription.trim()}
                   className="w-full"
                   size="lg"
                 >
@@ -967,7 +996,7 @@ export function N8nGenerationPanel() {
                    <Globe className="h-4 w-4" />
                   {t("n8n.geography")}
                 </Label>
-                <Select value={geo} onValueChange={setGeo} disabled={isSubmitting}>
+                <Select value={geo} onValueChange={(v) => { setGeo(v); if (v !== "custom") setCustomGeo(""); }} disabled={isSubmitting}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -977,8 +1006,18 @@ export function N8nGenerationPanel() {
                         <span className="flex items-center gap-2"><GeoFlag value={opt.value} /> {opt.label}</span>
                       </SelectItem>
                     ))}
+                    <SelectItem value="custom">✏️ {language === "ru" ? "Своё значение" : "Своє значення"}</SelectItem>
                   </SelectContent>
                 </Select>
+                {geo === "custom" && (
+                  <Input
+                    placeholder={language === "ru" ? "Введите страну / регион" : "Введіть країну / регіон"}
+                    value={customGeo}
+                    onChange={(e) => setCustomGeo(e.target.value)}
+                    disabled={isSubmitting}
+                    className="mt-2"
+                  />
+                )}
               </div>
 
               {/* Languages */}
@@ -990,7 +1029,10 @@ export function N8nGenerationPanel() {
                       <span className="truncate">
                         {selectedLanguages.length === 0
                           ? t("selectLanguages")
-                          : selectedLanguages.map(v => languages.find(l => l.value === v)?.label || v).join(", ")}
+                          : selectedLanguages.map(v => {
+                              if (v === "custom") return customLanguage || "✏️";
+                              return languages.find(l => l.value === v)?.label || v;
+                            }).join(", ")}
                       </span>
                       <ChevronDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
                     </Button>
@@ -1008,6 +1050,27 @@ export function N8nGenerationPanel() {
                         {lang.label}
                       </label>
                     ))}
+                    <label className="flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-accent cursor-pointer text-sm border-t mt-1 pt-2">
+                      <Checkbox
+                        checked={selectedLanguages.includes("custom")}
+                        onCheckedChange={() => {
+                          toggleLanguage("custom");
+                          if (!selectedLanguages.includes("custom")) setCustomLanguage("");
+                        }}
+                      />
+                      ✏️ {language === "ru" ? "Своё значение" : "Своє значення"}
+                    </label>
+                    {selectedLanguages.includes("custom") && (
+                      <div className="px-2 py-1.5">
+                        <Input
+                          placeholder={language === "ru" ? "Введите язык" : "Введіть мову"}
+                          value={customLanguage}
+                          onChange={(e) => setCustomLanguage(e.target.value)}
+                          disabled={isSubmitting}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    )}
                   </PopoverContent>
                 </Popover>
               </div>
