@@ -23,6 +23,7 @@ import { SiteEditor } from "./SiteEditor";
 import { GeneratedFile, COLOR_SCHEMES_UI, LAYOUT_STYLES } from "@/lib/websiteGenerator";
 import { useAutoRetry } from "@/hooks/useAutoRetry";
 import { useGenerationHistory, HistoryItem, Appeal } from "@/hooks/useGenerationHistory";
+import { useStuckGenerationRetry } from "@/hooks/useStuckGenerationRetry";
 
 // Helper to get color scheme display data
 function getColorSchemeDisplay(schemeId: string | null): { name: string; colors: string[] } | null {
@@ -820,6 +821,9 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
     addOptimisticItem,
     updateHistoryItem,
   } = useGenerationHistory({ compactMode });
+
+  // Auto-retry stuck generations (generating > 4min with no specific_ai_model)
+  useStuckGenerationRetry(history);
 
   // Expose addOptimisticItem to parent via callback
   useEffect(() => {
