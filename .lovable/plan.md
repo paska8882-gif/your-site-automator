@@ -1,132 +1,100 @@
 
-# Plan: Fix HTML Generator Quality Issues
 
-## Problem Summary
+# Plan: Split Appeals into Auto/Manual + Filter + Bulk Actions
 
-Three critical issues are causing poor HTML site generation:
-1. **96% of failures are timeouts** -- heavy post-processing exceeds edge function time limits
-2. **Topic substitution** -- the internal "refine" step can change the user's topic (e.g., cleaning becomes digital marketing)
-3. **Language mixing** -- the geo location overrides the selected language (e.g., France geo causes French output despite Russian being selected)
-4. **Missing Kazakhstan** support in address/phone generation
+## Overview
 
----
+Add the ability to distinguish auto-generated appeals from manually written ones, filter by this type, and perform bulk approve/reject operations on pending appeals.
+
+## How Auto-Appeals Are Identified
+
+Auto-appeals are created by the system (cleanup functions) and have specific reason patterns:
+- Starts with "Автоповідомлення:"
+- Equals "-"
+
+Everything else is a manual (human-written) appeal.
 
 ## Changes
 
-### 1. Fix Topic Enforcement in generate-website SYSTEM_PROMPT
+### 1. Add Type Filter (Auto / Manual / All)
 
-**File:** `supabase/functions/generate-website/index.ts` (lines ~3992-4026)
+Add a segmented filter above the appeals table with three options:
+- **Всі** (All) -- default
+- **Авто** (Auto) -- system-generated timeout appeals
+- **Ручні** (Manual) -- human-written appeals
 
-Add topic enforcement to the SYSTEM_PROMPT used in the internal refine step, matching what was already added to `improve-prompt`:
+Detection logic:
+```text
+isAutoAppeal = reason starts with "Автоповідомлення:" OR reason === "-"
+```
 
-- Add `TOPIC (CRITICAL, NON-NEGOTIABLE)` section
-- Instruct: "The brief MUST be about the EXACT topic from the user's prompt. Do NOT change, reinterpret, or substitute the topic."
-- Pass the original user topic as a constraint in the user message for the refine step
+A badge/icon will visually distinguish auto vs manual in the table rows (e.g., a robot icon for auto, a pencil icon for manual).
 
-### 2. Fix Language Enforcement in Refine Step
+### 2. Add Type Column to Table
 
-**File:** `supabase/functions/generate-website/index.ts` (lines ~8006-8016)
+Add a narrow "Тип" (Type) column showing:
+- Robot icon + "Авто" badge for auto-appeals
+- Pencil icon + "Ручна" badge for manual appeals
 
-Strengthen the language constraint in the refine step:
+### 3. Add Bulk Selection and Actions
 
-- Add an explicit `LANGUAGE — ABSOLUTE PRIORITY` block to the system prompt, identical to improve-prompt
-- Move the `TARGET CONTENT LANGUAGE` from being a footnote in the user message to being a primary constraint in the system message
-- Ensure the refine step output includes `TARGET_LANGUAGE: <code>` that matches the user's selection, not the geo
+- Add checkboxes to each pending appeal row
+- Add a "Select all visible pending" checkbox in the header
+- Show a bulk action bar when items are selected with:
+  - **Схвалити вибрані (N)** -- approve all selected pending appeals with refund
+  - **Відхилити вибрані (N)** -- reject all selected pending appeals without refund
+  - **Зняти вибір** -- clear selection
+- Bulk operations process sequentially with a progress indicator
+- Confirmation dialog before bulk actions showing count and total refund amount
 
-### 3. Add Kazakhstan Support to generate-website
+### 4. Stats Update
 
-**File:** `supabase/functions/generate-website/index.ts`
-
-Add Kazakhstan (`kz`) to:
-- `GEO_NAMES` map (line ~116): `kz: "Kazakhstan"`
-- `generateRealisticPhone()` function: add `+7 7xx xxx xx xx` format (Kazakhstan uses +7 like Russia but with 7xx area codes)
-- `generateRealisticAddress()` function: add Kazakhstan streets (Almaty, Astana) and address format
-- Country matching logic in `resolveGeoCountryCode()`
-
-### 4. Reduce Timeout Risk
-
-**File:** `supabase/functions/generate-website/index.ts`
-
-- Add timeout guards around image bundling (`bundleExternalImagesForZip`) -- if it takes more than 30 seconds, skip remaining downloads
-- Add a per-image download timeout of 5 seconds (currently no timeout on individual image fetches)
-- Add early exit in `ensureQualityCSS` if CSS is already above minimum thresholds (avoid unnecessary regeneration)
-
----
+Update the stats bar to also show auto/manual counts for the current filter context.
 
 ## Technical Details
 
-### Topic Enforcement Change (SYSTEM_PROMPT)
+### File: `src/components/AdminAppealsTab.tsx`
 
-```text
-TOPIC (CRITICAL, NON-NEGOTIABLE):
-- The brief MUST be about the EXACT topic described in the user's input.
-- Do NOT change, reinterpret, or substitute the topic.
-- If the input says "cleaning" -- the brief is about cleaning services.
-- If the input says "dental" -- the brief is about dental services.
-- Topic deviation = GENERATION FAILURE.
-```
-
-### Language Enforcement Change (Refine Step)
-
-The current refine step (line 8016) puts language as a footnote:
-```
-TARGET CONTENT LANGUAGE: ${language === "uk" ? "Ukrainian" : ...}
-```
-
-Change to inject into SYSTEM prompt as absolute priority:
-```
-LANGUAGE (ABSOLUTE PRIORITY, NON-NEGOTIABLE):
-- Set TARGET_LANGUAGE to: ${normalizedLanguage}
-- ALL content descriptions in the brief MUST reference this language
-- The geo/country does NOT determine the language!
-- If geo=France but language=Russian, the site MUST be in Russian!
-```
-
-### Kazakhstan Phone/Address
-
+**New state variables:**
 ```typescript
-// Phone: Kazakhstan uses +7 7xx format (unlike Russia's +7 4xx/8xx)
-if (hasGeoCode("kz") || geoLower.includes("kazakhstan") || geoLower.includes("казахстан")) {
-  const areaCodes = ["701", "702", "705", "707", "747", "771", "775", "776", "778"];
-  return `+7 ${pick(areaCodes)} ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
-}
-
-// Address: Kazakhstan cities
-kz: {
-  streets: ["проспект Абая", "улица Толе би", "проспект Назарбаева", "улица Гоголя", "проспект Достык"],
-  cities: ["Алматы", "Астана", "Шымкент", "Караганда", "Актобе"],
-  postal: () => `${num(1, 9)}${num(10000, 99999)}`,
-  format: (s, n, c, p) => `${s}, ${n}, ${c}, ${p}, Казахстан`,
-}
+const [typeFilter, setTypeFilter] = useState<"all" | "auto" | "manual">("all");
+const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+const [bulkProcessing, setBulkProcessing] = useState(false);
+const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
 ```
 
-### Timeout Mitigation
-
-Add a per-image timeout and an overall bundling timeout:
-
+**Helper function:**
 ```typescript
-// In downloadImageAsBase64():
-const controller = new AbortController();
-const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s per image
-const res = await fetch(url, { signal: controller.signal, ... });
-
-// In bundleExternalImagesForZip():
-const BUNDLE_DEADLINE = Date.now() + 30000; // 30s total for all images
-async function worker() {
-  while (idx < urls.length && Date.now() < BUNDLE_DEADLINE) {
-    // ... download logic
-  }
-}
+const isAutoAppeal = (reason: string) =>
+  reason.startsWith("Автоповідомлення:") || reason === "-";
 ```
 
----
+**Filtering logic update:**
+```typescript
+const filteredAppeals = appeals
+  .filter(a => !selectedTeamId || a.team_id === selectedTeamId)
+  .filter(a => {
+    if (typeFilter === "auto") return isAutoAppeal(a.reason);
+    if (typeFilter === "manual") return !isAutoAppeal(a.reason);
+    return true;
+  });
+```
+
+**Bulk resolve function:**
+- Iterates over selected IDs
+- For each: updates status, handles refund if approved, logs transaction
+- Sends batch notification via edge function
+- Refreshes data after completion
+
+**Confirmation dialog:**
+- Shows number of selected appeals
+- Shows total refund amount (for approve action)
+- Requires explicit confirmation
+
+### No Database Changes Required
+
+The auto/manual distinction is derived from the `reason` field content -- no schema migration needed.
 
 ## Files to Modify
 
-1. `supabase/functions/generate-website/index.ts` -- all 4 fixes (topic, language, Kazakhstan, timeouts)
-
-## Risk Assessment
-
-- **Low risk**: Kazakhstan support is purely additive
-- **Low risk**: Topic/language enforcement only adds constraints, doesn't change generation flow
-- **Medium risk**: Timeout mitigation changes image bundling behavior (may result in fewer bundled images, but prevents failures)
+1. `src/components/AdminAppealsTab.tsx` -- all UI and logic changes (type filter, bulk selection, bulk actions, type column)
