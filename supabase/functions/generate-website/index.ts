@@ -7285,15 +7285,29 @@ button[disabled], input[type="submit"][disabled] {
 - Each page must be SUBSTANTIAL - no empty or minimal pages
 - Legal pages (privacy, terms, cookie) must each have 3000+ characters of real content
 - All sections must have proper styling and spacing
-- Mobile-first responsive design throughout
 - Smooth hover effects and transitions
 - Professional typography with proper hierarchy
+
+**🚨 RESPONSIVE & LAYOUT — MANDATORY RULES (NON-NEGOTIABLE) 🚨**
+
+The website MUST be **mobile-first** and **fully adaptive** in the range **320px – 1440px**.
+
+1. **Container:** max-width: 1200px; margin-inline: auto; padding-inline: 16px (mobile) / 24px (tablet+). All content must be centered inside .container.
+2. **Fluid typography:** Use clamp() for ALL font-sizes: h1 clamp(2rem, 5vw, 3.5rem), h2 clamp(1.5rem, 4vw, 2.5rem), h3 clamp(1.25rem, 3vw, 1.75rem), body clamp(0.95rem, 1.5vw, 1.125rem).
+3. **Vertical rhythm:** Consistent section padding via clamp(48px, 8vw, 96px). Heading margins clamp(24px, 4vw, 48px).
+4. **Layout engine:** ALL layouts MUST use flex or grid. NEVER use float, position: absolute for layout, or fixed heights on content containers.
+5. **Column stacking:** Multi-column layouts (cards, features, grids) MUST stack vertically on screens ≤767px. Use grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) or flexbox with flex-wrap.
+6. **Repeating elements:** Cards, features, testimonials, team members — ALL must have identical dimensions, gaps, image aspect ratios, and typography. No card should be taller/wider than others.
+7. **No horizontal scroll:** body { overflow-x: hidden }. All elements must respect 100% viewport width. No element may exceed container boundaries.
+8. **Images:** All images must use max-width: 100%; height: auto; object-fit: cover. Hero images: clamp(240px, 45vh, 520px) height.
+9. **Touch targets:** All interactive elements (buttons, links, inputs) must be at least 44px tall on mobile.
+10. **Technology:** Semantic HTML5, CSS3, Vanilla JS. Responsive. No frameworks, no build tools.
 
 **CSS MUST INCLUDE:**
 - CSS variables in :root
 - Image size constraints (CRITICAL!)
 - Premium footer styles
-- Mobile responsive breakpoints
+- Mobile-first breakpoints: default → @media (min-width: 768px) → @media (min-width: 1024px)
 - Card hover effects
 - Form styling with validation states
 - Cookie banner
@@ -7661,14 +7675,14 @@ const IMAGE_CSS = `
 img { max-width: 100%; height: auto; display: block; }
 .card img { width: 100%; height: 200px; object-fit: cover; border-radius: 8px 8px 0 0; }
 
-**MOBILE-FIRST BREAKPOINTS:**
-/* Mobile (default) */
-/* Tablet: 768px */
-@media (min-width: 768px) { ... }
-/* Desktop: 1024px */
-@media (min-width: 1024px) { ... }
-/* Large: 1280px */
-@media (min-width: 1280px) { ... }
+**MOBILE-FIRST BREAKPOINTS (mandatory mobile-first approach):**
+/* Mobile (default — styles written for 320px+) */
+/* Tablet: @media (min-width: 768px) { ... } */
+/* Desktop: @media (min-width: 1024px) { ... } */
+/* Large: @media (min-width: 1280px) { ... } */
+/* NEVER use max-width queries as primary strategy. Always mobile-first with min-width. */
+/* ALL multi-column layouts MUST stack to single column below 768px */
+/* Use flex-wrap: wrap or grid auto-fit for predictable stacking */
 
 **MOBILE MENU (MANDATORY in script.js):**
 - Hamburger button visible on mobile

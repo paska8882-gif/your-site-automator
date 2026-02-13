@@ -72,8 +72,21 @@ Required pages: index.html, about.html, services.html, contact.html, blog.html (
 ## 7. TECHNICAL REQUIREMENTS
 - Languages: [from input]
 - i18n system with localStorage
-- Responsive design
 - Picsum.photos for images
+- Technology: Semantic HTML5, CSS3, Vanilla JS only (no frameworks, no build tools)
+
+## 7.1 RESPONSIVE & LAYOUT (MANDATORY)
+- Mobile-first, fully adaptive 320px–1440px
+- Container: max-width 1200px, centered, padding-inline 16px mobile / 24px tablet+
+- Fluid typography with clamp() for all font sizes
+- Consistent vertical rhythm: section padding clamp(48px, 8vw, 96px)
+- ALL layouts via flex or grid only — no float, no absolute positioning for layout, no fixed heights
+- Multi-column layouts must stack to single column below 768px (grid auto-fit or flex-wrap)
+- Repeating elements (cards, features) must have identical dimensions, gaps, image ratios, typography
+- No horizontal scroll — body overflow-x: hidden
+- Images: max-width 100%, height auto, object-fit cover
+- Touch targets minimum 44px on mobile
+- Breakpoints: default (mobile) → @media (min-width: 768px) → @media (min-width: 1024px)
 
 ## 8. PROHIBITED CONTENT
 - Words to avoid: [from input or "none"]
