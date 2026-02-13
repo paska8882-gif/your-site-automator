@@ -12347,21 +12347,25 @@ ${promptForGeneration}`;
         });
       }
 
-      // Verify ownership
+      // Verify ownership (admins can retry any generation)
       if (existingRecord.user_id !== userId) {
-        if (teamId && salePrice > 0) {
-          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
-          if (team) {
-            await supabase
-              .from("teams")
-              .update({ balance: (team.balance || 0) + salePrice })
-              .eq("id", teamId);
+        const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+        if (!isAdmin) {
+          if (teamId && salePrice > 0) {
+            const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+            if (team) {
+              await supabase
+                .from("teams")
+                .update({ balance: (team.balance || 0) + salePrice })
+                .eq("id", teamId);
+            }
           }
+          return new Response(JSON.stringify({ success: false, error: "Unauthorized retry" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
-        return new Response(JSON.stringify({ success: false, error: "Unauthorized retry" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        console.log(`🔑 Admin ${userId} retrying generation owned by ${existingRecord.user_id}`);
       }
 
       // Compute EFFECTIVE values for retry (prefer body param, fallback to existing record)
