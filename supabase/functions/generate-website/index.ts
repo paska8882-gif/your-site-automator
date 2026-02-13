@@ -8272,7 +8272,7 @@ These are realistic, verified contact details for the target region. DO NOT repl
         },
         2,
         2000,
-        180000,
+        600000,
       );
     } catch (fetchError) {
       const errorMsg = (fetchError as Error)?.message || String(fetchError);
