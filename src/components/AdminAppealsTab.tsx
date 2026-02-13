@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -33,7 +35,9 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronLeft,
-  X
+  X,
+  Bot,
+  PenLine
 } from "lucide-react";
 
 interface Appeal {
@@ -50,12 +54,10 @@ interface Appeal {
   created_at: string;
   resolved_at: string | null;
   resolved_by: string | null;
-  // Joined data
   user_name?: string;
   team_name?: string;
   site_name?: string;
   prompt?: string;
-  // Generation data for download
   zip_data?: string | null;
   website_type?: string | null;
   ai_model?: string | null;
@@ -78,6 +80,9 @@ interface BalanceTransaction {
   created_at: string;
 }
 
+const isAutoAppeal = (reason: string) =>
+  reason.startsWith("Автоповідомлення:") || reason === "-";
+
 export function AdminAppealsTab() {
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -89,13 +94,22 @@ export function AdminAppealsTab() {
   const [adminComment, setAdminComment] = useState("");
   const [processing, setProcessing] = useState(false);
   
-  // Teams and balances - restore from URL
+  // Teams and balances
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(
     searchParams.get("teamId")
   );
   const [transactions, setTransactions] = useState<BalanceTransaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+
+  // Type filter
+  const [typeFilter, setTypeFilter] = useState<"all" | "auto" | "manual">("all");
+
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
+  const [bulkConfirmAction, setBulkConfirmAction] = useState<"approve" | "reject" | null>(null);
 
   // Collapsible group states
   const [pendingGroupOpen, setPendingGroupOpen] = useState(true);
@@ -129,6 +143,7 @@ export function AdminAppealsTab() {
 
   const handleTeamSelect = (teamId: string | null) => {
     setSelectedTeamId(teamId);
+    setSelectedIds(new Set());
     const newParams = new URLSearchParams(searchParams);
     if (teamId) {
       newParams.set("teamId", teamId);
@@ -143,7 +158,6 @@ export function AdminAppealsTab() {
     fetchTeams();
   }, []);
 
-  // Fetch transactions when team is selected
   useEffect(() => {
     if (selectedTeamId) {
       fetchTransactions(selectedTeamId);
@@ -152,7 +166,6 @@ export function AdminAppealsTab() {
     }
   }, [selectedTeamId]);
 
-  // Real-time subscription for team balance updates
   useEffect(() => {
     const channel = supabase
       .channel('teams-balance-changes')
@@ -172,6 +185,11 @@ export function AdminAppealsTab() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  // Clear selection when filter changes
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [typeFilter]);
 
   const fetchTeams = async () => {
     const { data } = await supabase
@@ -202,7 +220,6 @@ export function AdminAppealsTab() {
   const fetchAppeals = async () => {
     setLoading(true);
 
-    // Fetch appeals
     const { data: appealsData, error } = await supabase
       .from("appeals")
       .select("*")
@@ -220,39 +237,33 @@ export function AdminAppealsTab() {
       return;
     }
 
-    // Get unique IDs for joins
     const userIds = [...new Set(appealsData.map(a => a.user_id))];
     const generationIds = [...new Set(appealsData.map(a => a.generation_id))];
 
-    // Fetch profiles
     const { data: profiles } = await supabase
       .from("profiles")
       .select("user_id, display_name")
       .in("user_id", userIds);
 
-    // Fetch generations with team_id and zip_data for download
     const { data: generations } = await supabase
       .from("generation_history")
       .select("id, site_name, prompt, team_id, zip_data, website_type, ai_model, language")
       .in("id", generationIds);
 
-    // Get team IDs from generations (the actual team that paid for the site)
     const generationTeamIds = [...new Set(generations?.map(g => g.team_id).filter(Boolean) || [])];
 
-    // Fetch teams based on generation team_ids
     const { data: teams } = await supabase
       .from("teams")
       .select("id, name")
       .in("id", generationTeamIds);
 
-    // Combine data - use team from generation_history, not from appeal
     const enrichedAppeals: Appeal[] = appealsData.map(appeal => {
       const generation = generations?.find(g => g.id === appeal.generation_id);
       const actualTeamId = generation?.team_id || appeal.team_id;
       return {
         ...appeal,
         screenshot_urls: (appeal.screenshot_urls as string[] | null) || null,
-        team_id: actualTeamId, // Override with the actual team that paid
+        team_id: actualTeamId,
         user_name: profiles?.find(p => p.user_id === appeal.user_id)?.display_name || "Невідомий",
         team_name: teams?.find(t => t.id === actualTeamId)?.name || "Невідома команда",
         site_name: generation?.site_name || "Невідомий сайт",
@@ -276,7 +287,6 @@ export function AdminAppealsTab() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Update appeal status
       const { error: appealError } = await supabase
         .from("appeals")
         .update({
@@ -289,9 +299,7 @@ export function AdminAppealsTab() {
 
       if (appealError) throw appealError;
 
-      // If approved, refund the amount to team balance
       if (approved && selectedAppeal.amount_to_refund > 0 && selectedAppeal.team_id) {
-        // Get current team balance
         const { data: team, error: teamFetchError } = await supabase
           .from("teams")
           .select("balance")
@@ -317,7 +325,6 @@ export function AdminAppealsTab() {
             throw new Error("Не вдалося оновити баланс команди");
           }
 
-          // Log the transaction
           await supabase.from("balance_transactions").insert({
             team_id: selectedAppeal.team_id,
             amount: selectedAppeal.amount_to_refund,
@@ -327,12 +334,10 @@ export function AdminAppealsTab() {
             note: `Апеляція: повернення за ${selectedAppeal.site_name || "сайт"}`
           });
 
-          // Update local teams state immediately
           setTeams(prev => prev.map(t => 
             t.id === selectedAppeal.team_id ? { ...t, balance: newBalance } : t
           ));
 
-          // Refresh transactions if this team is selected
           if (selectedTeamId === selectedAppeal.team_id) {
             fetchTransactions(selectedAppeal.team_id);
           }
@@ -341,7 +346,6 @@ export function AdminAppealsTab() {
         }
       }
 
-      // Create notification for user about appeal resolution via secure edge function
       await supabase.functions.invoke('create-notification', {
         body: {
           notifications: [{
@@ -350,7 +354,7 @@ export function AdminAppealsTab() {
             title: approved ? "Апеляцію схвалено" : "Апеляцію відхилено",
             message: approved 
               ? `Вашу апеляцію схвалено. Повернено $${selectedAppeal.amount_to_refund.toFixed(2)}`
-              : `Вашу апеляцію відхилено${adminComment ? `: ${adminComment}` : ""}`,
+              : "Вашу апеляцію відхилено",
             data: { appealId: selectedAppeal.id, approved, amount: approved ? selectedAppeal.amount_to_refund : 0 }
           }]
         }
@@ -366,7 +370,7 @@ export function AdminAppealsTab() {
       setSelectedAppeal(null);
       setAdminComment("");
       fetchAppeals();
-      fetchTeams(); // Refresh team balances
+      fetchTeams();
     } catch (error) {
       console.error("Error resolving appeal:", error);
       toast({
@@ -379,7 +383,6 @@ export function AdminAppealsTab() {
     setProcessing(false);
   };
 
-  // Download ZIP handler
   const handleDownload = (appeal: Appeal) => {
     if (!appeal.zip_data) {
       toast({
@@ -454,6 +457,102 @@ export function AdminAppealsTab() {
     }
   };
 
+  // Bulk resolve
+  const handleBulkResolve = async (approved: boolean) => {
+    setBulkConfirmAction(null);
+    setBulkProcessing(true);
+    const ids = Array.from(selectedIds);
+    const appealsToProcess = filteredAppeals.filter(a => ids.includes(a.id) && a.status === "pending");
+    setBulkProgress({ current: 0, total: appealsToProcess.length });
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const notifications: Array<{user_id: string; type: string; title: string; message: string; data: Record<string, unknown>}> = [];
+
+      for (let i = 0; i < appealsToProcess.length; i++) {
+        const appeal = appealsToProcess[i];
+        setBulkProgress({ current: i + 1, total: appealsToProcess.length });
+
+        // Update appeal status
+        await supabase
+          .from("appeals")
+          .update({
+            status: approved ? "approved" : "rejected",
+            admin_comment: approved ? "Масове схвалення" : "Масове відхилення",
+            resolved_at: new Date().toISOString(),
+            resolved_by: user?.id
+          })
+          .eq("id", appeal.id);
+
+        // If approved, refund
+        if (approved && appeal.amount_to_refund > 0 && appeal.team_id) {
+          const { data: team } = await supabase
+            .from("teams")
+            .select("balance")
+            .eq("id", appeal.team_id)
+            .single();
+
+          if (team) {
+            const balanceBefore = Number(team.balance || 0);
+            const newBalance = balanceBefore + Number(appeal.amount_to_refund);
+            
+            await supabase
+              .from("teams")
+              .update({ balance: newBalance })
+              .eq("id", appeal.team_id);
+
+            await supabase.from("balance_transactions").insert({
+              team_id: appeal.team_id,
+              amount: appeal.amount_to_refund,
+              balance_before: balanceBefore,
+              balance_after: newBalance,
+              admin_id: user?.id,
+              note: `Апеляція (масова): повернення за ${appeal.site_name || "сайт"}`
+            });
+          }
+        }
+
+        notifications.push({
+          user_id: appeal.user_id,
+          type: approved ? "appeal_approved" : "appeal_rejected",
+          title: approved ? "Апеляцію схвалено" : "Апеляцію відхилено",
+          message: approved 
+            ? `Вашу апеляцію схвалено. Повернено $${appeal.amount_to_refund.toFixed(2)}`
+            : "Вашу апеляцію відхилено",
+          data: { appealId: appeal.id, approved, amount: approved ? appeal.amount_to_refund : 0 }
+        });
+      }
+
+      // Send all notifications in one batch
+      if (notifications.length > 0) {
+        await supabase.functions.invoke('create-notification', {
+          body: { notifications }
+        });
+      }
+
+      toast({
+        title: "Успішно",
+        description: approved 
+          ? `Схвалено ${appealsToProcess.length} апеляцій`
+          : `Відхилено ${appealsToProcess.length} апеляцій`
+      });
+
+      setSelectedIds(new Set());
+      fetchAppeals();
+      fetchTeams();
+    } catch (error) {
+      console.error("Bulk resolve error:", error);
+      toast({
+        title: "Помилка",
+        description: "Помилка при масовій обробці",
+        variant: "destructive"
+      });
+    }
+    
+    setBulkProcessing(false);
+    setBulkProgress({ current: 0, total: 0 });
+  };
+
   const pendingCount = appeals.filter(a => a.status === "pending").length;
 
   if (loading) {
@@ -465,9 +564,42 @@ export function AdminAppealsTab() {
   }
 
   const selectedTeam = teams.find(t => t.id === selectedTeamId);
-  const filteredAppeals = selectedTeamId 
-    ? appeals.filter(a => a.team_id === selectedTeamId)
-    : appeals;
+  
+  // Apply both team and type filters
+  const filteredAppeals = appeals
+    .filter(a => !selectedTeamId || a.team_id === selectedTeamId)
+    .filter(a => {
+      if (typeFilter === "auto") return isAutoAppeal(a.reason);
+      if (typeFilter === "manual") return !isAutoAppeal(a.reason);
+      return true;
+    });
+
+  // Pending appeals in current filtered view (for bulk actions)
+  const pendingFiltered = filteredAppeals.filter(a => a.status === "pending");
+  const selectedPendingAppeals = filteredAppeals.filter(a => selectedIds.has(a.id) && a.status === "pending");
+  const selectedRefundTotal = selectedPendingAppeals.reduce((sum, a) => sum + a.amount_to_refund, 0);
+  const allPendingSelected = pendingFiltered.length > 0 && pendingFiltered.every(a => selectedIds.has(a.id));
+
+  // Stats counts
+  const autoCount = filteredAppeals.filter(a => isAutoAppeal(a.reason)).length;
+  const manualCount = filteredAppeals.filter(a => !isAutoAppeal(a.reason)).length;
+
+  const toggleSelectAll = () => {
+    if (allPendingSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(pendingFiltered.map(a => a.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <div className="space-y-3">
@@ -652,8 +784,8 @@ export function AdminAppealsTab() {
 
         {/* Right: Appeals and stats */}
         <div className="lg:col-span-3 space-y-3">
-          {/* Stats inline */}
-          <div className="flex flex-wrap gap-2">
+          {/* Stats inline + Type filter */}
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
               <Clock className="h-3 w-3 text-yellow-500" />
               <span className="text-xs text-muted-foreground">{t("admin.pendingAppeals")}:</span>
@@ -669,7 +801,90 @@ export function AdminAppealsTab() {
               <span className="text-xs text-muted-foreground">{t("admin.rejectedAppeals")}:</span>
               <span className="text-sm font-bold text-destructive">{filteredAppeals.filter(a => a.status === "rejected").length}</span>
             </div>
+            
+            {/* Auto/Manual counts */}
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
+              <Bot className="h-3 w-3 text-blue-500" />
+              <span className="text-xs text-muted-foreground">Авто:</span>
+              <span className="text-sm font-bold text-blue-500">{autoCount}</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card">
+              <PenLine className="h-3 w-3 text-orange-500" />
+              <span className="text-xs text-muted-foreground">Ручні:</span>
+              <span className="text-sm font-bold text-orange-500">{manualCount}</span>
+            </div>
+
+            {/* Type filter buttons */}
+            <div className="flex items-center gap-0.5 ml-auto border rounded-md p-0.5 bg-muted/30">
+              {([
+                { key: "all" as const, label: "Всі" },
+                { key: "auto" as const, label: "Авто", icon: Bot },
+                { key: "manual" as const, label: "Ручні", icon: PenLine },
+              ]).map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => setTypeFilter(key)}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                    typeFilter === key 
+                      ? "bg-primary text-primary-foreground shadow-sm" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  {Icon && <Icon className="h-3 w-3" />}
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* Bulk action bar */}
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-2 p-2 rounded-md border bg-primary/5 border-primary/20">
+              <span className="text-xs font-medium">
+                Вибрано: {selectedPendingAppeals.length} апеляцій (${selectedRefundTotal.toFixed(2)})
+              </span>
+              <div className="flex items-center gap-1.5 ml-auto">
+                <Button
+                  size="sm"
+                  className="h-7 text-xs bg-green-600 hover:bg-green-700"
+                  onClick={() => setBulkConfirmAction("approve")}
+                  disabled={selectedPendingAppeals.length === 0 || bulkProcessing}
+                >
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Схвалити ({selectedPendingAppeals.length})
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="h-7 text-xs"
+                  onClick={() => setBulkConfirmAction("reject")}
+                  disabled={selectedPendingAppeals.length === 0 || bulkProcessing}
+                >
+                  <XCircle className="h-3 w-3 mr-1" />
+                  Відхилити ({selectedPendingAppeals.length})
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs"
+                  onClick={() => setSelectedIds(new Set())}
+                >
+                  Зняти вибір
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Bulk progress */}
+          {bulkProcessing && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Обробка {bulkProgress.current} з {bulkProgress.total}...
+              </div>
+              <Progress value={(bulkProgress.current / bulkProgress.total) * 100} className="h-2" />
+            </div>
+          )}
 
           {/* Appeals Table */}
           <Card>
@@ -690,6 +905,14 @@ export function AdminAppealsTab() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="text-xs py-1.5 w-8">
+                          <Checkbox
+                            checked={allPendingSelected && pendingFiltered.length > 0}
+                            onCheckedChange={toggleSelectAll}
+                            aria-label="Вибрати всі"
+                          />
+                        </TableHead>
+                        <TableHead className="text-xs py-1.5 w-16">Тип</TableHead>
                         <TableHead className="text-xs py-1.5">{t("admin.status")}</TableHead>
                         <TableHead className="text-xs py-1.5">{t("admin.user")}</TableHead>
                         <TableHead className="text-xs py-1.5">{t("admin.userTeam")}</TableHead>
@@ -700,48 +923,74 @@ export function AdminAppealsTab() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredAppeals.map(appeal => (
-                        <TableRow key={appeal.id}>
-                          <TableCell className="py-1.5">{getStatusBadge(appeal.status)}</TableCell>
-                          <TableCell className="py-1.5 text-xs">{appeal.user_name}</TableCell>
-                          <TableCell className="py-1.5 text-xs">{appeal.team_name}</TableCell>
-                          <TableCell className="py-1.5 text-xs max-w-[120px] truncate" title={appeal.site_name}>
-                            <div className="flex items-center gap-1">
-                              {appeal.site_name}
-                              {(appeal.screenshot_urls?.length || appeal.screenshot_url) && (
-                                <span title={`${appeal.screenshot_urls?.length || 1} скріншот(ів)`} className="flex items-center">
-                                  <Image className="h-3 w-3 text-muted-foreground" />
-                                  {(appeal.screenshot_urls?.length || 0) > 1 && (
-                                    <span className="text-[10px] text-muted-foreground ml-0.5">
-                                      {appeal.screenshot_urls?.length}
-                                    </span>
-                                  )}
-                                </span>
+                      {filteredAppeals.map(appeal => {
+                        const isAuto = isAutoAppeal(appeal.reason);
+                        return (
+                          <TableRow key={appeal.id} className={selectedIds.has(appeal.id) ? "bg-primary/5" : undefined}>
+                            <TableCell className="py-1.5">
+                              {appeal.status === "pending" ? (
+                                <Checkbox
+                                  checked={selectedIds.has(appeal.id)}
+                                  onCheckedChange={() => toggleSelect(appeal.id)}
+                                />
+                              ) : (
+                                <div className="w-4" />
                               )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-1.5 text-xs font-medium">
-                            ${appeal.amount_to_refund.toFixed(2)}
-                          </TableCell>
-                          <TableCell className="py-1.5 text-[10px]">
-                            {new Date(appeal.created_at).toLocaleDateString("uk-UA")}
-                          </TableCell>
-                          <TableCell className="py-1.5 text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-6 text-[10px] px-1.5"
-                              onClick={() => {
-                                setSelectedAppeal(appeal);
-                                setAdminComment(appeal.admin_comment || "");
-                              }}
-                            >
-                              <Eye className="h-3 w-3 mr-0.5" />
-                              {t("common.details")}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                            </TableCell>
+                            <TableCell className="py-1.5">
+                              {isAuto ? (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-500/10 text-blue-600 border-blue-500/30 gap-0.5">
+                                  <Bot className="h-2.5 w-2.5" />
+                                  Авто
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-orange-500/10 text-orange-600 border-orange-500/30 gap-0.5">
+                                  <PenLine className="h-2.5 w-2.5" />
+                                  Ручна
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-1.5">{getStatusBadge(appeal.status)}</TableCell>
+                            <TableCell className="py-1.5 text-xs">{appeal.user_name}</TableCell>
+                            <TableCell className="py-1.5 text-xs">{appeal.team_name}</TableCell>
+                            <TableCell className="py-1.5 text-xs max-w-[120px] truncate" title={appeal.site_name}>
+                              <div className="flex items-center gap-1">
+                                {appeal.site_name}
+                                {(appeal.screenshot_urls?.length || appeal.screenshot_url) && (
+                                  <span title={`${appeal.screenshot_urls?.length || 1} скріншот(ів)`} className="flex items-center">
+                                    <Image className="h-3 w-3 text-muted-foreground" />
+                                    {(appeal.screenshot_urls?.length || 0) > 1 && (
+                                      <span className="text-[10px] text-muted-foreground ml-0.5">
+                                        {appeal.screenshot_urls?.length}
+                                      </span>
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-1.5 text-xs font-medium">
+                              ${appeal.amount_to_refund.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="py-1.5 text-[10px]">
+                              {new Date(appeal.created_at).toLocaleDateString("uk-UA")}
+                            </TableCell>
+                            <TableCell className="py-1.5 text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 text-[10px] px-1.5"
+                                onClick={() => {
+                                  setSelectedAppeal(appeal);
+                                  setAdminComment(appeal.admin_comment || "");
+                                }}
+                              >
+                                <Eye className="h-3 w-3 mr-0.5" />
+                                {t("common.details")}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -750,6 +999,47 @@ export function AdminAppealsTab() {
           </Card>
         </div>
       </div>
+
+      {/* Bulk confirm dialog */}
+      <Dialog open={!!bulkConfirmAction} onOpenChange={() => setBulkConfirmAction(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {bulkConfirmAction === "approve" ? "Масове схвалення" : "Масове відхилення"}
+            </DialogTitle>
+            <DialogDescription>
+              {bulkConfirmAction === "approve" 
+                ? `Ви збираєтесь схвалити ${selectedPendingAppeals.length} апеляцій і повернути $${selectedRefundTotal.toFixed(2)} на баланси команд.`
+                : `Ви збираєтесь відхилити ${selectedPendingAppeals.length} апеляцій без повернення коштів.`
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between p-2 bg-muted rounded">
+              <span className="text-muted-foreground">Кількість:</span>
+              <span className="font-medium">{selectedPendingAppeals.length}</span>
+            </div>
+            {bulkConfirmAction === "approve" && (
+              <div className="flex justify-between p-2 bg-muted rounded">
+                <span className="text-muted-foreground">Загальне повернення:</span>
+                <span className="font-bold text-green-600">${selectedRefundTotal.toFixed(2)}</span>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setBulkConfirmAction(null)}>
+              Скасувати
+            </Button>
+            <Button 
+              onClick={() => handleBulkResolve(bulkConfirmAction === "approve")}
+              className={bulkConfirmAction === "approve" ? "bg-green-600 hover:bg-green-700" : ""}
+              variant={bulkConfirmAction === "reject" ? "destructive" : "default"}
+            >
+              {bulkConfirmAction === "approve" ? "Підтвердити схвалення" : "Підтвердити відхилення"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Appeal Detail Dialog */}
       <Dialog open={!!selectedAppeal} onOpenChange={() => setSelectedAppeal(null)}>
@@ -776,6 +1066,22 @@ export function AdminAppealsTab() {
                 <div>
                   <span className="text-muted-foreground">{t("admin.refundAmount")}:</span>
                   <p className="font-medium text-lg">${selectedAppeal.amount_to_refund.toFixed(2)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Тип:</span>
+                  <div className="mt-0.5">
+                    {isAutoAppeal(selectedAppeal.reason) ? (
+                      <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 gap-1">
+                        <Bot className="h-3 w-3" />
+                        Автоапеляція
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 gap-1">
+                        <PenLine className="h-3 w-3" />
+                        Ручна апеляція
+                      </Badge>
+                    )}
+                  </div>
                 </div>
                 <div className="col-span-2">
                   <span className="text-muted-foreground">ID сайту:</span>
@@ -943,7 +1249,6 @@ export function AdminAppealsTab() {
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
         <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none">
           <div className="relative flex items-center justify-center min-h-[80vh]">
-            {/* Close button */}
             <Button
               variant="ghost"
               size="icon"
@@ -953,14 +1258,12 @@ export function AdminAppealsTab() {
               <X className="h-6 w-6" />
             </Button>
             
-            {/* Image counter */}
             {lightboxImages.length > 1 && (
               <div className="absolute top-2 left-2 z-50 text-white text-sm bg-black/50 px-2 py-1 rounded">
                 {lightboxIndex + 1} / {lightboxImages.length}
               </div>
             )}
             
-            {/* Previous button */}
             {lightboxImages.length > 1 && (
               <Button
                 variant="ghost"
@@ -972,7 +1275,6 @@ export function AdminAppealsTab() {
               </Button>
             )}
             
-            {/* Main image */}
             {lightboxImages[lightboxIndex] && (
               <img
                 src={lightboxImages[lightboxIndex]}
@@ -981,7 +1283,6 @@ export function AdminAppealsTab() {
               />
             )}
             
-            {/* Next button */}
             {lightboxImages.length > 1 && (
               <Button
                 variant="ghost"
@@ -993,7 +1294,6 @@ export function AdminAppealsTab() {
               </Button>
             )}
             
-            {/* Thumbnail strip */}
             {lightboxImages.length > 1 && (
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-black/50 p-2 rounded">
                 {lightboxImages.map((url, index) => (
