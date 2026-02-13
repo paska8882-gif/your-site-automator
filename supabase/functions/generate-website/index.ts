@@ -114,10 +114,14 @@ function extractExternalImageUrlsFromText(text: string): string[] {
 
 async function downloadImageAsBase64(url: string): Promise<{ base64: string; ext: string } | null> {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s per image
     const res = await fetch(url, {
       redirect: "follow",
       headers: { "user-agent": "LovableSiteGenerator/1.0" },
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
     if (!res.ok) {
       console.log(`[ZIP] Failed to fetch image ${url} -> ${res.status}`);
       return null;
@@ -160,9 +164,10 @@ async function bundleExternalImagesForZip(files: Array<{ path: string; content: 
   const concurrency = 6;
   let idx = 0;
   let downloadedCount = 0;
+  const BUNDLE_DEADLINE = Date.now() + 30000; // 30s total for all images
 
   async function worker() {
-    while (idx < urls.length) {
+    while (idx < urls.length && Date.now() < BUNDLE_DEADLINE) {
       const my = idx++;
       const url = urls[my];
 
@@ -174,6 +179,9 @@ async function bundleExternalImagesForZip(files: Array<{ path: string; content: 
       urlToLocalPath.set(url, localPath);
       binaryFiles.push({ path: localPath, base64: dl.base64 });
       downloadedCount++;
+    }
+    if (Date.now() >= BUNDLE_DEADLINE) {
+      console.log(`[ZIP] Bundle deadline reached, skipping remaining ${urls.length - idx} images`);
     }
   }
 
@@ -449,6 +457,12 @@ function generateRealisticPhone(geo?: string): string {
     hasGeoCode("ae")
   ) {
     return `+971 4 ${randomDigits(3)} ${randomDigits(4)}`;
+  }
+
+  // Kazakhstan +7 (7xx area codes, must be checked BEFORE Russia since both use +7)
+  if (geoLower.includes("kazakhstan") || geoLower.includes("казахстан") || geoLower.includes("қазақстан") || hasGeoCode("kz")) {
+    const areaCodes = ["701", "702", "705", "707", "747", "771", "775", "776", "778"];
+    return `+7 ${areaCodes[Math.floor(Math.random() * areaCodes.length)]} ${randomDigits(3)} ${randomDigits(2)} ${randomDigits(2)}`;
   }
 
   // Russia +7
@@ -1112,6 +1126,23 @@ function generateRealisticAddress(geo?: string): string {
       postal: () => `${num(10, 99)}${num(100, 999)}`,
       format: (s, n, c, p) => `${s} No. ${n}, ${c} ${p}, Indonesia`,
     },
+    kz: {
+      streets: [
+        "проспект Абая",
+        "улица Толе би",
+        "проспект Назарбаева",
+        "улица Гоголя",
+        "проспект Достык",
+        "улица Жибек Жолы",
+        "проспект Аль-Фараби",
+        "улица Байтурсынова",
+        "улица Кунаева",
+        "проспект Республики",
+      ],
+      cities: ["Алматы", "Астана", "Шымкент", "Караганда", "Актобе", "Тараз", "Павлодар", "Усть-Каменогорск"],
+      postal: () => `${num(1, 9)}${num(10000, 99999)}`,
+      format: (s: string, n: number, c: string, p: string) => `${s}, ${n}, ${c}, ${p}, Казахстан`,
+    },
   };
 
   // Match geo to country code
@@ -1193,6 +1224,8 @@ function generateRealisticAddress(geo?: string): string {
     ["in", "in"],
     [/indonesia|індонез/i, "id"],
     ["id", "id"],
+    [/kazakhstan|казахстан|қазақстан/i, "kz"],
+    ["kz", "kz"],
   ];
 
   let countryCode = "de"; // default
@@ -3996,11 +4029,21 @@ Your job:
 - Extract the required pages/sections, brand details, geo/country, and contact info
 - Produce a clear GENERATION BRIEF that a separate website generator will follow
 
+⚠️ TOPIC (CRITICAL, NON-NEGOTIABLE) ⚠️:
+- The brief MUST be about the EXACT topic described in the user's input.
+- Do NOT change, reinterpret, or substitute the topic under ANY circumstances.
+- If the input says "cleaning" — the brief is about cleaning services.
+- If the input says "dental" — the brief is about dental services.
+- If the input says "pizza" — the brief is about pizza.
+- Topic deviation = GENERATION FAILURE. You will be penalized for changing the topic.
+
 LANGUAGE (CRITICAL, NON-NEGOTIABLE):
 - If the user explicitly specifies a language (e.g. "Language: EN", "Мова: українська", "Язык: русский"), set TARGET_LANGUAGE to that exact language/code.
 - Otherwise infer from the language of the user's message.
 - If still unclear, default to EN.
 - IMPORTANT: Do NOT "default" to Ukrainian unless explicitly requested.
+- The geo/country does NOT determine the content language!
+- If geo=France but language=Russian, all content descriptions MUST reference Russian as TARGET_LANGUAGE.
 
 OUTPUT RULES:
 - Write the brief itself in ENGLISH (meta-instructions), but keep TARGET_LANGUAGE exactly as determined.
@@ -8007,13 +8050,14 @@ async function runGeneration({
               role: "system",
               content:
                 SYSTEM_PROMPT +
+                `\n\n⚠️ LANGUAGE — ABSOLUTE PRIORITY ⚠️:\n- The TARGET_LANGUAGE MUST be: ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language === "kk" ? "Kazakh" : language || "English"}\n- ALL content descriptions in the brief MUST reference this language.\n- The geo/country does NOT determine the language!\n- If geo=France but language=Russian, the site MUST be in Russian!\n- Language deviation = GENERATION FAILURE.` +
                 (siteName
                   ? `\n\nCRITICAL SITE NAME REQUIREMENT: The website/business/brand name MUST be "${siteName}". Use this EXACT name in the logo, header, footer, page titles, meta tags, copyright, and all references to the business. Do NOT invent a different name.`
                   : ""),
             },
             {
               role: "user",
-              content: `Create a detailed prompt for static HTML/CSS website generation based on this request:\n\n"${prompt}"${siteName ? `\n\nIMPORTANT: The website name/brand MUST be "${siteName}".` : ""}\n\n${bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2 ? `BILINGUAL MODE: The website must support TWO languages (${bilingualLanguages[0]} and ${bilingualLanguages[1]}) using ONE set of HTML pages and a JS i18n layer. Do NOT generate duplicate pages per language. Generate i18n/translations.js + i18n/i18n.js and mark texts with data-i18n keys.` : `TARGET CONTENT LANGUAGE: ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language || "auto-detect from user's request, default to English"}`}`,
+              content: `Create a detailed prompt for static HTML/CSS website generation based on this request:\n\n"${prompt}"\n\n⚠️ THE TOPIC IS: "${prompt.trim()}" — do NOT deviate under any circumstances.${siteName ? `\n\nIMPORTANT: The website name/brand MUST be "${siteName}".` : ""}\n\n${bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2 ? `BILINGUAL MODE: The website must support TWO languages (${bilingualLanguages[0]} and ${bilingualLanguages[1]}) using ONE set of HTML pages and a JS i18n layer. Do NOT generate duplicate pages per language. Generate i18n/translations.js + i18n/i18n.js and mark texts with data-i18n keys.` : `TARGET CONTENT LANGUAGE (MANDATORY): ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language === "kk" ? "Kazakh" : language || "English"}. DO NOT USE ANY OTHER LANGUAGE.`}`,
             },
           ],
         }),
