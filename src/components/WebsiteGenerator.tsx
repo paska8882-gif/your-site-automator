@@ -2819,6 +2819,7 @@ export function WebsiteGenerator() {
                                 placeholder="Пошук країни..."
                                 value={geoSearch}
                                 onChange={(e) => setGeoSearch(e.target.value)}
+                                onKeyDown={(e) => e.stopPropagation()}
                                 className="h-7 text-xs mb-1"
                               />
                               {geoOptions.filter(g => !geoSearch || getGeoText(g.label).toLowerCase().includes(geoSearch.toLowerCase()) || g.value.includes(geoSearch.toLowerCase())).map((geo) => (
