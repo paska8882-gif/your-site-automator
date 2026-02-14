@@ -21,9 +21,12 @@ import { getLanguageLabel, getGeoLabel } from "@/lib/filterConstants";
 const BOT_OPTIONS = [
   { id: "all", label: "Всі боти" },
   { id: "n8n-bot-2lang_html", label: "2lang HTML" },
-  { id: "n8n-bot-nextjs_bot", label: "Next.js" },
+  { id: "nextjs", label: "Next.js" },
   { id: "n8n-bot", label: "Legacy" },
 ] as const;
+
+// All image_source values used by n8n/beta generators
+const ALL_N8N_IMAGE_SOURCES = ["n8n-bot-2lang_html", "n8n-bot-nextjs_bot", "n8n-bot", "nextjs"];
 
 interface HistoryItem {
   id: string;
@@ -81,7 +84,7 @@ export function N8nGenerationHistory() {
 
       // Filter by bot
       if (botFilter === "all") {
-        query = query.like("image_source", "n8n-bot%");
+        query = query.in("image_source", ALL_N8N_IMAGE_SOURCES);
       } else {
         query = query.eq("image_source", botFilter);
       }
@@ -136,10 +139,13 @@ export function N8nGenerationHistory() {
           event: "*",
           schema: "public",
           table: "generation_history",
-          filter: "image_source=eq.n8n-bot",
         },
-        () => {
-          fetchHistory();
+        (payload: any) => {
+          // Only refetch if the change is relevant to n8n/beta generators
+          const source = payload?.new?.image_source || payload?.old?.image_source;
+          if (!source || ALL_N8N_IMAGE_SOURCES.some(s => source.startsWith(s))) {
+            fetchHistory();
+          }
         }
       )
       .subscribe();
