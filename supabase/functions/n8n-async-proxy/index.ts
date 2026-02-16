@@ -21,7 +21,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const { historyId, botId } = body;
+    const { historyId, botId, fullPrompt, domain, keywords, forbiddenWords } = body;
 
     if (!historyId || typeof historyId !== "string") {
       return new Response(JSON.stringify({ error: "Missing historyId" }), {
@@ -72,7 +72,8 @@ serve(async (req) => {
       .update({ status: "generating", error_message: null })
       .eq("id", historyId);
 
-    const prompt: string = history.prompt;
+    // Use fullPrompt from request body if available, otherwise fall back to DB
+    const prompt: string = fullPrompt || history.prompt;
     const language: string = history.language || "en";
     const siteName: string = history.site_name || "Website";
 
@@ -99,6 +100,9 @@ serve(async (req) => {
       language,
       siteName,
       geo: history.geo,
+      domain: domain || "",
+      keywords: keywords || "",
+      forbiddenWords: forbiddenWords || "",
       vipPrompt: history.vip_prompt,
       vipImages: history.vip_images,
       colorScheme: history.color_scheme,
