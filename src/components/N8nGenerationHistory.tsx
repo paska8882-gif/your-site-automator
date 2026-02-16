@@ -16,6 +16,7 @@ import { GeneratedFile } from "@/lib/websiteGenerator";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { getLanguageLabel, getGeoLabel } from "@/lib/filterConstants";
+import { useN8nStuckRetry } from "@/hooks/useN8nStuckRetry";
 
 // Bot options for filtering
 const BOT_OPTIONS = [
@@ -72,6 +73,9 @@ export function N8nGenerationHistory() {
   const [appealScreenshots, setAppealScreenshots] = useState<File[]>([]);
   const [submittingAppeal, setSubmittingAppeal] = useState(false);
   const [appeals, setAppeals] = useState<Map<string, Appeal>>(new Map());
+
+  // Auto-retry stuck n8n generations (10min timeout, 1 retry, then fail)
+  useN8nStuckRetry(history);
 
   const fetchHistory = async () => {
     setLoading(true);
