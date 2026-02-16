@@ -15,12 +15,21 @@ interface N8nHistoryItem {
   image_source: string | null;
 }
 
-const STUCK_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
-const FAIL_THRESHOLD_MS = 20 * 60 * 1000; // 20 minutes — fail after 2nd timeout
+const STUCK_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes (nextjs retry)
+const FAIL_THRESHOLD_MS = 20 * 60 * 1000; // 20 minutes — fail
 const CHECK_INTERVAL_MS = 30 * 1000; // check every 30s
 const MAX_RETRIES = 1;
 
 const N8N_IMAGE_SOURCES = ["nextjs", "n8n-bot-2lang_html", "n8n-bot-nextjs_bot", "n8n-bot"];
+
+// 2lang bot sources — no retries, only timeout→fail
+const NO_RETRY_SOURCES = ["n8n-bot-2lang_html"];
+
+function isNoRetrySource(imageSource: string | null): boolean {
+  if (!imageSource) return false;
+  return NO_RETRY_SOURCES.includes(imageSource) || 
+    (imageSource.startsWith("n8n-bot") && !imageSource.includes("nextjs"));
+}
 
 function isN8nGeneration(imageSource: string | null): boolean {
   if (!imageSource) return false;
@@ -53,11 +62,26 @@ export function useN8nStuckRetry(history: N8nHistoryItem[]) {
       const age = now - new Date(item.created_at).getTime();
       const retryCount = retriedMap.current.get(item.id) || 0;
 
-      // If past fail threshold and already retried — mark as failed
-      if (age >= FAIL_THRESHOLD_MS && retryCount >= MAX_RETRIES) {
+      const noRetry = isNoRetrySource(item.image_source);
+
+      // For no-retry sources (2lang): fail after 20 min, no retries
+      if (noRetry && age >= FAIL_THRESHOLD_MS) {
+        console.log(`[N8nStuckRetry] 2lang generation ${item.id} stuck for ${Math.round(age / 1000)}s, marking as failed (no retries)`);
+        retriedMap.current.delete(item.id);
+        await supabase
+          .from("generation_history")
+          .update({
+            status: "failed",
+            error_message: "Generation timed out (no callback received from bot)",
+          })
+          .eq("id", item.id);
+        continue;
+      }
+
+      // For retry-enabled sources (nextjs): fail after retry exhausted
+      if (!noRetry && age >= FAIL_THRESHOLD_MS && retryCount >= MAX_RETRIES) {
         console.log(`[N8nStuckRetry] Generation ${item.id} stuck for ${Math.round(age / 1000)}s after ${retryCount} retries, marking as failed`);
         retriedMap.current.delete(item.id);
-
         await supabase
           .from("generation_history")
           .update({
@@ -68,8 +92,8 @@ export function useN8nStuckRetry(history: N8nHistoryItem[]) {
         continue;
       }
 
-      // If past stuck threshold and not yet retried — retry
-      if (retryCount < MAX_RETRIES) {
+      // If past stuck threshold and not yet retried — retry (skip 2lang)
+      if (!noRetry && retryCount < MAX_RETRIES) {
         console.log(`[N8nStuckRetry] Generation ${item.id} stuck for ${Math.round(age / 1000)}s, auto-retrying (attempt ${retryCount + 1}/${MAX_RETRIES})`);
         retriedMap.current.set(item.id, retryCount + 1);
 
