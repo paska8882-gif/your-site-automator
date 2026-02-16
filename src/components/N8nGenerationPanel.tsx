@@ -489,6 +489,9 @@ export function N8nGenerationPanel() {
           historyId: historyData.id,
           fullPrompt: finalPrompt,
           botId: selectedBot,
+          domain: domain || "",
+          keywords: keywords.trim() || "",
+          forbiddenWords: forbiddenWords.trim() || "",
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
