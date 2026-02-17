@@ -11,7 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Crown, Globe, Layers, Languages, MapPin, X, Plus, 
-  FileCode2, Loader2, Upload, Image as ImageIcon, Hand, ChevronDown, Shuffle 
+  FileCode2, Loader2, Upload, Image as ImageIcon, Hand, ChevronDown, Shuffle,
+  Building2, Phone, Tag, Hash
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -134,43 +135,78 @@ interface TeamPricing {
 const MAX_IMAGES = 5;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-const RANDOM_TOPICS = [
-  "Auto repair shop specializing in European cars",
-  "Italian restaurant with homemade pasta",
-  "Dental clinic with cosmetic dentistry services",
-  "Real estate agency for luxury apartments",
-  "Yoga studio and wellness center",
-  "Pet grooming salon and pet shop",
-  "Wedding photography studio",
-  "Organic farm and produce delivery",
-  "Fitness gym with personal training",
-  "Law firm specializing in family law",
-  "Flower shop with delivery service",
-  "Coffee roastery and cafe",
-  "Plumbing and heating services",
-  "Hair salon and beauty studio",
-  "Accounting and tax consulting firm",
-  "Travel agency for adventure tours",
-  "Kindergarten and early education center",
-  "Furniture store with custom designs",
-  "Craft beer brewery and taproom",
-  "Solar panel installation company",
-  "Landscaping and garden design",
-  "Mobile phone repair shop",
-  "Architecture and interior design studio",
-  "Bakery with artisan breads and pastries",
-  "Veterinary clinic for small animals",
+const randomVipTopics = [
+  "🎮 Video Games", "⚖️ Law Services", "🦷 Dental Care", "🏠 Real Estate",
+  "🐕 Pet Grooming", "🔧 Auto Repair", "💪 Fitness Training", "📷 Photography",
+  "🏗️ Home Renovation", "📊 Accounting", "✈️ Travel Agency", "☕ Coffee Shop",
+  "🥐 Bakery", "💐 Flower Delivery", "💻 IT Consulting", "💒 Wedding Planning",
+  "🍽️ Restaurant", "💆 Spa & Wellness", "🔩 Plumbing Services", "🛡️ Insurance Agency",
+  "💇 Hair Salon", "🧘 Yoga Studio", "🚗 Car Dealership", "🧹 Cleaning Services",
 ];
 
-const RANDOM_DOMAINS = [
-  "greenleaf", "bluecrest", "starpoint", "sunvalley", "ironridge",
-  "oakwood", "silverline", "skyward", "freshstart", "goldcrest",
-  "northpeak", "westfield", "brightside", "clearview", "deepblue",
-  "evergreen", "highrise", "lakewood", "newedge", "primecore",
-  "redstone", "topline", "urbancraft", "vivid", "zenithpro",
-];
+const randomVipAddressesByGeo: Record<string, string[]> = {
+  "us": ["123 Main St, New York, NY 10001", "456 Oak Ave, Los Angeles, CA 90001", "789 Pine Rd, Chicago, IL 60601"],
+  "uk": ["10 Baker Street, London, W1U 3BW", "25 Queen Road, Manchester, M1 1AB", "42 King Lane, Birmingham, B1 1AA"],
+  "de": ["Hauptstraße 15, 10115 Berlin", "Bahnhofstraße 8, 80335 München", "Königstraße 22, 70173 Stuttgart"],
+  "fr": ["15 Rue de Rivoli, 75001 Paris", "8 Avenue Jean Médecin, 06000 Nice"],
+  "es": ["Calle Gran Vía 28, 28013 Madrid", "Passeig de Gràcia 55, 08007 Barcelona"],
+  "it": ["Via del Corso 120, 00186 Roma", "Via Montenapoleone 8, 20121 Milano"],
+  "nl": ["Damrak 1, 1012 LG Amsterdam", "Coolsingel 42, 3011 AD Rotterdam"],
+  "pl": ["Nowy Świat 25, 00-029 Warszawa", "Rynek Główny 10, 31-042 Kraków"],
+  "pt": ["Rua Augusta 100, 1100-053 Lisboa", "Rua Santa Catarina 50, 4000-442 Porto"],
+  "ua": ["вул. Хрещатик 22, Київ, 01001", "вул. Дерибасівська 15, Одеса, 65000"],
+  "ro": ["Strada Victoriei 10, București, 010061", "Bulevardul Eroilor 5, Cluj-Napoca, 400129"],
+  "default": ["123 Business Center, Downtown", "456 Commerce Blvd, City Center"],
+};
 
-const RANDOM_TLDS = [".com", ".net", ".org", ".co", ".io", ".pro", ".biz", ".info"];
+function generateRealisticPhoneByGeo(geo: string): string {
+  const rd = (n: number) => Array.from({ length: n }, () => Math.floor(Math.random() * 10)).join('');
+  const r = (min = 1, max = 9) => Math.floor(Math.random() * (max - min + 1)) + min;
+  const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
+  switch (geo) {
+    case "us": case "ca": return `+1 (${r(2,9)}${rd(2)}) ${r(2,9)}${rd(2)}-${rd(4)}`;
+    case "uk": return `+44 ${pick(["20","21","113","131","141","161"])} ${rd(4)} ${rd(4)}`;
+    case "de": return `+49 ${pick(["30","40","69","89","221"])} ${rd(8)}`;
+    case "fr": return `+33 ${pick(["1","2","3","4","5"])} ${rd(2)} ${rd(2)} ${rd(2)} ${rd(2)}`;
+    case "es": return `+34 ${pick(["91","93","94","95"])}${r()} ${rd(3)} ${rd(3)}`;
+    case "it": return `+39 ${pick(["02","06","011","055"])} ${rd(4)} ${rd(4)}`;
+    case "nl": return `+31 ${pick(["20","10","30","70"])} ${rd(3)} ${rd(4)}`;
+    case "pl": return `+48 ${pick(["22","12","71","61"])} ${rd(3)} ${rd(2)} ${rd(2)}`;
+    case "ua": return `+380 ${pick(["44","50","67","93","97"])} ${rd(3)} ${rd(2)} ${rd(2)}`;
+    case "ro": return `+40 ${pick(["21","31","72","74"])} ${rd(3)} ${rd(2)} ${rd(2)}`;
+    case "pt": return `+351 ${pick(["21","22"])}${r()} ${rd(3)} ${rd(3)}`;
+    default: return `+1 (${r(2,9)}${rd(2)}) ${r(2,9)}${rd(2)}-${rd(4)}`;
+  }
+}
+
+const randomVipKeywordsByTopic: Record<string, string> = {
+  "Video Games": "gaming reviews, gameplay tips, PC games, console gaming, esports",
+  "Law Services": "legal advice, attorney consultation, court representation",
+  "Dental Care": "teeth cleaning, dental implants, cosmetic dentistry",
+  "Real Estate": "property listings, home buying, real estate investment",
+  "Pet Grooming": "dog grooming, cat care, pet spa, animal styling",
+  "Auto Repair": "car maintenance, engine repair, brake service, oil change",
+  "Fitness Training": "personal training, weight loss, muscle building",
+  "Photography": "portrait photography, event photos, wedding photographer",
+  "Home Renovation": "kitchen remodeling, bathroom renovation, interior design",
+  "Accounting": "tax preparation, bookkeeping, financial planning",
+  "Travel Agency": "vacation packages, flight booking, hotel reservations",
+  "Coffee Shop": "specialty coffee, espresso drinks, pastries, cafe",
+  "Bakery": "fresh bread, custom cakes, pastries, artisan baking",
+  "Flower Delivery": "fresh flowers, bouquet arrangements, same-day delivery",
+  "IT Consulting": "tech solutions, network security, cloud services",
+  "Wedding Planning": "event coordination, venue selection, bridal services",
+  "Restaurant": "fine dining, local cuisine, food delivery, catering",
+  "Spa & Wellness": "massage therapy, facial treatments, wellness programs",
+  "Plumbing Services": "pipe repair, drain cleaning, emergency plumbing",
+  "Insurance Agency": "life insurance, auto insurance, home insurance",
+  "Hair Salon": "haircuts, hair coloring, styling, beauty salon",
+  "Yoga Studio": "yoga classes, meditation, mindfulness, wellness",
+  "Car Dealership": "new cars, used vehicles, car financing",
+  "Cleaning Services": "house cleaning, office cleaning, deep cleaning",
+};
+
+const RANDOM_TLDS = [".com", ".net", ".org", ".co", ".io", ".pro"];
 
 const fillRandomData = (
   setSiteNames: (v: string[]) => void,
@@ -183,24 +219,44 @@ const fillRandomData = (
   setBilingualLang1: (v: string) => void,
   setBilingualLang2: (v: string) => void,
   setWebsiteType: (v: "html" | "react" | "php") => void,
+  setVipDomain: (v: string) => void,
+  setVipAddress: (v: string) => void,
+  setVipPhone: (v: string) => void,
+  setVipTopic: (v: string) => void,
+  setVipKeywords: (v: string) => void,
+  setVipBannedWords: (v: string) => void,
 ) => {
   const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
   
-  // Random domain
-  const domain = pick(RANDOM_DOMAINS) + pick(RANDOM_TLDS);
-  setSiteNames([domain]);
-  setCurrentSiteNameInput("");
-  
-  // Random topic
-  setPrompt(pick(RANDOM_TOPICS));
-  
-  // Random geo (from predefined, skip empty)
+  // Random geo first (affects everything)
   const geos = geoOptions.filter(g => g.value !== "");
   const geo = pick(geos);
   setSelectedGeo(geo.value);
   setIsOtherGeoSelected(false);
   
-  // Random language matching geo or random
+  // Random topic
+  const topicRaw = pick(randomVipTopics);
+  const topicClean = topicRaw.replace(/[\u{1F000}-\u{1FFFF}]\s*/gu, '').trim();
+  setVipTopic(topicClean);
+  setPrompt(topicClean);
+  
+  // Domain from topic
+  const domainBase = topicClean.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);
+  const domainNum = Math.floor(Math.random() * 900) + 100;
+  setVipDomain(`${domainBase}${domainNum}${pick(RANDOM_TLDS)}`);
+  setSiteNames([]);
+  setCurrentSiteNameInput("");
+  
+  // Address & phone based on geo
+  const addresses = randomVipAddressesByGeo[geo.value] || randomVipAddressesByGeo["default"];
+  setVipAddress(pick(addresses));
+  setVipPhone(generateRealisticPhoneByGeo(geo.value));
+  
+  // Keywords & banned words
+  setVipKeywords(randomVipKeywordsByTopic[topicClean] || "professional services, quality, expert, trusted");
+  setVipBannedWords("crypto, free, miracle, profit, investment, quick gain, guaranteed, 100%, risk-free");
+  
+  // Language matching geo
   const geoLangMap: Record<string, string> = {
     uk: "en", bg: "bg", be: "fr", vn: "vi", gr: "el", dk: "da", ee: "et",
     id: "id", in: "hi", ie: "en", es: "es", it: "it", ca: "en", lv: "lv",
@@ -208,10 +264,8 @@ const fillRandomData = (
     ro: "ro", sk: "sk", si: "sl", us: "en", th: "th", tr: "tr", ua: "uk",
     hu: "hu", fi: "fi", fr: "fr", hr: "hr", cz: "cs", se: "sv", jp: "ja", kz: "kk",
   };
-  
   const matchedLang = geoLangMap[geo.value] || "en";
   
-  // 20% chance bilingual
   if (Math.random() < 0.2) {
     setIsBilingualMode(true);
     setBilingualLang1(matchedLang);
@@ -225,7 +279,6 @@ const fillRandomData = (
     setBilingualLang2("");
   }
   
-  // 80% HTML, 15% React, 5% PHP
   const r = Math.random();
   setWebsiteType(r < 0.8 ? "html" : r < 0.95 ? "react" : "php");
 };
@@ -263,6 +316,14 @@ export function ManualOrderForm() {
   
   // Website type - React unlocked
   const [websiteType, setWebsiteType] = useState<"html" | "react" | "php">("html");
+
+  // VIP-style fields
+  const [vipDomain, setVipDomain] = useState("");
+  const [vipAddress, setVipAddress] = useState("");
+  const [vipPhone, setVipPhone] = useState("");
+  const [vipTopic, setVipTopic] = useState("");
+  const [vipKeywords, setVipKeywords] = useState("");
+  const [vipBannedWords, setVipBannedWords] = useState("");
   
   // Note & images (VIP-style)
   const [note, setNote] = useState("");
@@ -486,10 +547,20 @@ export function ManualOrderForm() {
 
       const effectiveGeo = isOtherGeoSelected ? customGeo : selectedGeo;
 
+      // Build VIP prompt text from fields
+      const vipPromptParts = [
+        vipDomain && `Domain: ${vipDomain}`,
+        vipAddress && `Address: ${vipAddress}`,
+        vipPhone && `Phone: ${vipPhone}`,
+        vipTopic && `Topic: ${vipTopic}`,
+        vipKeywords && `Keywords: ${vipKeywords}`,
+        vipBannedWords && `Banned words: ${vipBannedWords}`,
+      ].filter(Boolean).join('\n');
+
       for (const siteName of names) {
         const { error } = await supabase.from("generation_history").insert({
           prompt: prompt.trim(),
-          site_name: siteName,
+          site_name: vipDomain || siteName,
           language,
           website_type: websiteType,
           ai_model: "senior",
@@ -497,10 +568,11 @@ export function ManualOrderForm() {
           team_id: teamPricing.teamId,
           user_id: user?.id,
           image_source: "manual",
-          admin_note: note || null,
+          admin_note: [note, vipPromptParts].filter(Boolean).join('\n\n') || null,
           vip_images: imageUrls.length > 0 ? imageUrls : null,
           geo: effectiveGeo || null,
           sale_price: price,
+          vip_prompt: vipPromptParts || null,
         });
 
         if (error) throw error;
@@ -522,6 +594,12 @@ export function ManualOrderForm() {
       setCurrentSiteNameInput("");
       setPrompt("");
       setNote("");
+      setVipDomain("");
+      setVipAddress("");
+      setVipPhone("");
+      setVipTopic("");
+      setVipKeywords("");
+      setVipBannedWords("");
       images.forEach(img => URL.revokeObjectURL(img.preview));
       setImages([]);
 
@@ -607,7 +685,8 @@ export function ManualOrderForm() {
               onClick={() => fillRandomData(
                 setSiteNames, setCurrentSiteNameInput, setPrompt,
                 setSelectedGeo, setIsOtherGeoSelected, setSelectedLanguages,
-                setIsBilingualMode, setBilingualLang1, setBilingualLang2, setWebsiteType
+                setIsBilingualMode, setBilingualLang1, setBilingualLang2, setWebsiteType,
+                setVipDomain, setVipAddress, setVipPhone, setVipTopic, setVipKeywords, setVipBannedWords
               )}
               className="h-7 text-xs px-3 ml-auto"
             >
@@ -722,7 +801,108 @@ export function ManualOrderForm() {
             </Popover>
           </div>
 
-          {/* Website Type - React UNLOCKED */}
+          {/* VIP-style fields */}
+          <div className="p-3 border border-amber-500/30 bg-amber-500/5 rounded-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                <Crown className="h-3 w-3" /> Деталі сайту
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
+                  const effectiveGeo = isOtherGeoSelected ? "default" : (selectedGeo || "default");
+                  const addresses = randomVipAddressesByGeo[effectiveGeo] || randomVipAddressesByGeo["default"];
+                  if (!vipAddress.trim()) setVipAddress(pick(addresses));
+                  if (!vipPhone.trim()) setVipPhone(generateRealisticPhoneByGeo(effectiveGeo));
+                  if (!vipTopic.trim()) {
+                    const t = pick(randomVipTopics).replace(/[\u{1F000}-\u{1FFFF}]\s*/gu, '').trim();
+                    setVipTopic(t);
+                    setVipKeywords(randomVipKeywordsByTopic[t] || "professional services, quality, expert");
+                  }
+                  if (!vipDomain.trim()) {
+                    const base = (vipTopic || "site").toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);
+                    setVipDomain(`${base}${Math.floor(Math.random() * 900) + 100}${pick(RANDOM_TLDS)}`);
+                  }
+                  if (!vipBannedWords.trim()) setVipBannedWords("crypto, free, miracle, profit, guaranteed, 100%, risk-free");
+                }}
+                className="h-6 text-xs px-2 text-amber-600 hover:text-amber-700"
+              >
+                <Shuffle className="h-3 w-3 mr-1" />
+                Заповнити пусті
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs flex items-center gap-1">
+                  <Globe className="h-3 w-3" /> Домен
+                </Label>
+                <Input
+                  placeholder="example.com"
+                  value={vipDomain}
+                  onChange={e => setVipDomain(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs flex items-center gap-1">
+                  <Building2 className="h-3 w-3" /> Адреса
+                </Label>
+                <Input
+                  placeholder="100 Main Street, City, Country"
+                  value={vipAddress}
+                  onChange={e => setVipAddress(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs flex items-center gap-1">
+                  <Phone className="h-3 w-3" /> Телефон
+                </Label>
+                <Input
+                  placeholder="+1 (555) 123-4567"
+                  value={vipPhone}
+                  onChange={e => setVipPhone(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs flex items-center gap-1">
+                  <Tag className="h-3 w-3" /> Тематика
+                </Label>
+                <Input
+                  placeholder="Dental Care, Law Services..."
+                  value={vipTopic}
+                  onChange={e => setVipTopic(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs flex items-center gap-1">
+                <Hash className="h-3 w-3" /> Ключові слова
+              </Label>
+              <Input
+                placeholder="keyword1, keyword2, keyword3..."
+                value={vipKeywords}
+                onChange={e => setVipKeywords(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs flex items-center gap-1">
+                <X className="h-3 w-3 text-destructive" /> Заборонені слова
+              </Label>
+              <Input
+                placeholder="crypto, free, miracle, profit..."
+                value={vipBannedWords}
+                onChange={e => setVipBannedWords(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Тип сайту</Label>
             <Select value={websiteType} onValueChange={v => setWebsiteType(v as typeof websiteType)}>
