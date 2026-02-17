@@ -144,6 +144,64 @@ const randomVipTopics = [
   "💇 Hair Salon", "🧘 Yoga Studio", "🚗 Car Dealership", "🧹 Cleaning Services",
 ];
 
+// Realistic business name prefixes by geo
+const realisticBusinessNames: Record<string, Record<string, string[]>> = {
+  "us": {
+    "Dental Care": ["Bright Smile Dentistry", "Pacific Dental Group", "Summit Oral Health", "Evergreen Family Dentistry", "Lakewood Dental Studio"],
+    "Law Services": ["Mitchell & Partners Law", "Sterling Legal Associates", "Beacon Law Group", "Heritage Legal Advisors", "Pinnacle Justice Firm"],
+    "Real Estate": ["Skyline Realty Group", "Cornerstone Properties", "BluePeak Real Estate", "Oakwood Home Advisors", "Meridian Property Solutions"],
+    "Auto Repair": ["AutoCare Plus", "Precision Motor Works", "Summit Auto Service", "Eagle Eye Mechanics", "TrueGrip Auto Repair"],
+    "Fitness Training": ["CoreFit Athletics", "Elevate Fitness Studio", "Peak Performance Gym", "Ironclad Training", "VitalMove Fitness"],
+    "Restaurant": ["The Golden Fork", "Harborview Kitchen", "Ember & Oak Bistro", "Riverstone Grill", "Savory Table Restaurant"],
+    "Hair Salon": ["Luxe Locks Studio", "The Style Lounge", "Velvet Touch Salon", "Bliss Hair Studio", "Radiant Beauty Bar"],
+    "Cleaning Services": ["SparkClean Pro", "FreshStart Cleaning Co", "PureShine Services", "CrystalClear Cleaning", "TidyHome Solutions"],
+    "default": ["Apex Solutions", "Summit Services Group", "Evergreen Enterprises", "Pinnacle Partners", "BlueStar Consulting"],
+  },
+  "uk": {
+    "Dental Care": ["Harley Street Dental", "Royal Smile Clinic", "Thames Dental Practice", "Kensington Oral Care", "Crown Dental Studio"],
+    "Law Services": ["Whitmore & Reed Solicitors", "Chambers Legal LLP", "Rothwell Law Associates", "Sterling Barristers", "Graystone Legal"],
+    "Real Estate": ["Knight & Willow Estates", "Mayfair Property Group", "Crossland Lettings", "Albion Homes", "Sovereign Realty"],
+    "default": ["Albion Group", "Meridian Partners", "Claremont Services", "Whitehall Solutions", "Lancaster Enterprises"],
+  },
+  "de": {
+    "Dental Care": ["Zahnarztpraxis Sonnenberg", "Dental Studio München", "Praxis Dr. Weber", "Zahnklinik am Park", "Berliner Zahnzentrum"],
+    "Law Services": ["Kanzlei Richter & Partner", "Rechtsanwälte Bergmann", "Anwaltskanzlei Weber", "Schröder Legal", "Bauer & Koch Recht"],
+    "default": ["Schmidt & Partner", "Rheinland Solutions", "Nordwerk GmbH", "Alpina Consulting", "Westfalen Services"],
+  },
+  "fr": {
+    "Dental Care": ["Cabinet Dentaire Lumière", "Clinique du Sourire", "Centre Dental Parisien", "Smile Studio Paris", "Dentiste Saint-Germain"],
+    "default": ["Lumière Conseil", "Atelier Parisien", "Loire Solutions", "Provence Services", "Riviera Group"],
+  },
+  "es": {
+    "default": ["Sol y Mar Servicios", "Iberia Consulting", "Costa Solutions", "Meridian Ibérica", "Alhambra Group"],
+  },
+  "it": {
+    "default": ["Studio Milano", "Roma Servizi", "Bella Vista Consulting", "Firenze Solutions", "Adriatica Group"],
+  },
+  "pl": {
+    "default": ["Kraków Solutions", "Warszawa Consulting", "Gdańsk Services", "Polska Group", "Wawel Partners"],
+  },
+  "ua": {
+    "default": ["Київ Сервіс", "Дніпро Консалтинг", "Одеса Партнерс", "Львів Рішення", "Карпати Груп"],
+  },
+  "nl": {
+    "default": ["Amsterdam Partners", "Tulip Consulting", "Oranje Solutions", "Windmill Services", "Dutch Bridge Group"],
+  },
+  "ro": {
+    "default": ["Carpat Solutions", "Dunărea Consulting", "București Partners", "Transylvania Group", "Moldova Services"],
+  },
+  "default": {
+    "default": ["Global Solutions", "Premier Services", "Apex Consulting", "Horizon Partners", "Summit Enterprises"],
+  },
+};
+
+function getRealisticBusinessName(geo: string, topic: string): string {
+  const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
+  const geoNames = realisticBusinessNames[geo] || realisticBusinessNames["default"];
+  const topicNames = geoNames[topic] || geoNames["default"] || realisticBusinessNames["default"]["default"];
+  return pick(topicNames);
+}
+
 const randomVipAddressesByGeo: Record<string, string[]> = {
   "us": ["123 Main St, New York, NY 10001", "456 Oak Ave, Los Angeles, CA 90001", "789 Pine Rd, Chicago, IL 60601"],
   "uk": ["10 Baker Street, London, W1U 3BW", "25 Queen Road, Manchester, M1 1AB", "42 King Lane, Birmingham, B1 1AA"],
@@ -240,10 +298,10 @@ const fillRandomData = (
   setVipTopic(topicClean);
   setPrompt(topicClean);
   
-  // Domain from topic
-  const domainBase = topicClean.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);
-  const domainNum = Math.floor(Math.random() * 900) + 100;
-  setVipDomain(`${domainBase}${domainNum}${pick(RANDOM_TLDS)}`);
+  // Domain from realistic business name
+  const bizName = getRealisticBusinessName(geo.value || "default", topicClean);
+  const domainBase = bizName.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 14);
+  setVipDomain(`${domainBase}${pick(RANDOM_TLDS)}`);
   setSiteNames([]);
   setCurrentSiteNameInput("");
   
@@ -807,31 +865,72 @@ export function ManualOrderForm() {
               <span className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
                 <Crown className="h-3 w-3" /> Деталі сайту
               </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
+              {(() => {
+                const hasAllFilled = vipDomain.trim() && vipAddress.trim() && vipPhone.trim() && vipTopic.trim() && vipKeywords.trim() && vipBannedWords.trim();
+                const effectiveGeo = isOtherGeoSelected ? "default" : (selectedGeo || "default");
+                
+                const fillEmpty = () => {
                   const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
-                  const effectiveGeo = isOtherGeoSelected ? "default" : (selectedGeo || "default");
                   const addresses = randomVipAddressesByGeo[effectiveGeo] || randomVipAddressesByGeo["default"];
-                  if (!vipAddress.trim()) setVipAddress(pick(addresses));
-                  if (!vipPhone.trim()) setVipPhone(generateRealisticPhoneByGeo(effectiveGeo));
                   if (!vipTopic.trim()) {
                     const t = pick(randomVipTopics).replace(/[\u{1F000}-\u{1FFFF}]\s*/gu, '').trim();
                     setVipTopic(t);
-                    setVipKeywords(randomVipKeywordsByTopic[t] || "professional services, quality, expert");
+                    if (!vipKeywords.trim()) setVipKeywords(randomVipKeywordsByTopic[t] || "professional services, quality, expert");
+                    if (!vipDomain.trim()) {
+                      const bizName = getRealisticBusinessName(effectiveGeo, t);
+                      const domainBase = bizName.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 14);
+                      setVipDomain(`${domainBase}${pick(RANDOM_TLDS)}`);
+                    }
+                  } else {
+                    if (!vipKeywords.trim()) setVipKeywords(randomVipKeywordsByTopic[vipTopic.trim()] || "professional services, quality, expert");
+                    if (!vipDomain.trim()) {
+                      const bizName = getRealisticBusinessName(effectiveGeo, vipTopic.trim());
+                      const domainBase = bizName.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 14);
+                      setVipDomain(`${domainBase}${pick(RANDOM_TLDS)}`);
+                    }
                   }
-                  if (!vipDomain.trim()) {
-                    const base = (vipTopic || "site").toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);
-                    setVipDomain(`${base}${Math.floor(Math.random() * 900) + 100}${pick(RANDOM_TLDS)}`);
-                  }
+                  if (!vipAddress.trim()) setVipAddress(pick(addresses));
+                  if (!vipPhone.trim()) setVipPhone(generateRealisticPhoneByGeo(effectiveGeo));
                   if (!vipBannedWords.trim()) setVipBannedWords("crypto, free, miracle, profit, guaranteed, 100%, risk-free");
-                }}
-                className="h-6 text-xs px-2 text-amber-600 hover:text-amber-700"
-              >
-                <Shuffle className="h-3 w-3 mr-1" />
-                Заповнити пусті
-              </Button>
+                };
+
+                const refreshAll = () => {
+                  const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
+                  const addresses = randomVipAddressesByGeo[effectiveGeo] || randomVipAddressesByGeo["default"];
+                  const topicRaw = pick(randomVipTopics);
+                  const topicClean = topicRaw.replace(/[\u{1F000}-\u{1FFFF}]\s*/gu, '').trim();
+                  setVipTopic(topicClean);
+                  setVipKeywords(randomVipKeywordsByTopic[topicClean] || "professional services, quality, expert");
+                  const bizName = getRealisticBusinessName(effectiveGeo, topicClean);
+                  const domainBase = bizName.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 14);
+                  setVipDomain(`${domainBase}${pick(RANDOM_TLDS)}`);
+                  setVipAddress(pick(addresses));
+                  setVipPhone(generateRealisticPhoneByGeo(effectiveGeo));
+                  setVipBannedWords("crypto, free, miracle, profit, guaranteed, 100%, risk-free");
+                };
+
+                return hasAllFilled ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={refreshAll}
+                    className="h-6 text-xs px-2 text-amber-600 hover:text-amber-700"
+                  >
+                    <Shuffle className="h-3 w-3 mr-1" />
+                    🎲 Рандом
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={fillEmpty}
+                    className="h-6 text-xs px-2 text-amber-600 hover:text-amber-700"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Заповнити пусті
+                  </Button>
+                );
+              })()}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
