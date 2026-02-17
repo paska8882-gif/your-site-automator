@@ -25,6 +25,7 @@ import Balance from "./pages/Balance";
 import Dashboard from "./pages/Dashboard";
 import Spends from "./pages/Spends";
 import N8nGenerator from "./pages/N8nGenerator";
+import ManualOrder from "./pages/ManualOrder";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ function AppContent() {
         <Route path="/balance" element={<Balance />} />
         <Route path="/spends" element={<Spends />} />
         <Route path="/n8n-generator" element={<N8nGenerator />} />
+        <Route path="/manual-order" element={<ManualOrder />} />
         <Route path="/dashboard" element={<Dashboard />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
