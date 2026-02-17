@@ -77,7 +77,6 @@ const getMainNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.spends"), url: "/spends", icon: TrendingUp },
   { title: t("sidebar.balance"), url: "/balance", icon: Wallet },
   { title: t("sidebar.team"), url: "/team", icon: Users },
-  { title: "Тарифи", url: "/pricing", icon: Tag },
 ];
 
 const getAdminNavItems = (t: (key: string) => string) => [
@@ -94,6 +93,7 @@ const getAdminNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.referrals"), tab: "referral", icon: Gift },
   { title: t("sidebar.finance"), tab: "finance", icon: DollarSign },
   { title: t("sidebar.admins"), tab: "admin", icon: Settings },
+  { title: "Тарифи", tab: "__pricing__", icon: Tag, url: "/pricing" },
 ];
 
 const getSuperAdminNavItems = (t: (key: string) => string) => [
@@ -358,8 +358,8 @@ export function AppSidebar() {
                   return (
                     <SidebarMenuItem key={item.tab}>
                       <SidebarMenuButton
-                        onClick={() => navigate(`/admin?tab=${item.tab}`)}
-                        isActive={isAdminPage && getAdminTab() === item.tab}
+                        onClick={() => navigate((item as any).url || `/admin?tab=${item.tab}`)}
+                        isActive={(item as any).url ? isActive((item as any).url) : (isAdminPage && getAdminTab() === item.tab)}
                         tooltip={item.title}
                         className={`transition-colors ${indicatorBgClass}`}
                       >
