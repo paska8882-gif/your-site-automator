@@ -650,6 +650,33 @@ export type Database = {
         }
         Relationships: []
       }
+      pricing_config: {
+        Row: {
+          footer_note: string | null
+          id: string
+          tiers: Json
+          updated_at: string
+          updated_by: string | null
+          volume_discounts: Json
+        }
+        Insert: {
+          footer_note?: string | null
+          id?: string
+          tiers?: Json
+          updated_at?: string
+          updated_by?: string | null
+          volume_discounts?: Json
+        }
+        Update: {
+          footer_note?: string | null
+          id?: string
+          tiers?: Json
+          updated_at?: string
+          updated_by?: string | null
+          volume_discounts?: Json
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
