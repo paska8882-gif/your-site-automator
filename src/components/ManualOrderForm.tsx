@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Crown, Globe, Layers, Languages, MapPin, X, Plus, 
-  FileCode2, Loader2, Upload, Image as ImageIcon, Hand, ChevronDown 
+  FileCode2, Loader2, Upload, Image as ImageIcon, Hand, ChevronDown, Shuffle 
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -133,6 +133,102 @@ interface TeamPricing {
 
 const MAX_IMAGES = 5;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+const RANDOM_TOPICS = [
+  "Auto repair shop specializing in European cars",
+  "Italian restaurant with homemade pasta",
+  "Dental clinic with cosmetic dentistry services",
+  "Real estate agency for luxury apartments",
+  "Yoga studio and wellness center",
+  "Pet grooming salon and pet shop",
+  "Wedding photography studio",
+  "Organic farm and produce delivery",
+  "Fitness gym with personal training",
+  "Law firm specializing in family law",
+  "Flower shop with delivery service",
+  "Coffee roastery and cafe",
+  "Plumbing and heating services",
+  "Hair salon and beauty studio",
+  "Accounting and tax consulting firm",
+  "Travel agency for adventure tours",
+  "Kindergarten and early education center",
+  "Furniture store with custom designs",
+  "Craft beer brewery and taproom",
+  "Solar panel installation company",
+  "Landscaping and garden design",
+  "Mobile phone repair shop",
+  "Architecture and interior design studio",
+  "Bakery with artisan breads and pastries",
+  "Veterinary clinic for small animals",
+];
+
+const RANDOM_DOMAINS = [
+  "greenleaf", "bluecrest", "starpoint", "sunvalley", "ironridge",
+  "oakwood", "silverline", "skyward", "freshstart", "goldcrest",
+  "northpeak", "westfield", "brightside", "clearview", "deepblue",
+  "evergreen", "highrise", "lakewood", "newedge", "primecore",
+  "redstone", "topline", "urbancraft", "vivid", "zenithpro",
+];
+
+const RANDOM_TLDS = [".com", ".net", ".org", ".co", ".io", ".pro", ".biz", ".info"];
+
+const fillRandomData = (
+  setSiteNames: (v: string[]) => void,
+  setCurrentSiteNameInput: (v: string) => void,
+  setPrompt: (v: string) => void,
+  setSelectedGeo: (v: string) => void,
+  setIsOtherGeoSelected: (v: boolean) => void,
+  setSelectedLanguages: (v: string[]) => void,
+  setIsBilingualMode: (v: boolean) => void,
+  setBilingualLang1: (v: string) => void,
+  setBilingualLang2: (v: string) => void,
+  setWebsiteType: (v: "html" | "react" | "php") => void,
+) => {
+  const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+  
+  // Random domain
+  const domain = pick(RANDOM_DOMAINS) + pick(RANDOM_TLDS);
+  setSiteNames([domain]);
+  setCurrentSiteNameInput("");
+  
+  // Random topic
+  setPrompt(pick(RANDOM_TOPICS));
+  
+  // Random geo (from predefined, skip empty)
+  const geos = geoOptions.filter(g => g.value !== "");
+  const geo = pick(geos);
+  setSelectedGeo(geo.value);
+  setIsOtherGeoSelected(false);
+  
+  // Random language matching geo or random
+  const geoLangMap: Record<string, string> = {
+    uk: "en", bg: "bg", be: "fr", vn: "vi", gr: "el", dk: "da", ee: "et",
+    id: "id", in: "hi", ie: "en", es: "es", it: "it", ca: "en", lv: "lv",
+    lt: "lt", nl: "nl", de: "de", ae: "ar", pl: "pl", pt: "pt", ru: "ru",
+    ro: "ro", sk: "sk", si: "sl", us: "en", th: "th", tr: "tr", ua: "uk",
+    hu: "hu", fi: "fi", fr: "fr", hr: "hr", cz: "cs", se: "sv", jp: "ja", kz: "kk",
+  };
+  
+  const matchedLang = geoLangMap[geo.value] || "en";
+  
+  // 20% chance bilingual
+  if (Math.random() < 0.2) {
+    setIsBilingualMode(true);
+    setBilingualLang1(matchedLang);
+    const otherLangs = languages.filter(l => l.value !== matchedLang).map(l => l.value);
+    setBilingualLang2(pick(otherLangs));
+    setSelectedLanguages([]);
+  } else {
+    setIsBilingualMode(false);
+    setSelectedLanguages([matchedLang]);
+    setBilingualLang1("");
+    setBilingualLang2("");
+  }
+  
+  // 80% HTML, 15% React, 5% PHP
+  const r = Math.random();
+  setWebsiteType(r < 0.8 ? "html" : r < 0.95 ? "react" : "php");
+};
 
 export function ManualOrderForm() {
   const { toast } = useToast();
@@ -493,17 +589,32 @@ export function ManualOrderForm() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Admin team switch */}
-          {isAdmin && (
+          {/* Admin team switch + Random fill */}
+          <div className="flex items-center justify-between">
+            {isAdmin && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedAdminTeamId("")}
+                className="text-xs text-muted-foreground"
+              >
+                ← Змінити команду
+              </Button>
+            )}
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={() => setSelectedAdminTeamId("")}
-              className="text-xs text-muted-foreground"
+              onClick={() => fillRandomData(
+                setSiteNames, setCurrentSiteNameInput, setPrompt,
+                setSelectedGeo, setIsOtherGeoSelected, setSelectedLanguages,
+                setIsBilingualMode, setBilingualLang1, setBilingualLang2, setWebsiteType
+              )}
+              className="h-7 text-xs px-3 ml-auto"
             >
-              ← Змінити команду
+              <Shuffle className="mr-1 h-3 w-3" />
+              🎲 Рандом
             </Button>
-          )}
+          </div>
 
           {/* Site names */}
           <div className="space-y-1.5">
