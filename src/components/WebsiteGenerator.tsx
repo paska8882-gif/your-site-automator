@@ -3707,19 +3707,6 @@ export function WebsiteGenerator() {
                   )}
                 </Button>
 
-                {/* VIP Manual Request Button - only for non-admins */}
-                {!isAdmin && (
-                  <Button
-                    variant="outline"
-                    onClick={handleManualRequest}
-                    disabled={(siteNames.length === 0 && !currentSiteNameInput.trim()) || !prompt.trim() || isSubmitting}
-                    className="h-9 text-sm border-purple-500/50 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950"
-                    title={t("generator.manualRequestDesc")}
-                  >
-                    <Crown className="mr-1 h-3 w-3" />
-                    {t("generator.vipManualRequest") || "VIP Ручний"}
-                  </Button>
-                )}
 
                 {/* Preset Management - same row */}
                 <Input
