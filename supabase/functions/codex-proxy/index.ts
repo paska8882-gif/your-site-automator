@@ -30,10 +30,12 @@ async function isGenerationBlocked(supabase: SupabaseClient): Promise<{ blocked:
   }
 }
 
-// Model pricing (per 1M tokens)
+// Model pricing (per 1M tokens, USD)
 const MODEL_PRICE_PER_MILLION: Record<string, { input: number; output: number }> = {
   "gpt-5-2025-08-07": { input: 5.0, output: 15.0 },
   "gpt-4o": { input: 2.5, output: 10.0 },
+  "google/gemini-2.5-flash": { input: 0.075, output: 0.30 },
+  "google/gemini-2.5-pro": { input: 1.25, output: 10.0 },
 };
 
 const GENERATION_PROMPT = `Create a COMPLETE, PROFESSIONAL website with ALL necessary files.
@@ -242,7 +244,7 @@ async function runCodexGeneration(
     const openAiModels = openaiApiKey ? ["gpt-4o", "gpt-5-2025-08-07"] : [];
 
     let responseText = "";
-    let cost = 1; // keep existing baseline cost unless we can calculate precisely
+    let cost = 0;
     let usedModel = "";
     let lastError = "";
     let openAiQuotaExceeded = false;
@@ -393,9 +395,11 @@ async function runCodexGeneration(
             console.error(`❌ ${lastError}`);
             responseText = "";
           } else {
-            usedModel = gatewayModel;
+          // Calculate cost for gateway models
+          cost = calculateCost(data.usage, gatewayModel);
+          usedModel = gatewayModel;
             console.log(
-              `✅ Got valid response from Lovable gateway, length: ${responseText.length} chars`
+              `✅ Got valid response from Lovable gateway, length: ${responseText.length} chars, cost: $${cost}`
             );
           }
         }

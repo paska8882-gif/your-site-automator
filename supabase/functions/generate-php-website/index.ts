@@ -5662,8 +5662,8 @@ const TOKEN_PRICING: Record<string, { input: number; output: number }> = {
   "gpt-4o": { input: 2.5, output: 10 },
   "gpt-4o-mini": { input: 0.15, output: 0.6 },
   "o3-mini": { input: 1.1, output: 4.4 },
-  "google/gemini-2.5-pro": { input: 2.5, output: 15 },
-  "google/gemini-2.5-flash": { input: 0.15, output: 0.6 },
+  "google/gemini-2.5-pro": { input: 1.25, output: 10.0 },
+  "google/gemini-2.5-flash": { input: 0.075, output: 0.30 },
 };
 
 interface GeneratedFile {
