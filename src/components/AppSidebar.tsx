@@ -49,7 +49,8 @@ import {
   Loader2,
   Database,
   Bot,
-  Hand
+  Hand,
+  Tag
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -76,6 +77,7 @@ const getMainNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.spends"), url: "/spends", icon: TrendingUp },
   { title: t("sidebar.balance"), url: "/balance", icon: Wallet },
   { title: t("sidebar.team"), url: "/team", icon: Users },
+  { title: "Тарифи", url: "/pricing", icon: Tag },
 ];
 
 const getAdminNavItems = (t: (key: string) => string) => [
