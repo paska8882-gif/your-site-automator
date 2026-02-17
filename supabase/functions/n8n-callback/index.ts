@@ -389,7 +389,7 @@ Deno.serve(async (req) => {
             .update({
               status: "completed",
               download_url: downloadUrl,
-              generation_cost: cost ?? 1,
+              generation_cost: cost ?? 0,
               error_message: null,
               specific_ai_model: model ?? "n8n-callback",
               completed_at: new Date().toISOString(),
@@ -447,7 +447,7 @@ Deno.serve(async (req) => {
             status: "completed",
             files_data: parsedFiles,
             zip_data: zipBase64,
-            generation_cost: cost ?? 1,
+            generation_cost: cost ?? 0,
             error_message: null,
             specific_ai_model: model ?? "n8n-callback",
             completed_at: new Date().toISOString(),
