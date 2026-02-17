@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
+import { useAdmin } from "@/hooks/useAdmin";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { 
   FileCode, 
@@ -99,15 +100,18 @@ const tiers = [
 const Pricing = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const { isAdmin, loading: adminLoading } = useAdmin();
   const { t } = useLanguage();
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate("/auth");
+    if (!loading && !adminLoading) {
+      if (!user || !isAdmin) {
+        navigate("/");
+      }
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, isAdmin, adminLoading, navigate]);
 
-  if (loading) {
+  if (loading || adminLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -115,7 +119,7 @@ const Pricing = () => {
     );
   }
 
-  if (!user) return null;
+  if (!user || !isAdmin) return null;
 
   return (
     <AppLayout>
