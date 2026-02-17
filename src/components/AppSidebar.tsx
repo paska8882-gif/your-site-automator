@@ -48,7 +48,8 @@ import {
   AlertTriangle,
   Loader2,
   Database,
-  Bot
+  Bot,
+  Hand
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -70,6 +71,7 @@ import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
 const getMainNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.generator"), url: "/", icon: Sparkles },
   { title: t("sidebar.n8nGenerator"), url: "/n8n-generator", icon: Bot },
+  { title: "Ручне замовлення", url: "/manual-order", icon: Hand },
   { title: t("sidebar.history"), url: "/history", icon: History },
   { title: t("sidebar.spends"), url: "/spends", icon: TrendingUp },
   { title: t("sidebar.balance"), url: "/balance", icon: Wallet },
