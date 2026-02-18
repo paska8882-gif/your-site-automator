@@ -472,7 +472,7 @@ function SingleHistoryItem({
                   </TooltipProvider>
                 );
               })()}
-              {/* Failed item - show manual retry button only */}
+              {/* Failed item - show manual retry button only (max 1 retry) */}
               {item.status === "failed" && (
                 <div className="flex items-center gap-1">
                   {item.error_message && (
@@ -495,19 +495,35 @@ function SingleHistoryItem({
                       </Tooltip>
                     </TooltipProvider>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-primary hover:text-primary"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRetry(item);
-                    }}
-                    title={item.error_message ? `Повторити: ${item.error_message.substring(0, 50)}...` : "Повторити генерацію"}
-                  >
-                    <RefreshCw className="h-4 w-4 mr-1" />
-                    Retry
-                  </Button>
+                  {(item.retry_count ?? 0) < 1 ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-primary hover:text-primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRetry(item);
+                      }}
+                      title={item.error_message ? `Повторити: ${item.error_message.substring(0, 50)}...` : "Повторити генерацію"}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Retry
+                    </Button>
+                  ) : (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="h-7 px-2 text-xs text-muted-foreground flex items-center gap-1 cursor-default">
+                            <RefreshCw className="h-3 w-3" />
+                            Retry використано
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-xs">
+                          <p className="text-xs">Ліміт retry вичерпано. Створіть нову генерацію.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </div>
               )}
               {(item.status === "completed" || item.status === "manual_completed") && (
