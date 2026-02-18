@@ -11675,38 +11675,89 @@ async function runBackgroundGeneration(
         if (match) retryCount = parseInt(match[1], 10);
       }
 
-      await supabase
-        .from("generation_history")
-        .update({
-          status: "completed",
-          files_data: enforcedFiles,
-          zip_data: zipBase64,
-          generation_cost: generationCost,
-          total_generation_cost: newTotalCost,
-          retry_count: retryCount,
-          specific_ai_model: result.specificModel || null,
-          completed_at: new Date().toISOString(),
-          color_scheme: colorScheme || null,
-          layout_style: layoutStyle || null,
-        })
-        .eq("id", historyId);
+      // === COST LIMIT CHECK: $2 max per generation ===
+      const COST_LIMIT = 2.0;
+      if (newTotalCost > COST_LIMIT) {
+        console.error(`🚨 [COST LIMIT] Generation ${historyId} exceeded $${COST_LIMIT} limit! Cost: $${newTotalCost.toFixed(4)}`);
 
-      console.log(
-        `[BG] Costs - this attempt: $${generationCost.toFixed(4)}, total accumulated: $${newTotalCost.toFixed(4)}, retries: ${retryCount}`,
-      );
+        // REFUND balance
+        if (teamId && salePrice > 0) {
+          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+          if (team) {
+            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+            console.log(`[COST LIMIT] REFUNDED $${salePrice} to team ${teamId}`);
+          }
+        }
 
-      // Create notification for user
-      await supabase.from("notifications").insert({
-        user_id: userId,
-        type: "generation_complete",
-        title: "Сайт згенеровано",
-        message: `HTML сайт успішно створено (${enforcedFiles.length} файлів)`,
-        data: { historyId, filesCount: enforcedFiles.length },
-      });
+        // Mark as failed
+        await supabase
+          .from("generation_history")
+          .update({
+            status: "failed",
+            error_message: `Перевищено ліміт вартості AI токенів ($${newTotalCost.toFixed(2)} > $${COST_LIMIT}). Створено апеляцію.`,
+            sale_price: 0,
+            generation_cost: generationCost,
+            total_generation_cost: newTotalCost,
+            retry_count: retryCount,
+            specific_ai_model: result.specificModel || null,
+          })
+          .eq("id", historyId);
 
-      console.log(
-        `[BG] Generation completed for ${historyId}: ${enforcedFiles.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}`,
-      );
+        // Auto-create appeal for admin
+        await supabase.from("appeals").insert({
+          generation_id: historyId,
+          user_id: userId,
+          team_id: teamId || null,
+          reason: `Автоповідомлення: Перевищено ліміт вартості AI токенів. Кост генерації: $${newTotalCost.toFixed(4)} (ліміт: $${COST_LIMIT}). Модель: ${result.specificModel || "unknown"}`,
+          amount_to_refund: salePrice,
+          status: "pending",
+        });
+
+        // Notify user
+        await supabase.from("notifications").insert({
+          user_id: userId,
+          type: "generation_failed",
+          title: "⚠️ Перевищено ліміт AI токенів",
+          message: `Генерація зупинена: вартість $${newTotalCost.toFixed(2)} перевищила ліміт $${COST_LIMIT}. Апеляцію створено автоматично.`,
+          data: { historyId, cost: newTotalCost, limit: COST_LIMIT },
+        });
+
+        console.log(`[COST LIMIT] Appeal created, user notified for ${historyId}`);
+      } else {
+        // Normal success path
+        await supabase
+          .from("generation_history")
+          .update({
+            status: "completed",
+            files_data: enforcedFiles,
+            zip_data: zipBase64,
+            generation_cost: generationCost,
+            total_generation_cost: newTotalCost,
+            retry_count: retryCount,
+            specific_ai_model: result.specificModel || null,
+            completed_at: new Date().toISOString(),
+            color_scheme: colorScheme || null,
+            layout_style: layoutStyle || null,
+          })
+          .eq("id", historyId);
+
+        console.log(
+          `[BG] Costs - this attempt: $${generationCost.toFixed(4)}, total accumulated: $${newTotalCost.toFixed(4)}, retries: ${retryCount}`,
+        );
+
+        // Create notification for user
+        await supabase.from("notifications").insert({
+          user_id: userId,
+          type: "generation_complete",
+          title: "Сайт згенеровано",
+          message: `HTML сайт успішно створено (${enforcedFiles.length} файлів)`,
+          data: { historyId, filesCount: enforcedFiles.length },
+        });
+
+        console.log(
+          `[BG] Generation completed for ${historyId}: ${enforcedFiles.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}`,
+        );
+      }
     } else {
       // REFUND balance on failure
       if (teamId && salePrice > 0) {
