@@ -11694,7 +11694,7 @@ async function runBackgroundGeneration(
           .from("generation_history")
           .update({
             status: "failed",
-            error_message: `Перевищено ліміт вартості AI токенів ($${newTotalCost.toFixed(2)} > $${COST_LIMIT}). Створено апеляцію.`,
+            error_message: `Перевищено ліміт токенів на генерацію. Спробуйте спростити запит.`,
             sale_price: 0,
             generation_cost: generationCost,
             total_generation_cost: newTotalCost,
@@ -11703,26 +11703,17 @@ async function runBackgroundGeneration(
           })
           .eq("id", historyId);
 
-        // Auto-create appeal for admin
+        // Auto-create appeal for admin (internal only - user does NOT see details)
         await supabase.from("appeals").insert({
           generation_id: historyId,
           user_id: userId,
           team_id: teamId || null,
-          reason: `Автоповідомлення: Перевищено ліміт вартості AI токенів. Кост генерації: $${newTotalCost.toFixed(4)} (ліміт: $${COST_LIMIT}). Модель: ${result.specificModel || "unknown"}`,
+          reason: `Автоповідомлення: Перевищено ліміт вартості AI токенів. Кост генерації: $${newTotalCost.toFixed(4)} (ліміт: $${COST_LIMIT}). Модель: ${result.specificModel || "unknown"}. Тип: HTML`,
           amount_to_refund: salePrice,
           status: "pending",
         });
 
-        // Notify user
-        await supabase.from("notifications").insert({
-          user_id: userId,
-          type: "generation_failed",
-          title: "⚠️ Перевищено ліміт AI токенів",
-          message: `Генерація зупинена: вартість $${newTotalCost.toFixed(2)} перевищила ліміт $${COST_LIMIT}. Апеляцію створено автоматично.`,
-          data: { historyId, cost: newTotalCost, limit: COST_LIMIT },
-        });
-
-        console.log(`[COST LIMIT] Appeal created, user notified for ${historyId}`);
+        console.log(`[COST LIMIT] Appeal created for admin review, ${historyId}`);
       } else {
         // Normal success path
         await supabase

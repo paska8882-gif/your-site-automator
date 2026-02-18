@@ -2599,13 +2599,14 @@ async function runBackgroundGeneration(
           .from("generation_history")
           .update({
             status: "failed",
-            error_message: `Перевищено ліміт вартості AI токенів ($${generationCost.toFixed(2)} > $${COST_LIMIT}). Створено апеляцію.`,
+            error_message: `Перевищено ліміт токенів на генерацію. Спробуйте спростити запит.`,
             sale_price: 0,
             generation_cost: generationCost,
             specific_ai_model: result.specificModel || null,
           })
           .eq("id", historyId);
 
+        // Auto-create appeal for admin (internal only)
         await supabase.from("appeals").insert({
           generation_id: historyId,
           user_id: userId,
@@ -2613,14 +2614,6 @@ async function runBackgroundGeneration(
           reason: `Автоповідомлення: Перевищено ліміт вартості AI токенів. Кост генерації: $${generationCost.toFixed(4)} (ліміт: $${COST_LIMIT}). Модель: ${result.specificModel || "unknown"}. Тип: React`,
           amount_to_refund: salePrice,
           status: "pending",
-        });
-
-        await supabase.from("notifications").insert({
-          user_id: userId,
-          type: "generation_failed",
-          title: "⚠️ Перевищено ліміт AI токенів",
-          message: `React генерація зупинена: вартість $${generationCost.toFixed(2)} перевищила ліміт $${COST_LIMIT}. Апеляцію створено автоматично.`,
-          data: { historyId, cost: generationCost, limit: COST_LIMIT },
         });
 
         console.log(`[COST LIMIT] Appeal created for React generation ${historyId}`);
