@@ -308,6 +308,59 @@ export type Database = {
         }
         Relationships: []
       }
+      credit_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          balance_before: number
+          created_at: string
+          created_by: string | null
+          credit_limit: number
+          generation_id: string | null
+          id: string
+          is_on_credit: boolean
+          note: string | null
+          team_id: string
+          type: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          balance_before: number
+          created_at?: string
+          created_by?: string | null
+          credit_limit: number
+          generation_id?: string | null
+          id?: string
+          is_on_credit?: boolean
+          note?: string | null
+          team_id: string
+          type: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          balance_before?: number
+          created_at?: string
+          created_by?: string | null
+          credit_limit?: number
+          generation_id?: string | null
+          id?: string
+          is_on_credit?: boolean
+          note?: string | null
+          team_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_transactions_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "generation_history"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback: {
         Row: {
           created_at: string
