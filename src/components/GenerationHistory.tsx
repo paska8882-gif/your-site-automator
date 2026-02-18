@@ -21,9 +21,7 @@ import { FilePreview } from "./FilePreview";
 import { PhpPreviewDialog } from "./PhpPreviewDialog";
 import { SiteEditor } from "./SiteEditor";
 import { GeneratedFile, COLOR_SCHEMES_UI, LAYOUT_STYLES } from "@/lib/websiteGenerator";
-import { useAutoRetry } from "@/hooks/useAutoRetry";
 import { useGenerationHistory, HistoryItem, Appeal } from "@/hooks/useGenerationHistory";
-import { useStuckGenerationRetry } from "@/hooks/useStuckGenerationRetry";
 
 // Helper to get color scheme display data
 function getColorSchemeDisplay(schemeId: string | null): { name: string; colors: string[] } | null {
@@ -192,12 +190,10 @@ interface SingleHistoryItemProps {
   onPhpPreview?: (item: HistoryItem) => void;
   onCancel: (item: HistoryItem) => void;
   onRetry: (item: HistoryItem) => void;
-  onCancelRetry: (itemId: string) => void;
   onSelectFile: (file: GeneratedFile) => void;
   onViewModeChange: (mode: "preview" | "code") => void;
   getAppeal: (itemId: string) => Appeal | undefined;
   getCssFile: (files: GeneratedFile[] | null) => GeneratedFile | undefined;
-  getRetryState: (itemId: string) => { countdown: number; isActive: boolean; isCancelled: boolean; isRetrying: boolean };
   toast: ReturnType<typeof useToast>["toast"];
   compact?: boolean;
   isAdmin?: boolean;
@@ -219,19 +215,16 @@ function SingleHistoryItem({
   onPhpPreview,
   onCancel,
   onRetry,
-  onCancelRetry,
   onSelectFile,
   onViewModeChange,
   getAppeal,
   getCssFile,
-  getRetryState,
   toast,
   compact = false,
   isAdmin = false,
   isDownloading = false,
 }: SingleHistoryItemProps) {
   const { t } = useLanguage();
-  const retryState = getRetryState(item.id);
 
   const copyIdToClipboard = async (e: MouseEvent) => {
     e.stopPropagation();
@@ -479,83 +472,43 @@ function SingleHistoryItem({
                   </TooltipProvider>
                 );
               })()}
-              {/* Failed item - show retry button with countdown */}
+              {/* Failed item - show manual retry button only */}
               {item.status === "failed" && (
-                <>
-                  {retryState.isRetrying ? (
-                    <Badge variant="secondary" className="text-xs h-6 gap-1">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Retry...
-                    </Badge>
-                  ) : retryState.isActive && !retryState.isCancelled ? (
-                    <>
-                      <Badge variant="outline" className="text-xs h-6 tabular-nums">
-                        {retryState.countdown}с
-                      </Badge>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onCancelRetry(item.id);
-                        }}
-                        title="Скасувати auto-retry"
-                      >
-                        <StopCircle className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-primary hover:text-primary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRetry(item);
-                        }}
-                        title="Retry зараз"
-                      >
-                        <Play className="h-4 w-4 mr-1" />
-                        Retry
-                      </Button>
-                    </>
-                  ) : (
-                    <div className="flex items-center gap-1">
-                      {item.error_message && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0 text-destructive/70 hover:text-destructive"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Info className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-xs">
-                              <p className="text-xs font-medium mb-1">Причина помилки:</p>
-                              <p className="text-xs text-muted-foreground break-words">{item.error_message}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-primary hover:text-primary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRetry(item);
-                        }}
-                        title={item.error_message ? `Повторити: ${item.error_message.substring(0, 50)}...` : "Повторити генерацію"}
-                      >
-                        <RefreshCw className="h-4 w-4 mr-1" />
-                        Retry
-                      </Button>
-                    </div>
+                <div className="flex items-center gap-1">
+                  {item.error_message && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-destructive/70 hover:text-destructive"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Info className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-xs">
+                          <p className="text-xs font-medium mb-1">Причина помилки:</p>
+                          <p className="text-xs text-muted-foreground break-words">{item.error_message}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   )}
-                </>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-primary hover:text-primary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRetry(item);
+                    }}
+                    title={item.error_message ? `Повторити: ${item.error_message.substring(0, 50)}...` : "Повторити генерацію"}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Retry
+                  </Button>
+                </div>
               )}
               {(item.status === "completed" || item.status === "manual_completed") && (
                   <>
@@ -822,8 +775,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
     updateHistoryItem,
   } = useGenerationHistory({ compactMode });
 
-  // Auto-retry stuck generations (generating > 4min with no specific_ai_model)
-  useStuckGenerationRetry(history);
+  // Auto-retry disabled - all retries are manual only
 
   // Expose addOptimisticItem to parent via callback
   useEffect(() => {
@@ -954,29 +906,10 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
     }
   }, [history, toast]);
 
-  // Auto-retry hook for failed generations
-  const { startAutoRetry, cancelAutoRetry, manualRetry, getRetryState } = useAutoRetry({
-    autoRetryDelay: 30,
-    onRetry: handleRetryGeneration,
-  });
-
-  // Start auto-retry for newly failed items
-  useEffect(() => {
-    const failedItems = history.filter(item => item.status === "failed");
-    failedItems.forEach(item => {
-      // Only start auto-retry for recent failures (last 5 minutes)
-      const failedAt = new Date(item.created_at).getTime();
-      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-      if (failedAt > fiveMinutesAgo) {
-        startAutoRetry(item.id);
-      }
-    });
-  }, [history, startAutoRetry]);
-
-  // Manual retry handler
+  // Manual retry handler only - no auto-retry
   const handleRetry = useCallback((item: HistoryItem) => {
-    manualRetry(item.id);
-  }, [manualRetry]);
+    handleRetryGeneration(item.id);
+  }, [handleRetryGeneration]);
 
   // Check for stale generations (older than 20 minutes) and mark them as failed with refund
   // NOTE: best-effort; must not spam backend when unhealthy.
@@ -1929,12 +1862,10 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
                           }}
                           onCancel={handleCancel}
                           onRetry={handleRetry}
-                          onCancelRetry={cancelAutoRetry}
                           onSelectFile={setSelectedFile}
                           onViewModeChange={setViewMode}
                           getAppeal={getAppealForItem}
                           getCssFile={getCssFile}
-                          getRetryState={getRetryState}
                           toast={toast}
                           compact
                           isAdmin={isAdmin}
@@ -1971,12 +1902,10 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
                   }}
                   onCancel={handleCancel}
                   onRetry={handleRetry}
-                  onCancelRetry={cancelAutoRetry}
                   onSelectFile={setSelectedFile}
                   onViewModeChange={setViewMode}
                   getAppeal={getAppealForItem}
                   getCssFile={getCssFile}
-                  getRetryState={getRetryState}
                   toast={toast}
                   isAdmin={isAdmin}
                   isDownloading={downloadingIds.has(item.id)}
