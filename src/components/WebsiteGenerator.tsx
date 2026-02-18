@@ -2716,7 +2716,7 @@ export function WebsiteGenerator() {
                     className={`h-7 text-xs px-2 ${isVipMode ? "bg-amber-500 hover:bg-amber-600" : ""}`}
                   >
                     <Star className={`mr-1 h-3 w-3 ${isVipMode ? "fill-current" : ""}`} />
-                    VIP
+                    {t("genForm.vipMode")}
                     {isVipMode && <span className="ml-1">✓</span>}
                   </Button>
                   
@@ -2973,7 +2973,7 @@ export function WebsiteGenerator() {
                       <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
                         <Star className="h-4 w-4 fill-current" />
                         <span className="text-sm font-medium">{t("genForm.vipModeTitle")}</span>
-                        <Badge variant="outline" className="text-amber-600 border-amber-500/50">VIP</Badge>
+                        <Badge variant="outline" className="text-amber-600 border-amber-500/50">{t("genForm.vipMode")}</Badge>
                       </div>
                       <Button
                         variant="ghost"
