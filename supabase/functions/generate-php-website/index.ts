@@ -7169,28 +7169,74 @@ async function runBackgroundGeneration(
       const zipBase64 = await zip.generateAsync({ type: "base64" });
 
       const generationCost = result.totalCost || 0;
-      await supabase
-        .from("generation_history")
-        .update({
-          status: "completed",
-          files_data: enforcedFiles,
-          zip_data: zipBase64,
-          generation_cost: generationCost,
-          specific_ai_model: result.specificModel || null,
-          completed_at: new Date().toISOString(),
-          // color_scheme and layout_style saved via main handler
-        })
-        .eq("id", historyId);
 
-      await supabase.from("notifications").insert({
-        user_id: userId,
-        type: "generation_complete",
-        title: "PHP сайт згенеровано",
-        message: `PHP сайт успішно створено (${enforcedFiles.length} файлів)`,
-        data: { historyId, filesCount: enforcedFiles.length }
-      });
+      // === COST LIMIT CHECK: $2 max per generation ===
+      const COST_LIMIT = 2.0;
+      if (generationCost > COST_LIMIT) {
+        console.error(`🚨 [COST LIMIT] PHP generation ${historyId} exceeded $${COST_LIMIT} limit! Cost: $${generationCost.toFixed(4)}`);
 
-      console.log(`[BG] PHP Generation completed for ${historyId}: ${enforcedFiles.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}`);
+        // REFUND balance
+        if (teamId && salePrice > 0) {
+          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+          if (team) {
+            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
+            console.log(`[COST LIMIT] REFUNDED $${salePrice} to team ${teamId}`);
+          }
+        }
+
+        await supabase
+          .from("generation_history")
+          .update({
+            status: "failed",
+            error_message: `Перевищено ліміт вартості AI токенів ($${generationCost.toFixed(2)} > $${COST_LIMIT}). Створено апеляцію.`,
+            sale_price: 0,
+            generation_cost: generationCost,
+            specific_ai_model: result.specificModel || null,
+          })
+          .eq("id", historyId);
+
+        await supabase.from("appeals").insert({
+          generation_id: historyId,
+          user_id: userId,
+          team_id: teamId || null,
+          reason: `Автоповідомлення: Перевищено ліміт вартості AI токенів. Кост генерації: $${generationCost.toFixed(4)} (ліміт: $${COST_LIMIT}). Модель: ${result.specificModel || "unknown"}. Тип: PHP`,
+          amount_to_refund: salePrice,
+          status: "pending",
+        });
+
+        await supabase.from("notifications").insert({
+          user_id: userId,
+          type: "generation_failed",
+          title: "⚠️ Перевищено ліміт AI токенів",
+          message: `PHP генерація зупинена: вартість $${generationCost.toFixed(2)} перевищила ліміт $${COST_LIMIT}. Апеляцію створено автоматично.`,
+          data: { historyId, cost: generationCost, limit: COST_LIMIT },
+        });
+
+        console.log(`[COST LIMIT] Appeal created for PHP generation ${historyId}`);
+      } else {
+        // Normal success path
+        await supabase
+          .from("generation_history")
+          .update({
+            status: "completed",
+            files_data: enforcedFiles,
+            zip_data: zipBase64,
+            generation_cost: generationCost,
+            specific_ai_model: result.specificModel || null,
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", historyId);
+
+        await supabase.from("notifications").insert({
+          user_id: userId,
+          type: "generation_complete",
+          title: "PHP сайт згенеровано",
+          message: `PHP сайт успішно створено (${enforcedFiles.length} файлів)`,
+          data: { historyId, filesCount: enforcedFiles.length }
+        });
+
+        console.log(`[BG] PHP Generation completed for ${historyId}: ${enforcedFiles.length} files, sale: $${salePrice}, cost: $${generationCost.toFixed(4)}`);
+      }
     } else {
       // REFUND balance on failure
       if (teamId && salePrice > 0) {
