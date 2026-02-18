@@ -8097,13 +8097,28 @@ async function runGeneration({
   }
 
   const agentData = await agentResponse.json();
-  const refinedPrompt = agentData.choices?.[0]?.message?.content || prompt;
+  let refinedPrompt = agentData.choices?.[0]?.message?.content || prompt;
 
   // Track token usage for refine step
   let totalCost = 0;
   const agentUsage = agentData.usage as TokenUsage | undefined;
   if (agentUsage) {
     totalCost += calculateCost(agentUsage, refineModel);
+  }
+
+  // 🛡️ GUARD #1: Обрезаем refinedPrompt если он слишком длинный
+  // Длинный бриф = много input токенов для gemini-pro = дорого
+  // Лимит: 6000 символов (~1500 токенов) — достаточно для хорошего сайта
+  const MAX_REFINED_PROMPT_CHARS = 6000;
+  if (refinedPrompt.length > MAX_REFINED_PROMPT_CHARS) {
+    console.warn(`⚠️ [COST GUARD] Refined prompt too long: ${refinedPrompt.length} chars. Trimming to ${MAX_REFINED_PROMPT_CHARS}.`);
+    // Обрезаем по последнему полному предложению в пределах лимита
+    const truncated = refinedPrompt.substring(0, MAX_REFINED_PROMPT_CHARS);
+    const lastDot = Math.max(truncated.lastIndexOf('. '), truncated.lastIndexOf('.\n'));
+    refinedPrompt = lastDot > MAX_REFINED_PROMPT_CHARS * 0.7
+      ? truncated.substring(0, lastDot + 1)
+      : truncated;
+    console.log(`✂️ [COST GUARD] Prompt trimmed to ${refinedPrompt.length} chars.`);
   }
 
   console.log("Refined prompt generated, now generating HTML website...");
@@ -8235,13 +8250,16 @@ These are realistic, verified contact details for the target region. DO NOT repl
   };
 
   // Set max_tokens for both models to ensure complete generation
-  // Junior: 16000 tokens, Senior: 65536 tokens for comprehensive multi-page websites
-  // CRITICAL: OpenAI GPT-5 series uses max_completion_tokens, not max_tokens
+  // 🛡️ GUARD #2: Снижаем max_tokens для Senior с 65536 до 32768
+  // gemini-2.5-pro: $0.01/1K output tokens → 65K = $0.65+ за ОДНУ генерацию
+  // 32768 токенов достаточно для качественного сайта из 5 страниц (~25KB HTML)
+  // Junior: 16000 tokens (без изменений)
+  const SENIOR_MAX_OUTPUT_TOKENS = 32768; // было 65536 — экономия 50% output cost
   const isOpenAIGPT5Model = generateModel.includes("gpt-5");
   if (isOpenAIGPT5Model) {
-    websiteRequestBody.max_completion_tokens = isJunior ? 16000 : 65536;
+    websiteRequestBody.max_completion_tokens = isJunior ? 16000 : SENIOR_MAX_OUTPUT_TOKENS;
   } else {
-    websiteRequestBody.max_tokens = isJunior ? 16000 : 65536;
+    websiteRequestBody.max_tokens = isJunior ? 16000 : SENIOR_MAX_OUTPUT_TOKENS;
   }
 
   console.log(`📊 Prompt length: ${prompt.length} chars, System prompt length: ${HTML_GENERATION_PROMPT.length} chars`);
@@ -8259,13 +8277,14 @@ These are realistic, verified contact details for the target region. DO NOT repl
     const requestBody: Record<string, unknown> = { ...websiteRequestBody, model: modelToUse };
 
     // CRITICAL: Fix max_tokens vs max_completion_tokens for OpenAI GPT-5 series
+    // 🛡️ GUARD #3: В fallback/retry моделях тоже применяем лимит SENIOR_MAX_OUTPUT_TOKENS
     const isGPT5Series = modelToUse.includes("gpt-5");
     if (isGPT5Series) {
       delete requestBody.max_tokens;
-      requestBody.max_completion_tokens = isJunior ? 16000 : 65536;
+      requestBody.max_completion_tokens = isJunior ? 16000 : SENIOR_MAX_OUTPUT_TOKENS;
     } else if (!requestBody.max_tokens) {
       // Ensure non-GPT5 models have max_tokens set
-      requestBody.max_tokens = isJunior ? 16000 : 65536;
+      requestBody.max_tokens = isJunior ? 16000 : SENIOR_MAX_OUTPUT_TOKENS;
     }
 
     console.log(
@@ -8401,11 +8420,25 @@ These are realistic, verified contact details for the target region. DO NOT repl
   // Try primary model first (gemini-2.5-pro for senior, gpt-4o for junior)
   let generationResult = await attemptGeneration(generateModel);
 
+  // 🛡️ GUARD #4: Перед fallback проверяем накопленную стоимость
+  // Если Stage 1 (refine) уже стоил дорого — прерываем, не запускаем Stage 2 fallback
+  const FALLBACK_COST_GUARD = 1.5; // Если уже потратили $1.5 — стоп
+
   // If primary model failed, try fallback models
   if (!generationResult) {
-    const fallbackModels = isJunior ? ["gpt-4o-mini"] : ["google/gemini-2.5-flash", "openai/gpt-5"];
+    if (totalCost >= FALLBACK_COST_GUARD) {
+      console.error(`🚨 [COST GUARD] Accumulated cost $${totalCost.toFixed(4)} >= $${FALLBACK_COST_GUARD}. Aborting fallback chain to prevent overspend.`);
+      return { success: false, error: "Generation aborted: cost limit reached before fallback. Please retry.", totalCost };
+    }
+
+    const fallbackModels = isJunior ? ["gpt-4o-mini"] : ["google/gemini-2.5-flash"];
+    // Убираем openai/gpt-5 из fallback для Senior — слишком дорого
 
     for (const fallbackModel of fallbackModels) {
+      if (totalCost >= FALLBACK_COST_GUARD) {
+        console.warn(`⚠️ [COST GUARD] Stopping fallback loop: cost $${totalCost.toFixed(4)} >= $${FALLBACK_COST_GUARD}`);
+        break;
+      }
       console.log(`🔄 Primary model failed, trying fallback: ${fallbackModel}`);
       generationResult = await attemptGeneration(fallbackModel, true);
       if (generationResult) break;
@@ -8439,15 +8472,35 @@ These are realistic, verified contact details for the target region. DO NOT repl
   // If no index.html or no HTML files at all, try fallback models
   if (!hasIndexHtml || htmlFileCount === 0) {
     console.error(`❌ CRITICAL: No index.html found! Files: ${files.map((f) => f.path).join(", ")}`);
-    console.log(`🔄 Attempting recovery with fallback models...`);
+
+    // 🛡️ GUARD #5: Проверяем стоимость перед recovery
+    const RECOVERY_COST_GUARD = 1.8;
+    if (totalCost >= RECOVERY_COST_GUARD) {
+      console.error(`🚨 [COST GUARD] Cost $${totalCost.toFixed(4)} >= $${RECOVERY_COST_GUARD} — aborting recovery chain to prevent overspend.`);
+      return {
+        success: false,
+        error: "Generation incomplete: no index.html. Cost limit reached, recovery aborted. Please retry.",
+        rawResponse: rawText.substring(0, 500),
+        totalCost,
+        specificModel: modelUsed,
+      };
+    }
+
+    console.log(`🔄 Attempting recovery with fallback models... (current cost: $${totalCost.toFixed(4)})`);
 
     // Use stable recovery models - avoid openai/gpt-5-mini due to max_tokens incompatibility
+    // Только flash модели для recovery — они дешевле
     const recoveryModels = ["google/gemini-2.5-flash", "google/gemini-3-flash-preview"];
     let recovered = false;
     let finalModelUsed = modelUsed;
 
     for (const recoveryModel of recoveryModels) {
       if (recoveryModel === modelUsed) continue; // Skip if already tried this model
+
+      if (totalCost >= RECOVERY_COST_GUARD) {
+        console.warn(`⚠️ [COST GUARD] Stopping recovery loop: cost $${totalCost.toFixed(4)} >= $${RECOVERY_COST_GUARD}`);
+        break;
+      }
 
       console.log(`🔄 Recovery attempt with: ${recoveryModel}`);
       const recoveryResult = await attemptGeneration(recoveryModel, true);
