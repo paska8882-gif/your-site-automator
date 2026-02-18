@@ -308,20 +308,23 @@ RULES:
 - The tagline must be catchy and memorable
 - ALL content MUST be in ${normalizedLanguage}${batchInstruction}`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    if (!OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not configured');
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Create a complete structured website brief for this niche: "${topic}"${siteName ? `\nBusiness name: ${siteName}` : ''}\n\nREMINDER: Write ALL content in ${normalizedLanguage}. Language = ${normalizedLanguage}. Geo = ${normalizedGeo}.${isBatch ? `\n\nThis is variant ${batchIndex} of ${batchTotal} - make it completely unique and different!` : ''}` },
         ],
         max_tokens: 2000,
-        temperature: isBatch ? 0.9 : 0.7, // Higher temperature for batch to ensure variety
+        temperature: isBatch ? 0.9 : 0.7,
       }),
     });
 
@@ -335,12 +338,6 @@ RULES:
         return new Response(
           JSON.stringify({ error: "Занадто багато запитів. Спробуйте пізніше." }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Недостатньо кредитів Lovable AI. Зверніться до адміністратора." }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
