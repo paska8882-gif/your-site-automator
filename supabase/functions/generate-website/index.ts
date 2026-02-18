@@ -3211,7 +3211,7 @@ function enforceUiUxBaselineInFiles(
   // - keep sections readable and not overly tall
   // - eliminate horizontal overflow
   // - FORCE correct hero split-layout and horizontal nav
-  const css = `\n<style id="${STYLE_ID}">\n  html { -webkit-text-size-adjust: 100%; }\n  body { overflow-x: hidden; }\n  img, video { max-width: 100%; }\n\n  /* ===== NAVIGATION - FORCE HORIZONTAL ===== */\n  .nav, nav, .navbar, header nav, .header-nav {\n    display: flex !important;\n    align-items: center !important;\n    justify-content: space-between !important;\n    flex-wrap: nowrap !important;\n  }\n  .nav-links, .nav ul, .navbar ul, .nav-menu, .nav-list, header ul, .header ul {\n    display: flex !important;\n    flex-direction: row !important;\n    list-style: none !important;\n    gap: clamp(16px, 2.5vw, 32px) !important;\n    margin: 0 !important;\n    padding: 0 !important;\n    align-items: center !important;\n  }\n  .nav-links li, .nav-menu li, .nav-list li, header ul li {\n    list-style: none !important;\n  }\n\n  /* ===== HERO SPLIT LAYOUT - FORCE TWO-COLUMN ===== */\n  .hero-inner, .page-hero-inner, .hero-container {\n    max-width: 1200px !important;\n    margin: 0 auto !important;\n    padding: 0 24px !important;\n    display: grid !important;\n    grid-template-columns: 1fr 1fr !important;\n    gap: 40px !important;\n    align-items: center !important;\n  }\n  .hero-copy, .hero-text, .hero-content {\n    display: flex !important;\n    flex-direction: column !important;\n    gap: 16px !important;\n  }\n  .hero-visual, .hero-image, .hero-img {\n    display: flex !important;\n    justify-content: center !important;\n    align-items: center !important;\n  }\n  .hero-visual img, .hero-image img, .hero-img img {\n    width: 100% !important;\n    max-width: 580px !important;\n    height: clamp(280px, 40vw, 520px) !important;\n    object-fit: cover !important;\n    border-radius: 12px !important;\n  }\n  .page-hero, .hero {\n    padding: clamp(60px, 10vw, 120px) 0 !important;\n    min-height: auto !important;\n    max-height: none !important;\n  }\n\n  /* ===== HERO FALLBACK: if no hero-inner, use container as grid ===== */\n  .page-hero > .container, .page-hero > .section-inner {\n    display: grid !important;\n    grid-template-columns: 1fr 1fr !important;\n    gap: 40px !important;\n    align-items: center !important;\n  }\n\n  /* If generator produced 100vh directly, tame it */\n  [style*="height:100vh"],\n  [style*="height: 100vh"],\n  [style*="min-height:100vh"],\n  [style*="min-height: 100vh"] {\n    height: auto !important;\n    min-height: clamp(300px, 60vh, 640px) !important;\n  }\n\n  /* ===== SECTIONS: balanced spacing ===== */\n  section {\n    padding-block: clamp(56px, 7vw, 96px);\n  }\n\n  /* ===== CONTAINERS: prevent ultra-wide ===== */\n  .container, .section-inner, .page-container {\n    width: 100% !important;\n    max-width: min(1200px, 100% - 32px) !important;\n    margin-inline: auto !important;\n    box-sizing: border-box !important;\n  }\n\n  /* ===== ICON SIZE CONSTRAINTS - BROAD COVERAGE ===== */\n  .feature-icon, .service-icon, .icon-box, .icon-wrapper,\n  .card-icon, .why-icon, .step-icon, .benefit-icon,\n  .icon-circle, .icon-square, .icon-container, .icon-wrap,\n  [class*="icon-box"], [class*="feature-icon"], [class*="service-icon"] {\n    width: 56px !important;\n    height: 56px !important;\n    max-width: 56px !important;\n    max-height: 56px !important;\n    font-size: 28px !important;\n    line-height: 56px !important;\n    flex-shrink: 0 !important;\n  }\n  .feature-icon svg, .service-icon svg, .icon-box svg,\n  .icon-wrapper svg, .card-icon svg, .icon-circle svg,\n  .icon-container svg, [class*="icon-box"] svg {\n    width: 28px !important;\n    height: 28px !important;\n    max-width: 28px !important;\n    max-height: 28px !important;\n  }\n  /* Emoji icons - cap font size */\n  .feature-icon span, .service-icon span, .icon-box span,\n  [class*="icon-box"] span {\n    font-size: 1.75rem !important;\n    line-height: 1 !important;\n  }\n\n  /* ===== RESPONSIVE BREAKPOINTS ===== */\n  @media (max-width: 768px) {\n    .hero-inner, .page-hero-inner, .hero-container,\n    .page-hero > .container, .page-hero > .section-inner {\n      grid-template-columns: 1fr !important;\n    }\n    .nav-links, .nav-menu, .nav-list {\n      display: none !important;\n    }\n    .nav-toggle, .hamburger, .menu-toggle, .mobile-menu-btn {\n      display: block !important;\n    }\n    .nav-links.active, .nav-links.open, .nav-menu.active, .nav-menu.open {\n      display: flex !important;\n      flex-direction: column !important;\n    }\n  }\n  @media (max-width: 640px) {\n    section {\n      padding-block: clamp(44px, 9vw, 72px);\n    }\n  }\n</style>\n`;
+  const css = `\n<style id="${STYLE_ID}">\n  html { -webkit-text-size-adjust: 100%; }\n  body { overflow-x: hidden; }\n  img, video { max-width: 100%; }\n\n  /* ===== TEXT CONTRAST ON DARK BACKGROUNDS - MANDATORY ===== */\n  .section.bg-dark, .section.dark, .dark-section, .cta-dark,\n  [class*="dark-bg"], [class*="bg-dark"], .hero-dark,\n  section[style*="background: #1"], section[style*="background:#1"],\n  section[style*="background: rgb(1"], section[style*="background: rgb(2"],\n  section[style*="background: rgb(3"] {\n    color: #ffffff !important;\n  }\n  .section.bg-dark h1, .section.bg-dark h2, .section.bg-dark h3,\n  .section.bg-dark h4, .section.bg-dark p, .section.bg-dark span,\n  .section.dark h1, .section.dark h2, .section.dark h3,\n  .section.dark h4, .section.dark p, .dark-section h1,\n  .dark-section h2, .dark-section h3, .dark-section p {\n    color: #ffffff !important;\n  }\n  /* Ensure hero text is ALWAYS readable */\n  .page-hero .hero-copy h1,\n  .page-hero .hero-copy p,\n  .page-hero .hero-copy .badge {\n    position: relative;\n    z-index: 2;\n  }\n  /* Prevent section overlays from hiding text */\n  .section::before, section::before {\n    pointer-events: none;\n    z-index: 0;\n  }\n  .section > *, section > * {\n    position: relative;\n    z-index: 1;\n  }\n\n  /* ===== NAVIGATION - FORCE HORIZONTAL ===== */\n  .nav, nav, .navbar, header nav, .header-nav {\n    display: flex !important;\n    align-items: center !important;\n    justify-content: space-between !important;\n    flex-wrap: nowrap !important;\n  }\n  .nav-links, .nav ul, .navbar ul, .nav-menu, .nav-list, header ul, .header ul {\n    display: flex !important;\n    flex-direction: row !important;\n    list-style: none !important;\n    gap: clamp(16px, 2.5vw, 32px) !important;\n    margin: 0 !important;\n    padding: 0 !important;\n    align-items: center !important;\n  }\n  .nav-links li, .nav-menu li, .nav-list li, header ul li {\n    list-style: none !important;\n  }\n\n  /* ===== HERO SPLIT LAYOUT - FORCE TWO-COLUMN ===== */\n  .hero-inner, .page-hero-inner, .hero-container {\n    max-width: 1200px !important;\n    margin: 0 auto !important;\n    padding: 0 24px !important;\n    display: grid !important;\n    grid-template-columns: 1fr 1fr !important;\n    gap: 40px !important;\n    align-items: center !important;\n  }\n  .hero-copy, .hero-text, .hero-content {\n    display: flex !important;\n    flex-direction: column !important;\n    gap: 16px !important;\n  }\n  .hero-visual, .hero-image, .hero-img {\n    display: flex !important;\n    justify-content: center !important;\n    align-items: center !important;\n  }\n  .hero-visual img, .hero-image img, .hero-img img {\n    width: 100% !important;\n    max-width: 580px !important;\n    height: clamp(280px, 40vw, 520px) !important;\n    object-fit: cover !important;\n    border-radius: 12px !important;\n  }\n  .page-hero, .hero {\n    padding: clamp(60px, 10vw, 120px) 0 !important;\n    min-height: auto !important;\n    max-height: none !important;\n  }\n\n  /* ===== HERO FALLBACK: if no hero-inner, use container as grid ===== */\n  .page-hero > .container, .page-hero > .section-inner {\n    display: grid !important;\n    grid-template-columns: 1fr 1fr !important;\n    gap: 40px !important;\n    align-items: center !important;\n  }\n\n  /* If generator produced 100vh directly, tame it */\n  [style*="height:100vh"],\n  [style*="height: 100vh"],\n  [style*="min-height:100vh"],\n  [style*="min-height: 100vh"] {\n    height: auto !important;\n    min-height: clamp(300px, 60vh, 640px) !important;\n  }\n\n  /* ===== SECTIONS: balanced spacing ===== */\n  section {\n    padding-block: clamp(56px, 7vw, 96px);\n  }\n\n  /* ===== CONTAINERS: prevent ultra-wide ===== */\n  .container, .section-inner, .page-container {\n    width: 100% !important;\n    max-width: min(1200px, 100% - 32px) !important;\n    margin-inline: auto !important;\n    box-sizing: border-box !important;\n  }\n\n  /* ===== ICON SIZE CONSTRAINTS - BROAD COVERAGE ===== */\n  .feature-icon, .service-icon, .icon-box, .icon-wrapper,\n  .card-icon, .why-icon, .step-icon, .benefit-icon,\n  .icon-circle, .icon-square, .icon-container, .icon-wrap,\n  [class*="icon-box"], [class*="feature-icon"], [class*="service-icon"] {\n    width: 56px !important;\n    height: 56px !important;\n    max-width: 56px !important;\n    max-height: 56px !important;\n    font-size: 28px !important;\n    line-height: 56px !important;\n    flex-shrink: 0 !important;\n  }\n  .feature-icon svg, .service-icon svg, .icon-box svg,\n  .icon-wrapper svg, .card-icon svg, .icon-circle svg,\n  .icon-container svg, [class*="icon-box"] svg {\n    width: 28px !important;\n    height: 28px !important;\n    max-width: 28px !important;\n    max-height: 28px !important;\n  }\n  /* Emoji icons - cap font size */\n  .feature-icon span, .service-icon span, .icon-box span,\n  [class*="icon-box"] span {\n    font-size: 1.75rem !important;\n    line-height: 1 !important;\n  }\n\n  /* ===== RESPONSIVE BREAKPOINTS ===== */\n  @media (max-width: 768px) {\n    .hero-inner, .page-hero-inner, .hero-container,\n    .page-hero > .container, .page-hero > .section-inner {\n      grid-template-columns: 1fr !important;\n    }\n    .nav-links, .nav-menu, .nav-list {\n      display: none !important;\n    }\n    .nav-toggle, .hamburger, .menu-toggle, .mobile-menu-btn {\n      display: block !important;\n    }\n    .nav-links.active, .nav-links.open, .nav-menu.active, .nav-menu.open {\n      display: flex !important;\n      flex-direction: column !important;\n    }\n  }\n  @media (max-width: 640px) {\n    section {\n      padding-block: clamp(44px, 9vw, 72px);\n    }\n  }\n</style>\n`;
 
   return files.map((f) => {
     if (!/\.(html?)$/i.test(f.path)) return f;
@@ -5534,12 +5534,103 @@ ALL content MUST be centered on the page:
 - ALL CONTENT CENTERED IN max-width CONTAINER
 
 🎯 **CONTENT DENSITY REQUIREMENTS:**
-- Homepage MUST have 6+ content sections
+- Homepage MUST have 7+ content sections
 - Each section MUST have 100+ words of real text
 - Cards MUST have title + description + meta info + "Read More" button
 - Lists MUST have 3+ bullet points with full sentences
 - Stats MUST have 3+ metrics with numbers and labels
 - CONTACT INFO (phone + email) MUST be visible on every page
+- EVERY features/services section MUST include icon containers (.feature-icon or .service-icon class) with background color matching the brand
+- EVERY section must have GENUINE business-specific content (NO placeholders, NO lorem ipsum)
+- DEPTH REQUIREMENT: Include at least ONE testimonials section with real quotes and attribution
+
+**MANDATORY FEATURES/SERVICES SECTION WITH ICONS:**
+\`\`\`html
+<section class="section bg-light">
+  <div class="section-inner centered">
+    <div class="section-header centered">
+      <span class="section-label">Services</span>
+      <h2>What we offer</h2>
+      <p>Detailed description of the services portfolio with 2-3 sentences.</p>
+    </div>
+    <div class="cards-grid">
+      <article class="feature-card card">
+        <div class="feature-icon" style="background: rgba(var(--primary-rgb, 5,150,105),0.1);">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--primary-color,#059669)"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        </div>
+        <h3>Service Title</h3>
+        <p>Detailed, specific description of this service in 2-3 sentences. Explain the real value and what clients get.</p>
+        <a href="services.html" class="card-button">Learn More</a>
+      </article>
+      <!-- 5 more cards -->
+    </div>
+  </div>
+</section>
+\`\`\`
+
+**MANDATORY TESTIMONIALS SECTION:**
+\`\`\`html
+<section class="section">
+  <div class="section-inner centered">
+    <div class="section-header centered">
+      <span class="section-label">Testimonials</span>
+      <h2>What our clients say</h2>
+    </div>
+    <div class="testimonials-grid">
+      <div class="testimonial-card card">
+        <div class="testimonial-stars">★★★★★</div>
+        <blockquote>"Specific quote about results they achieved with this business. Should be 2-3 sentences."</blockquote>
+        <div class="testimonial-author">
+          <img class="testimonial-img" src="https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop" alt="Client Name">
+          <div>
+            <strong>Client Name</strong>
+            <span>Job Title, Company Name</span>
+          </div>
+        </div>
+      </div>
+      <!-- 2 more testimonials -->
+    </div>
+  </div>
+</section>
+\`\`\`
+\`\`\`css
+/* TESTIMONIALS */
+.testimonials-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+@media (max-width: 768px) { .testimonials-grid { grid-template-columns: 1fr; } }
+.testimonial-card {
+  padding: 28px;
+  border-radius: 16px;
+  background: white;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  border: 1px solid rgba(0,0,0,0.05);
+}
+.testimonial-stars { color: #f59e0b; font-size: 1.1rem; margin-bottom: 12px; }
+.testimonial-card blockquote {
+  font-style: italic;
+  color: var(--text-muted, #555);
+  line-height: 1.7;
+  margin-bottom: 20px;
+  font-size: 1rem;
+}
+.testimonial-author {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.testimonial-img {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.testimonial-author strong { display: block; font-size: 0.95rem; color: var(--text-dark); }
+.testimonial-author span { font-size: 0.85rem; color: var(--text-muted); }
+\`\`\`
 
 **MANDATORY HERO STRUCTURE (SPLIT LAYOUT) - FOLLOW EXACTLY:**
 \`\`\`html
@@ -6306,7 +6397,7 @@ a:hover {
 1. Images must NEVER be full-width or full-screen (no 100vw, no width: 100%)
 2. All images must be CONTEXTUAL - sized appropriately for their content role
 3. Card images: max 400px height, contained within card boundaries
-4. Hero: background-image with overlay, NOT full-screen photos
+4. Hero: use split-layout (.hero-inner grid) with <img> in hero-visual, NOT background-image
 5. Section images: max-width 600px, centered or alongside text
 6. Gallery images: uniform size in grid, max 350px each
 
@@ -6319,45 +6410,20 @@ img {
   object-fit: cover;
 }
 
-/* HERO - CONTROLLED HEIGHT, NEVER FULL-SCREEN PHOTO */
-.hero {
-  min-height: 60vh;
-  max-height: 70vh; /* STRICT LIMIT - never full viewport */
-  background-size: cover;
-  background-position: center;
-  display: flex;
-  align-items: center;
-  position: relative;
-}
-
-.hero::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.4) 100%);
-}
-
-.hero-content {
-  position: relative;
-  z-index: 1;
-  color: white;
-  max-width: 700px;
-}
-
 /* CARD IMAGES - FIXED HEIGHT, NEVER OVERSIZED */
 .card-image, .service-card img, .feature-img {
   width: 100%;
-  height: 200px; /* FIXED - never bigger */
+  height: 200px;
   max-height: 200px;
   object-fit: cover;
   border-radius: var(--radius-md);
 }
 
 /* SECTION IMAGES - CONSTRAINED */
-.section-image, .about-image, .content-image {
-  max-width: 500px;
+.section-image, .about-image, .content-image, .media-visual img {
+  max-width: 100%;
   height: auto;
-  max-height: 350px;
+  max-height: 420px;
   object-fit: cover;
   border-radius: var(--radius-md);
 }
@@ -6368,12 +6434,13 @@ img {
   height: 70px;
   border-radius: 50%;
   object-fit: cover;
+  flex-shrink: 0;
 }
 
 /* GALLERY - UNIFORM GRID */
 .gallery-item img {
   width: 100%;
-  height: 220px; /* FIXED height */
+  height: 220px;
   max-height: 220px;
   object-fit: cover;
   border-radius: var(--radius-md);
@@ -6397,7 +6464,91 @@ img {
 
 /* PREVENT OVERSIZED IMAGES */
 section img:not(.avatar):not(.partner-logo):not(.client-logo) {
-  max-height: 400px;
+  max-height: 460px;
+}
+\`\`\`
+
+**🎨 ICON SIZE CSS - MANDATORY - INCLUDE IN EVERY STYLES.CSS:**
+\`\`\`css
+/* ===== ICON SIZE CONSTRAINTS - NON-NEGOTIABLE ===== */
+/* Icon container: ALWAYS 56x56px, centered content */
+.feature-icon, .service-icon, .icon-box, .icon-wrapper,
+.card-icon, .why-icon, .step-icon, .benefit-icon,
+.icon-circle, .icon-container {
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  min-height: 56px;
+  max-width: 56px;
+  max-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  line-height: 1;
+  flex-shrink: 0;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+/* SVG inside icon container: ALWAYS 28x28px */
+.feature-icon svg, .service-icon svg, .icon-box svg,
+.icon-wrapper svg, .card-icon svg, .icon-circle svg,
+.icon-container svg {
+  width: 28px;
+  height: 28px;
+  max-width: 28px;
+  max-height: 28px;
+  flex-shrink: 0;
+}
+
+/* Emoji icons: cap at 1.75rem */
+.feature-icon span, .service-icon span,
+.icon-box span, .icon-circle span {
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+/* Service/feature card with icon - flex layout */
+.feature-card, .service-card, .why-card, .benefit-card {
+  display: flex;
+  flex-direction: column;
+  padding: 28px 24px;
+}
+
+.feature-card .feature-icon,
+.service-card .service-icon,
+.why-card .why-icon {
+  margin-bottom: 16px;
+}
+\`\`\`
+
+**🎨 TEXT CONTRAST - CRITICAL - DARK SECTIONS MUST HAVE WHITE TEXT:**
+\`\`\`css
+/* Dark sections MUST have white text */
+.section.bg-dark, .section.dark, .dark-section, .cta-dark {
+  color: #ffffff;
+}
+.section.bg-dark h1, .section.bg-dark h2, .section.bg-dark h3,
+.section.bg-dark p, .section.bg-dark span, .section.bg-dark li,
+.section.dark h1, .section.dark h2, .section.dark h3,
+.section.dark p, .dark-section h1, .dark-section h2,
+.dark-section h3, .dark-section p {
+  color: #ffffff;
+}
+/* CTA sections with dark gradient */
+.cta-section[class*="dark"], .section[style*="background: #1"],
+.section[style*="background: linear-gradient(135deg, #1"] {
+  color: #ffffff;
+}
+/* Prevent section ::before overlays from covering text */
+section::before {
+  z-index: 0;
+  pointer-events: none;
+}
+section > * {
+  position: relative;
+  z-index: 1;
 }
 \`\`\`
 
