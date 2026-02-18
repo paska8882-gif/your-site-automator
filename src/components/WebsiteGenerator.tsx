@@ -239,26 +239,124 @@ const randomVipTopics = [
   "⚽ Sports", "🎵 Music", "🎨 Art Gallery", "🪙 Crypto", "📢 Marketing Agency"
 ];
 
-const randomVipAddressesByGeo: Record<string, string[]> = {
-  "us": ["123 Main St, New York, NY 10001", "456 Oak Ave, Los Angeles, CA 90001", "789 Pine Rd, Chicago, IL 60601", "321 Elm Blvd, Houston, TX 77001"],
-  "uk": ["10 Baker Street, London, W1U 3BW", "25 Queen Road, Manchester, M1 1AB", "42 King Lane, Birmingham, B1 1AA"],
-  "de": ["Hauptstraße 15, 10115 Berlin", "Bahnhofstraße 8, 80335 München", "Königstraße 22, 70173 Stuttgart"],
-  "ca": ["100 Maple Ave, Toronto, ON M5H 2N2", "200 Cedar St, Vancouver, BC V6B 1A1", "50 Oak Blvd, Montreal, QC H2Y 1C6"],
-  "au": ["1 George St, Sydney NSW 2000", "25 Collins St, Melbourne VIC 3000", "10 Queen St, Brisbane QLD 4000"],
-  "fr": ["15 Rue de Rivoli, 75001 Paris", "8 Avenue Jean Médecin, 06000 Nice"],
-  "es": ["Calle Gran Vía 28, 28013 Madrid", "Passeig de Gràcia 55, 08007 Barcelona"],
-  "it": ["Via del Corso 120, 00186 Roma", "Via Montenapoleone 8, 20121 Milano"],
-  "nl": ["Damrak 1, 1012 LG Amsterdam", "Coolsingel 42, 3011 AD Rotterdam", "Oudegracht 120, 3511 AX Utrecht", "Grote Markt 15, 9711 LV Groningen"],
-  "be": ["Grand Place 1, 1000 Bruxelles", "Meir 50, 2000 Antwerpen"],
-  "at": ["Kärntner Straße 10, 1010 Wien", "Getreidegasse 5, 5020 Salzburg"],
-  "ch": ["Bahnhofstrasse 15, 8001 Zürich", "Rue du Rhône 42, 1204 Genève"],
-  "pl": ["Nowy Świat 25, 00-029 Warszawa", "Rynek Główny 10, 31-042 Kraków"],
-  "se": ["Drottninggatan 50, 111 21 Stockholm", "Avenyn 15, 411 36 Göteborg"],
-  "no": ["Karl Johans gate 10, 0154 Oslo", "Bryggen 5, 5003 Bergen"],
-  "dk": ["Strøget 20, 1160 København", "Søndergade 15, 8000 Aarhus"],
-  "pt": ["Rua Augusta 100, 1100-053 Lisboa", "Rua Santa Catarina 50, 4000-442 Porto"],
-  "default": ["123 Business Center, Downtown", "456 Commerce Blvd, City Center", "789 Enterprise Ave, Business District"]
-};
+// Generate truly unique realistic address by geo — procedural, never repeats
+function generateRealisticAddressByGeo(geo: string): string {
+  const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+  const num = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+  const geoData: Record<string, { streets: string[]; cities: string[]; zipFn: () => string; fmt: (s: string, c: string, z: string) => string }> = {
+    us: {
+      streets: ["Main St", "Oak Ave", "Pine Rd", "Elm Blvd", "Cedar Ln", "Maple Dr", "Washington Ave", "Park Blvd", "Lake St", "River Rd", "Highland Ave", "Forest Dr", "Sunset Blvd", "Broadway", "Lincoln Ave", "Jefferson St", "Madison Ave", "Monroe Dr", "Franklin St", "Adams Blvd", "Jackson Rd", "Harrison Ave", "Tyler Ln", "Polk St", "Taylor Dr", "Grant Ave", "Hayes Blvd", "Garfield Rd", "Cleveland St", "McKinley Ave", "Roosevelt Dr", "Wilson Blvd", "Harding Ln", "Coolidge St", "Hoover Ave", "Truman Dr", "Kennedy Blvd"],
+      cities: ["New York, NY", "Los Angeles, CA", "Chicago, IL", "Houston, TX", "Phoenix, AZ", "Philadelphia, PA", "San Antonio, TX", "San Diego, CA", "Dallas, TX", "San Jose, CA", "Austin, TX", "Jacksonville, FL", "Fort Worth, TX", "Columbus, OH", "Charlotte, NC", "Indianapolis, IN", "Denver, CO", "Seattle, WA", "Nashville, TN", "Portland, OR", "Las Vegas, NV", "Memphis, TN", "Louisville, KY", "Baltimore, MD", "Milwaukee, WI", "Albuquerque, NM", "Tucson, AZ", "Fresno, CA", "Sacramento, CA", "Mesa, AZ", "Kansas City, MO", "Atlanta, GA", "Omaha, NE", "Miami, FL", "Tampa, FL"],
+      zipFn: () => `${num(10000, 99999)}`,
+      fmt: (s, c, z) => `${num(1, 9999)} ${s}, ${c} ${z}`
+    },
+    uk: {
+      streets: ["Baker Street", "Queen Road", "King Lane", "Church Street", "High Street", "Station Road", "Park Avenue", "Victoria Road", "London Road", "Green Lane", "Mill Lane", "Manor Road", "Bridge Street", "Castle Road", "Chapel Lane", "Market Street", "North Street", "South Road", "West Lane", "East Avenue", "Orchard Close", "Meadow Way", "Hillside Drive", "Garden Terrace"],
+      cities: ["London", "Manchester", "Birmingham", "Leeds", "Liverpool", "Bristol", "Sheffield", "Newcastle", "Nottingham", "Leicester", "Edinburgh", "Glasgow", "Cardiff", "Oxford", "Cambridge", "Bath", "Brighton", "York", "Canterbury", "Exeter"],
+      zipFn: () => `${pick(["W","E","N","S","SW","SE","NW","NE","EC","WC","B","M","L","LS"])}${num(1,20)} ${num(1,9)}${pick(["AB","CD","EF","GH","JK","LM","NP","QR","ST","UV","WX","YZ"])}`,
+      fmt: (s, c, z) => `${num(1, 200)} ${s}, ${c}, ${z}`
+    },
+    de: {
+      streets: ["Hauptstraße", "Bahnhofstraße", "Königstraße", "Berliner Straße", "Friedrichstraße", "Schillerstraße", "Goethestraße", "Mozartstraße", "Beethovenstraße", "Gartenstraße", "Waldstraße", "Bergstraße", "Marktplatz", "Lindenstraße", "Rosenstraße", "Kirchstraße", "Schulstraße", "Parkstraße", "Industriestraße", "Dorfstraße"],
+      cities: ["Berlin", "München", "Hamburg", "Frankfurt", "Köln", "Stuttgart", "Düsseldorf", "Leipzig", "Dortmund", "Essen", "Bremen", "Dresden", "Hannover", "Nürnberg", "Duisburg", "Bochum", "Wuppertal", "Bonn", "Münster", "Mannheim"],
+      zipFn: () => `${num(10000, 99999)}`,
+      fmt: (s, c, z) => `${s} ${num(1, 150)}, ${z} ${c}`
+    },
+    ca: {
+      streets: ["Maple Ave", "Cedar St", "Oak Blvd", "Pine Rd", "Birch Lane", "Elm Dr", "Spruce St", "Willow Ave", "Poplar Rd", "Ash Blvd", "Lakeshore Dr", "Bay St", "King St", "Queen St", "Yonge St", "Bloor St", "Dundas St", "College St", "University Ave", "Spadina Ave"],
+      cities: ["Toronto, ON", "Vancouver, BC", "Montreal, QC", "Calgary, AB", "Edmonton, AB", "Ottawa, ON", "Winnipeg, MB", "Quebec City, QC", "Hamilton, ON", "Victoria, BC", "Halifax, NS", "Saskatoon, SK", "Regina, SK", "St. John's, NL", "Kelowna, BC"],
+      zipFn: () => `${pick(["M","V","H","T","K","R","G","L","N","P","S","E","A","B","C","J"])}${num(1,9)}${pick(["A","B","C","E","G","H","J","K","L","M","N","P","R","S","T","V","W","X","Y"])} ${num(1,9)}${pick(["A","B","C","E","G","H","J","K","L","M","N","P","R","S","T","V","W","X","Y"])}${num(0,9)}`,
+      fmt: (s, c, z) => `${num(1, 5000)} ${s}, ${c} ${z}`
+    },
+    au: {
+      streets: ["George St", "Collins St", "Queen St", "Pitt St", "Flinders St", "Elizabeth St", "King St", "William St", "Market St", "Bridge St", "Murray St", "Hay St", "Adelaide St", "Albert St", "Edward St", "Ann St"],
+      cities: ["Sydney NSW", "Melbourne VIC", "Brisbane QLD", "Perth WA", "Adelaide SA", "Gold Coast QLD", "Canberra ACT", "Hobart TAS", "Darwin NT", "Newcastle NSW", "Geelong VIC", "Cairns QLD"],
+      zipFn: () => `${num(2000, 7999)}`,
+      fmt: (s, c, z) => `${num(1, 500)} ${s}, ${c} ${z}`
+    },
+    fr: {
+      streets: ["Rue de Rivoli", "Avenue des Champs-Élysées", "Boulevard Haussmann", "Rue de la Paix", "Avenue Montaigne", "Rue du Faubourg Saint-Honoré", "Boulevard Saint-Germain", "Rue de Rennes", "Avenue Jean Médecin", "Rue Sainte-Catherine", "Cours Mirabeau", "Rue de la République", "Avenue Victor Hugo", "Rue Nationale", "Boulevard Gambetta", "Rue du Commerce"],
+      cities: ["Paris", "Nice", "Lyon", "Marseille", "Toulouse", "Bordeaux", "Lille", "Strasbourg", "Nantes", "Montpellier", "Rennes", "Grenoble"],
+      zipFn: () => `${num(10, 95)}${num(100, 999).toString().padStart(3, '0')}`,
+      fmt: (s, c, z) => `${num(1, 200)} ${s}, ${z} ${c}`
+    },
+    es: {
+      streets: ["Calle Gran Vía", "Paseo de Gracia", "Calle Serrano", "Avenida de la Constitución", "Calle Mayor", "Paseo del Prado", "Calle Alcalá", "Rambla de Catalunya", "Calle Larios", "Avenida de Andalucía", "Calle Real", "Paseo Marítimo", "Calle de la Cruz", "Avenida de la Libertad"],
+      cities: ["Madrid", "Barcelona", "Valencia", "Sevilla", "Zaragoza", "Málaga", "Murcia", "Palma de Mallorca", "Bilbao", "Alicante", "Córdoba", "Valladolid"],
+      zipFn: () => `${num(1, 52).toString().padStart(2, '0')}${num(100, 999)}`,
+      fmt: (s, c, z) => `${s} ${num(1, 100)}, ${z} ${c}`
+    },
+    it: {
+      streets: ["Via del Corso", "Via Montenapoleone", "Via Roma", "Via Veneto", "Via Condotti", "Corso Vittorio Emanuele", "Via Nazionale", "Via Garibaldi", "Via Mazzini", "Via Dante", "Corso Buenos Aires", "Via Toledo", "Via della Conciliazione", "Via Tornabuoni"],
+      cities: ["Roma", "Milano", "Napoli", "Torino", "Firenze", "Bologna", "Palermo", "Genova", "Venezia", "Verona", "Bari", "Catania"],
+      zipFn: () => `${num(10, 98)}${num(100, 999).toString().padStart(3, '0')}`,
+      fmt: (s, c, z) => `${s} ${num(1, 150)}, ${z} ${c}`
+    },
+    nl: {
+      streets: ["Damrak", "Coolsingel", "Oudegracht", "Grote Markt", "Kalverstraat", "Leidsestraat", "Nieuwezijds Voorburgwal", "Reguliersbreestraat", "Spuistraat", "Warmoesstraat", "Blaak", "Korte Hoogstraat", "Meent", "Witte de Withstraat", "Pannekoekstraat"],
+      cities: ["Amsterdam", "Rotterdam", "Den Haag", "Utrecht", "Eindhoven", "Groningen", "Tilburg", "Almere", "Breda", "Nijmegen", "Haarlem", "Arnhem"],
+      zipFn: () => `${num(1000, 9999)} ${pick(["AA","AB","AC","AD","AE","AG","AH","AK","AL","AM","AN","AP","AR","AS","AT","AV","AW","AX","AZ","BA","BB","BC","BD","BE","BG","BH","BK","BL","BM","BN","BP","BR","BS","BT","BV","BW","BX"])}`,
+      fmt: (s, c, z) => `${s} ${num(1, 300)}, ${z} ${c}`
+    },
+    be: {
+      streets: ["Grand Place", "Meir", "Rue Neuve", "Avenue Louise", "Rue de la Loi", "Boulevard Anspach", "Chaussée de Waterloo", "Rue Haute", "Steenstraat", "Veldstraat"],
+      cities: ["Bruxelles", "Antwerpen", "Gent", "Charleroi", "Liège", "Bruges", "Namur", "Leuven", "Mons", "Mechelen"],
+      zipFn: () => `${num(1000, 9999)}`,
+      fmt: (s, c, z) => `${s} ${num(1, 100)}, ${z} ${c}`
+    },
+    at: {
+      streets: ["Kärntner Straße", "Getreidegasse", "Mariahilfer Straße", "Landstraße", "Herrengasse", "Graben", "Linzer Gasse", "Universitätsstraße", "Rathausplatz", "Ringstraße"],
+      cities: ["Wien", "Salzburg", "Innsbruck", "Graz", "Linz", "Klagenfurt", "Villach", "Wels", "St. Pölten", "Dornbirn"],
+      zipFn: () => `${num(1010, 9990)}`,
+      fmt: (s, c, z) => `${s} ${num(1, 80)}, ${z} ${c}`
+    },
+    ch: {
+      streets: ["Bahnhofstrasse", "Rue du Rhône", "Marktgasse", "Kramgasse", "Freie Strasse", "Rennweg", "Limmatquai", "Niederdorfstrasse", "Münstergasse", "Spitalgasse"],
+      cities: ["Zürich", "Genève", "Basel", "Bern", "Lausanne", "Winterthur", "St. Gallen", "Lugano", "Luzern", "Biel"],
+      zipFn: () => `${num(1000, 9658)}`,
+      fmt: (s, c, z) => `${s} ${num(1, 100)}, ${z} ${c}`
+    },
+    pl: {
+      streets: ["Nowy Świat", "Rynek Główny", "Aleje Jerozolimskie", "Marszałkowska", "Krakowskie Przedmieście", "Floriańska", "Piotrkowska", "Długa", "Świętojańska", "Bohaterów Monte Cassino"],
+      cities: ["Warszawa", "Kraków", "Wrocław", "Łódź", "Poznań", "Gdańsk", "Szczecin", "Bydgoszcz", "Lublin", "Katowice"],
+      zipFn: () => `${num(10, 99).toString().padStart(2, '0')}-${num(100, 999)}`,
+      fmt: (s, c, z) => `${s} ${num(1, 100)}, ${z} ${c}`
+    },
+    se: {
+      streets: ["Drottninggatan", "Avenyn", "Kungsgatan", "Storgatan", "Hamngatan", "Vasagatan", "Sveavägen", "Birger Jarlsgatan", "Götgatan", "Hornsgatan"],
+      cities: ["Stockholm", "Göteborg", "Malmö", "Uppsala", "Linköping", "Örebro", "Västerås", "Helsingborg", "Norrköping", "Jönköping"],
+      zipFn: () => `${num(100, 984)} ${num(10, 99)}`,
+      fmt: (s, c, z) => `${s} ${num(1, 80)}, ${z} ${c}`
+    },
+    no: {
+      streets: ["Karl Johans gate", "Bryggen", "Torggata", "Storgata", "Markveien", "Grünerløkka", "Aker Brygge", "Bogstadveien", "Hegdehaugsveien", "Thereses gate"],
+      cities: ["Oslo", "Bergen", "Trondheim", "Stavanger", "Tromsø", "Drammen", "Fredrikstad", "Kristiansand", "Sandnes", "Ålesund"],
+      zipFn: () => `${num(1, 9)}${num(100, 999)}`,
+      fmt: (s, c, z) => `${s} ${num(1, 80)}, ${z} ${c}`
+    },
+    dk: {
+      streets: ["Strøget", "Søndergade", "Nørrebrogade", "Vesterbrogade", "Østerbrogade", "Gothersgade", "Frederiksberggade", "Landemærket", "Købmagergade", "Bredgade"],
+      cities: ["København", "Aarhus", "Odense", "Aalborg", "Esbjerg", "Randers", "Kolding", "Horsens", "Vejle", "Roskilde"],
+      zipFn: () => `${num(1000, 9990)}`,
+      fmt: (s, c, z) => `${s} ${num(1, 80)}, ${z} ${c}`
+    },
+    pt: {
+      streets: ["Rua Augusta", "Rua Santa Catarina", "Avenida da Liberdade", "Rua do Carmo", "Rua Garrett", "Avenida dos Aliados", "Rua de São Bento", "Rua do Ouro", "Praça do Comércio", "Rua da Prata"],
+      cities: ["Lisboa", "Porto", "Braga", "Coimbra", "Funchal", "Faro", "Aveiro", "Évora", "Setúbal", "Viseu"],
+      zipFn: () => `${num(1000, 9999)}-${num(100, 999)}`,
+      fmt: (s, c, z) => `${s} ${num(1, 200)}, ${z} ${c}`
+    },
+  };
+
+  const data = geoData[geo] || geoData["us"]; // fallback to US
+  if (!data) {
+    const streetNum = num(1, 999);
+    const defaultStreets = ["Main Street", "Oak Avenue", "Business Boulevard", "Commerce Drive", "Central Road", "Market Street", "Park Lane", "Hill Road"];
+    return `${streetNum} ${pick(defaultStreets)}, Business District`;
+  }
+  return data.fmt(pick(data.streets), pick(data.cities), data.zipFn());
+}
 
 // Generate realistic phone number by geo
 function generateRealisticPhoneByGeo(geo: string): string {
@@ -561,6 +659,8 @@ export function WebsiteGenerator() {
   const [vipKeywords, setVipKeywords] = useState("");
   const [vipBannedWords, setVipBannedWords] = useState("");
   const [vipTopic, setVipTopic] = useState("");
+  const [randomClickCount, setRandomClickCount] = useState(0);
+  const MAX_RANDOM_CLICKS = 5;
   
   // Bilingual site mode state (+$3 extra)
   const [isBilingualMode, setIsBilingualMode] = useState(false);
@@ -1777,6 +1877,7 @@ export function WebsiteGenerator() {
     setVipKeywords("");
     setVipBannedWords("");
     setVipTopic("");
+    setRandomClickCount(0);
 
     try {
       // Create all generation requests in parallel
@@ -2651,6 +2752,7 @@ export function WebsiteGenerator() {
                     setVipKeywords("");
                     setVipBannedWords("");
                     setVipTopic("");
+                    setRandomClickCount(0);
                   }}
                   disabled={!prompt.trim()}
                   className="h-7 text-xs px-2"
@@ -2877,6 +2979,8 @@ export function WebsiteGenerator() {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
+                          if (randomClickCount >= MAX_RANDOM_CLICKS) return;
+                          setRandomClickCount(prev => prev + 1);
                           // Try to detect topic from description
                           const promptLower = prompt.toLowerCase().trim();
                           let detectedTopic = "";
@@ -2977,18 +3081,16 @@ export function WebsiteGenerator() {
                           
                           // Get geo-specific data - use selected geo or custom geo
                           const effectiveGeo = isOtherGeoSelected && customGeo 
-                            ? "default" // For custom geo, use default addresses but we'll customize
-                            : (selectedGeo || "default");
+                            ? "us" // For custom geo, fallback to US-style but customize
+                            : (selectedGeo || "us");
                           
-                          const addresses = randomVipAddressesByGeo[effectiveGeo] || randomVipAddressesByGeo["default"];
-                          
-                          let address = addresses[Math.floor(Math.random() * addresses.length)];
+                          let address = generateRealisticAddressByGeo(effectiveGeo);
                           let phone = generateRealisticPhoneByGeo(effectiveGeo);
                           
                           // If custom geo is set, try to incorporate it into the address
                           if (isOtherGeoSelected && customGeo) {
                             const streetNum = Math.floor(Math.random() * 500) + 1;
-                            const streets = ["Main Street", "Oak Avenue", "Business Boulevard", "Commerce Drive", "Central Road"];
+                            const streets = ["Main Street", "Oak Avenue", "Business Boulevard", "Commerce Drive", "Central Road", "Market Street", "Park Lane", "Hill Road", "Station Road", "Church Street"];
                             const street = streets[Math.floor(Math.random() * streets.length)];
                             address = `${streetNum} ${street}, ${customGeo}`;
                           }
@@ -3023,18 +3125,21 @@ export function WebsiteGenerator() {
                           // Build final topic with geo context
                           const finalTopic = topic + (geoLabel ? ` in ${geoLabel}` : "");
                           
-                          // Only fill empty fields
-                          if (!vipDomain.trim()) setVipDomain(domain);
-                          if (!vipAddress.trim()) setVipAddress(address);
-                          if (!vipPhone.trim()) setVipPhone(phone);
-                          if (!vipTopic.trim()) setVipTopic(finalTopic);
-                          if (!vipKeywords.trim()) setVipKeywords(keywords);
-                          if (!vipBannedWords.trim()) setVipBannedWords(bannedWords);
+                          // Overwrite ALL fields with fresh random data on each click
+                          setVipDomain(domain);
+                          setVipAddress(address);
+                          setVipPhone(phone);
+                          setVipTopic(finalTopic);
+                          setVipKeywords(keywords);
+                          setVipBannedWords(bannedWords);
                         }}
-                        className="h-7 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-100/50 dark:hover:bg-amber-900/30"
+                        disabled={randomClickCount >= MAX_RANDOM_CLICKS}
+                        className="h-7 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-100/50 dark:hover:bg-amber-900/30 disabled:opacity-40"
                       >
                         <Shuffle className="h-3 w-3 mr-1" />
-                        {t("genForm.randomize")}
+                        {randomClickCount >= MAX_RANDOM_CLICKS 
+                          ? `${t("genForm.randomize")} (${MAX_RANDOM_CLICKS}/${MAX_RANDOM_CLICKS})`
+                          : `${t("genForm.randomize")} (${randomClickCount}/${MAX_RANDOM_CLICKS})`}
                       </Button>
                     </div>
                   
