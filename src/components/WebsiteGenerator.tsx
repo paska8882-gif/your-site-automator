@@ -3186,19 +3186,6 @@ export function WebsiteGenerator() {
                         />
                       </div>
                       
-                      {/* Topic - optional */}
-                      <div className="space-y-1">
-                        <Label className="text-xs flex items-center gap-1">
-                          <Tag className="h-3 w-3" />
-                          {t("genForm.topicNiche")}
-                        </Label>
-                        <Input
-                          placeholder="Video Games, Law Services..."
-                          value={vipTopic}
-                          onChange={(e) => setVipTopic(e.target.value)}
-                          className="h-8 text-sm"
-                        />
-                      </div>
                     </div>
                     
                     {/* Keywords - optional, full width */}
@@ -3271,7 +3258,7 @@ export function WebsiteGenerator() {
                               language: langLabel,
                               address: vipAddress,
                               phone: vipPhone,
-                              topic: vipTopic || undefined,
+                              topic: undefined,
                               description: prompt,
                               keywords: vipKeywords || undefined,
                               bannedWords: vipBannedWords || undefined,
