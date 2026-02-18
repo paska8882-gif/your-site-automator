@@ -11677,17 +11677,10 @@ async function runBackgroundGeneration(
 
       // === COST LIMIT CHECK: $2 max per generation ===
       const COST_LIMIT = 2.0;
-      if (newTotalCost > COST_LIMIT) {
+       if (newTotalCost > COST_LIMIT) {
         console.error(`🚨 [COST LIMIT] Generation ${historyId} exceeded $${COST_LIMIT} limit! Cost: $${newTotalCost.toFixed(4)}`);
 
-        // REFUND balance
-        if (teamId && salePrice > 0) {
-          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
-          if (team) {
-            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
-            console.log(`[COST LIMIT] REFUNDED $${salePrice} to team ${teamId}`);
-          }
-        }
+        // NO auto-refund — admin must approve appeal first
 
         // Mark as failed
         await supabase
