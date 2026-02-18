@@ -8046,44 +8046,42 @@ async function runGeneration({
   const refineModel = isJunior ? "gpt-4o-mini" : "google/gemini-2.5-flash";
   const generateModel = isJunior ? "gpt-4o" : "google/gemini-2.5-pro";
 
-  // Step 1: refined prompt (with retry logic, shorter timeout for refine step)
+  // Step 1: refined prompt (single attempt — no retries)
   let agentResponse: Response;
   try {
-    agentResponse = await fetchWithRetry(
-      apiUrl,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: refineModel,
-          messages: [
-            {
-              role: "system",
-              content:
-                SYSTEM_PROMPT +
-                `\n\n⚠️ LANGUAGE — ABSOLUTE PRIORITY ⚠️:\n- The TARGET_LANGUAGE MUST be: ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language === "kk" ? "Kazakh" : language || "English"}\n- ALL content descriptions in the brief MUST reference this language.\n- The geo/country does NOT determine the language!\n- If geo=France but language=Russian, the site MUST be in Russian!\n- Language deviation = GENERATION FAILURE.` +
-                (siteName
-                  ? `\n\nCRITICAL SITE NAME REQUIREMENT: The website/business/brand name MUST be "${siteName}". Use this EXACT name in the logo, header, footer, page titles, meta tags, copyright, and all references to the business. Do NOT invent a different name.`
-                  : ""),
-            },
-            {
-              role: "user",
-              content: `Create a detailed prompt for static HTML/CSS website generation based on this request:\n\n"${prompt}"\n\n⚠️ THE TOPIC IS: "${prompt.trim()}" — do NOT deviate under any circumstances.${siteName ? `\n\nIMPORTANT: The website name/brand MUST be "${siteName}".` : ""}\n\n${bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2 ? `BILINGUAL MODE: The website must support TWO languages (${bilingualLanguages[0]} and ${bilingualLanguages[1]}) using ONE set of HTML pages and a JS i18n layer. Do NOT generate duplicate pages per language. Generate i18n/translations.js + i18n/i18n.js and mark texts with data-i18n keys.` : `TARGET CONTENT LANGUAGE (MANDATORY): ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language === "kk" ? "Kazakh" : language || "English"}. DO NOT USE ANY OTHER LANGUAGE.`}`,
-            },
-          ],
-        }),
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    agentResponse = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
-      2,
-      1000,
-      30000,
-    ); // 2 retries, 1s delay, 30s timeout for refine
+      body: JSON.stringify({
+        model: refineModel,
+        messages: [
+          {
+            role: "system",
+            content:
+              SYSTEM_PROMPT +
+              `\n\n⚠️ LANGUAGE — ABSOLUTE PRIORITY ⚠️:\n- The TARGET_LANGUAGE MUST be: ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language === "kk" ? "Kazakh" : language || "English"}\n- ALL content descriptions in the brief MUST reference this language.\n- The geo/country does NOT determine the language!\n- If geo=France but language=Russian, the site MUST be in Russian!\n- Language deviation = GENERATION FAILURE.` +
+              (siteName
+                ? `\n\nCRITICAL SITE NAME REQUIREMENT: The website/business/brand name MUST be "${siteName}". Use this EXACT name in the logo, header, footer, page titles, meta tags, copyright, and all references to the business. Do NOT invent a different name.`
+                : ""),
+          },
+          {
+            role: "user",
+            content: `Create a detailed prompt for static HTML/CSS website generation based on this request:\n\n"${prompt}"\n\n⚠️ THE TOPIC IS: "${prompt.trim()}" — do NOT deviate under any circumstances.${siteName ? `\n\nIMPORTANT: The website name/brand MUST be "${siteName}".` : ""}\n\n${bilingualLanguages && Array.isArray(bilingualLanguages) && bilingualLanguages.length === 2 ? `BILINGUAL MODE: The website must support TWO languages (${bilingualLanguages[0]} and ${bilingualLanguages[1]}) using ONE set of HTML pages and a JS i18n layer. Do NOT generate duplicate pages per language. Generate i18n/translations.js + i18n/i18n.js and mark texts with data-i18n keys.` : `TARGET CONTENT LANGUAGE (MANDATORY): ${language === "uk" ? "Ukrainian" : language === "en" ? "English" : language === "de" ? "German" : language === "pl" ? "Polish" : language === "ru" ? "Russian" : language === "kk" ? "Kazakh" : language || "English"}. DO NOT USE ANY OTHER LANGUAGE.`}`,
+          },
+        ],
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
   } catch (fetchError) {
     const errorMsg = (fetchError as Error)?.message || String(fetchError);
-    console.error("Agent AI fetch failed after retries:", errorMsg);
-    return { success: false, error: errorMsg };
+    console.error("Agent AI fetch failed:", errorMsg);
+    return { success: false, error: "AI connection failed. Please try again." };
   }
 
   if (!agentResponse.ok) {
@@ -8293,20 +8291,19 @@ These are realistic, verified contact details for the target region. DO NOT repl
 
     let response: Response;
     try {
-      response = await fetchWithRetry(
-        apiUrl,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
+      // Single attempt — no retries. User retries manually if needed.
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 600000);
+      response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
         },
-        2,
-        2000,
-        600000,
-      );
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
     } catch (fetchError) {
       const errorMsg = (fetchError as Error)?.message || String(fetchError);
       console.error(`❌ Fetch failed for ${modelToUse}: ${errorMsg}`);
@@ -8417,36 +8414,12 @@ These are realistic, verified contact details for the target region. DO NOT repl
     return { rawText: text, websiteData: data, modelUsed: modelToUse, isPartial };
   };
 
-  // Try primary model first (gemini-2.5-pro for senior, gpt-4o for junior)
+  // Single attempt — no fallbacks, no recovery loops.
+  // If it fails, the user retries manually (once).
   let generationResult = await attemptGeneration(generateModel);
 
-  // 🛡️ GUARD #4: Перед fallback проверяем накопленную стоимость
-  // Если Stage 1 (refine) уже стоил дорого — прерываем, не запускаем Stage 2 fallback
-  const FALLBACK_COST_GUARD = 1.5; // Если уже потратили $1.5 — стоп
-
-  // If primary model failed, try fallback models
   if (!generationResult) {
-    if (totalCost >= FALLBACK_COST_GUARD) {
-      console.error(`🚨 [COST GUARD] Accumulated cost $${totalCost.toFixed(4)} >= $${FALLBACK_COST_GUARD}. Aborting fallback chain to prevent overspend.`);
-      return { success: false, error: "Generation aborted: cost limit reached before fallback. Please retry.", totalCost };
-    }
-
-    const fallbackModels = isJunior ? ["gpt-4o-mini"] : ["google/gemini-2.5-flash"];
-    // Убираем openai/gpt-5 из fallback для Senior — слишком дорого
-
-    for (const fallbackModel of fallbackModels) {
-      if (totalCost >= FALLBACK_COST_GUARD) {
-        console.warn(`⚠️ [COST GUARD] Stopping fallback loop: cost $${totalCost.toFixed(4)} >= $${FALLBACK_COST_GUARD}`);
-        break;
-      }
-      console.log(`🔄 Primary model failed, trying fallback: ${fallbackModel}`);
-      generationResult = await attemptGeneration(fallbackModel, true);
-      if (generationResult) break;
-    }
-  }
-
-  if (!generationResult) {
-    return { success: false, error: "All AI models failed to generate website content", totalCost };
+    return { success: false, error: "AI model failed to generate website. Please retry.", totalCost };
   }
 
   const { rawText, websiteData, modelUsed } = generationResult;
@@ -8465,75 +8438,19 @@ These are realistic, verified contact details for the target region. DO NOT repl
   let files = parseFilesFromModelText(rawText);
   console.log(`📁 Total files parsed: ${files.length}`);
 
-  // CRITICAL: Check if index.html exists - if not, try fallback model
-  let hasIndexHtml = files.some((f) => f.path.toLowerCase() === "index.html");
-  let htmlFileCount = files.filter((f) => f.path.toLowerCase().endsWith(".html")).length;
+  const hasIndexHtml = files.some((f) => f.path.toLowerCase() === "index.html");
+  const htmlFileCount = files.filter((f) => f.path.toLowerCase().endsWith(".html")).length;
 
-  // If no index.html or no HTML files at all, try fallback models
+  // If no index.html — fail immediately, no recovery. User retries manually.
   if (!hasIndexHtml || htmlFileCount === 0) {
-    console.error(`❌ CRITICAL: No index.html found! Files: ${files.map((f) => f.path).join(", ")}`);
-
-    // 🛡️ GUARD #5: Проверяем стоимость перед recovery
-    const RECOVERY_COST_GUARD = 1.8;
-    if (totalCost >= RECOVERY_COST_GUARD) {
-      console.error(`🚨 [COST GUARD] Cost $${totalCost.toFixed(4)} >= $${RECOVERY_COST_GUARD} — aborting recovery chain to prevent overspend.`);
-      return {
-        success: false,
-        error: "Generation incomplete: no index.html. Cost limit reached, recovery aborted. Please retry.",
-        rawResponse: rawText.substring(0, 500),
-        totalCost,
-        specificModel: modelUsed,
-      };
-    }
-
-    console.log(`🔄 Attempting recovery with fallback models... (current cost: $${totalCost.toFixed(4)})`);
-
-    // Use stable recovery models - avoid openai/gpt-5-mini due to max_tokens incompatibility
-    // Только flash модели для recovery — они дешевле
-    const recoveryModels = ["google/gemini-2.5-flash", "google/gemini-3-flash-preview"];
-    let recovered = false;
-    let finalModelUsed = modelUsed;
-
-    for (const recoveryModel of recoveryModels) {
-      if (recoveryModel === modelUsed) continue; // Skip if already tried this model
-
-      if (totalCost >= RECOVERY_COST_GUARD) {
-        console.warn(`⚠️ [COST GUARD] Stopping recovery loop: cost $${totalCost.toFixed(4)} >= $${RECOVERY_COST_GUARD}`);
-        break;
-      }
-
-      console.log(`🔄 Recovery attempt with: ${recoveryModel}`);
-      const recoveryResult = await attemptGeneration(recoveryModel, true);
-
-      if (recoveryResult) {
-        const recoveryFiles = parseFilesFromModelText(recoveryResult.rawText);
-        const recoveryHasIndex = recoveryFiles.some((f) => f.path.toLowerCase() === "index.html");
-        const recoveryHtmlCount = recoveryFiles.filter((f) => f.path.toLowerCase().endsWith(".html")).length;
-
-        if (recoveryHasIndex && recoveryHtmlCount > 0) {
-          console.log(`✅ Recovery successful with ${recoveryModel}: ${recoveryHtmlCount} HTML files`);
-          files = recoveryFiles;
-          hasIndexHtml = true;
-          htmlFileCount = recoveryHtmlCount;
-          recovered = true;
-          finalModelUsed = recoveryModel;
-          break;
-        } else {
-          console.log(`❌ Recovery model ${recoveryModel} also failed to produce index.html`);
-        }
-      }
-    }
-
-    if (!recovered) {
-      console.error(`❌ All recovery attempts failed. No index.html in final output.`);
-      return {
-        success: false,
-        error: "Generation incomplete: no index.html found after multiple attempts. Please retry.",
-        rawResponse: rawText.substring(0, 500),
-        totalCost,
-        specificModel: finalModelUsed, // Record which model was attempted
-      };
-    }
+    console.error(`❌ No index.html found! Files: ${files.map((f) => f.path).join(", ")}`);
+    return {
+      success: false,
+      error: "Generation incomplete: index.html not found. Please retry.",
+      rawResponse: rawText.substring(0, 500),
+      totalCost,
+      specificModel: modelUsed,
+    };
   }
 
   if (files.length === 0) {

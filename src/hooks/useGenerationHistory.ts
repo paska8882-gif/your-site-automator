@@ -26,6 +26,7 @@ export interface HistoryItem {
   layout_style: string | null;
   improved_prompt: string | null;
   vip_prompt: string | null;
+  retry_count: number | null;
 }
 
 export interface Appeal {
@@ -97,7 +98,7 @@ interface FetchParams {
 async function fetchGenerationHistory({ userId, compactMode, offset = 0, limit = PAGE_SIZE }: FetchParams): Promise<{ history: HistoryItem[]; appeals: Appeal[]; hasMore: boolean }> {
   let query = supabase
     .from("generation_history")
-    .select("id, number, prompt, language, zip_data, files_data, status, error_message, created_at, completed_at, ai_model, website_type, site_name, sale_price, image_source, geo, admin_note, color_scheme, layout_style, improved_prompt, vip_prompt")
+    .select("id, number, prompt, language, zip_data, files_data, status, error_message, created_at, completed_at, ai_model, website_type, site_name, sale_price, image_source, geo, admin_note, color_scheme, layout_style, improved_prompt, vip_prompt, retry_count")
     .eq("user_id", userId)
     .order("number", { ascending: false })
     .range(offset, offset + limit - 1);
@@ -481,6 +482,7 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
       layout_style: item.layout_style ?? null,
       improved_prompt: item.improved_prompt ?? null,
       vip_prompt: item.vip_prompt ?? null,
+      retry_count: item.retry_count ?? null,
     };
 
     setAllHistory(prev => {
