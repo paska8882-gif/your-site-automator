@@ -71,7 +71,6 @@ import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
 
 const getMainNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.generator"), url: "/", icon: Sparkles },
-  { title: t("sidebar.n8nGenerator"), url: "/n8n-generator", icon: Bot },
   { title: "Ручне замовлення", url: "/manual-order", icon: Hand },
   { title: t("sidebar.history"), url: "/history", icon: History },
   { title: t("sidebar.spends"), url: "/spends", icon: TrendingUp },
@@ -84,7 +83,7 @@ const getAdminNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.teams"), tab: "teams", icon: Users },
   { title: t("sidebar.sites"), tab: "sites", icon: FileCode },
   { title: t("sidebar.manualRequests"), tab: "manual-requests", icon: FileCode, highlight: "purple" },
-  
+  { title: "Генератор Beta", tab: "__n8n__", icon: Bot, url: "/n8n-generator", highlight: "cyan" },
   { title: "AI Редактор", tab: "ai-editor", icon: Bot, highlight: "violet" },
   { title: t("sidebar.users"), tab: "users", icon: UserCog },
   { title: t("sidebar.appeals"), tab: "appeals", icon: MessageSquare },
