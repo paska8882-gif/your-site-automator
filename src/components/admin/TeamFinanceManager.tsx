@@ -17,9 +17,9 @@ import { format, subDays, startOfDay, endOfDay, isWithinInterval, parseISO } fro
 import { uk as ukLocale } from "date-fns/locale";
 import { 
   Wallet, 
-  Plus, 
-  Minus, 
-  Loader2, 
+  Plus,
+  Minus,
+  Loader2,
   Filter, 
   X,
   ArrowUpCircle,
@@ -27,7 +27,8 @@ import {
   RefreshCw,
   ChevronDown,
   Download,
-  RotateCcw
+  RotateCcw,
+  AlertTriangle
 } from "lucide-react";
 
 interface TeamMember {
@@ -67,11 +68,12 @@ interface Props {
   teamId: string;
   teamName: string;
   currentBalance: number;
+  creditLimit?: number;
   members: TeamMember[];
   onBalanceChange: () => void;
 }
 
-export function TeamFinanceManager({ teamId, teamName, currentBalance, members, onBalanceChange }: Props) {
+export function TeamFinanceManager({ teamId, teamName, currentBalance, creditLimit = 0, members, onBalanceChange }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -94,6 +96,7 @@ export function TeamFinanceManager({ teamId, teamName, currentBalance, members, 
   // Data state
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creditDebtTotal, setCreditDebtTotal] = useState(0); // total amount generated on credit (unpaid)
 
   // Filter state
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -211,6 +214,12 @@ export function TeamFinanceManager({ teamId, teamName, currentBalance, members, 
       txList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
       setTransactions(txList);
+
+      // Calculate credit debt: sum of on_credit generations not yet repaid
+      // Debt = abs(currentBalance) when balance is negative
+      const debt = currentBalance < 0 ? Math.abs(currentBalance) : 0;
+      setCreditDebtTotal(debt);
+
     } catch (error) {
       console.error("Error fetching transactions:", error);
       toast({ title: "Помилка", description: "Не вдалося завантажити транзакції", variant: "destructive" });
@@ -258,6 +267,22 @@ export function TeamFinanceManager({ teamId, teamName, currentBalance, members, 
         });
 
       if (txError) throw txError;
+
+      // If we're adding balance and team was in debt (negative balance), record as credit repayment
+      if (adjustType === "add" && currentBalance < 0) {
+        const debtRepaid = Math.min(changeAmount, Math.abs(currentBalance)); // how much of this payment goes to debt
+        await supabase.from("credit_transactions").insert({
+          team_id: teamId,
+          type: "credit_repaid",
+          amount: -debtRepaid, // negative = debt being paid off
+          balance_before: currentBalance,
+          balance_after: newBalance,
+          credit_limit: creditLimit,
+          is_on_credit: false,
+          note: `[Погашення боргу] ${adjustNote.trim()}`,
+          created_by: user?.id || null,
+        });
+      }
 
       toast({ 
         title: "Успішно", 
@@ -578,6 +603,30 @@ export function TeamFinanceManager({ teamId, teamName, currentBalance, members, 
           </div>
         </CardContent>
       </Card>
+
+      {/* Credit Debt Banner */}
+      {creditDebtTotal > 0 && (
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-destructive">
+                    Заборгованість по кредиту: ${creditDebtTotal.toFixed(2)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Ліміт кредиту: ${creditLimit.toFixed(2)} | Баланс: ${currentBalance.toFixed(2)} | Використано кредиту: ${creditDebtTotal.toFixed(2)} / ${creditLimit.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+              <Badge variant="destructive" className="text-sm px-3 shrink-0">
+                -{creditDebtTotal.toFixed(2)} USD
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       <Card>

@@ -1294,6 +1294,7 @@ const AdminTeamDetails = () => {
               teamId={teamId!}
               teamName={team.name}
               currentBalance={team.balance}
+              creditLimit={team.credit_limit || 0}
               members={members.map(m => ({
                 id: m.id,
                 user_id: m.user_id,

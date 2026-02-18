@@ -12327,6 +12327,21 @@ ${promptForGeneration}`;
           console.log(
             `💰 IMMEDIATELY deducted $${salePrice} from team ${teamId} BEFORE starting generation. New balance: $${newBalance}`,
           );
+
+          // Record credit transaction for billing/invoicing purposes
+          const isOnCredit = currentBalance < salePrice; // true if any part of this payment came from credit
+          await supabase.from("credit_transactions").insert({
+            team_id: teamId,
+            type: "credit_used",
+            amount: salePrice,
+            balance_before: currentBalance,
+            balance_after: newBalance,
+            credit_limit: creditLimit,
+            is_on_credit: isOnCredit,
+            note: `Генерація сайту (${websiteType || "html"})`,
+          }).then(({ error }) => {
+            if (error) console.error("[credit_transactions] insert error:", error);
+          });
         }
       }
     }

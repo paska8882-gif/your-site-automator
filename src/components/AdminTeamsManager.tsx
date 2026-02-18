@@ -694,9 +694,15 @@ export const AdminTeamsManager = () => {
                       </button>
                       <span className="font-medium text-xs">{team.name}</span>
                       <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{team.members_count} {t("admin.teamsMembers")}</Badge>
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                      <Badge 
+                        variant={team.balance < 0 ? "destructive" : "outline"} 
+                        className="text-[10px] px-1.5 py-0"
+                      >
                         <Wallet className="h-2.5 w-2.5 mr-0.5" />
                         ${team.balance?.toFixed(2) || "0.00"}
+                        {team.balance < 0 && team.credit_limit > 0 && (
+                          <span className="ml-1 opacity-70">/ ${team.credit_limit?.toFixed(0)}</span>
+                        )}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-1.5">
