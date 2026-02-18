@@ -1491,7 +1491,7 @@ export function WebsiteGenerator() {
     let total = 0;
     const htmlPrice = teamPricing?.htmlPrice || 7;
     const reactPrice = teamPricing?.reactPrice || 9;
-    const vipExtra = isVipMode ? (teamPricing?.vipExtraPrice || 2) : 0;
+    const vipExtra = 0; // VIP surcharge temporarily disabled
     const bilingualExtra = isBilingualMode ? 3 : 0; // +$3 for bilingual sites
     // Theme-based prompt generation is now free (removed +$1)
     const themeExtra = 0;
@@ -2716,7 +2716,7 @@ export function WebsiteGenerator() {
                     className={`h-7 text-xs px-2 ${isVipMode ? "bg-amber-500 hover:bg-amber-600" : ""}`}
                   >
                     <Star className={`mr-1 h-3 w-3 ${isVipMode ? "fill-current" : ""}`} />
-                    VIP (+${teamPricing?.vipExtraPrice || 2})
+                    VIP
                     {isVipMode && <span className="ml-1">✓</span>}
                   </Button>
                   
@@ -2973,7 +2973,7 @@ export function WebsiteGenerator() {
                       <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
                         <Star className="h-4 w-4 fill-current" />
                         <span className="text-sm font-medium">{t("genForm.vipModeTitle")}</span>
-                        <Badge variant="outline" className="text-amber-600 border-amber-500/50">+${teamPricing?.vipExtraPrice || 2}{t("genForm.perSite")}</Badge>
+                        <Badge variant="outline" className="text-amber-600 border-amber-500/50">VIP</Badge>
                       </div>
                       <Button
                         variant="ghost"
