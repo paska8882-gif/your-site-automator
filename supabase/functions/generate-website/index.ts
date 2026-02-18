@@ -3210,7 +3210,8 @@ function enforceUiUxBaselineInFiles(
   // - prevent accidental 100vh heroes on mobile
   // - keep sections readable and not overly tall
   // - eliminate horizontal overflow
-  const css = `\n<style id="${STYLE_ID}">\n  html { -webkit-text-size-adjust: 100%; }\n  body { overflow-x: hidden; }\n  img, video { max-width: 100%; }\n\n  /* HERO / BANNERS: clamp instead of full viewport */\n  .hero,\n  .page-hero,\n  .banner,\n  .masthead,\n  .cover,\n  .fullwidth {\n    min-height: clamp(420px, 70vh, 720px) !important;\n    max-height: none !important;\n  }\n\n  /* If generator produced 100vh directly, tame it */\n  [style*="height:100vh"],\n  [style*="height: 100vh"],\n  [style*="min-height:100vh"],\n  [style*="min-height: 100vh"] {\n    height: auto !important;\n    min-height: clamp(420px, 70vh, 720px) !important;\n  }\n\n  /* Sections: keep spacing balanced across devices */\n  section {\n    padding-block: clamp(56px, 7vw, 96px);\n  }\n\n  /* Containers: prevent accidental ultra-wide layouts */\n  .container {\n    width: min(1120px, 100% - 32px);\n    margin-inline: auto;\n  }\n\n  /* ICON SIZE CONSTRAINTS - MANDATORY */\n  .feature-icon, .service-icon, .icon-box, .icon-wrapper,\n  .card-icon, .why-icon, .step-icon, .benefit-icon {\n    width: 56px !important;\n    height: 56px !important;\n    max-width: 56px !important;\n    max-height: 56px !important;\n    font-size: 28px !important;\n    line-height: 56px !important;\n  }\n  .feature-icon svg, .service-icon svg, .icon-box svg,\n  .icon-wrapper svg, .card-icon svg {\n    width: 28px !important;\n    height: 28px !important;\n  }\n\n  @media (max-width: 640px) {\n    .hero,\n    .page-hero,\n    .banner,\n    .masthead,\n    .cover,\n    .fullwidth {\n      min-height: clamp(360px, 62vh, 560px) !important;\n    }\n    section {\n      padding-block: clamp(44px, 9vw, 72px);\n    }\n  }\n</style>\n`;
+  // - FORCE correct hero split-layout and horizontal nav
+  const css = `\n<style id="${STYLE_ID}">\n  html { -webkit-text-size-adjust: 100%; }\n  body { overflow-x: hidden; }\n  img, video { max-width: 100%; }\n\n  /* ===== NAVIGATION - FORCE HORIZONTAL ===== */\n  .nav, nav, .navbar, header nav, .header-nav {\n    display: flex !important;\n    align-items: center !important;\n    justify-content: space-between !important;\n    flex-wrap: nowrap !important;\n  }\n  .nav-links, .nav ul, .navbar ul, .nav-menu, .nav-list, header ul, .header ul {\n    display: flex !important;\n    flex-direction: row !important;\n    list-style: none !important;\n    gap: clamp(16px, 2.5vw, 32px) !important;\n    margin: 0 !important;\n    padding: 0 !important;\n    align-items: center !important;\n  }\n  .nav-links li, .nav-menu li, .nav-list li, header ul li {\n    list-style: none !important;\n  }\n\n  /* ===== HERO SPLIT LAYOUT - FORCE TWO-COLUMN ===== */\n  .hero-inner, .page-hero-inner, .hero-container {\n    max-width: 1200px !important;\n    margin: 0 auto !important;\n    padding: 0 24px !important;\n    display: grid !important;\n    grid-template-columns: 1fr 1fr !important;\n    gap: 40px !important;\n    align-items: center !important;\n  }\n  .hero-copy, .hero-text, .hero-content {\n    display: flex !important;\n    flex-direction: column !important;\n    gap: 16px !important;\n  }\n  .hero-visual, .hero-image, .hero-img {\n    display: flex !important;\n    justify-content: center !important;\n    align-items: center !important;\n  }\n  .hero-visual img, .hero-image img, .hero-img img {\n    width: 100% !important;\n    max-width: 580px !important;\n    height: clamp(280px, 40vw, 520px) !important;\n    object-fit: cover !important;\n    border-radius: 12px !important;\n  }\n  .page-hero, .hero {\n    padding: clamp(60px, 10vw, 120px) 0 !important;\n    min-height: auto !important;\n    max-height: none !important;\n  }\n\n  /* ===== HERO FALLBACK: if no hero-inner, use container as grid ===== */\n  .page-hero > .container, .page-hero > .section-inner {\n    display: grid !important;\n    grid-template-columns: 1fr 1fr !important;\n    gap: 40px !important;\n    align-items: center !important;\n  }\n\n  /* If generator produced 100vh directly, tame it */\n  [style*="height:100vh"],\n  [style*="height: 100vh"],\n  [style*="min-height:100vh"],\n  [style*="min-height: 100vh"] {\n    height: auto !important;\n    min-height: clamp(300px, 60vh, 640px) !important;\n  }\n\n  /* ===== SECTIONS: balanced spacing ===== */\n  section {\n    padding-block: clamp(56px, 7vw, 96px);\n  }\n\n  /* ===== CONTAINERS: prevent ultra-wide ===== */\n  .container, .section-inner, .page-container {\n    width: 100% !important;\n    max-width: min(1200px, 100% - 32px) !important;\n    margin-inline: auto !important;\n    box-sizing: border-box !important;\n  }\n\n  /* ===== ICON SIZE CONSTRAINTS - BROAD COVERAGE ===== */\n  .feature-icon, .service-icon, .icon-box, .icon-wrapper,\n  .card-icon, .why-icon, .step-icon, .benefit-icon,\n  .icon-circle, .icon-square, .icon-container, .icon-wrap,\n  [class*="icon-box"], [class*="feature-icon"], [class*="service-icon"] {\n    width: 56px !important;\n    height: 56px !important;\n    max-width: 56px !important;\n    max-height: 56px !important;\n    font-size: 28px !important;\n    line-height: 56px !important;\n    flex-shrink: 0 !important;\n  }\n  .feature-icon svg, .service-icon svg, .icon-box svg,\n  .icon-wrapper svg, .card-icon svg, .icon-circle svg,\n  .icon-container svg, [class*="icon-box"] svg {\n    width: 28px !important;\n    height: 28px !important;\n    max-width: 28px !important;\n    max-height: 28px !important;\n  }\n  /* Emoji icons - cap font size */\n  .feature-icon span, .service-icon span, .icon-box span,\n  [class*="icon-box"] span {\n    font-size: 1.75rem !important;\n    line-height: 1 !important;\n  }\n\n  /* ===== RESPONSIVE BREAKPOINTS ===== */\n  @media (max-width: 768px) {\n    .hero-inner, .page-hero-inner, .hero-container,\n    .page-hero > .container, .page-hero > .section-inner {\n      grid-template-columns: 1fr !important;\n    }\n    .nav-links, .nav-menu, .nav-list {\n      display: none !important;\n    }\n    .nav-toggle, .hamburger, .menu-toggle, .mobile-menu-btn {\n      display: block !important;\n    }\n    .nav-links.active, .nav-links.open, .nav-menu.active, .nav-menu.open {\n      display: flex !important;\n      flex-direction: column !important;\n    }\n  }\n  @media (max-width: 640px) {\n    section {\n      padding-block: clamp(44px, 9vw, 72px);\n    }\n  }\n</style>\n`;
 
   return files.map((f) => {
     if (!/\.(html?)$/i.test(f.path)) return f;
@@ -5566,12 +5567,218 @@ ALL content MUST be centered on the page:
 </section>
 \`\`\`
 
+**🎯 MANDATORY HERO CSS - MUST BE IN styles.css (REQUIRED - WITHOUT THIS HERO WILL BREAK):**
+\`\`\`css
+/* HERO SPLIT LAYOUT - TWO COLUMNS - MANDATORY */
+.page-hero {
+  padding: clamp(60px, 10vw, 120px) 0;
+  background: var(--bg-white, #ffffff);
+  overflow: hidden;
+}
+
+.hero-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+}
+
+.hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.hero-copy h1 {
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-dark, #1a1a1a);
+}
+
+.hero-copy p {
+  font-size: clamp(1rem, 2vw, 1.15rem);
+  line-height: 1.7;
+  color: var(--text-light, #555);
+}
+
+.hero-actions {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.tag-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tag-pills span {
+  padding: 6px 16px;
+  background: var(--bg-light, #f0f4f8);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.badge {
+  display: inline-block;
+  padding: 6px 16px;
+  background: var(--primary-color);
+  color: white;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.hero-visual {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.hero-visual img {
+  width: 100%;
+  max-width: 560px;
+  height: clamp(280px, 40vw, 520px);
+  object-fit: cover;
+  border-radius: 16px;
+  display: block;
+}
+
+/* HERO BUTTONS */
+.cta-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px;
+  background: var(--primary-color);
+  color: white;
+  border-radius: var(--radius-md, 10px);
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.cta-button:hover {
+  background: var(--primary-dark);
+  transform: translateY(-2px);
+}
+
+.button-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px;
+  background: transparent;
+  color: var(--primary-color);
+  border: 2px solid var(--primary-color);
+  border-radius: var(--radius-md, 10px);
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.button-outline:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
+/* NAVIGATION - ALWAYS HORIZONTAL */
+.header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 1000;
+  background: rgba(255,255,255,0.96);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 1px 12px rgba(0,0,0,0.08);
+}
+
+.nav {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-logo {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  text-decoration: none;
+}
+
+.nav-links {
+  display: flex;
+  flex-direction: row;
+  gap: 28px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  align-items: center;
+}
+
+.nav-links li { list-style: none; }
+
+.nav-links a {
+  font-weight: 500;
+  color: var(--text-dark);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.nav-links a:hover { color: var(--primary-color); }
+
+.nav-toggle {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+}
+
+@media (max-width: 992px) {
+  .hero-inner {
+    grid-template-columns: 1fr;
+    text-align: center;
+    gap: 32px;
+  }
+  .hero-actions { justify-content: center; }
+  .tag-pills { justify-content: center; }
+}
+
+@media (max-width: 768px) {
+  .nav-toggle { display: block; }
+  .nav-links {
+    position: absolute;
+    top: 70px; left: 0; right: 0;
+    background: white;
+    flex-direction: column;
+    padding: 20px;
+    gap: 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    display: none;
+  }
+  .nav-links.active { display: flex; }
+}
+\`\`\`
+
 🚨 **HERO CRITICAL RULES - NO EXCEPTIONS:**
 - The page-hero section MUST NOT have style="" attribute
 - The page-hero section MUST NOT have background-image
 - ONLY ONE class="" attribute per element - NEVER duplicate class attributes
 - The ONLY image in hero is inside hero-visual div as an <img> tag
 - hero-visual MUST contain EXACTLY ONE <img> element, nothing else
+- ALWAYS include ALL the .page-hero + .hero-inner + .hero-copy + .hero-visual CSS above!
 
 **MANDATORY STATS SECTION:**
 \`\`\`html
@@ -6206,7 +6413,7 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo) {
 \`\`\`css
 /* CONSISTENT SECTION STYLING */
 .section {
-  padding: 80px 0;
+  padding: clamp(56px, 7vw, 96px) 0;
 }
 
 .section.bg-light {
@@ -6341,7 +6548,7 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo) {
 **SECTIONS & CONTAINERS:**
 \`\`\`css
 section {
-  padding: 80px 0;
+  padding: clamp(56px, 7vw, 96px) 0;
 }
 
 .container {
@@ -6717,7 +6924,7 @@ body {
 
 /* CLEAN SECTION STRUCTURE */
 section {
-  padding: 80px 0;
+  padding: clamp(56px, 7vw, 96px) 0;
 }
 
 section.light {
