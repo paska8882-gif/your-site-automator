@@ -25,7 +25,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Loader2, Save, DollarSign, TrendingUp, TrendingDown, Settings, Wallet, Plus, Eye, BarChart3, Receipt, ExternalLink, CalendarIcon, X, Filter } from "lucide-react";
+import { Loader2, Save, DollarSign, TrendingUp, TrendingDown, Settings, Wallet, Plus, Minus, Eye, BarChart3, Receipt, ExternalLink, CalendarIcon, X, Filter } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
@@ -45,7 +45,9 @@ interface TeamPricing {
   team_id: string;
   html_price: number;
   react_price: number;
+  php_price: number;
   external_price: number;
+  manual_price: number;
   generation_cost_junior: number;
   generation_cost_senior: number;
 }
@@ -124,7 +126,7 @@ export function AdminFinanceTab() {
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [chartPeriod, setChartPeriod] = useState<"7" | "14" | "30">("7");
   const [detailedModelView, setDetailedModelView] = useState(false);
-  const [bulkPrices, setBulkPrices] = useState({ html: "", react: "", external: "" });
+  const [bulkPrices, setBulkPrices] = useState({ html: "", react: "", php: "", external: "", manual: "" });
   const [savingBulk, setSavingBulk] = useState(false);
 
   useEffect(() => {
@@ -290,7 +292,9 @@ export function AdminFinanceTab() {
         team_id: teamId,
         html_price: editedValues.html_price ?? existingPricing?.html_price ?? 7,
         react_price: editedValues.react_price ?? existingPricing?.react_price ?? 9,
+        php_price: editedValues.php_price ?? existingPricing?.php_price ?? 0,
         external_price: editedValues.external_price ?? existingPricing?.external_price ?? 7,
+        manual_price: editedValues.manual_price ?? existingPricing?.manual_price ?? 0,
         generation_cost_junior: editedValues.generation_cost_junior ?? existingPricing?.generation_cost_junior ?? 0.10,
         generation_cost_senior: editedValues.generation_cost_senior ?? existingPricing?.generation_cost_senior ?? 0.25,
       };
@@ -315,9 +319,11 @@ export function AdminFinanceTab() {
   const saveBulkPricing = async () => {
     const htmlPrice = bulkPrices.html ? parseFloat(bulkPrices.html) : null;
     const reactPrice = bulkPrices.react ? parseFloat(bulkPrices.react) : null;
+    const phpPrice = bulkPrices.php ? parseFloat(bulkPrices.php) : null;
     const externalPrice = bulkPrices.external ? parseFloat(bulkPrices.external) : null;
+    const manualPrice = bulkPrices.manual ? parseFloat(bulkPrices.manual) : null;
 
-    if (htmlPrice === null && reactPrice === null && externalPrice === null) {
+    if (htmlPrice === null && reactPrice === null && phpPrice === null && externalPrice === null && manualPrice === null) {
       toast.error(t("admin.financeEnterPrice"));
       return;
     }
@@ -330,7 +336,9 @@ export function AdminFinanceTab() {
           team_id: team.id,
           html_price: htmlPrice ?? existingPricing?.html_price ?? 7,
           react_price: reactPrice ?? existingPricing?.react_price ?? 9,
+          php_price: phpPrice ?? existingPricing?.php_price ?? 0,
           external_price: externalPrice ?? existingPricing?.external_price ?? 7,
+          manual_price: manualPrice ?? existingPricing?.manual_price ?? 0,
           generation_cost_junior: existingPricing?.generation_cost_junior ?? 0.10,
           generation_cost_senior: existingPricing?.generation_cost_senior ?? 0.25,
         };
@@ -343,7 +351,7 @@ export function AdminFinanceTab() {
       }
 
       toast.success(t("admin.financeBulkPricesUpdated").replace("{count}", teams.length.toString()));
-      setBulkPrices({ html: "", react: "", external: "" });
+      setBulkPrices({ html: "", react: "", php: "", external: "", manual: "" });
       fetchData();
     } catch (error) {
       console.error("Error saving bulk pricing:", error);
@@ -353,7 +361,7 @@ export function AdminFinanceTab() {
     }
   };
 
-  const topUpBalance = async (teamId: string) => {
+  const adjustBalance = async (teamId: string, direction: "add" | "subtract") => {
     const amount = parseFloat(topUpAmounts[teamId] || "0");
     const note = topUpNotes[teamId]?.trim() || "";
     
@@ -372,35 +380,38 @@ export function AdminFinanceTab() {
       return;
     }
 
+    const actualAmount = direction === "subtract" ? -amount : amount;
+
     setSavingBalance(teamId);
     try {
       const team = teams.find(t => t.id === teamId);
       const balanceBefore = team?.balance || 0;
-      const newBalance = balanceBefore + amount;
+      const newBalance = balanceBefore + actualAmount;
 
-      // Create balance transaction record
       const { error: txError } = await supabase.from("balance_transactions").insert({
         team_id: teamId,
-        amount,
+        amount: actualAmount,
         balance_before: balanceBefore,
         balance_after: newBalance,
-        note,
+        note: direction === "subtract" ? `[Списання] ${note}` : note,
         admin_id: user.id,
       });
 
       if (txError) throw txError;
 
-      // Update team balance
       const { error: updateError } = await supabase.from("teams").update({ balance: newBalance }).eq("id", teamId);
 
       if (updateError) throw updateError;
 
-      toast.success(t("admin.financeBalanceTopUp").replace("{amount}", amount.toFixed(2)));
+      const msg = direction === "subtract" 
+        ? `Списано $${amount.toFixed(2)}`
+        : t("admin.financeBalanceTopUp").replace("{amount}", amount.toFixed(2));
+      toast.success(msg);
       setTopUpAmounts(prev => ({ ...prev, [teamId]: "" }));
       setTopUpNotes(prev => ({ ...prev, [teamId]: "" }));
       fetchData();
     } catch (error) {
-      console.error("Error topping up balance:", error);
+      console.error("Error adjusting balance:", error);
       toast.error(t("admin.financeBalanceTopUpError"));
     } finally {
       setSavingBalance(null);
@@ -411,7 +422,7 @@ export function AdminFinanceTab() {
     if (editingPrices[teamId]?.[field] !== undefined) {
       return editingPrices[teamId][field] as number;
     }
-    const defaults: Record<string, number> = { html_price: 7, react_price: 9, external_price: 7, generation_cost_junior: 0.10, generation_cost_senior: 0.25 };
+    const defaults: Record<string, number> = { html_price: 7, react_price: 9, php_price: 0, external_price: 7, manual_price: 0, generation_cost_junior: 0.10, generation_cost_senior: 0.25 };
     return (teamPricing[teamId]?.[field] as number) ?? defaults[field] ?? 0;
   };
 
@@ -795,56 +806,73 @@ export function AdminFinanceTab() {
       </div>
 
       {/* Two column layout for pricing and balances */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Team Pricing */}
         <Card>
-          <CardHeader className="py-2 px-3">
-            <div className="flex items-center gap-1.5">
-              <Settings className="h-3 w-3 text-muted-foreground" />
-              <CardTitle className="text-xs font-medium">{t("admin.financeTeamPrices")}</CardTitle>
+          <CardHeader className="py-3 px-4">
+            <div className="flex items-center gap-2">
+              <Settings className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-semibold">{t("admin.financeTeamPrices")}</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="px-3 pb-3">
+          <CardContent className="px-4 pb-4">
+            {/* Header row with labels */}
+            <div className="grid grid-cols-[1fr_repeat(5,48px)_32px] gap-1.5 items-center mb-2 pb-1.5 border-b border-border">
+              <span className="text-xs font-medium text-muted-foreground">Команда</span>
+              <span className="text-[10px] font-semibold text-center">HTML</span>
+              <span className="text-[10px] font-semibold text-center">React</span>
+              <span className="text-[10px] font-semibold text-center">PHP</span>
+              <span className="text-[10px] font-semibold text-center text-amber-600">Зовн.</span>
+              <span className="text-[10px] font-semibold text-center text-blue-600">Ручна</span>
+              <span></span>
+            </div>
+
             {/* Bulk pricing row */}
-            <div className="flex items-center gap-1 py-0.5 mb-1.5 px-1 rounded border-2 border-dashed border-primary/30 bg-primary/5">
-              <span className="font-medium text-[9px] w-20 text-primary">{t("admin.financeAll")}:</span>
-              <span className="text-[9px] text-muted-foreground">H:</span>
-              <Input type="number" step="0.01" placeholder="7" className="w-9 h-4 text-[9px] px-1"
+            <div className="grid grid-cols-[1fr_repeat(5,48px)_32px] gap-1.5 items-center py-1.5 mb-2 px-2 rounded-md border-2 border-dashed border-primary/30 bg-primary/5">
+              <span className="text-xs font-semibold text-primary">{t("admin.financeAll")}</span>
+              <Input type="number" step="0.01" placeholder="7" className="h-7 text-xs px-1.5 text-center"
                 value={bulkPrices.html}
                 onChange={(e) => setBulkPrices(prev => ({ ...prev, html: e.target.value }))} />
-              <span className="text-[9px] text-muted-foreground">R:</span>
-              <Input type="number" step="0.01" placeholder="9" className="w-9 h-4 text-[9px] px-1"
+              <Input type="number" step="0.01" placeholder="9" className="h-7 text-xs px-1.5 text-center"
                 value={bulkPrices.react}
                 onChange={(e) => setBulkPrices(prev => ({ ...prev, react: e.target.value }))} />
-              <span className="text-[9px] text-amber-600">E:</span>
-              <Input type="number" step="0.01" placeholder="7" className="w-9 h-4 text-[9px] px-1"
+              <Input type="number" step="0.01" placeholder="0" className="h-7 text-xs px-1.5 text-center"
+                value={bulkPrices.php}
+                onChange={(e) => setBulkPrices(prev => ({ ...prev, php: e.target.value }))} />
+              <Input type="number" step="0.01" placeholder="7" className="h-7 text-xs px-1.5 text-center"
                 value={bulkPrices.external}
                 onChange={(e) => setBulkPrices(prev => ({ ...prev, external: e.target.value }))} />
-              <Button size="sm" variant="default" className="h-4 px-1.5 text-[9px] ml-auto"
+              <Input type="number" step="0.01" placeholder="0" className="h-7 text-xs px-1.5 text-center"
+                value={bulkPrices.manual}
+                onChange={(e) => setBulkPrices(prev => ({ ...prev, manual: e.target.value }))} />
+              <Button size="sm" variant="default" className="h-7 px-2 text-xs"
                 onClick={saveBulkPricing} disabled={savingBulk}>
-                {savingBulk ? <Loader2 className="h-2 w-2 animate-spin" /> : "OK"}
+                {savingBulk ? <Loader2 className="h-3 w-3 animate-spin" /> : "OK"}
               </Button>
             </div>
             
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               {teams.map((team) => (
-                <div key={team.id} className="flex items-center gap-1 py-0.5">
-                  <span className="font-medium text-[9px] w-20 truncate">{team.name}</span>
-                  <span className="text-[9px] text-muted-foreground">H:</span>
-                  <Input type="number" step="0.01" className="w-9 h-4 text-[9px] px-1"
+                <div key={team.id} className="grid grid-cols-[1fr_repeat(5,48px)_32px] gap-1.5 items-center py-1 hover:bg-muted/50 rounded-md px-1">
+                  <span className="text-xs font-medium truncate">{team.name}</span>
+                  <Input type="number" step="0.01" className="h-7 text-xs px-1.5 text-center"
                     value={getPricingValue(team.id, "html_price")}
                     onChange={(e) => handlePricingChange(team.id, "html_price", e.target.value)} />
-                  <span className="text-[9px] text-muted-foreground">R:</span>
-                  <Input type="number" step="0.01" className="w-9 h-4 text-[9px] px-1"
+                  <Input type="number" step="0.01" className="h-7 text-xs px-1.5 text-center"
                     value={getPricingValue(team.id, "react_price")}
                     onChange={(e) => handlePricingChange(team.id, "react_price", e.target.value)} />
-                  <span className="text-[9px] text-amber-600">E:</span>
-                  <Input type="number" step="0.01" className="w-9 h-4 text-[9px] px-1"
+                  <Input type="number" step="0.01" className="h-7 text-xs px-1.5 text-center"
+                    value={getPricingValue(team.id, "php_price")}
+                    onChange={(e) => handlePricingChange(team.id, "php_price", e.target.value)} />
+                  <Input type="number" step="0.01" className="h-7 text-xs px-1.5 text-center"
                     value={getPricingValue(team.id, "external_price")}
                     onChange={(e) => handlePricingChange(team.id, "external_price", e.target.value)} />
-                  <Button size="sm" variant="ghost" className="h-4 w-4 p-0 ml-auto"
+                  <Input type="number" step="0.01" className="h-7 text-xs px-1.5 text-center"
+                    value={getPricingValue(team.id, "manual_price")}
+                    onChange={(e) => handlePricingChange(team.id, "manual_price", e.target.value)} />
+                  <Button size="sm" variant="ghost" className="h-7 w-8 p-0"
                     onClick={() => savePricing(team.id)} disabled={savingPricing === team.id}>
-                    {savingPricing === team.id ? <Loader2 className="h-2 w-2 animate-spin" /> : <Save className="h-2 w-2" />}
+                    {savingPricing === team.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
                   </Button>
                 </div>
               ))}
@@ -854,36 +882,51 @@ export function AdminFinanceTab() {
 
         {/* Team Balances */}
         <Card>
-          <CardHeader className="py-2 px-3">
-            <div className="flex items-center gap-1.5">
-              <Wallet className="h-3 w-3 text-muted-foreground" />
-              <CardTitle className="text-xs font-medium">{t("admin.financeBalances")}</CardTitle>
+          <CardHeader className="py-3 px-4">
+            <div className="flex items-center gap-2">
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-semibold">{t("admin.financeBalances")}</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="px-3 pb-3">
-            <div className="space-y-0.5">
+          <CardContent className="px-4 pb-4">
+            <div className="space-y-2">
               {teams.map((team) => (
-                <div key={team.id} className="flex items-center gap-1 py-0.5">
-                  <span className="font-medium text-[9px] truncate w-20">{team.name}</span>
-                  <span className={`font-bold text-[9px] w-12 ${team.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    ${team.balance.toFixed(2)}
-                  </span>
-                  <Input type="number" step="0.01" min="0" placeholder="$" 
-                    className="w-10 h-4 text-[9px] px-1"
-                    value={topUpAmounts[team.id] || ""}
-                    onChange={(e) => setTopUpAmounts(prev => ({ ...prev, [team.id]: e.target.value }))} />
-                  <Input type="text" placeholder={t("admin.financeReceipt")} 
-                    className="flex-1 h-4 text-[9px] px-1"
-                    value={topUpNotes[team.id] || ""}
-                    onChange={(e) => setTopUpNotes(prev => ({ ...prev, [team.id]: e.target.value }))} />
-                  <Button size="sm" variant="default" className="h-4 w-4 p-0"
-                    onClick={() => topUpBalance(team.id)} 
-                    disabled={savingBalance === team.id || !topUpAmounts[team.id] || !topUpNotes[team.id]?.trim()}>
-                    {savingBalance === team.id ? <Loader2 className="h-2 w-2 animate-spin" /> : <Plus className="h-2 w-2" />}
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-4 w-4 p-0" onClick={() => handleViewTeam(team)}>
-                    <Eye className="h-2 w-2" />
-                  </Button>
+                <div key={team.id} className="rounded-lg border border-border p-3 space-y-2">
+                  {/* Team name and balance row */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{team.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`font-bold text-sm ${team.balance >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                        ${team.balance.toFixed(2)}
+                      </span>
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleViewTeam(team)}>
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                  {/* Input row */}
+                  <div className="flex items-center gap-1.5">
+                    <Input type="number" step="0.01" min="0" placeholder="Сума" 
+                      className="w-20 h-8 text-xs"
+                      value={topUpAmounts[team.id] || ""}
+                      onChange={(e) => setTopUpAmounts(prev => ({ ...prev, [team.id]: e.target.value }))} />
+                    <Input type="text" placeholder="Примітка (обов'язково)" 
+                      className="flex-1 h-8 text-xs"
+                      value={topUpNotes[team.id] || ""}
+                      onChange={(e) => setTopUpNotes(prev => ({ ...prev, [team.id]: e.target.value }))} />
+                    <Button size="sm" variant="default" className="h-8 w-8 p-0"
+                      onClick={() => adjustBalance(team.id, "add")} 
+                      disabled={savingBalance === team.id || !topUpAmounts[team.id] || !topUpNotes[team.id]?.trim()}
+                      title="Поповнити">
+                      {savingBalance === team.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                    </Button>
+                    <Button size="sm" variant="destructive" className="h-8 w-8 p-0"
+                      onClick={() => adjustBalance(team.id, "subtract")} 
+                      disabled={savingBalance === team.id || !topUpAmounts[team.id] || !topUpNotes[team.id]?.trim()}
+                      title="Списати">
+                      <Minus className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

@@ -1137,6 +1137,7 @@ export type Database = {
           html_price: number
           id: string
           manual_price: number | null
+          php_price: number | null
           react_price: number
           team_id: string
           updated_at: string
@@ -1150,6 +1151,7 @@ export type Database = {
           html_price?: number
           id?: string
           manual_price?: number | null
+          php_price?: number | null
           react_price?: number
           team_id: string
           updated_at?: string
@@ -1163,6 +1165,7 @@ export type Database = {
           html_price?: number
           id?: string
           manual_price?: number | null
+          php_price?: number | null
           react_price?: number
           team_id?: string
           updated_at?: string
