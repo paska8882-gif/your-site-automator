@@ -274,6 +274,7 @@ const INDUSTRY_MAPPING: Record<string, { palette: { name: string; hex: string }[
   "Shipping": { palette: [{ name: "Deep Sea Blue", hex: "#000080" }, { name: "Navigational White", hex: "#f8fafc" }, { name: "Compass Brass", hex: "#b7791f" }], jsonLd: "MarineService", tone: ["Strategic", "Nautical", "Dependable", "Advanced"] },
   "Logistics": { palette: [{ name: "Industrial Blue", hex: "#1e40af" }, { name: "Safety Orange", hex: "#ea580c" }, { name: "Steel", hex: "#71717a" }], jsonLd: "ProfessionalService", tone: ["Efficient", "Reliable", "Global", "Precise"] },
   "Default": { palette: [{ name: "Professional Blue", hex: "#3b82f6" }, { name: "Neutral Gray", hex: "#6b7280" }, { name: "Clean White", hex: "#f9fafb" }], jsonLd: "LocalBusiness", tone: ["Professional", "Trustworthy", "Modern", "Reliable"] }
+// NOTE: Default palette is intentionally kept as reference only — improve-prompt must generate UNIQUE palette per industry
 };
 
 function generateRandomDigits(count: number): string {
@@ -439,12 +440,19 @@ Restrictions: Do not use: gratuit, miracle, free, profit, money, price, guarante
 ⚠️ TOPIC — ABSOLUTE PRIORITY ⚠️
 The brief MUST be about the EXACT topic/niche described in the user prompt. Do NOT change, reinterpret, or substitute the topic. If the user says "cleaning" — the site is about cleaning. If the user says "dental care" — the site is about dental care. NEVER generate a brief about a different industry than what the user specified. This is NON-NEGOTIABLE.
 
+⚠️ COLOR PALETTE — MANDATORY UNIQUENESS ⚠️
+- DO NOT use #3b82f6 (generic blue) as the primary color — it is BANNED as a default
+- Generate a UNIQUE palette that reflects the specific industry and brand personality
+- Florists get warm pinks/greens, lawyers get dark navy/brass, restaurants get warm oranges, fitness gets energetic reds
+- The palette provided above is industry-specific — USE IT as the base
+- Never output the same generic blue-gray-white palette regardless of business type
+
 CRITICAL RULES:
 - Use this EXACT phone: ${generatedPhone}
 - Use this EXACT address: ${generatedAddress}
 - The address MUST be located in ${normalizedGeo} — do NOT use addresses from other countries
 - Keep the entire brief under 400 words
-- Use the provided HEX color codes
+- Use the provided HEX color codes EXACTLY as given
 - Domain should be creative and memorable
 - Each page must have 3-5 unique sections`;
 

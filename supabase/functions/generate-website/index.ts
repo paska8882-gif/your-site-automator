@@ -541,6 +541,17 @@ function generateRealisticPhone(geo?: string): string {
     return `+81 3 ${randomDigits(4)} ${randomDigits(4)}`;
   }
 
+  // Israel +972
+  if (
+    geoLower.includes("israel") ||
+    geoLower.includes("ізраїл") ||
+    geoLower.includes("израиль") ||
+    hasGeoCode("il")
+  ) {
+    const areaCodes = ["2", "3", "4", "8", "9"];
+    return `+972 ${areaCodes[Math.floor(Math.random() * areaCodes.length)]}-${randomDigits(3)}-${randomDigits(4)}`;
+  }
+
   // Default: German format
   return `+49 30 ${randomDigits(3)} ${randomDigits(4)}`;
 }
@@ -1143,6 +1154,23 @@ function generateRealisticAddress(geo?: string): string {
       postal: () => `${num(1, 9)}${num(10000, 99999)}`,
       format: (s: string, n: number, c: string, p: string) => `${s}, ${n}, ${c}, ${p}, Казахстан`,
     },
+    il: {
+      streets: [
+        "Herzl Street",
+        "Ben Yehuda Street",
+        "Dizengoff Street",
+        "Allenby Street",
+        "Rothschild Boulevard",
+        "Ibn Gvirol Street",
+        "King George Street",
+        "Yafo Street",
+        "Derech Begin",
+        "HaYarkon Street",
+      ],
+      cities: ["Tel Aviv", "Jerusalem", "Haifa", "Beer Sheva", "Netanya", "Herzliya", "Ramat Gan", "Petah Tikva"],
+      postal: () => `${num(1000, 9999)}${num(1, 9)}`,
+      format: (s: string, n: number, c: string, p: string) => `${s} ${n}, ${c} ${p}, Israel`,
+    },
   };
 
   // Match geo to country code
@@ -1226,6 +1254,8 @@ function generateRealisticAddress(geo?: string): string {
     ["id", "id"],
     [/kazakhstan|казахстан|қазақстан/i, "kz"],
     ["kz", "kz"],
+    [/israel|ізраїл|израиль/i, "il"],
+    ["il", "il"],
   ];
 
   let countryCode = "de"; // default
@@ -3154,7 +3184,7 @@ function enforceResponsiveImagesInFiles(
   const STYLE_ID = "lovable-responsive-images";
   // Prevent AI-generated pages from rendering "full height" banner images.
   // We keep generic responsiveness AND add guardrails for hero/banner containers.
-  const css = `\n<style id="${STYLE_ID}">\n  img, svg, video { max-width: 100%; height: auto; }\n  img { display: block; }\n  figure { margin: 0; }\n\n  /* HERO/BANNER IMAGE GUARDRails */\n  .hero img,\n  .hero-media img,\n  .hero-image img,\n  .page-hero img,\n  .banner img,\n  .masthead img,\n  .cover img,\n  .header-image img,\n  .fullwidth img,\n  .media-visual img {\n    width: 100%;\n    height: clamp(240px, 45vh, 520px);\n    object-fit: cover;\n    object-position: center;\n  }\n</style>\n`;
+  const css = `\n<style id="${STYLE_ID}">\n  img, svg, video { max-width: 100%; height: auto; }\n  img { display: block; }\n  figure { margin: 0; }\n\n  /* HERO/BANNER IMAGE GUARDRails */\n  .hero img,\n  .hero-media img,\n  .hero-image img,\n  .page-hero img,\n  .banner img,\n  .masthead img,\n  .cover img,\n  .header-image img,\n  .fullwidth img,\n  .media-visual img {\n    width: 100%;\n    height: clamp(240px, 45vh, 520px);\n    object-fit: cover;\n    object-position: center;\n  }\n\n  /* ICON SIZE CONSTRAINTS - MANDATORY */\n  .feature-icon, .service-icon, .icon-box, .icon-wrapper,\n  .card-icon, .why-icon, .step-icon, .benefit-icon {\n    width: 56px !important;\n    height: 56px !important;\n    max-width: 56px !important;\n    max-height: 56px !important;\n    font-size: 28px !important;\n    line-height: 56px !important;\n  }\n  .feature-icon svg, .service-icon svg, .icon-box svg,\n  .icon-wrapper svg, .card-icon svg {\n    width: 28px !important;\n    height: 28px !important;\n  }\n</style>\n`;
 
   return files.map((f) => {
     if (!/\.(html?|php)$/i.test(f.path)) return f;
@@ -3180,7 +3210,7 @@ function enforceUiUxBaselineInFiles(
   // - prevent accidental 100vh heroes on mobile
   // - keep sections readable and not overly tall
   // - eliminate horizontal overflow
-  const css = `\n<style id="${STYLE_ID}">\n  html { -webkit-text-size-adjust: 100%; }\n  body { overflow-x: hidden; }\n  img, video { max-width: 100%; }\n\n  /* HERO / BANNERS: clamp instead of full viewport */\n  .hero,\n  .page-hero,\n  .banner,\n  .masthead,\n  .cover,\n  .fullwidth {\n    min-height: clamp(420px, 70vh, 720px) !important;\n    max-height: none !important;\n  }\n\n  /* If generator produced 100vh directly, tame it */\n  [style*="height:100vh"],\n  [style*="height: 100vh"],\n  [style*="min-height:100vh"],\n  [style*="min-height: 100vh"] {\n    height: auto !important;\n    min-height: clamp(420px, 70vh, 720px) !important;\n  }\n\n  /* Sections: keep spacing balanced across devices */\n  section {\n    padding-block: clamp(56px, 7vw, 96px);\n  }\n\n  /* Containers: prevent accidental ultra-wide layouts */\n  .container {\n    width: min(1120px, 100% - 32px);\n    margin-inline: auto;\n  }\n\n  @media (max-width: 640px) {\n    .hero,\n    .page-hero,\n    .banner,\n    .masthead,\n    .cover,\n    .fullwidth {\n      min-height: clamp(360px, 62vh, 560px) !important;\n    }\n    section {\n      padding-block: clamp(44px, 9vw, 72px);\n    }\n  }\n</style>\n`;
+  const css = `\n<style id="${STYLE_ID}">\n  html { -webkit-text-size-adjust: 100%; }\n  body { overflow-x: hidden; }\n  img, video { max-width: 100%; }\n\n  /* HERO / BANNERS: clamp instead of full viewport */\n  .hero,\n  .page-hero,\n  .banner,\n  .masthead,\n  .cover,\n  .fullwidth {\n    min-height: clamp(420px, 70vh, 720px) !important;\n    max-height: none !important;\n  }\n\n  /* If generator produced 100vh directly, tame it */\n  [style*="height:100vh"],\n  [style*="height: 100vh"],\n  [style*="min-height:100vh"],\n  [style*="min-height: 100vh"] {\n    height: auto !important;\n    min-height: clamp(420px, 70vh, 720px) !important;\n  }\n\n  /* Sections: keep spacing balanced across devices */\n  section {\n    padding-block: clamp(56px, 7vw, 96px);\n  }\n\n  /* Containers: prevent accidental ultra-wide layouts */\n  .container {\n    width: min(1120px, 100% - 32px);\n    margin-inline: auto;\n  }\n\n  /* ICON SIZE CONSTRAINTS - MANDATORY */\n  .feature-icon, .service-icon, .icon-box, .icon-wrapper,\n  .card-icon, .why-icon, .step-icon, .benefit-icon {\n    width: 56px !important;\n    height: 56px !important;\n    max-width: 56px !important;\n    max-height: 56px !important;\n    font-size: 28px !important;\n    line-height: 56px !important;\n  }\n  .feature-icon svg, .service-icon svg, .icon-box svg,\n  .icon-wrapper svg, .card-icon svg {\n    width: 28px !important;\n    height: 28px !important;\n  }\n\n  @media (max-width: 640px) {\n    .hero,\n    .page-hero,\n    .banner,\n    .masthead,\n    .cover,\n    .fullwidth {\n      min-height: clamp(360px, 62vh, 560px) !important;\n    }\n    section {\n      padding-block: clamp(44px, 9vw, 72px);\n    }\n  }\n</style>\n`;
 
   return files.map((f) => {
     if (!/\.(html?)$/i.test(f.path)) return f;
@@ -5800,6 +5830,15 @@ ALL content MUST be centered on the page:
 - NEVER use ::before or ::after pseudo-elements with background-image near <img> tags
 - Each visual container must have exactly ONE image source, not multiple
 
+**🔢 ICON SIZE RULES (NON-NEGOTIABLE):**
+- Feature/service icons container: MAXIMUM 56px width and height
+- Icon inside container: MAXIMUM 28px (width and height for SVG, font-size for emoji/text)
+- Never use font-size > 2rem for icons
+- Never use width/height > 80px for any icon container
+- Emoji icons: font-size: 1.75rem MAXIMUM (never larger)
+- Always add explicit width and height attributes/styles to icon elements
+- Use CSS classes: .feature-icon, .service-icon, .icon-box for icon containers
+
 **❌ WHAT NEVER TO DO - ABSOLUTE PROHIBITIONS:**
 - Empty pages or sections
 - Plain unstyled text without structure
@@ -8106,8 +8145,8 @@ async function runGeneration({
 
   // 🛡️ GUARD #1: Обрезаем refinedPrompt если он слишком длинный
   // Длинный бриф = много input токенов для gemini-pro = дорого
-  // Лимит: 6000 символов (~1500 токенов) — достаточно для хорошего сайта
-  const MAX_REFINED_PROMPT_CHARS = 6000;
+  // Лимит: 8000 символов — увеличен с 6000, чтобы не обрезать контент бизнеса посередине
+  const MAX_REFINED_PROMPT_CHARS = 8000;
   if (refinedPrompt.length > MAX_REFINED_PROMPT_CHARS) {
     console.warn(`⚠️ [COST GUARD] Refined prompt too long: ${refinedPrompt.length} chars. Trimming to ${MAX_REFINED_PROMPT_CHARS}.`);
     // Обрезаем по последнему полному предложению в пределах лимита
