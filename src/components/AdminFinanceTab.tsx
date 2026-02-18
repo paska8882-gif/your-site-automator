@@ -808,16 +808,16 @@ export function AdminFinanceTab() {
       {/* Two column layout for pricing and balances */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Team Pricing */}
-        <Card>
-          <CardHeader className="py-3 px-4">
+        <Card className="flex flex-col max-h-[420px]">
+          <CardHeader className="py-3 px-4 shrink-0">
             <div className="flex items-center gap-2">
               <Settings className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-sm font-semibold">{t("admin.financeTeamPrices")}</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
+          <CardContent className="px-4 pb-4 overflow-y-auto flex-1 min-h-0">
             {/* Header row with labels */}
-            <div className="grid grid-cols-[1fr_repeat(5,48px)_32px] gap-1.5 items-center mb-2 pb-1.5 border-b border-border">
+            <div className="grid grid-cols-[1fr_repeat(5,48px)_32px] gap-1.5 items-center mb-2 pb-1.5 border-b border-border sticky top-0 bg-card z-10">
               <span className="text-xs font-medium text-muted-foreground">Команда</span>
               <span className="text-[10px] font-semibold text-center">HTML</span>
               <span className="text-[10px] font-semibold text-center">React</span>
@@ -881,18 +881,17 @@ export function AdminFinanceTab() {
         </Card>
 
         {/* Team Balances */}
-        <Card>
-          <CardHeader className="py-3 px-4">
+        <Card className="flex flex-col max-h-[420px]">
+          <CardHeader className="py-3 px-4 shrink-0">
             <div className="flex items-center gap-2">
               <Wallet className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-sm font-semibold">{t("admin.financeBalances")}</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
+          <CardContent className="px-4 pb-4 overflow-y-auto flex-1 min-h-0">
             <div className="space-y-2">
               {teams.map((team) => (
                 <div key={team.id} className="rounded-lg border border-border p-3 space-y-2">
-                  {/* Team name and balance row */}
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">{team.name}</span>
                     <div className="flex items-center gap-2">
@@ -904,7 +903,6 @@ export function AdminFinanceTab() {
                       </Button>
                     </div>
                   </div>
-                  {/* Input row */}
                   <div className="flex items-center gap-1.5">
                     <Input type="number" step="0.01" min="0" placeholder="Сума" 
                       className="w-20 h-8 text-xs"
