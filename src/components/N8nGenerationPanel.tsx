@@ -665,10 +665,10 @@ export function N8nGenerationPanel() {
                   {t("n8n.total")}: ${calculateTotalCost().toFixed(2)}
                 </Badge>
               )}
-              {insufficientBalance && (
+              {insufficientBalance && teamPricing && (
                 <Badge variant="destructive" className="flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" />
-                  {t("n8n.insufficientFunds")}
+                  {t("n8n.insufficientFunds")} ({t("genForm.creditLimit")}: ${teamPricing.creditLimit.toFixed(2)})
                 </Badge>
               )}
             </div>
