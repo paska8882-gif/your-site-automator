@@ -490,7 +490,6 @@ iframe[src*="google.com/maps"], iframe[src*="maps.google"] {
   }
   nav, .nav, .navigation {
     width: 100%;
-    order: 10;
     justify-content: center;
     margin-top: 0.5rem;
   }
@@ -503,7 +502,11 @@ iframe[src*="google.com/maps"], iframe[src*="maps.google"] {
     text-align: center;
     gap: 0.75rem;
   }
-  nav ul, .nav ul, .menu, .nav-links {
+  .nav-links, .nav-menu, .nav-list {
+    display: none !important;
+  }
+  .nav-links.active, .nav-links.open, .nav-menu.active, .nav-menu.open {
+    display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
     width: 100%;
@@ -518,6 +521,17 @@ iframe[src*="google.com/maps"], iframe[src*="maps.google"] {
     align-items: center !important;
     text-align: center;
   }
+}
+
+/* ===== SVG ICON GLOBAL GUARD ===== */
+svg { max-width: 100%; }
+a > svg, button > svg, li > svg, p > svg,
+[class*="icon"] > svg, [class*="-icon"] > svg {
+  width: 28px !important;
+  height: 28px !important;
+  max-width: 28px !important;
+  max-height: 28px !important;
+  flex-shrink: 0 !important;
 }
 </style>
 `;
