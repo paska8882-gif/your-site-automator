@@ -116,11 +116,42 @@ serve(async (req) => {
     console.log("📤 Payload:", JSON.stringify(n8nPayload).substring(0, 500));
 
     // Send request to n8n - they will call us back when done
+    // Use redirect: 'manual' to prevent Deno from following redirects with GET (HTTP spec converts POST→GET on 301/302)
     const n8nResponse = await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(n8nPayload),
+      redirect: "manual",
     });
+
+    // Handle redirects manually to preserve POST method
+    if (n8nResponse.status === 301 || n8nResponse.status === 302 || n8nResponse.status === 307 || n8nResponse.status === 308) {
+      const location = n8nResponse.headers.get("location");
+      if (location) {
+        console.log("🔀 Following redirect to:", location);
+        const redirectResponse = await fetch(location, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(n8nPayload),
+        });
+        if (!redirectResponse.ok) {
+          const errorText = await redirectResponse.text();
+          console.error("n8n redirect webhook failed:", redirectResponse.status, errorText);
+          await supabase
+            .from("generation_history")
+            .update({ status: "failed", error_message: `n8n error after redirect: ${redirectResponse.status}` })
+            .eq("id", historyId);
+          throw new Error(`n8n webhook error after redirect: ${redirectResponse.status}`);
+        }
+        const redirectData = await redirectResponse.json().catch(() => ({}));
+        console.log("📥 n8n redirect response:", JSON.stringify(redirectData));
+        const requestId = redirectData.requestId || redirectData.id || historyId;
+        return new Response(
+          JSON.stringify({ success: true, historyId, requestId, callbackUrl, message: "Generation started (redirect), waiting for callback" }),
+          { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     if (!n8nResponse.ok) {
       const errorText = await n8nResponse.text();
