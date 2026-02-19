@@ -1,100 +1,131 @@
 
-## Полный аудит расходов: все проблемы и план устранения
+## Полный аудит: что реально жрёт баланс и план устранения
 
-### Состояние cron jobs (актуально сейчас)
-Хорошая новость — cron jobs уже оптимизированы предыдущими правками:
-- `cleanup-stale-generations` — каждые 30 минут (было каждую минуту) ✅
-- `check-problematic-tasks` — каждые 30 минут (было каждые 5 минут) ✅
-- `cleanup-old-zip-files` — каждый день в 03:00 ✅
+### Диагностика
 
-Cron jobs больше не проблема. Теперь фокус — на фронтенде.
+После глубокого анализа логов, cron jobs и всего кода — картина следующая:
 
----
+**Вызовы `cleanup-stale-generations` за последний час:**
+- До 14:55 UTC — `jobid:1` (каждые 5 мин) + `jobid:2` (каждую минуту) работали параллельно → множественные вызовы
+- В 15:36 UTC — взрыв 9 POST + 7 OPTIONS за несколько секунд — это был горячий reload Lovable/браузера при открытых вкладках (старые мёртвые jobs ещё жили в памяти)
+- После 14:55 — jobid:1 и jobid:2 убиты, остались только jobid:4 (каждые 30 мин) и jobid:5 (каждые 30 мин) — cron теперь чистый
 
-### Найденные проблемы во фронтенде
-
-**ПРОБЛЕМА 1 — КРИТИЧЕСКАЯ: Три дублирующих Realtime-канала в sidebar хуках**
-
-`usePendingAppeals.ts`, `usePendingManualRequests.ts`, `usePendingUsers.ts` — каждый из них создаёт **свой отдельный Realtime-канал** к Supabase, который висит открытым всё время пока открыта страница:
-
+**Текущее состояние cron (3 активных job):**
 ```
-usePendingAppeals → channel("pending-appeals-indicator") → подписка на таблицу appeals
-usePendingManualRequests → channel("pending-manual-requests-indicator") → подписка на generation_history
-usePendingUsers → channel("pending-users-indicator") → подписка на team_members
+jobid:3  cleanup-old-zip-files   каждый день 03:00   → вызывает cleanup-stale-generations (ОШИБКА!)
+jobid:4  cleanup-stale-generations   каждые 30 мин   → cleanup-stale-generations ✅
+jobid:5  check-problematic-tasks   каждые 30 мин     → check-problematic-tasks ✅
 ```
 
-При этом `RealtimeContext.tsx` уже подписан на те же таблицы (`appeals`, `team_members`) через `admin-updates-{userId}` канал! Это прямое дублирование. Каждый лишний канал = постоянная активная подписка = расход credits.
+**ПРОБЛЕМА: `jobid:3` с именем `cleanup-old-zip-files` вызывает `cleanup-stale-generations` вместо `cleanup-old-zip-files`.** Это ошибка в SQL миграции — чья-то старая команда перезаписала поле неправильным URL. Сейчас он стреляет только раз в день (03:00), но полностью неправильный.
 
-**Решение**: Переписать эти три хука чтобы они использовали `useRealtimeTable()` из уже существующего `RealtimeContext` вместо создания собственных каналов. Для `generation_history` — добавить обработчик в существующую подписку внутри `RealtimeContext`.
+**Остальные находки:**
 
-**ПРОБЛЕМА 2 — ВЫСОКАЯ: `checkStaleGenerations` в `GenerationHistory.tsx` — дублирует работу cron**
-
-В `GenerationHistory.tsx` (~строки 938–1018) есть функция `checkStaleGenerations`, которая каждые 15 минут вызывает Edge Function `cleanup-stale-generations` с фронтенда. Это происходит **параллельно** с уже настроенным cron-job который делает то же самое каждые 30 минут!
-
-Cron job — это правильное место для этой логики. Фронтенд не должен дублировать серверную задачу. При каждом вызове тратятся credits: Edge Function boot + DB запросы.
-
-**Решение**: Полностью удалить `checkStaleGenerations` и весь связанный `useEffect` из `GenerationHistory.tsx` (~40 строк кода).
-
-**ПРОБЛЕМА 3 — СРЕДНЯЯ: `AdminSystemMonitor` полинг каждые 30 секунд**
-
-`AdminSystemMonitor.tsx` делает запрос к `system_limits` каждые 30 секунд через `setInterval`. Эта страница открыта у каждого администратора всё время, пока они работают в панели. При 5 активных администраторах = 10 запросов/минуту = 14,400 запросов/день только для этого.
-
-`RealtimeContext` уже не подписан на `system_limits`. Но правильное решение — добавить Realtime для этой таблицы и убрать polling, или сильно увеличить интервал до 5 минут.
-
-**Решение**: Увеличить интервал с 30 секунд до 5 минут (`300_000` ms). Активных генераций обычно 0–3, обновление раз в 5 минут достаточно для мониторинга.
-
-**ПРОБЛЕМА 4 — СРЕДНЯЯ: `useGenerationHistory` создаёт СВОЙ Realtime-канал параллельно с `RealtimeContext`**
-
-В `useGenerationHistory.ts` (~строки 330–460) создаётся отдельный Realtime-канал `generation_history_{mode}_{userId}_{timestamp}`. При этом `RealtimeContext` уже подписан на `generation_history` с фильтром `user_id=eq.{userId}`.
-
-Это означает два параллельных канала на одну и ту же таблицу. Каждый канал = постоянная активная подписка.
-
-Однако этот хук имеет сложную логику (retry на `CLOSED`, fallback polling, reconnect) которая обеспечивает надёжность. Его нельзя просто удалить, но можно упростить — убрать дублирование с `RealtimeContext` и использовать `useRealtimeTable()`.
-
-**Решение**: Рефакторинг `useGenerationHistory` — заменить собственный канал на `useRealtimeTable()` из `RealtimeContext`. Fallback polling оставить на случай отключения Realtime.
+- **`useStuckGenerationRetry.ts`** — файл существует, но **нигде не импортируется** в компонентах → мёртвый код, но не тратит деньги
+- **`useBackendHealth`** — пинг каждые 2 минуты из `AppLayout`, это легкий HTTP GET к REST endpoint — безопасно
+- **`useGenerationHistory`** — создаёт отдельный Realtime-канал параллельно с `RealtimeContext` (дублирование), но этот канал имеет retry-логику и нужен для надёжности. Оставляем.
+- **`AdminSystemMonitor`** — уже оптимизирован до 5 минут ✅
+- **`WebsiteGenerator`** — polling `fetchActiveGenerations` уже 300 секунд (5 мин) ✅
 
 ---
 
-### Конкретные изменения по файлам
+### Что будет исправлено
 
-**Файл 1: `src/hooks/usePendingAppeals.ts`**
-- Убрать: `supabase.channel("pending-appeals-indicator")` + `.subscribe()` + `supabase.removeChannel()`
-- Добавить: `useRealtimeTable("appeals", handleUpdate)`
-- Результат: -1 постоянный Realtime-канал
+**Исправление 1 — КРИТИЧЕСКОЕ: Починить `jobid:3` — он должен вызывать `cleanup-old-zip-files`**
 
-**Файл 2: `src/hooks/usePendingManualRequests.ts`**
-- Убрать: собственный канал на `generation_history`
-- Добавить: `useRealtimeTable("generation_history", handleUpdate)`
-- Результат: -1 постоянный Realtime-канал
+Выполнить SQL через `cron.alter_job`:
+```sql
+SELECT cron.alter_job(
+  job_id := 3,
+  command := $$
+  SELECT net.http_post(
+    url := 'https://qqnekbzcgqvpgcyqlbcr.supabase.co/functions/v1/cleanup-old-zip-files',
+    headers := '{"Content-Type": "application/json", "Authorization": "Bearer eyJ...", "x-triggered-by": "cron"}'::jsonb,
+    body := '{}'::jsonb
+  ) AS request_id;
+  $$
+);
+```
 
-**Файл 3: `src/hooks/usePendingUsers.ts`**
-- Убрать: `supabase.channel("pending-users-indicator")` на `team_members`
-- Добавить: `useRealtimeTable("team_members", handleUpdate)` (через RealtimeContext который уже подписан на `team_members`)
-- Результат: -1 постоянный Realtime-канал
+После исправления `jobid:3` будет ежедневно запускать **правильную** функцию `cleanup-old-zip-files` вместо `cleanup-stale-generations`.
 
-**Файл 4: `src/contexts/RealtimeContext.tsx`**
-- Добавить `"generation_history"` в `USER_TABLES` с фильтром по `user_id` (уже есть, просто убедиться)
-- Добавить `"team_members"` в `ADMIN_TABLES` (уже есть)
-- Вся логика уже реализована — просто используем её
+**Исправление 2 — НИЗКОЕ: Удалить мёртвый файл `useStuckGenerationRetry.ts`**
 
-**Файл 5: `src/components/GenerationHistory.tsx`**
-- Удалить: функцию `checkStaleGenerations` (~строки 938–1006)
-- Удалить: `useEffect` с интервалом 15 минут для `checkStaleGenerations` (~строки 1008–1018)
-- Результат: -1 Edge Function вызов каждые 15 минут с фронтенда при активных генерациях
+Файл нигде не используется (0 импортов в компонентах), но его функционал потенциально был полезен. Поскольку теперь логику обработки зависших генераций выполняет серверный cron job `cleanup-stale-generations`, этот клиентский хук дублирует логику и при активации потенциально запускал бы дорогие Edge Function вызовы. Удалить файл.
 
-**Файл 6: `src/components/AdminSystemMonitor.tsx`**
-- Изменить: `setInterval(fetchLimits, 30_000)` → `setInterval(fetchLimits, 300_000)` (30с → 5 мин)
-- Результат: 10x меньше DB запросов от системного монитора
+**Исправление 3 — СРЕДНЕЕ: Добавить дедупликацию и rate-limiting в `cleanup-stale-generations`**
+
+Добавить в Edge Function защиту от параллельных вызовов — проверку через `system_limits` или `cleanup_logs`, чтобы если функция была вызвана менее 10 минут назад, она возвращала `{ skipped: true }` без выполнения работы. Это защита от edge-кейсов типа горячего reload или случайного двойного вызова.
+
+```typescript
+// В начале функции, после SMART EXIT:
+const { data: recentLog } = await supabase
+  .from("cleanup_logs")
+  .select("created_at")
+  .order("created_at", { ascending: false })
+  .limit(1)
+  .maybeSingle();
+
+const TEN_MINUTES = 10 * 60 * 1000;
+if (recentLog && Date.now() - new Date(recentLog.created_at).getTime() < TEN_MINUTES) {
+  return new Response(JSON.stringify({ success: true, skipped: true, reason: "recent_run" }), ...);
+}
+```
+
+**Проблема с этим подходом**: `cleanup_logs` пишется только когда работа реально выполнялась (processed > 0). При `no_active_generations` лог не пишется — значит при частых вызовах "холостых" всё равно будут записи только при реальной работе. Поэтому нужно другой механизм — хранить timestamp последнего запуска в `system_limits`.
+
+Правильное решение: добавить колонку `last_cleanup_at` в `system_limits` и проверять её в функции.
+
+**Исправление 4 — СРЕДНЕЕ: Убрать `useBackendHealth` из постоянного polling**
+
+Сейчас `useBackendHealth` делает GET запрос к REST endpoint каждые 2 минуты из `AppLayout` — то есть **каждый открытый tab**. При 5 пользователях = 150 запросов/час. Это не Edge Function вызов (бесплатно), но создаёт нагрузку на DB connections.
+
+Оптимизация: увеличить `baseIntervalMs` по умолчанию с 120,000 (2 мин) до 600,000 (10 мин). Банер "backend недоступен" всё равно появится, просто с 10-минутной задержкой вместо 2-минутной — для пользователей разница несущественна.
 
 ---
 
-### Ожидаемый результат
+### Изменения по файлам
 
-| Проблема | До | После |
+**1. SQL через insert tool (не миграция — это изменение данных)**
+```sql
+SELECT cron.alter_job(
+  job_id := 3,
+  command := $job$
+  SELECT net.http_post(
+    url := 'https://qqnekbzcgqvpgcyqlbcr.supabase.co/functions/v1/cleanup-old-zip-files',
+    headers := '{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxbmVrYnpjZ3F2cGdjeXFsYmNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3NzM5MzUsImV4cCI6MjA4MTM0OTkzNX0.xKxsCxrk79VYiNbvQ-NDPCVpcjBYGBWQclByv4fI8QM", "x-triggered-by": "cron"}'::jsonb,
+    body := '{}'::jsonb
+  ) AS request_id;
+  $job$
+);
+```
+
+**2. Миграция — добавить `last_cleanup_at` в `system_limits`**
+```sql
+ALTER TABLE system_limits ADD COLUMN IF NOT EXISTS last_cleanup_at timestamptz NULL;
+```
+
+**3. `supabase/functions/cleanup-stale-generations/index.ts`**
+- После SMART EXIT (проверки `activeCount === 0`), добавить проверку `last_cleanup_at`:
+  - Если последний запуск был < 10 минут назад — вернуть `{ skipped: true, reason: "too_recent" }`
+- В конце успешного выполнения — обновить `last_cleanup_at` в `system_limits`
+- Это гарантирует максимум 1 реальный запуск каждые 10 минут даже при множественных вызовах
+
+**4. `src/hooks/useBackendHealth.ts`**
+- Изменить: `baseIntervalMs = 120000` → `baseIntervalMs = 600000` (2 мин → 10 мин)
+
+**5. Удалить: `src/hooks/useStuckGenerationRetry.ts`** (мёртвый неиспользуемый файл)
+
+---
+
+### Итоговая таблица
+
+| Проблема | Статус | После исправления |
 |---|---|---|
-| Дублирующие Realtime-каналы (sidebar) | 3 лишних канала | 0 лишних каналов |
-| `checkStaleGenerations` с фронтенда | каждые 15 мин при активных генерациях | удалено полностью |
-| `AdminSystemMonitor` polling | каждые 30 сек | каждые 5 мин |
-| Дублирующий канал в `useGenerationHistory` | 2 канала на `generation_history` | 1 канал |
+| jobid:1, jobid:2 (каждую минуту/5 мин) | Убиты в 14:55 ✅ | — |
+| jobid:3 вызывает неправильную функцию | Активна ошибка | Починить URL → cleanup-old-zip-files |
+| Параллельные вызовы при race condition | Нет защиты | last_cleanup_at guard (10 мин minimum) |
+| useBackendHealth ping каждые 2 мин | Активно | Увеличить до 10 мин |
+| useStuckGenerationRetry мёртвый код | Файл есть | Удалить |
 
-Совокупная экономия: убираем ~3–5 постоянно открытых WebSocket-соединений и уменьшаем лишние DB запросы от мониторинга на порядок.
+**Основной вывод:** Главная утечка денег была от `jobid:1` и `jobid:2` которые запускались каждую минуту. Они убиты. Сейчас cron работает нормально (каждые 30 мин). Добавляем защиту от параллельных вызовов и чиним неправильный URL в `jobid:3`.
