@@ -39,6 +39,7 @@ import { AdminTeamsDashboard } from "./AdminTeamsDashboard";
 import { GenerationMaintenanceBanner } from "./GenerationMaintenanceBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useSuperAdmin } from "@/hooks/useSuperAdmin";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
 import { useBalanceSound } from "@/hooks/useBalanceSound";
 import { useAdminMode } from "@/contexts/AdminModeContext";
@@ -752,7 +753,7 @@ export function WebsiteGenerator() {
   const [showTeamFilters, setShowTeamFilters] = useState(false);
   const prevAdminBalancesRef = useRef<Record<string, number>>({});
   const { playBalanceSound } = useBalanceSound();
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const { isSuperAdmin } = useSuperAdmin();
   
   // Reference to addOptimisticItem function from GenerationHistory
   const addOptimisticItemRef = useRef<((item: { id: string; site_name?: string | null; prompt?: string; language?: string; status?: string; ai_model?: string | null; website_type?: string | null; image_source?: string | null; geo?: string | null; created_at?: string }) => void) | null>(null);
@@ -762,48 +763,6 @@ export function WebsiteGenerator() {
     addOptimisticItemRef.current = fn;
   }, []);
 
-  // Check super admin status via edge function
-  useEffect(() => {
-    const checkSuperAdmin = async () => {
-      if (!user) {
-        setIsSuperAdmin(false);
-        return;
-      }
-      
-      try {
-        const session = await supabase.auth.getSession();
-        const accessToken = session.data.session?.access_token;
-        
-        if (!accessToken) {
-          setIsSuperAdmin(false);
-          return;
-        }
-
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-super-admin`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${accessToken}`,
-            },
-          }
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          setIsSuperAdmin(data.isSuperAdmin === true);
-        } else {
-          setIsSuperAdmin(false);
-        }
-      } catch (error) {
-        console.error("Error checking super admin status:", error);
-        setIsSuperAdmin(false);
-      }
-    };
-
-    checkSuperAdmin();
-  }, [user]);
 
   // Save selected team to localStorage when changed
   useEffect(() => {
@@ -1640,8 +1599,8 @@ export function WebsiteGenerator() {
     };
 
     fetchActiveGenerations();
-    // Poll every 60 seconds — realtime handles live updates; this is just a safety sync
-    const interval = setInterval(fetchActiveGenerations, 60_000);
+    // Poll every 5 minutes — realtime handles live updates; this is just a safety sync fallback
+    const interval = setInterval(fetchActiveGenerations, 300_000);
     return () => clearInterval(interval);
   }, [user, isGenerationBlocked]);
 
