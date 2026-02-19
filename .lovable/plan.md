@@ -1,37 +1,127 @@
 
+## Анализ апелляций за последние 7 записей
 
-# Plan: Let teams work within credit limits without annoying notifications
+Из БД видно:
+- 3 апелляции: **"Не корректное название сайта"** (IDs: 97857c5f, ed8771b5, 8c9b5cf7)
+- 1 апелляция: **"Поле с ошибкой"** (ID: 3cd74c8e)
+- 2 апелляции: **"контактная информация не совпадает с промптом"** (IDs: 1084a48a, 8bdfad72)
+- 1 апелляция: **"Ошибка на сайте"** (ID: fa5a925c)
 
-## Problem
-Teams have credit limits configured (e.g., KARMA has $500 limit, LLgenerator has $100) but are being bothered by:
-1. **Amber "credit generation" warning** showing every time they generate when balance < cost (even though credit limit covers it)
-2. **DebtNotificationPopup** appearing on page load when balance is negative (even if within credit limit)
-3. Unnecessary friction for teams that are supposed to work on credit
+Из improved_prompt одного из апелляций по названию видно: `quickмузикант.com` — поле improved_prompt начинается с домена вида `[домен].com`, где имя сайта взято из `site_name`. Именно этот домен потом AI использует как название компании.
 
-## Changes
+---
 
-### 1. Remove the amber "generating on credit" warning (WebsiteGenerator.tsx)
-- Remove or hide the `isGeneratingOnCredit` amber warning text near the generate button (lines ~3872-3877)
-- Teams with credit limits should see no warning when working within their limit -- it's normal operation for them
-- Only the red "credit limit exceeded" message should remain (when they truly can't generate)
+## Корень двух ключевых проблем
 
-### 2. Suppress DebtNotificationPopup for teams within credit limits (WebsiteGenerator.tsx)
-- Change the popup trigger condition from `balance < -creditLimit` (only shows when exceeded) to **never show automatically** if the team has a credit limit > 0
-- Only show the popup for teams with `credit_limit = 0` that somehow have negative balance (legacy edge case)
-- For teams with credit limits, they know they're on credit -- no popup needed unless they exceed the limit
+### Проблема 1: Длинное название сайта ломает навигацию
 
-### 3. Remove amber warning from N8nGenerationPanel.tsx
-- Same amber "insufficient balance" badge logic exists in the N8n panel
-- Remove the visual noise for teams operating within credit limits
+**Что происходит:** AI получает site_name типа `academyенергетика.com`, `quickмузикант.com` — и вставляет его текстом в `.nav-logo` как есть. В шаблоне `HTML_GENERATION_PROMPT` (строки 5843–5848) CSS для `.nav-logo` не ограничивает ширину:
 
-### Technical Details
+```css
+.nav-logo {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  text-decoration: none;
+  /* нет max-width, нет overflow, нет white-space */
+}
+```
 
-**File: `src/components/WebsiteGenerator.tsx`**
-- Line ~1229-1234: Change debt popup condition to only trigger when `creditLimit === 0 && balance < 0` (teams without credit that somehow went negative)
-- Lines ~3872-3877: Remove the amber `isGeneratingOnCredit` warning entirely -- if they can generate, let them generate without warnings
-- Keep the red `insufficientBalance` warning (lines ~3878-3883) as-is -- this correctly blocks when exceeding the limit
+На мобильных и планшетах длинное название толкает `nav-links` под хедер или прячет их. Также в `ensureFaviconAndLogoInFiles` генерируется `logo.svg` (строка 3493) где текст сайта вставляется жёстко как `<text>` в фиксированном SVG 240x64px — если название длинное, оно буквально вылезает за пределы SVG.
 
-**File: `src/components/N8nGenerationPanel.tsx`**
-- Remove or hide the amber `insufficientBalance` badge when the team is operating within credit limits
+### Проблема 2: Контактные данные не совпадают с промптом
 
-**No backend/edge function changes needed** -- the backend credit limit logic is already correct (blocks only when exceeding limit).
+В апелляции по Израилю (1084a48a) в improved_prompt адрес: `Улица Дубов 243, 90001 Тель-Авив` (вымышленный) и телефон `+1 (450) 543-9054` — это **американский номер** для Израиля. Это значит fix из прошлого сообщения (`improve-prompt`) сработал частично, но `generate-website` тоже генерирует контакты независимо — и они могут конфликтовать с данными из improved_prompt.
+
+---
+
+## Что нужно исправить
+
+### Часть 1: Умное лого без полного названия
+
+**Стратегия:** Вместо того чтобы AI ставил полное название текстом в header — использовать файл `logo.svg` который мы уже генерируем. Он содержит: квадратный бокс с градиентом + инициалы (уже готово) + текст названия (может вылезать).
+
+**Решение:**
+1. **В `ensureFaviconAndLogoInFiles`** (строка ~3483): переработать `logo.svg` — убрать полный текст названия из SVG, оставить только иконку (квадрат с инициалами). Рядом с иконкой название будет в HTML `<span>` с CSS-ограничением, а не в SVG. Так длинные слова будут переноситься нормально.
+
+2. **В `HTML_GENERATION_PROMPT`** (CSS для `.nav-logo`, строка ~5843): добавить защитные CSS правила:
+```css
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 260px;          /* не давать расти бесконечно */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;   /* обрезать с ... если не влезает */
+  font-size: 1.2rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+```
+
+3. **В инструкции AI** (в `HTML_GENERATION_PROMPT`): добавить секцию про лого — AI должен генерировать nav-logo как `<img src="logo.svg">` или как `<span class="logo-icon">` + `<span class="logo-text">` — разделённые элементы, не монолитный текст.
+
+4. **В `CSS guard`** (инжектируемый блок который применяется ко всем сайтам): добавить hard-overrides для `.nav-logo`, `.site-logo`, `.brand-name` которые защищают от переноса:
+
+```css
+.nav-logo, .site-logo, .brand-logo, .logo-link {
+  max-width: 280px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+.nav-logo img, .site-logo img { 
+  height: 40px !important; 
+  width: auto !important; 
+  display: block !important;
+}
+```
+
+### Часть 2: Исправить logo.svg — иконка + отдельный span
+
+Текущий `logo.svg` (строки 3483–3494): содержит и квадратную иконку, и `<text>` с полным названием. SVG фиксированного размера — если название длинное, текст выходит за 240px viewbox.
+
+**Решение:** Убрать из `logo.svg` текстовую часть с названием. SVG будет только квадратная иконка с инициалами (64x64). В HTML `ensureFaviconAndLogoInFiles` при замене nav-logo anchor добавлять `<img src="logo.svg">` + `<span class="logo-text">siteName</span>` отдельно.
+
+Это чистое решение: иконка всегда выглядит хорошо, текст рядом ограничен CSS, на мобильных можно скрыть текст и показать только иконку.
+
+---
+
+## Технические изменения
+
+**Файл:** `supabase/functions/generate-website/index.ts`
+
+### Изменение 1: logo.svg — только иконка (строки 3483–3494)
+- Убрать `<text>` с названием сайта (строка 3493) из SVG
+- Уменьшить viewBox до квадратного: `width="64" height="64" viewBox="0 0 64 64"`
+- SVG превращается в брендовую иконку, а не полное лого
+
+### Изменение 2: при замене nav-logo anchors (строки 3534–3538)
+- Вместо просто `<img src="logo.svg">` генерировать: `<img src="logo.svg" style="height:40px;width:auto"> <span class="logo-text">siteName</span>`
+- CSS `.logo-text` с `max-width`, `overflow: hidden`, `text-overflow: ellipsis`
+
+### Изменение 3: CSS guard в HTML_GENERATION_PROMPT (строки 5843–5848)
+Добавить в `.nav-logo` block:
+```css
+max-width: 260px;
+overflow: hidden;
+text-overflow: ellipsis;
+white-space: nowrap;
+flex-shrink: 0;
+display: flex;
+align-items: center;
+gap: 8px;
+```
+
+### Изменение 4: CSS guard injected block (строки ~9920-9927)
+В инжектируемый CSS guard добавить hard overrides для всех вариантов nav-logo классов.
+
+### Изменение 5: Инструкция AI о навигационном лого
+В `HTML_GENERATION_PROMPT` добавить явную секцию:
+```
+🏷️ LOGO IN HEADER - MANDATORY STRUCTURE:
+The logo in header MUST be a <img> tag pointing to logo.svg, NOT plain text.
+Use: <a href="index.html" class="nav-logo"><img src="logo.svg" alt="..."> <span class="logo-text">SiteName</span></a>
+The logo-text must NEVER be wider than 200px on desktop, hidden on mobile (show only icon).
+```
