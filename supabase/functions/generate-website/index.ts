@@ -5821,6 +5821,7 @@ ALL content MUST be centered on the page:
   background: var(--primary-color);
   color: white;
 }
+\`\`\`
 
 **🏷️ LOGO IN HEADER — MANDATORY STRUCTURE (NEVER USE PLAIN TEXT AS LOGO):**
 The nav logo MUST use \`logo.svg\` as an icon + a \`<span class="logo-text">\` for the name. Plain text logos are FORBIDDEN.
@@ -5838,9 +5839,6 @@ Rules:
 - On mobile (<768px): hide \`.logo-text\`, show only the icon
 
 \`\`\`css
-@media (max-width: 767px) { .nav-logo .logo-text { display: none; } }
-\`\`\`
-
 /* NAVIGATION - ALWAYS HORIZONTAL */
 .header {
   position: fixed;
@@ -5943,6 +5941,7 @@ Rules:
     display: none;
   }
   .nav-links.active { display: flex; }
+  .nav-logo .logo-text { display: none; }
 }
 \`\`\`
 
