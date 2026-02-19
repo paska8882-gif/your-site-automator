@@ -132,6 +132,7 @@ const GEO_PHONE_FORMATS: Record<string, { code: string; area: string[]; format: 
   "Greece": { code: "+30", area: ["21", "231", "261", "251"], format: (a, n) => `+30 ${a} ${n.slice(0,3)} ${n.slice(3,7)}` },
   "Turkey": { code: "+90", area: ["212", "216", "312", "232"], format: (a, n) => `+90 ${a} ${n.slice(0,3)} ${n.slice(3,5)} ${n.slice(5,7)}` },
   "Israel": { code: "+972", area: ["2", "3", "4", "8"], format: (a, n) => `+972 ${a}-${n.slice(0,3)}-${n.slice(3,7)}` },
+  "Kazakhstan": { code: "+7", area: ["701", "702", "705", "707", "747", "771", "775"], format: (a, n) => `+7 ${a} ${n.slice(0,3)} ${n.slice(3,5)} ${n.slice(5,7)}` },
 };
 
 const GEO_ADDRESS_DATA: Record<string, { cities: { name: string; region: string; postal: string }[]; streets: string[] }> = {
@@ -237,6 +238,26 @@ const GEO_ADDRESS_DATA: Record<string, { cities: { name: string; region: string;
       { name: "Timișoara", region: "Timiș", postal: "300001" }
     ],
     streets: ["Calea Victoriei", "Bulevardul Unirii", "Strada Lipscani", "Bulevardul Eroilor"]
+  },
+  "Israel": {
+    cities: [
+      { name: "Tel Aviv", region: "Tel Aviv District", postal: "6100000" },
+      { name: "Jerusalem", region: "Jerusalem District", postal: "9100000" },
+      { name: "Haifa", region: "Haifa District", postal: "3100000" },
+      { name: "Beer Sheva", region: "Southern District", postal: "8400000" },
+      { name: "Netanya", region: "Central District", postal: "4210000" },
+      { name: "Herzliya", region: "Tel Aviv District", postal: "4610000" }
+    ],
+    streets: ["Herzl Street", "Rothschild Boulevard", "Ben Yehuda Street", "Dizengoff Street", "Allenby Street", "King George Street", "Ibn Gabirol Street", "HaYarkon Street"]
+  },
+  "Kazakhstan": {
+    cities: [
+      { name: "Almaty", region: "Almaty", postal: "050000" },
+      { name: "Astana", region: "Astana", postal: "010000" },
+      { name: "Shymkent", region: "Turkestan", postal: "160000" },
+      { name: "Karaganda", region: "Karaganda", postal: "100000" }
+    ],
+    streets: ["Dostyk Avenue", "Abai Avenue", "Al-Farabi Avenue", "Tole Bi Street", "Nazarbayev Avenue", "Kabanbay Batyr Avenue"]
   }
 };
 
@@ -310,6 +331,10 @@ function generateAddressByGeo(geo: string): string {
     return `${number} ${street}, ${city.name} ${city.region} ${city.postal}`;
   } else if (geo === "Romania") {
     return `${street} ${number}, ${city.postal} ${city.name}`;
+  } else if (geo === "Israel") {
+    return `${street} ${number}, ${city.name} ${city.postal}, Israel`;
+  } else if (geo === "Kazakhstan") {
+    return `${street} ${number}, ${city.postal} ${city.name}, Kazakhstan`;
   }
   
   return `${number} ${street}, ${city.name}, ${city.region} ${city.postal}`;
@@ -362,7 +387,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, geo, phone, language } = await req.json();
+    const { prompt, geo, phone, language, siteName } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
@@ -398,13 +423,18 @@ serve(async (req) => {
       ? `\n\n⚠️ LANGUAGE — ABSOLUTE PRIORITY ⚠️\nThe ENTIRE brief MUST be written in ${normalizedLanguage}. ALL text content — company name variations, taglines, descriptions, section names, audience descriptions — MUST be in ${normalizedLanguage}. This is NON-NEGOTIABLE. Do NOT use English unless the language IS English. The Language field must say: ${normalizedLanguage}.`
       : `\n\nWrite in the same language as the input prompt.`;
 
-    const systemPrompt = `You are an expert website brief writer. Your task is to create a STRUCTURED, COMPACT website brief.${languageInstruction}
+    // Use actual site name/domain if provided
+    const domainInstruction = siteName 
+      ? `\n\n⚠️ SITE NAME / DOMAIN — MANDATORY ⚠️\nThe domain in the header MUST be "${siteName}". The Company Name should be derived from or related to "${siteName}" — do NOT invent a completely unrelated name. If "${siteName}" looks like a domain (e.g. "mysite.com"), use it as-is. If it's just a name, create a matching .com domain from it. This is NON-NEGOTIABLE.`
+      : '';
+
+    const systemPrompt = `You are an expert website brief writer. Your task is to create a STRUCTURED, COMPACT website brief.${languageInstruction}${domainInstruction}
 
 OUTPUT FORMAT (follow EXACTLY):
 
-[creative-domain].com ([Industry Type])
+${siteName || "[creative-domain].com"} ([Industry Type])
 
-Company Name: [Creative Business Name]
+Company Name: ${siteName ? `[Name based on "${siteName}"]` : "[Creative Business Name]"}
 Geo: ${normalizedGeo}
 Language: ${normalizedLanguage || "Auto-detect from prompt"}
 Industry: [Industry Type]

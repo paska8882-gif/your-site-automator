@@ -1292,12 +1292,16 @@ export function WebsiteGenerator() {
         ? languages.find(l => l.value === allLangs[0])?.label || allLangs[0] 
         : undefined;
 
+      // Get effective site name for improve-prompt
+      const effectiveSiteName = vipDomain || getAllSiteNames()[0] || undefined;
+
       const { data, error } = await supabase.functions.invoke('improve-prompt', {
         body: { 
           prompt,
           geo: effectiveGeo,
           phone: effectivePhone,
           language: effectiveLang,
+          siteName: effectiveSiteName,
         },
         headers: {
           Authorization: `Bearer ${sessionData.session.access_token}`,
