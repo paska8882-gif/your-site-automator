@@ -1005,12 +1005,17 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
     }
   }, [refetchHistory, toast, t]);
 
-  // Check for stale generations on mount and periodically (every 2 minutes)
+  // Check for stale generations periodically (every 15 minutes) — cron already handles cleanup every 10 min
+  // Only run if there are active (pending/generating) items to avoid unnecessary edge function calls
+  const hasActiveGenerations = history.some(
+    (item) => item.status === "pending" || item.status === "generating"
+  );
   useEffect(() => {
+    if (!hasActiveGenerations) return;
     checkStaleGenerations();
-    const interval = setInterval(checkStaleGenerations, 2 * 60 * 1000);
+    const interval = setInterval(checkStaleGenerations, 15 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [checkStaleGenerations]);
+  }, [checkStaleGenerations, hasActiveGenerations]);
 
   const handleDownload = async (item: HistoryItem) => {
     // Add to downloading set
