@@ -1,113 +1,123 @@
 
-## Полный аудит: что ещё жрёт баланс — финальный результат
+## Контрольная проверка: взаимодействие пользователей с UI
 
-### Текущее состояние cron jobs (ПОДТВЕРЖДЕНО)
-
-Таблица `cron.job` в реальном времени:
-
-| jobid | name | schedule | URL | Статус |
-|---|---|---|---|---|
-| 3 | cleanup-old-zip-files | 0 3 * * * (раз в день) | cleanup-old-zip-files | ИСПРАВЛЕНО |
-| 4 | cleanup-stale-generations | */30 * * * * (каждые 30 мин) | cleanup-stale-generations | OK |
-| 5 | check-problematic-tasks | */30 * * * * (каждые 30 мин) | check-problematic-tasks | OK |
-
-Cron — чистый. Никаких phantom jobs, никаких неправильных URL.
+### Результат: всё ОК, одна проблема требует исправления
 
 ---
 
-### Что найдено нового при полном аудите
+### Что проверено
 
-**Находка 1 — СРЕДНЕЕ: `ManualRequestsTab` с `refetchInterval: 30_000`**
+Полный аудит каждого хука и компонента с периодическими запросами, Realtime-подписками и polling.
 
-В `src/components/ManualRequestsTab.tsx` (строка 215):
+---
+
+### ПРОБЛЕМА: `useBackendHealth` — баг с бесконечной перезагрузкой интервала
+
+**Серьёзность: СРЕДНЯЯ** — не Edge Function вызов, но при каждой успешной проверке создаётся новый `setInterval`.
+
+Суть бага:
 ```typescript
-refetchInterval: 30 * 1000, // Auto-refresh every 30 seconds
+// Строка 149 useBackendHealth.ts:
+const check = useCallback(async (isManualRetry = false) => {
+  // ...
+  if (state.consecutiveFailures > 0) { ... } // <- читает state
+}, [initialTimeoutMs, maxRetries, getBackoffDelay, state.consecutiveFailures, state.lastErrorAt]);
+//                                                  ^^^^ зависит от state
+
+useEffect(() => {
+  check();
+  intervalRef.current = setInterval(() => check(), baseIntervalMs);
+  // ...
+}, [check, baseIntervalMs]); // <- check меняется при каждом setState -> интервал сбрасывается
 ```
-Это означает, что **пока открыта вкладка Manual Orders в админке** — каждые 30 секунд делается запрос `fetchManualRequests` к базе данных. Это крупный `SELECT` по нескольким таблицам с джойнами профилей и команд. При открытой вкладке на 1 час = 120 запросов. Это не Edge Function, но нагружает DB connections постоянно.
 
-Есть лучшее решение: для `ManualRequestsTab` уже подключён `RealtimeContext`, который подписан на `appeals`, `team_members` и т.д. — таблица `manual_requests` (или что является источником этих данных) может быть добавлена в Realtime вместо polling. Но наименее рискованное решение — увеличить `refetchInterval` с 30 сек до 3 минут (180_000).
+При каждом пинге: `check()` → `setState({consecutiveFailures: 0})` → `check` пересоздаётся → `useEffect` срабатывает → `clearInterval` + новый `setInterval`. По факту интервал всегда "10 минут с момента предыдущего успешного вызова", а не фиксированные 10 минут. При нормальной работе backend — разница несущественна. Но при проблемах (частые `consecutiveFailures`) — интервал перезапускается агрессивно.
 
-**Находка 2 — НИЗКОЕ: `useBackendHealth` dependency bug — infinite re-render risk**
-
-В `useBackendHealth.ts` — функция `check` в `useCallback` имеет зависимость от `state.consecutiveFailures` и `state.lastErrorAt`. Это означает, что при каждом обновлении состояния (при каждой проверке) создаётся **новый** `check`, что триггерит `useEffect` (строка 163-171) и переустанавливает `setInterval`. Технически это перезапускает таймер при каждом успешном пинге — интервал не 10 минут, а "10 минут после предыдущего вызова". Это работает, но нестабильно. Уже исправлен интервал до 10 минут — оставляем как есть.
-
-**Находка 3 — НИЗКОЕ: `useGenerationHistory` — двойной Realtime канал**
-
-`useGenerationHistory` создаёт свой канал `generation_history_*` + `RealtimeContext` тоже подписан на `generation_history`. Это дублирование соединений. Однако у `useGenerationHistory` есть сложная логика с retry-fetch при completed статусе и fallback polling — сложно рефакторить без риска. Оставляем как есть (уже зафиксировано в предыдущем плане).
-
-**Находка 4 — ИНФОРМАЦИОННАЯ: `check-problematic-tasks` — нет rate-limit guard**
-
-Функция `check-problematic-tasks` запускается каждые 30 минут и имеет Smart Exit (проверяет количество активных задач), но **не имеет** rate-limit guard как у `cleanup-stale-generations`. Если cron когда-либо запустит дубликат — не будет защиты. Это низкоприоритетно (у неё нет истории дубликатов), но полезно исправить.
-
-**Находка 5 — OK: `AdminDatabaseTab` `get-storage-stats` — только при монтировании**
-
-`fetchStats()` + `fetchCleanupLogs()` вызываются только в `useEffect(() => { ... }, [])` — один раз при открытии вкладки. Это нормально.
-
-**Находка 6 — OK: `AdminSystemMonitor` — 5 минут**
-
-`setInterval(fetchLimits, 300_000)` — каждые 5 минут простой SELECT. OK.
-
-**Находка 7 — OK: `WebsiteGenerator` polling — 5 минут**
-
-`setInterval(fetchActiveGenerations, 300_000)` — каждые 5 минут. OK.
-
-**Находка 8 — OK: `useAutoRetry`**
-
-Это countdown-таймер для UI (отсчёт 30 секунд перед ручным ретраем), не вызывает никаких Edge Functions — просто декрементирует счётчик в state. Безопасно.
+**Исправление**: убрать `state.consecutiveFailures` и `state.lastErrorAt` из зависимостей `check`, читать их через `setState(prev => ...)` паттерн.
 
 ---
 
-### Что нужно исправить
+### Всё остальное — в порядке
 
-**Исправление 1 — СРЕДНЕЕ: `ManualRequestsTab` — увеличить `refetchInterval` с 30 сек до 3 минут**
+| Компонент/Хук | Тип | Частота | Статус |
+|---|---|---|---|
+| `RealtimeContext` | WS-соединение | Постоянное (2 канала) | OK — Realtime, не polling |
+| `useNotifications` | useQuery | Нет polling, только Realtime | OK |
+| `useTaskIndicators` | Realtime trigger | Только при событии admin_tasks | OK |
+| `usePendingAppeals` | Realtime trigger | Только при событии appeals | OK |
+| `usePendingManualRequests` | Realtime trigger | Только при событии generation_history | OK |
+| `usePendingUsers` | Realtime trigger | Только при событии team_members | OK |
+| `UserDataContext` | useQuery | staleTime 5 мин, без polling | OK |
+| `useBalanceData` | useQuery | staleTime 5 мин, без polling | OK |
+| `useBalanceRequests` | useQuery | staleTime 2 мин, без polling | OK |
+| `useSpends` | useQuery | staleTime 5 мин, без polling | OK |
+| `useGenerationHistory` | Realtime + fallback poll | fallback 15с — только если Realtime down | OK |
+| `AdminSystemMonitor` | setInterval | 5 минут — простой SELECT | OK |
+| `ManualRequestsTab` | refetchInterval | 3 минуты (только что исправлено) | OK |
+| `AdminBalanceRequestsTab` | Realtime channel | Только при событии | OK — прямой канал, корректно |
+| `AdminSupportTab` | Realtime channel | Только при событии | OK — прямой канал, корректно |
+| `SupportChat` | Realtime channel | Только при открытом чате | OK — закрывается при unmount |
+| `AiEditorTab` | Realtime channel | Только при активном jobId | OK — отписывается при завершении |
+| `useBackendHealth` | setInterval | 10 минут (но с багом перезапуска) | ИСПРАВИТЬ |
+| `useAutoRetry` | setInterval | UI countdown, не вызывает API | OK |
+| `WebsiteGenerator` fetchActiveGenerations | setInterval | 5 минут (safety fallback) | OK |
+| `EditChat.tsx` timer | setInterval | UI таймер отображения времени | OK — не вызывает API |
+
+---
+
+### AdminBalanceRequestsTab и AdminSupportTab — отдельные Realtime каналы
+
+Эти два компонента создают **собственные** Realtime каналы вне `RealtimeContext`:
+
+- `AdminBalanceRequestsTab` → `channel("admin-balance-requests")` — слушает `balance_requests`
+- `AdminSupportTab` → `channel("admin-conversations")` + `channel("admin-messages-*")` — слушают `support_conversations` и `support_messages`
+
+Это **нормально**: `support_conversations` и `support_messages` не добавлены в `RealtimeContext` (они специфичны только для этих компонент). Каналы правильно удаляются через `return () => supabase.removeChannel(channel)`. Никакой утечки нет.
+
+---
+
+### Что исправить
+
+**Только одно: исправить `useBackendHealth` dependency bug**
+
+Убрать `state.consecutiveFailures` и `state.lastErrorAt` из зависимостей `useCallback`, читать их через `setState(prev => prev.consecutiveFailures)` — это позволит `check` стать стабильной функцией без лишних пересозданий. Эффект: `setInterval` будет реально работать с фиксированным 10-минутным интервалом, а не перезапускаться при каждом вызове.
+
+**Конкретное изменение в `src/hooks/useBackendHealth.ts`**:
 
 ```typescript
-// БЫЛО:
-refetchInterval: 30 * 1000, // Auto-refresh every 30 seconds
+// БЫЛО — читает state напрямую в теле функции:
+const check = useCallback(async (isManualRetry = false) => {
+  // ...
+  if (state.consecutiveFailures > 0) { // <- проблема
+    logHealthEvent("backend_recovered", {
+      previousFailures: state.consecutiveFailures,
+      downtime: state.lastErrorAt ? Date.now() - state.lastErrorAt : null,
+    });
+  }
+  // ...
+}, [initialTimeoutMs, maxRetries, getBackoffDelay, state.consecutiveFailures, state.lastErrorAt]);
 
-// СТАНЕТ:
-refetchInterval: 3 * 60 * 1000, // Auto-refresh every 3 minutes
+// СТАНЕТ — использует ref для чтения state без добавления в deps:
+const stateRef = useRef(state);
+useEffect(() => { stateRef.current = state; }, [state]);
+
+const check = useCallback(async (isManualRetry = false) => {
+  // ...
+  const currentState = stateRef.current;
+  if (currentState.consecutiveFailures > 0) {
+    logHealthEvent("backend_recovered", {
+      previousFailures: currentState.consecutiveFailures,
+      downtime: currentState.lastErrorAt ? Date.now() - currentState.lastErrorAt : null,
+    });
+  }
+  // ...
+}, [initialTimeoutMs, maxRetries, getBackoffDelay]); // стабильные deps
 ```
 
-Ручная кнопка "Refresh" всё равно работает. Realtime-подписки из `RealtimeContext` ловят изменения мгновенно — только этот query не будет автоматически перезапрашиваться лишний раз.
-
-**Исправление 2 — НИЗКОЕ: `check-problematic-tasks` — добавить `last_check_at` guard**
-
-По аналогии с `cleanup-stale-generations` добавить колонку `last_tasks_check_at` в `system_limits` и rate-limit guard на 10 минут. Это защита на случай появления дублирующих cron jobs в будущем.
+Эффект: `check` больше не пересоздаётся при каждом setState → `useEffect` не перезапускается → `setInterval` работает стабильно ровно каждые 10 минут.
 
 ---
 
-### Что НЕ трогаем (после аудита)
+### Итог
 
-| Компонент | Текущий интервал | Причина |
-|---|---|---|
-| `AdminDatabaseTab` `get-storage-stats` | Только при монтировании | OK |
-| `AdminSystemMonitor` | 5 минут | OK |
-| `WebsiteGenerator` fetchActiveGenerations | 5 минут | OK |
-| `useBackendHealth` | 10 минут (уже исправлено) | OK |
-| `useAutoRetry` | Countdown UI только | Не вызывает API |
-| `useGenerationHistory` fallback polling | 15 сек, только при Realtime down | OK (условный) |
-| cron jobid:3,4,5 | Правильные URL и расписания | OK |
-
----
-
-### Технические изменения
-
-**1. `src/components/ManualRequestsTab.tsx` — строка 215**
-- `refetchInterval: 30 * 1000` → `refetchInterval: 3 * 60 * 1000`
-- `staleTime: 30 * 1000` → `staleTime: 2 * 60 * 1000`
-
-**2. `supabase/functions/check-problematic-tasks/index.ts`**
-- Добавить rate-limit guard: проверять `last_tasks_check_at` в `system_limits` (минимум 10 минут между реальными запусками)
-- Обновлять `last_tasks_check_at` в начале выполнения
-
-**3. Миграция — добавить `last_tasks_check_at` в `system_limits`**
-```sql
-ALTER TABLE system_limits ADD COLUMN IF NOT EXISTS last_tasks_check_at timestamptz NULL;
-```
-
----
-
-### Итог аудита
-
-Всё что можно было найти — найдено. Cron чистый. Единственная реальная проблема — `ManualRequestsTab` с polling каждые 30 секунд пока открыта вкладка. Остальное — мелкие улучшения надёжности.
+Система в целом чистая. Realtime-архитектура работает правильно — вся мгновенная реактивность идёт через WebSocket без polling. Все query-кеши настроены с разумными `staleTime`. Единственный реальный баг — `useBackendHealth` с нестабильным интервалом, который нужно исправить через `stateRef` паттерн.
