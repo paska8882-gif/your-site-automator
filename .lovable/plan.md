@@ -1,97 +1,75 @@
 
-## Оптимизация расходов: cleanup-stale-generations и check-problematic-tasks
+## Устранение лишних расходов Cloud & AI баланса
 
-### Текущая проблема (факты из базы данных)
+### Что сейчас съедает кредиты прямо сейчас
 
-Cron jobs сейчас:
-- `cleanup-stale-generations-every-minute` — запускается **каждую минуту** = 1,440 вызовов/день
-- `cleanup-old-zip-files` — тот же cleanup, но раз в день в 3:00 (дублирует!)  
-- `check-problematic-tasks` — каждые 5 минут = 288 вызовов/день
+**Проблема 1 — ГЛАВНАЯ: Дублирующий вызов Edge Function `check-super-admin` в `WebsiteGenerator.tsx`**
 
-Итого: **1,728 вызовов Edge Functions в день** только от cron. При этом в базе сейчас 0 активных задач, которые нужно проверять, и 1 генерация в процессе — каждые 99% вызовов делают работу вхолостую.
+В `WebsiteGenerator.tsx` (строки 766–806) есть отдельный `useEffect`, который при каждом монтировании компонента вызывает Edge Function `check-super-admin`. Это ненужный вызов, потому что `isSuperAdmin` **уже доступен** через `UserDataContext` — он читает из базы данных напрямую (таблица `user_roles`) без вызова Edge Function.
 
----
+Именно это и видно в логах аналитики — `check-super-admin` вызывается несколько раз подряд с коротким интервалом при каждом открытии страницы, в том числе с preflight `OPTIONS`-запросами. Каждый вызов = расход credits.
 
-### Что будет сделано
+**Проблема 2 — СРЕДНЯЯ: Polling `fetchActiveGenerations` каждые 60 секунд**
 
-**Шаг 1: Исправить расписание cron jobs**
-
-Удалить `cleanup-stale-generations-every-minute` (каждую минуту) и создать новый — каждые **30 минут**. Это уже 48 вызовов вместо 1,440 — снижение в **30 раз**.
-
-Также удалить дублирующий `cleanup-old-zip-files` (он делает то же самое через другой cron).
-
-`check-problematic-tasks` изменить с 5 минут на **30 минут** — 48 вызовов вместо 288.
-
-Итого вместо 1,728 вызовов → **96 вызовов в день**.
-
-**Шаг 2: Добавить "умный выход" в начало обеих функций**
-
-Самое важное изменение — если нечего делать, выйти немедленно, не выполняя никакой работы:
-
-Для `cleanup-stale-generations`:
-```
-Сначала проверить: есть ли вообще генерации в статусе pending/generating?
-Если нет — сразу вернуть {"skipped": true}, не делать 5+ запросов к БД
-Если есть старые (>1h) — только тогда делать полный цикл работы
-Для cleanup старых zip — перенести в отдельный cron раз в сутки
-```
-
-Для `check-problematic-tasks`:
-```
-Сначала проверить: есть ли задачи в статусе todo/in_progress?
-Если нет — сразу вернуть {"skipped": true}
-Если есть — только тогда проверять дедлайны
-```
-
-**Шаг 3: Разделить cleanup на 2 отдельные задачи**
-
-Сейчас в одной функции смешано:
-- Отметить зависшие генерации как failed (нужно часто, но только когда есть активные)
-- Удалить старые zip/files данные (нужно раз в сутки)
-
-После разделения:
-- `cleanup-stale-generations` — только проверка зависших, каждые 30 минут, но с умным выходом
-- `cleanup-old-zip-files` остаётся раз в день в 3:00 (уже есть, просто убрать из общего cleanup)
+В `WebsiteGenerator.tsx` (строки 1642–1645) есть `setInterval` который каждые 60 секунд делает запрос к БД для подсчёта активных генераций. Этот poll работает постоянно пока открыта страница. Realtime уже обновляет счётчик через `RealtimeContext` — этот polling дублирует логику.
 
 ---
 
-### Технические изменения
+### Что будет исправлено
 
-**Файл 1: `supabase/functions/cleanup-stale-generations/index.ts`**
-- В начале функции: один быстрый COUNT запрос
-- Если `count = 0` — return immediately (0 работы)
-- Убрать шаг 3 (zip cleanup) — он будет в отдельном cron
-- Убрать запись в `cleanup_logs` при пустом запуске (экономия INSERT)
+**Исправление 1: Удалить вызов Edge Function `check-super-admin` из `WebsiteGenerator.tsx`**
 
-**Файл 2: `supabase/functions/check-problematic-tasks/index.ts`**  
-- В начале: один быстрый COUNT запрос `WHERE status IN ('todo','in_progress')`
-- Если `count = 0` — return immediately
+Вместо отдельного `useState<boolean> isSuperAdmin` + отдельного `useEffect` с HTTP-запросом к Edge Function — использовать уже существующий `useSuperAdmin()` хук, который читает данные из `UserDataContext`.
 
-**SQL для cron (через insert tool):**
-```sql
--- Удалить старые дублирующие jobs
-SELECT cron.unschedule('cleanup-stale-generations-every-minute');
-SELECT cron.unschedule('cleanup-old-zip-files');
+До:
+```tsx
+// В начале компонента
+const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
--- Создать новый cleanup каждые 30 минут
-SELECT cron.schedule('cleanup-stale-generations', '*/30 * * * *', $$...$$);
-
--- Zip cleanup раз в сутки в 3:00
-SELECT cron.schedule('cleanup-old-zip-files', '0 3 * * *', $$...$$);
-
--- check-problematic-tasks каждые 30 минут вместо 5
-SELECT cron.unschedule('check-problematic-tasks');
-SELECT cron.schedule('check-problematic-tasks', '*/30 * * * *', $$...$$);
+// useEffect вызывает Edge Function
+useEffect(() => {
+  const checkSuperAdmin = async () => {
+    // ...fetch к check-super-admin Edge Function
+  };
+  checkSuperAdmin();
+}, [user]);
 ```
+
+После:
+```tsx
+// Убрать useState и useEffect полностью
+// Добавить один хук:
+const { isSuperAdmin } = useSuperAdmin();
+```
+
+Это убирает: 2 HTTP-запроса (OPTIONS + POST) к Edge Function при каждом монтировании компонента. При большом количестве пользователей — сотни лишних вызовов.
+
+**Исправление 2: Остановить polling `fetchActiveGenerations` когда Realtime подключён**
+
+Сейчас polling стартует безусловно. Нужно добавить условие — если Realtime-канал активен (`isConnected === true`), не запускать setInterval. Либо увеличить интервал с 60 секунд до 5 минут.
+
+Через хук `useRealtime()` уже доступен `isConnected`. Если `isConnected`, достаточно Realtime-событий — polling не нужен вовсе.
+
+---
+
+### Файлы для изменения
+
+**`src/components/WebsiteGenerator.tsx`**:
+1. Добавить `import { useSuperAdmin } from "@/hooks/useSuperAdmin";` в импорты
+2. Убрать `const [isSuperAdmin, setIsSuperAdmin] = useState(false);` (~строка 755)
+3. Заменить его на `const { isSuperAdmin } = useSuperAdmin();`
+4. Удалить весь `useEffect` с `checkSuperAdmin` (~строки 766–806) — 40+ строк лишнего кода
+5. Polling `fetchActiveGenerations` — изменить интервал с `60_000` (1 мин) на `300_000` (5 мин) как резервный fallback
 
 ---
 
 ### Ожидаемый результат
 
-| Метрика | Сейчас | После |
+| Расход | Сейчас | После |
 |---|---|---|
-| Вызовов Edge Functions/день | 1,728 | ~96 |
-| Реальная работа при 0 активных | 5+ DB запросов каждый раз | 1 COUNT запрос, выход |
-| Расход credits/день от cron | ~$3–5 | ~$0.20–0.40 |
+| Вызовов `check-super-admin` при каждом открытии | 2 (OPTIONS + POST) | 0 |
+| При 50 открытиях/день | ~100 Edge Function вызовов/день | 0 |
+| Polling БД active_generations | каждые 60 сек | каждые 5 мин (резерв) |
+| DB-запросы active_generations/день | ~1440 | ~288 |
 
-При таком подходе цель **1–2 доллара в день** достигается с запасом — cron jobs займут < $0.50, остальное — реальные генерации пользователей и AI вызовы.
+В сочетании с уже исправленными cron jobs, суммарно расход credits от фоновых операций снизится до целевых **$1–2/день**.
