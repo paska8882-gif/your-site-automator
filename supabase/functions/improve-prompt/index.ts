@@ -423,7 +423,7 @@ index.html: Hero "[Catchy tagline]"; [Section 1: specific name]; [Section 2: spe
 [service-page].html: [Hero]; [Section 1]; [Section 2]; [Section 3]
 [about-page].html: [Hero]; [Team Section]; [History/Values]; [Achievements]
 [resources-page].html: [Hero]; [Category 1]; [Category 2]; [Featured Items]
-contact.html: [Hero]; [Contact Form]; [Location Map]; [Office Hours]
+contact.html: Hero; Contact Form; Location: ${generatedAddress}; Phone: ${generatedPhone}; Working Hours
 
 4. Visual Direction
 Palette: ${paletteString}
@@ -448,8 +448,9 @@ The brief MUST be about the EXACT topic/niche described in the user prompt. Do N
 - Never output the same generic blue-gray-white palette regardless of business type
 
 CRITICAL RULES:
-- Use this EXACT phone: ${generatedPhone}
-- Use this EXACT address: ${generatedAddress}
+- PHONE NUMBER — COPY EXACTLY AS-IS, DO NOT MODIFY OR INVENT: ${generatedPhone}
+- ADDRESS — COPY EXACTLY AS-IS, DO NOT MODIFY OR INVENT: ${generatedAddress}
+- The phone MUST start with the country code for ${normalizedGeo}. NEVER use +1 for non-US/Canada countries.
 - The address MUST be located in ${normalizedGeo} — do NOT use addresses from other countries
 - Keep the entire brief under 400 words
 - Use the provided HEX color codes EXACTLY as given
