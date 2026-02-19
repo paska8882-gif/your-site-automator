@@ -17,6 +17,33 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // ==========================================
+    // RATE-LIMIT GUARD: prevent duplicate/parallel runs (min 10 min between runs)
+    // ==========================================
+    const { data: limitRow } = await supabase
+      .from("system_limits")
+      .select("last_tasks_check_at")
+      .eq("id", "global")
+      .single();
+
+    if (limitRow?.last_tasks_check_at) {
+      const lastCheck = new Date(limitRow.last_tasks_check_at);
+      const minutesSinceLastCheck = (Date.now() - lastCheck.getTime()) / 60000;
+      if (minutesSinceLastCheck < 10) {
+        console.log(`✅ Rate-limit guard: last check was ${minutesSinceLastCheck.toFixed(1)} min ago — skipping`);
+        return new Response(
+          JSON.stringify({ success: true, skipped: true, reason: "rate_limited", minutes_since_last: minutesSinceLastCheck.toFixed(1) }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+        );
+      }
+    }
+
+    // Mark this run immediately to prevent parallel executions
+    await supabase
+      .from("system_limits")
+      .update({ last_tasks_check_at: new Date().toISOString() })
+      .eq("id", "global");
+
+    // ==========================================
     // SMART EXIT: Check if there are any active tasks
     // ==========================================
     const { count: activeTaskCount, error: countError } = await supabase

@@ -211,8 +211,8 @@ export function ManualRequestsTab() {
   const { data: requestsData, isLoading, refetch } = useQuery({
     queryKey: ["manual-requests"],
     queryFn: fetchManualRequests,
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 30 * 1000, // Auto-refresh every 30 seconds
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchInterval: 3 * 60 * 1000, // Auto-refresh every 3 minutes (Realtime handles instant updates)
   });
 
   const { data: teamsData } = useQuery({

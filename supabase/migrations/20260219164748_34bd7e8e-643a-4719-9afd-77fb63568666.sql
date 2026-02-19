@@ -1,0 +1,1 @@
+ALTER TABLE system_limits ADD COLUMN IF NOT EXISTS last_tasks_check_at timestamptz NULL;
