@@ -12735,7 +12735,7 @@ ${promptForGeneration}`;
             balance_after: newBalance,
             credit_limit: creditLimit,
             is_on_credit: isOnCredit,
-            note: `Генерація сайту (${websiteType || "html"})`,
+            note: `Генерація сайту (html)`,
           }).then(({ error }) => {
             if (error) console.error("[credit_transactions] insert error:", error);
           });
