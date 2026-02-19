@@ -1024,6 +1024,7 @@ export type Database = {
         Row: {
           active_generations: number
           id: string
+          last_cleanup_at: string | null
           max_concurrent_generations: number
           max_generations_per_user: number
           updated_at: string
@@ -1031,6 +1032,7 @@ export type Database = {
         Insert: {
           active_generations?: number
           id?: string
+          last_cleanup_at?: string | null
           max_concurrent_generations?: number
           max_generations_per_user?: number
           updated_at?: string
@@ -1038,6 +1040,7 @@ export type Database = {
         Update: {
           active_generations?: number
           id?: string
+          last_cleanup_at?: string | null
           max_concurrent_generations?: number
           max_generations_per_user?: number
           updated_at?: string

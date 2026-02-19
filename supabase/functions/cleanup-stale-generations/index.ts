@@ -54,6 +54,35 @@ serve(async (req) => {
       );
     }
 
+    // ==========================================
+    // RATE-LIMIT GUARD: max 1 real run per 10 minutes
+    // ==========================================
+    const { data: limitsCheck } = await supabase
+      .from("system_limits")
+      .select("last_cleanup_at")
+      .eq("id", "global")
+      .single();
+
+    const TEN_MINUTES = 10 * 60 * 1000;
+    if (limitsCheck?.last_cleanup_at) {
+      const lastRun = new Date(limitsCheck.last_cleanup_at).getTime();
+      const elapsed = Date.now() - lastRun;
+      if (elapsed < TEN_MINUTES) {
+        const nextRunIn = Math.ceil((TEN_MINUTES - elapsed) / 1000);
+        console.log(`⏭️ Rate-limited: last run was ${Math.floor(elapsed / 1000)}s ago, next in ${nextRunIn}s`);
+        return new Response(
+          JSON.stringify({ success: true, skipped: true, reason: "too_recent", nextRunInSeconds: nextRunIn }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // Mark start of this run immediately to prevent parallel executions
+    await supabase
+      .from("system_limits")
+      .update({ last_cleanup_at: new Date().toISOString() })
+      .eq("id", "global");
+
     console.log(`Found ${activeCount} active generation(s) — running full cleanup`);
 
     const now = Date.now();
