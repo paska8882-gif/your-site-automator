@@ -1614,5 +1614,7 @@ export const ru = {
     // Bot names
     htmlBotName: "HTML сайты",
     nextjsBotName: "Next.js",
+    newBotName: "Новый бот",
+    newBotDesc: "Генерация через новый n8n бот",
   },
 } as const;
