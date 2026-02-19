@@ -1025,6 +1025,7 @@ export type Database = {
           active_generations: number
           id: string
           last_cleanup_at: string | null
+          last_tasks_check_at: string | null
           max_concurrent_generations: number
           max_generations_per_user: number
           updated_at: string
@@ -1033,6 +1034,7 @@ export type Database = {
           active_generations?: number
           id?: string
           last_cleanup_at?: string | null
+          last_tasks_check_at?: string | null
           max_concurrent_generations?: number
           max_generations_per_user?: number
           updated_at?: string
@@ -1041,6 +1043,7 @@ export type Database = {
           active_generations?: number
           id?: string
           last_cleanup_at?: string | null
+          last_tasks_check_at?: string | null
           max_concurrent_generations?: number
           max_generations_per_user?: number
           updated_at?: string
