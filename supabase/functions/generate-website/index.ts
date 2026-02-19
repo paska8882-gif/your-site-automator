@@ -3211,7 +3211,7 @@ function enforceUiUxBaselineInFiles(
   // - keep sections readable and not overly tall
   // - eliminate horizontal overflow
   // - FORCE correct hero split-layout and horizontal nav
-  const css = `\n<style id="${STYLE_ID}">\n  html { -webkit-text-size-adjust: 100%; }\n  body { overflow-x: hidden; color: #1a1a2e; background-color: #ffffff; }\n  img, video { max-width: 100%; }\n\n  /* ===== VISIBILITY SAFETY NET ===== */\n  body > header, body > main, body > footer, body > nav,\n  body > section, body > div:not([id="cookie-banner"]) {\n    opacity: 1 !important;\n    visibility: visible !important;\n    transform: none !important;\n  }\n\n  /* ===== TEXT CONTRAST ON DARK BACKGROUNDS ===== */\n  .section.bg-dark, .section.dark, .dark-section, .cta-dark,\n  [class*="dark-bg"], [class*="bg-dark"], .hero-dark,\n  section[style*="background: #1"], section[style*="background:#1"],\n  section[style*="background: #2"], section[style*="background:#2"],\n  section[style*="background: #3"], section[style*="background:#3"],\n  section[style*="background: rgb(1"], section[style*="background: rgb(2"],\n  section[style*="background: rgb(3"] {\n    color: #ffffff !important;\n  }\n  .section.bg-dark h1, .section.bg-dark h2, .section.bg-dark h3,\n  .section.bg-dark h4, .section.bg-dark p, .section.bg-dark span,\n  .section.bg-dark a, .section.bg-dark li,\n  .section.dark h1, .section.dark h2, .section.dark h3,\n  .section.dark h4, .section.dark p, .section.dark a,\n  .dark-section h1, .dark-section h2, .dark-section h3,\n  .dark-section h4, .dark-section p, .dark-section a,\n  [class*="dark-bg"] h1, [class*="dark-bg"] h2, [class*="dark-bg"] h3,\n  [class*="dark-bg"] p, [class*="dark-bg"] a,\n  [class*="bg-dark"] h1, [class*="bg-dark"] h2, [class*="bg-dark"] h3,\n  [class*="bg-dark"] p, [class*="bg-dark"] a {\n    color: #ffffff !important;\n  }\n  /* Hero text always readable */\n  .page-hero .hero-copy h1, .page-hero .hero-copy p,\n  .page-hero .hero-copy .badge,\n  .hero .hero-content h1, .hero .hero-content p,\n  .hero .hero-content .badge, .hero .hero-content .hero-badge,\n  .hero-editorial .hero-content h1, .hero-editorial .hero-content p,\n  .hero-gallery .hero-placard h1, .hero-gallery .hero-placard p {\n    position: relative;\n    z-index: 2;\n  }\n  .section::before, section::before {\n    pointer-events: none;\n    z-index: 0;\n  }\n  .section > *, section > * {\n    position: relative;\n    z-index: 1;\n  }\n\n  /* ===== NAVIGATION ===== */\n  .nav, nav, .navbar, header nav, .header-nav,\n  .top-nav, .main-nav, .nav-container {\n    display: flex !important;\n    align-items: center !important;\n    justify-content: space-between !important;\n    flex-wrap: nowrap !important;\n  }\n  .nav-links, .nav ul, .navbar ul, .nav-menu, .nav-list, header ul, .header ul {\n    display: flex !important;\n    flex-direction: row !important;\n    list-style: none !important;\n    gap: clamp(16px, 2.5vw, 32px) !important;\n    margin: 0 !important;\n    padding: 0 !important;\n    align-items: center !important;\n  }\n  .nav-links li, .nav-menu li, .nav-list li, header ul li {\n    list-style: none !important;\n  }\n\n  /* ===== HERO SPLIT LAYOUT - ONLY explicit split wrappers ===== */\n  .hero-inner, .page-hero-inner, .hero-container,\n  .hero-grid, .hero-wrapper, .hero-layout {\n    max-width: 1200px !important;\n    margin: 0 auto !important;\n    padding: 0 24px !important;\n    display: grid !important;\n    grid-template-columns: 1fr 1fr !important;\n    gap: 40px !important;\n    align-items: center !important;\n  }\n  .hero-copy, .hero-text {\n    display: flex !important;\n    flex-direction: column !important;\n    gap: 16px !important;\n  }\n  .hero-content {\n    display: flex !important;\n    flex-direction: column !important;\n    gap: 16px !important;\n  }\n  .hero-visual, .hero-image, .hero-img, .hero-image-wrapper, .hero-media {\n    display: flex !important;\n    justify-content: center !important;\n    align-items: center !important;\n  }\n  .hero-visual img, .hero-image img, .hero-img img,\n  .hero-image-wrapper img, .hero-media img {\n    width: 100% !important;\n    max-width: 580px !important;\n    height: clamp(280px, 40vw, 520px) !important;\n    object-fit: cover !important;\n    border-radius: 12px !important;\n  }\n  .page-hero, .hero {\n    padding: clamp(60px, 10vw, 120px) 0 !important;\n    min-height: auto !important;\n    max-height: none !important;\n  }\n\n  /* ===== CENTERED HERO VARIANTS (editorial, parallax, gallery) ===== */\n  .hero-editorial, .hero-gallery,\n  .hero.parallax-container {\n    text-align: center !important;\n  }\n  .hero-editorial > .hero-content,\n  .hero.parallax-container > .hero-content {\n    max-width: 800px !important;\n    margin: 0 auto !important;\n    text-align: center !important;\n  }\n  .hero-gallery .hero-frame {\n    max-width: 900px !important;\n    margin: 0 auto !important;\n  }\n  .hero-gallery .hero-placard {\n    text-align: center !important;\n    padding: 24px !important;\n  }\n\n  /* ===== HERO FALLBACK: page-hero container (no forced 2-col) ===== */\n  .page-hero > .container {\n    max-width: 1200px !important;\n    margin: 0 auto !important;\n    padding: 0 24px !important;\n  }\n\n  /* ===== SPLIT LAYOUTS ===== */\n  .approach-grid, .about-grid, .split-grid, .two-col-grid,\n  .stats-highlight {\n    display: grid !important;\n    grid-template-columns: 1fr 1fr !important;\n    gap: 40px !important;\n    align-items: center !important;\n    max-width: 1200px !important;\n    margin: 0 auto !important;\n  }\n\n  /* Tame 100vh */\n  [style*="height:100vh"],\n  [style*="height: 100vh"],\n  [style*="min-height:100vh"],\n  [style*="min-height: 100vh"] {\n    height: auto !important;\n    min-height: clamp(300px, 60vh, 640px) !important;\n  }\n\n  /* ===== SECTIONS ===== */\n  section {\n    padding-block: clamp(56px, 7vw, 96px);\n  }\n\n  /* ===== CONTAINERS ===== */\n  .container, .section-inner, .page-container {\n    width: 100% !important;\n    max-width: min(1200px, 100% - 32px) !important;\n    margin-inline: auto !important;\n    box-sizing: border-box !important;\n  }\n\n  /* ===== ICON CONSTRAINTS ===== */\n  .feature-icon, .service-icon, .icon-box,\n  .card-icon, .why-icon, .step-icon, .benefit-icon,\n  .journey-icon, .icon-circle, .icon-square, .icon-container,\n  .info-icon, .emoji-icon, .card-emoji,\n  [class*="icon-box"], [class*="feature-icon"], [class*="service-icon"] {\n    width: 56px !important;\n    height: 56px !important;\n    max-width: 56px !important;\n    max-height: 56px !important;\n    font-size: 28px !important;\n    line-height: 56px !important;\n    flex-shrink: 0 !important;\n    display: flex !important;\n    align-items: center !important;\n    justify-content: center !important;\n    overflow: hidden !important;\n  }\n  .card > .icon-wrapper, .feature > .icon-wrapper,\n  .service > .icon-wrapper, .feature-card > .icon-wrapper,\n  .service-card > .icon-wrapper {\n    width: 56px !important;\n    height: 56px !important;\n    max-width: 56px !important;\n    max-height: 56px !important;\n    flex-shrink: 0 !important;\n    display: flex !important;\n    align-items: center !important;\n    justify-content: center !important;\n    overflow: hidden !important;\n  }\n  li > .icon-wrapper {\n    width: 40px !important;\n    height: 40px !important;\n    max-width: 40px !important;\n    max-height: 40px !important;\n    flex-shrink: 0 !important;\n    display: flex !important;\n    align-items: center !important;\n    justify-content: center !important;\n  }\n  li > .icon-wrapper svg {\n    width: 22px !important;\n    height: 22px !important;\n  }\n  .feature-icon svg, .service-icon svg, .icon-box svg,\n  .card-icon svg, .journey-icon svg, .icon-circle svg,\n  .icon-container svg, [class*="icon-box"] svg {\n    width: 28px !important;\n    height: 28px !important;\n    max-width: 28px !important;\n    max-height: 28px !important;\n  }\n  .feature-icon img, .service-icon img, .icon-box img,\n  .card-icon img, .icon-circle img {\n    width: 28px !important;\n    height: 28px !important;\n    max-width: 28px !important;\n    max-height: 28px !important;\n    object-fit: contain !important;\n  }\n  .feature-icon span, .service-icon span, .icon-box span,\n  [class*="icon-box"] span {\n    font-size: 1.75rem !important;\n    line-height: 1 !important;\n  }\n\n  /* ===== UNIVERSAL SVG ICON CAP - catches any icon class not explicitly covered ===== */\n  a > svg, button > svg, li > svg, p > svg,\n  .card svg:not([class*="hero"]):not([class*="banner"]):not([class*="illustration"]),\n  [class*="icon"] > svg, [class*="-icon"] > svg {\n    width: 28px !important;\n    height: 28px !important;\n    max-width: 28px !important;\n    max-height: 28px !important;\n    flex-shrink: 0 !important;\n  }\n\n  /* ===== CARD/GRID LAYOUTS ===== */\n  .staggered-cards-grid, .cards-grid, .features-grid,\n  .services-grid, .recommendations-grid, .testimonials-grid {\n    display: grid !important;\n    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;\n    gap: 24px !important;\n  }\n  .masonry-grid, .gallery-grid, .archive-grid {\n    display: grid !important;\n    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;\n    gap: 20px !important;\n  }\n  .grid-3 {\n    display: grid !important;\n    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;\n    gap: 24px !important;\n  }\n\n  /* ===== FOOTER GRID ===== */\n  .footer-grid {\n    display: grid !important;\n    grid-template-columns: 2fr repeat(3, 1fr) !important;\n    gap: 32px !important;\n  }\n\n  /* ===== RESPONSIVE ===== */\n  @media (max-width: 768px) {\n    .hero-inner, .page-hero-inner, .hero-container,\n    .hero-grid, .hero-wrapper, .hero-layout,\n    .approach-grid, .about-grid, .split-grid,\n    .two-col-grid, .stats-highlight {\n      grid-template-columns: 1fr !important;\n    }\n    .footer-grid {\n      grid-template-columns: 1fr !important;\n    }\n    .nav-links, .nav-menu, .nav-list {\n      display: none !important;\n    }\n    .nav-toggle, .hamburger, .menu-toggle, .mobile-menu-btn {\n      display: block !important;\n    }\n    .nav-links.active, .nav-links.open, .nav-menu.active, .nav-menu.open {\n      display: flex !important;\n      flex-direction: column !important;\n    }\n  }\n  @media (max-width: 640px) {\n    section {\n      padding-block: clamp(44px, 9vw, 72px);\n    }\n  }\n</style>\n`;
+  const css = `\n<style id="${STYLE_ID}">\n  html { -webkit-text-size-adjust: 100%; }\n  body { overflow-x: hidden; color: #1a1a2e; background-color: #ffffff; }\n  img, video { max-width: 100%; }\n\n  /* ===== VISIBILITY SAFETY NET ===== */\n  body > header, body > main, body > footer, body > nav,\n  body > section, body > div:not([id="cookie-banner"]) {\n    opacity: 1 !important;\n    visibility: visible !important;\n    transform: none !important;\n  }\n\n  /* ===== TEXT CONTRAST ON DARK BACKGROUNDS ===== */\n  .section.bg-dark, .section.dark, .dark-section, .cta-dark,\n  [class*="dark-bg"], [class*="bg-dark"], .hero-dark,\n  section[style*="background: #1"], section[style*="background:#1"],\n  section[style*="background: #2"], section[style*="background:#2"],\n  section[style*="background: #3"], section[style*="background:#3"],\n  section[style*="background: rgb(1"], section[style*="background: rgb(2"],\n  section[style*="background: rgb(3"] {\n    color: #ffffff !important;\n  }\n  .section.bg-dark h1, .section.bg-dark h2, .section.bg-dark h3,\n  .section.bg-dark h4, .section.bg-dark p, .section.bg-dark span,\n  .section.bg-dark a, .section.bg-dark li,\n  .section.dark h1, .section.dark h2, .section.dark h3,\n  .section.dark h4, .section.dark p, .section.dark a,\n  .dark-section h1, .dark-section h2, .dark-section h3,\n  .dark-section h4, .dark-section p, .dark-section a,\n  [class*="dark-bg"] h1, [class*="dark-bg"] h2, [class*="dark-bg"] h3,\n  [class*="dark-bg"] p, [class*="dark-bg"] a,\n  [class*="bg-dark"] h1, [class*="bg-dark"] h2, [class*="bg-dark"] h3,\n  [class*="bg-dark"] p, [class*="bg-dark"] a {\n    color: #ffffff !important;\n  }\n  /* Hero text always readable */\n  .page-hero .hero-copy h1, .page-hero .hero-copy p,\n  .page-hero .hero-copy .badge,\n  .hero .hero-content h1, .hero .hero-content p,\n  .hero .hero-content .badge, .hero .hero-content .hero-badge,\n  .hero-editorial .hero-content h1, .hero-editorial .hero-content p,\n  .hero-gallery .hero-placard h1, .hero-gallery .hero-placard p {\n    position: relative;\n    z-index: 2;\n  }\n  .section::before, section::before {\n    pointer-events: none;\n    z-index: 0;\n  }\n  .section > *, section > * {\n    position: relative;\n    z-index: 1;\n  }\n\n  /* ===== NAVIGATION LAYOUT GUARD ===== */\n  /* Force nav container: logo LEFT, links RIGHT, never overlap */\n  .nav, nav, .navbar, header nav, .header-nav,\n  .top-nav, .main-nav, .nav-container {\n    display: flex !important;\n    align-items: center !important;\n    justify-content: space-between !important;\n    flex-wrap: nowrap !important;\n    gap: 16px !important;\n  }\n  /* Nav links list: horizontal row only, items are only page links */\n  .nav-links, .nav ul, .navbar ul, .nav-menu, .nav-list, header ul, .header ul {\n    display: flex !important;\n    flex-direction: row !important;\n    list-style: none !important;\n    gap: clamp(14px, 2vw, 28px) !important;\n    margin: 0 !important;\n    padding: 0 !important;\n    align-items: center !important;\n    flex-wrap: nowrap !important;\n  }\n  .nav-links li, .nav-menu li, .nav-list li, header ul li {\n    list-style: none !important;\n    flex-shrink: 0 !important;\n  }\n  /* LOGO GUARD: always flex-row, always left, never inside ul, clips overflow */\n  .nav-logo, .site-logo, .brand-logo, .logo-link, .header-logo, .navbar-brand, a.logo {\n    display: flex !important;\n    align-items: center !important;\n    gap: 10px !important;\n    flex-shrink: 0 !important;\n    max-width: 280px !important;\n    overflow: hidden !important;\n    white-space: nowrap !important;\n    text-decoration: none !important;\n  }\n  /* Logo image: strictly 40x40, never stretches */\n  .nav-logo img, .site-logo img, .brand-logo img,\n  .logo-link img, .header-logo img, .navbar-brand img {\n    height: 40px !important;\n    width: 40px !important;\n    min-width: 40px !important;\n    flex-shrink: 0 !important;\n    display: block !important;\n    object-fit: contain !important;\n  }\n  /* Logo text: clips if too long, never wraps */\n  .logo-text, .brand-name {\n    white-space: nowrap !important;\n    overflow: hidden !important;\n    text-overflow: ellipsis !important;\n    max-width: 190px !important;\n    display: inline-block !important;\n    flex-shrink: 1 !important;\n  }\n\n  /* ===== HERO SPLIT LAYOUT - ONLY explicit split wrappers ===== */\n  .hero-inner, .page-hero-inner, .hero-container,\n  .hero-grid, .hero-wrapper, .hero-layout {\n    max-width: 1200px !important;\n    margin: 0 auto !important;\n    padding: 0 24px !important;\n    display: grid !important;\n    grid-template-columns: 1fr 1fr !important;\n    gap: 40px !important;\n    align-items: center !important;\n  }\n  .hero-copy, .hero-text {\n    display: flex !important;\n    flex-direction: column !important;\n    gap: 16px !important;\n  }\n  .hero-content {\n    display: flex !important;\n    flex-direction: column !important;\n    gap: 16px !important;\n  }\n  .hero-visual, .hero-image, .hero-img, .hero-image-wrapper, .hero-media {\n    display: flex !important;\n    justify-content: center !important;\n    align-items: center !important;\n  }\n  .hero-visual img, .hero-image img, .hero-img img,\n  .hero-image-wrapper img, .hero-media img {\n    width: 100% !important;\n    max-width: 580px !important;\n    height: clamp(280px, 40vw, 520px) !important;\n    object-fit: cover !important;\n    border-radius: 12px !important;\n  }\n  .page-hero, .hero {\n    padding: clamp(60px, 10vw, 120px) 0 !important;\n    min-height: auto !important;\n    max-height: none !important;\n  }\n\n  /* ===== CENTERED HERO VARIANTS (editorial, parallax, gallery) ===== */\n  .hero-editorial, .hero-gallery,\n  .hero.parallax-container {\n    text-align: center !important;\n  }\n  .hero-editorial > .hero-content,\n  .hero.parallax-container > .hero-content {\n    max-width: 800px !important;\n    margin: 0 auto !important;\n    text-align: center !important;\n  }\n  .hero-gallery .hero-frame {\n    max-width: 900px !important;\n    margin: 0 auto !important;\n  }\n  .hero-gallery .hero-placard {\n    text-align: center !important;\n    padding: 24px !important;\n  }\n\n  /* ===== HERO FALLBACK: page-hero container (no forced 2-col) ===== */\n  .page-hero > .container {\n    max-width: 1200px !important;\n    margin: 0 auto !important;\n    padding: 0 24px !important;\n  }\n\n  /* ===== SPLIT LAYOUTS ===== */\n  .approach-grid, .about-grid, .split-grid, .two-col-grid,\n  .stats-highlight {\n    display: grid !important;\n    grid-template-columns: 1fr 1fr !important;\n    gap: 40px !important;\n    align-items: center !important;\n    max-width: 1200px !important;\n    margin: 0 auto !important;\n  }\n\n  /* Tame 100vh */\n  [style*="height:100vh"],\n  [style*="height: 100vh"],\n  [style*="min-height:100vh"],\n  [style*="min-height: 100vh"] {\n    height: auto !important;\n    min-height: clamp(300px, 60vh, 640px) !important;\n  }\n\n  /* ===== SECTIONS ===== */\n  section {\n    padding-block: clamp(56px, 7vw, 96px);\n  }\n\n  /* ===== CONTAINERS ===== */\n  .container, .section-inner, .page-container {\n    width: 100% !important;\n    max-width: min(1200px, 100% - 32px) !important;\n    margin-inline: auto !important;\n    box-sizing: border-box !important;\n  }\n\n  /* ===== ICON CONSTRAINTS ===== */\n  .feature-icon, .service-icon, .icon-box,\n  .card-icon, .why-icon, .step-icon, .benefit-icon,\n  .journey-icon, .icon-circle, .icon-square, .icon-container,\n  .info-icon, .emoji-icon, .card-emoji,\n  [class*="icon-box"], [class*="feature-icon"], [class*="service-icon"] {\n    width: 56px !important;\n    height: 56px !important;\n    max-width: 56px !important;\n    max-height: 56px !important;\n    font-size: 28px !important;\n    line-height: 56px !important;\n    flex-shrink: 0 !important;\n    display: flex !important;\n    align-items: center !important;\n    justify-content: center !important;\n    overflow: hidden !important;\n  }\n  .card > .icon-wrapper, .feature > .icon-wrapper,\n  .service > .icon-wrapper, .feature-card > .icon-wrapper,\n  .service-card > .icon-wrapper {\n    width: 56px !important;\n    height: 56px !important;\n    max-width: 56px !important;\n    max-height: 56px !important;\n    flex-shrink: 0 !important;\n    display: flex !important;\n    align-items: center !important;\n    justify-content: center !important;\n    overflow: hidden !important;\n  }\n  li > .icon-wrapper {\n    width: 40px !important;\n    height: 40px !important;\n    max-width: 40px !important;\n    max-height: 40px !important;\n    flex-shrink: 0 !important;\n    display: flex !important;\n    align-items: center !important;\n    justify-content: center !important;\n  }\n  li > .icon-wrapper svg {\n    width: 22px !important;\n    height: 22px !important;\n  }\n  .feature-icon svg, .service-icon svg, .icon-box svg,\n  .card-icon svg, .journey-icon svg, .icon-circle svg,\n  .icon-container svg, [class*="icon-box"] svg {\n    width: 28px !important;\n    height: 28px !important;\n    max-width: 28px !important;\n    max-height: 28px !important;\n  }\n  .feature-icon img, .service-icon img, .icon-box img,\n  .card-icon img, .icon-circle img {\n    width: 28px !important;\n    height: 28px !important;\n    max-width: 28px !important;\n    max-height: 28px !important;\n    object-fit: contain !important;\n  }\n  .feature-icon span, .service-icon span, .icon-box span,\n  [class*="icon-box"] span {\n    font-size: 1.75rem !important;\n    line-height: 1 !important;\n  }\n\n  /* ===== UNIVERSAL SVG ICON CAP - catches any icon class not explicitly covered ===== */\n  a > svg, button > svg, li > svg, p > svg,\n  .card svg:not([class*="hero"]):not([class*="banner"]):not([class*="illustration"]),\n  [class*="icon"] > svg, [class*="-icon"] > svg {\n    width: 28px !important;\n    height: 28px !important;\n    max-width: 28px !important;\n    max-height: 28px !important;\n    flex-shrink: 0 !important;\n  }\n\n  /* ===== CARD/GRID LAYOUTS ===== */\n  .staggered-cards-grid, .cards-grid, .features-grid,\n  .services-grid, .recommendations-grid, .testimonials-grid {\n    display: grid !important;\n    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;\n    gap: 24px !important;\n  }\n  .masonry-grid, .gallery-grid, .archive-grid {\n    display: grid !important;\n    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;\n    gap: 20px !important;\n  }\n  .grid-3 {\n    display: grid !important;\n    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;\n    gap: 24px !important;\n  }\n\n  /* ===== FOOTER GRID ===== */\n  .footer-grid {\n    display: grid !important;\n    grid-template-columns: 2fr repeat(3, 1fr) !important;\n    gap: 32px !important;\n  }\n\n  /* ===== RESPONSIVE ===== */\n  @media (max-width: 768px) {\n    .hero-inner, .page-hero-inner, .hero-container,\n    .hero-grid, .hero-wrapper, .hero-layout,\n    .approach-grid, .about-grid, .split-grid,\n    .two-col-grid, .stats-highlight {\n      grid-template-columns: 1fr !important;\n    }\n    .footer-grid {\n      grid-template-columns: 1fr !important;\n    }\n    .nav-links, .nav-menu, .nav-list {\n      display: none !important;\n    }\n    .nav-toggle, .hamburger, .menu-toggle, .mobile-menu-btn {\n      display: block !important;\n    }\n    .nav-links.active, .nav-links.open, .nav-menu.active, .nav-menu.open {\n      display: flex !important;\n      flex-direction: column !important;\n    }\n  }\n  @media (max-width: 640px) {\n    section {\n      padding-block: clamp(44px, 9vw, 72px);\n    }\n  }\n</style>\n`;
 
   return files.map((f) => {
     if (!/\.(html?)$/i.test(f.path)) return f;
@@ -5823,30 +5823,57 @@ ALL content MUST be centered on the page:
 }
 \`\`\`
 
-**🏷️ LOGO IN HEADER — MANDATORY STRUCTURE (NEVER USE PLAIN TEXT AS LOGO):**
-The nav logo MUST use \`logo.svg\` as an icon + a \`<span class="logo-text">\` for the name. Plain text logos are FORBIDDEN.
-Required structure:
+**🏷️ HEADER — MANDATORY COMPLETE STRUCTURE (COPY THIS EXACTLY):**
+
+⛔ NEVER place the logo INSIDE \`<ul class="nav-links">\` — logo goes OUTSIDE the list as a sibling!
+⛔ NEVER use plain text as logo — ALWAYS use logo.svg icon + span.logo-text
+
+**CORRECT HTML STRUCTURE — COPY EXACTLY:**
 \`\`\`html
-<a href="index.html" class="nav-logo">
-  <img src="logo.svg" alt="[SiteName] logo" style="height:40px;width:40px;flex-shrink:0;">
-  <span class="logo-text">[SiteName short name, max 3 words]</span>
-</a>
+<header class="header">
+  <nav class="nav">
+    <!-- LOGO: always LEFT, always OUTSIDE nav-links list -->
+    <a href="index.html" class="nav-logo">
+      <img src="logo.svg" alt="[SiteName] logo" width="40" height="40" loading="eager" style="flex-shrink:0;">
+      <span class="logo-text">[SiteName — max 3 words, NOT full domain]</span>
+    </a>
+
+    <!-- NAV LINKS: always RIGHT, items are ONLY page links -->
+    <ul class="nav-links" id="nav-menu">
+      <li><a href="index.html" class="active">Home</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="services.html">Services</a></li>
+      <li><a href="blog.html">Blog</a></li>
+      <li><a href="contact.html">Contact</a></li>
+      <li><a href="contact.html" class="nav-cta">Get a Quote</a></li>
+    </ul>
+
+    <!-- MOBILE TOGGLE: always last inside nav -->
+    <button class="nav-toggle" id="nav-toggle" aria-label="Toggle menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+</header>
 \`\`\`
-Rules:
-- \`logo.svg\` is always available — ALWAYS use it as the icon
-- \`.logo-text\` must be the **short readable brand name** (NOT the full domain like "quickмузикант.com") — use 1-3 words max
-- If site_name looks like a domain (contains ".com"), extract just the human-readable part: "QuickМузикант" → use "Quick Музикант"
-- On mobile (<768px): hide \`.logo-text\`, show only the icon
+
+**RULES:**
+- \`.logo-text\` = short brand name (1–3 words). If domain-like ("domain.com") → use just "Domain"
+- \`logo.svg\` is ALWAYS present in the project — ALWAYS reference it
+- \`.nav-cta\` is a styled CTA button inside the nav, NOT a phone/email link
+- NO phone numbers or emails in header — footer only
+- On mobile (<768px): hide \`.logo-text\` and \`.nav-links\` (show hamburger)
 
 \`\`\`css
-/* NAVIGATION - ALWAYS HORIZONTAL */
+/* ===== NAVIGATION - MANDATORY CSS ===== */
 .header {
   position: fixed;
   top: 0; left: 0; right: 0;
   z-index: 1000;
-  background: rgba(255,255,255,0.96);
+  background: rgba(255,255,255,0.97);
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 1px 12px rgba(0,0,0,0.08);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
 }
 
 .nav {
@@ -5857,19 +5884,18 @@ Rules:
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 24px;
 }
 
+/* LOGO — left side, flex row, never inside ul */
 .nav-logo {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: var(--text-dark);
   text-decoration: none;
+  flex-shrink: 0;
   max-width: 260px;
   overflow: hidden;
-  flex-shrink: 0;
   white-space: nowrap;
 }
 
@@ -5878,47 +5904,90 @@ Rules:
   width: 40px;
   flex-shrink: 0;
   display: block;
+  object-fit: contain;
 }
 
-.nav-logo .logo-text,
-.logo-text {
+.nav-logo .logo-text {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-dark, #1a1a1a);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 200px;
+  max-width: 190px;
   display: inline-block;
 }
 
+/* NAV LINKS — right side, horizontal row */
 .nav-links {
   display: flex;
   flex-direction: row;
+  align-items: center;
   gap: 28px;
   list-style: none;
   margin: 0;
   padding: 0;
-  align-items: center;
 }
 
-.nav-links li { list-style: none; }
+.nav-links li {
+  list-style: none;
+  flex-shrink: 0;
+}
 
 .nav-links a {
   font-weight: 500;
-  color: var(--text-dark);
+  font-size: 0.95rem;
+  color: var(--text-dark, #1a1a1a);
   text-decoration: none;
   transition: color 0.2s;
+  white-space: nowrap;
 }
 
-.nav-links a:hover { color: var(--primary-color); }
+.nav-links a:hover,
+.nav-links a.active {
+  color: var(--primary-color);
+}
 
+/* CTA button inside nav */
+.nav-links .nav-cta,
+.nav-links a.nav-cta {
+  padding: 10px 20px;
+  background: var(--primary-color);
+  color: #fff !important;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.nav-links .nav-cta:hover {
+  background: var(--primary-dark, var(--primary-color));
+  transform: translateY(-1px);
+}
+
+/* HAMBURGER */
 .nav-toggle {
   display: none;
   background: none;
   border: none;
   cursor: pointer;
   padding: 8px;
+  flex-direction: column;
+  gap: 5px;
+  flex-shrink: 0;
 }
 
+.nav-toggle span {
+  display: block;
+  width: 24px;
+  height: 2px;
+  background: var(--text-dark, #1a1a1a);
+  border-radius: 2px;
+  transition: all 0.3s;
+}
+
+/* RESPONSIVE */
 @media (max-width: 992px) {
+  .nav-links { gap: 18px; }
   .hero-inner {
     grid-template-columns: 1fr;
     text-align: center;
@@ -5929,19 +5998,43 @@ Rules:
 }
 
 @media (max-width: 768px) {
-  .nav-toggle { display: block; }
+  .nav-toggle { display: flex; }
+  .nav-logo .logo-text { display: none; }
   .nav-links {
-    position: absolute;
+    position: fixed;
     top: 70px; left: 0; right: 0;
-    background: white;
+    background: rgba(255,255,255,0.98);
+    backdrop-filter: blur(12px);
     flex-direction: column;
-    padding: 20px;
+    padding: 24px 20px;
     gap: 16px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+    border-top: 1px solid rgba(0,0,0,0.08);
     display: none;
+    z-index: 999;
   }
   .nav-links.active { display: flex; }
-  .nav-logo .logo-text { display: none; }
+  .nav-links a { font-size: 1rem; padding: 4px 0; }
+}
+\`\`\`
+
+**JS for mobile menu toggle (in script.js):**
+\`\`\`js
+// Mobile menu
+const navToggle = document.getElementById('nav-toggle');
+const navMenu = document.getElementById('nav-menu');
+if (navToggle && navMenu) {
+  navToggle.addEventListener('click', () => {
+    const open = navMenu.classList.toggle('active');
+    navToggle.setAttribute('aria-expanded', open);
+  });
+  // Close on outside click
+  document.addEventListener('click', (e) => {
+    if (!navToggle.contains(e.target) && !navMenu.contains(e.target)) {
+      navMenu.classList.remove('active');
+      navToggle.setAttribute('aria-expanded', 'false');
+    }
+  });
 }
 \`\`\`
 
