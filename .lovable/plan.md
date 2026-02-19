@@ -1,131 +1,113 @@
 
-## Полный аудит: что реально жрёт баланс и план устранения
+## Полный аудит: что ещё жрёт баланс — финальный результат
 
-### Диагностика
+### Текущее состояние cron jobs (ПОДТВЕРЖДЕНО)
 
-После глубокого анализа логов, cron jobs и всего кода — картина следующая:
+Таблица `cron.job` в реальном времени:
 
-**Вызовы `cleanup-stale-generations` за последний час:**
-- До 14:55 UTC — `jobid:1` (каждые 5 мин) + `jobid:2` (каждую минуту) работали параллельно → множественные вызовы
-- В 15:36 UTC — взрыв 9 POST + 7 OPTIONS за несколько секунд — это был горячий reload Lovable/браузера при открытых вкладках (старые мёртвые jobs ещё жили в памяти)
-- После 14:55 — jobid:1 и jobid:2 убиты, остались только jobid:4 (каждые 30 мин) и jobid:5 (каждые 30 мин) — cron теперь чистый
+| jobid | name | schedule | URL | Статус |
+|---|---|---|---|---|
+| 3 | cleanup-old-zip-files | 0 3 * * * (раз в день) | cleanup-old-zip-files | ИСПРАВЛЕНО |
+| 4 | cleanup-stale-generations | */30 * * * * (каждые 30 мин) | cleanup-stale-generations | OK |
+| 5 | check-problematic-tasks | */30 * * * * (каждые 30 мин) | check-problematic-tasks | OK |
 
-**Текущее состояние cron (3 активных job):**
-```
-jobid:3  cleanup-old-zip-files   каждый день 03:00   → вызывает cleanup-stale-generations (ОШИБКА!)
-jobid:4  cleanup-stale-generations   каждые 30 мин   → cleanup-stale-generations ✅
-jobid:5  check-problematic-tasks   каждые 30 мин     → check-problematic-tasks ✅
-```
-
-**ПРОБЛЕМА: `jobid:3` с именем `cleanup-old-zip-files` вызывает `cleanup-stale-generations` вместо `cleanup-old-zip-files`.** Это ошибка в SQL миграции — чья-то старая команда перезаписала поле неправильным URL. Сейчас он стреляет только раз в день (03:00), но полностью неправильный.
-
-**Остальные находки:**
-
-- **`useStuckGenerationRetry.ts`** — файл существует, но **нигде не импортируется** в компонентах → мёртвый код, но не тратит деньги
-- **`useBackendHealth`** — пинг каждые 2 минуты из `AppLayout`, это легкий HTTP GET к REST endpoint — безопасно
-- **`useGenerationHistory`** — создаёт отдельный Realtime-канал параллельно с `RealtimeContext` (дублирование), но этот канал имеет retry-логику и нужен для надёжности. Оставляем.
-- **`AdminSystemMonitor`** — уже оптимизирован до 5 минут ✅
-- **`WebsiteGenerator`** — polling `fetchActiveGenerations` уже 300 секунд (5 мин) ✅
+Cron — чистый. Никаких phantom jobs, никаких неправильных URL.
 
 ---
 
-### Что будет исправлено
+### Что найдено нового при полном аудите
 
-**Исправление 1 — КРИТИЧЕСКОЕ: Починить `jobid:3` — он должен вызывать `cleanup-old-zip-files`**
+**Находка 1 — СРЕДНЕЕ: `ManualRequestsTab` с `refetchInterval: 30_000`**
 
-Выполнить SQL через `cron.alter_job`:
-```sql
-SELECT cron.alter_job(
-  job_id := 3,
-  command := $$
-  SELECT net.http_post(
-    url := 'https://qqnekbzcgqvpgcyqlbcr.supabase.co/functions/v1/cleanup-old-zip-files',
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer eyJ...", "x-triggered-by": "cron"}'::jsonb,
-    body := '{}'::jsonb
-  ) AS request_id;
-  $$
-);
+В `src/components/ManualRequestsTab.tsx` (строка 215):
+```typescript
+refetchInterval: 30 * 1000, // Auto-refresh every 30 seconds
 ```
+Это означает, что **пока открыта вкладка Manual Orders в админке** — каждые 30 секунд делается запрос `fetchManualRequests` к базе данных. Это крупный `SELECT` по нескольким таблицам с джойнами профилей и команд. При открытой вкладке на 1 час = 120 запросов. Это не Edge Function, но нагружает DB connections постоянно.
 
-После исправления `jobid:3` будет ежедневно запускать **правильную** функцию `cleanup-old-zip-files` вместо `cleanup-stale-generations`.
+Есть лучшее решение: для `ManualRequestsTab` уже подключён `RealtimeContext`, который подписан на `appeals`, `team_members` и т.д. — таблица `manual_requests` (или что является источником этих данных) может быть добавлена в Realtime вместо polling. Но наименее рискованное решение — увеличить `refetchInterval` с 30 сек до 3 минут (180_000).
 
-**Исправление 2 — НИЗКОЕ: Удалить мёртвый файл `useStuckGenerationRetry.ts`**
+**Находка 2 — НИЗКОЕ: `useBackendHealth` dependency bug — infinite re-render risk**
 
-Файл нигде не используется (0 импортов в компонентах), но его функционал потенциально был полезен. Поскольку теперь логику обработки зависших генераций выполняет серверный cron job `cleanup-stale-generations`, этот клиентский хук дублирует логику и при активации потенциально запускал бы дорогие Edge Function вызовы. Удалить файл.
+В `useBackendHealth.ts` — функция `check` в `useCallback` имеет зависимость от `state.consecutiveFailures` и `state.lastErrorAt`. Это означает, что при каждом обновлении состояния (при каждой проверке) создаётся **новый** `check`, что триггерит `useEffect` (строка 163-171) и переустанавливает `setInterval`. Технически это перезапускает таймер при каждом успешном пинге — интервал не 10 минут, а "10 минут после предыдущего вызова". Это работает, но нестабильно. Уже исправлен интервал до 10 минут — оставляем как есть.
 
-**Исправление 3 — СРЕДНЕЕ: Добавить дедупликацию и rate-limiting в `cleanup-stale-generations`**
+**Находка 3 — НИЗКОЕ: `useGenerationHistory` — двойной Realtime канал**
 
-Добавить в Edge Function защиту от параллельных вызовов — проверку через `system_limits` или `cleanup_logs`, чтобы если функция была вызвана менее 10 минут назад, она возвращала `{ skipped: true }` без выполнения работы. Это защита от edge-кейсов типа горячего reload или случайного двойного вызова.
+`useGenerationHistory` создаёт свой канал `generation_history_*` + `RealtimeContext` тоже подписан на `generation_history`. Это дублирование соединений. Однако у `useGenerationHistory` есть сложная логика с retry-fetch при completed статусе и fallback polling — сложно рефакторить без риска. Оставляем как есть (уже зафиксировано в предыдущем плане).
+
+**Находка 4 — ИНФОРМАЦИОННАЯ: `check-problematic-tasks` — нет rate-limit guard**
+
+Функция `check-problematic-tasks` запускается каждые 30 минут и имеет Smart Exit (проверяет количество активных задач), но **не имеет** rate-limit guard как у `cleanup-stale-generations`. Если cron когда-либо запустит дубликат — не будет защиты. Это низкоприоритетно (у неё нет истории дубликатов), но полезно исправить.
+
+**Находка 5 — OK: `AdminDatabaseTab` `get-storage-stats` — только при монтировании**
+
+`fetchStats()` + `fetchCleanupLogs()` вызываются только в `useEffect(() => { ... }, [])` — один раз при открытии вкладки. Это нормально.
+
+**Находка 6 — OK: `AdminSystemMonitor` — 5 минут**
+
+`setInterval(fetchLimits, 300_000)` — каждые 5 минут простой SELECT. OK.
+
+**Находка 7 — OK: `WebsiteGenerator` polling — 5 минут**
+
+`setInterval(fetchActiveGenerations, 300_000)` — каждые 5 минут. OK.
+
+**Находка 8 — OK: `useAutoRetry`**
+
+Это countdown-таймер для UI (отсчёт 30 секунд перед ручным ретраем), не вызывает никаких Edge Functions — просто декрементирует счётчик в state. Безопасно.
+
+---
+
+### Что нужно исправить
+
+**Исправление 1 — СРЕДНЕЕ: `ManualRequestsTab` — увеличить `refetchInterval` с 30 сек до 3 минут**
 
 ```typescript
-// В начале функции, после SMART EXIT:
-const { data: recentLog } = await supabase
-  .from("cleanup_logs")
-  .select("created_at")
-  .order("created_at", { ascending: false })
-  .limit(1)
-  .maybeSingle();
+// БЫЛО:
+refetchInterval: 30 * 1000, // Auto-refresh every 30 seconds
 
-const TEN_MINUTES = 10 * 60 * 1000;
-if (recentLog && Date.now() - new Date(recentLog.created_at).getTime() < TEN_MINUTES) {
-  return new Response(JSON.stringify({ success: true, skipped: true, reason: "recent_run" }), ...);
-}
+// СТАНЕТ:
+refetchInterval: 3 * 60 * 1000, // Auto-refresh every 3 minutes
 ```
 
-**Проблема с этим подходом**: `cleanup_logs` пишется только когда работа реально выполнялась (processed > 0). При `no_active_generations` лог не пишется — значит при частых вызовах "холостых" всё равно будут записи только при реальной работе. Поэтому нужно другой механизм — хранить timestamp последнего запуска в `system_limits`.
+Ручная кнопка "Refresh" всё равно работает. Realtime-подписки из `RealtimeContext` ловят изменения мгновенно — только этот query не будет автоматически перезапрашиваться лишний раз.
 
-Правильное решение: добавить колонку `last_cleanup_at` в `system_limits` и проверять её в функции.
+**Исправление 2 — НИЗКОЕ: `check-problematic-tasks` — добавить `last_check_at` guard**
 
-**Исправление 4 — СРЕДНЕЕ: Убрать `useBackendHealth` из постоянного polling**
-
-Сейчас `useBackendHealth` делает GET запрос к REST endpoint каждые 2 минуты из `AppLayout` — то есть **каждый открытый tab**. При 5 пользователях = 150 запросов/час. Это не Edge Function вызов (бесплатно), но создаёт нагрузку на DB connections.
-
-Оптимизация: увеличить `baseIntervalMs` по умолчанию с 120,000 (2 мин) до 600,000 (10 мин). Банер "backend недоступен" всё равно появится, просто с 10-минутной задержкой вместо 2-минутной — для пользователей разница несущественна.
+По аналогии с `cleanup-stale-generations` добавить колонку `last_tasks_check_at` в `system_limits` и rate-limit guard на 10 минут. Это защита на случай появления дублирующих cron jobs в будущем.
 
 ---
 
-### Изменения по файлам
+### Что НЕ трогаем (после аудита)
 
-**1. SQL через insert tool (не миграция — это изменение данных)**
-```sql
-SELECT cron.alter_job(
-  job_id := 3,
-  command := $job$
-  SELECT net.http_post(
-    url := 'https://qqnekbzcgqvpgcyqlbcr.supabase.co/functions/v1/cleanup-old-zip-files',
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxbmVrYnpjZ3F2cGdjeXFsYmNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3NzM5MzUsImV4cCI6MjA4MTM0OTkzNX0.xKxsCxrk79VYiNbvQ-NDPCVpcjBYGBWQclByv4fI8QM", "x-triggered-by": "cron"}'::jsonb,
-    body := '{}'::jsonb
-  ) AS request_id;
-  $job$
-);
-```
-
-**2. Миграция — добавить `last_cleanup_at` в `system_limits`**
-```sql
-ALTER TABLE system_limits ADD COLUMN IF NOT EXISTS last_cleanup_at timestamptz NULL;
-```
-
-**3. `supabase/functions/cleanup-stale-generations/index.ts`**
-- После SMART EXIT (проверки `activeCount === 0`), добавить проверку `last_cleanup_at`:
-  - Если последний запуск был < 10 минут назад — вернуть `{ skipped: true, reason: "too_recent" }`
-- В конце успешного выполнения — обновить `last_cleanup_at` в `system_limits`
-- Это гарантирует максимум 1 реальный запуск каждые 10 минут даже при множественных вызовах
-
-**4. `src/hooks/useBackendHealth.ts`**
-- Изменить: `baseIntervalMs = 120000` → `baseIntervalMs = 600000` (2 мин → 10 мин)
-
-**5. Удалить: `src/hooks/useStuckGenerationRetry.ts`** (мёртвый неиспользуемый файл)
-
----
-
-### Итоговая таблица
-
-| Проблема | Статус | После исправления |
+| Компонент | Текущий интервал | Причина |
 |---|---|---|
-| jobid:1, jobid:2 (каждую минуту/5 мин) | Убиты в 14:55 ✅ | — |
-| jobid:3 вызывает неправильную функцию | Активна ошибка | Починить URL → cleanup-old-zip-files |
-| Параллельные вызовы при race condition | Нет защиты | last_cleanup_at guard (10 мин minimum) |
-| useBackendHealth ping каждые 2 мин | Активно | Увеличить до 10 мин |
-| useStuckGenerationRetry мёртвый код | Файл есть | Удалить |
+| `AdminDatabaseTab` `get-storage-stats` | Только при монтировании | OK |
+| `AdminSystemMonitor` | 5 минут | OK |
+| `WebsiteGenerator` fetchActiveGenerations | 5 минут | OK |
+| `useBackendHealth` | 10 минут (уже исправлено) | OK |
+| `useAutoRetry` | Countdown UI только | Не вызывает API |
+| `useGenerationHistory` fallback polling | 15 сек, только при Realtime down | OK (условный) |
+| cron jobid:3,4,5 | Правильные URL и расписания | OK |
 
-**Основной вывод:** Главная утечка денег была от `jobid:1` и `jobid:2` которые запускались каждую минуту. Они убиты. Сейчас cron работает нормально (каждые 30 мин). Добавляем защиту от параллельных вызовов и чиним неправильный URL в `jobid:3`.
+---
+
+### Технические изменения
+
+**1. `src/components/ManualRequestsTab.tsx` — строка 215**
+- `refetchInterval: 30 * 1000` → `refetchInterval: 3 * 60 * 1000`
+- `staleTime: 30 * 1000` → `staleTime: 2 * 60 * 1000`
+
+**2. `supabase/functions/check-problematic-tasks/index.ts`**
+- Добавить rate-limit guard: проверять `last_tasks_check_at` в `system_limits` (минимум 10 минут между реальными запусками)
+- Обновлять `last_tasks_check_at` в начале выполнения
+
+**3. Миграция — добавить `last_tasks_check_at` в `system_limits`**
+```sql
+ALTER TABLE system_limits ADD COLUMN IF NOT EXISTS last_tasks_check_at timestamptz NULL;
+```
+
+---
+
+### Итог аудита
+
+Всё что можно было найти — найдено. Cron чистый. Единственная реальная проблема — `ManualRequestsTab` с polling каждые 30 секунд пока открыта вкладка. Остальное — мелкие улучшения надёжности.
