@@ -13,15 +13,38 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // ==========================================
+    // SMART EXIT: Check if there are any active tasks
+    // ==========================================
+    const { count: activeTaskCount, error: countError } = await supabase
+      .from("admin_tasks")
+      .select("*", { count: "exact", head: true })
+      .in("status", ["todo", "in_progress"]);
+
+    if (countError) {
+      console.error("Error counting active tasks:", countError);
+      throw countError;
+    }
+
+    if ((activeTaskCount ?? 0) === 0) {
+      console.log("✅ No active tasks (todo/in_progress) — skipping check");
+      return new Response(
+        JSON.stringify({ success: true, skipped: true, reason: "no_active_tasks" }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200
+        }
+      );
+    }
+
+    console.log(`Found ${activeTaskCount} active task(s) — running problematic check`);
 
     const now = new Date();
     const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000);
 
-    // Get tasks that should become problematic:
-    // 1. Still in 'todo' status and created more than 12 hours ago
-    // 2. In 'in_progress' status but past deadline (24 hours from creation)
     const { data: tasksToUpdate, error: fetchError } = await supabase
       .from("admin_tasks")
       .select("id, status, created_at, deadline, title, created_by")
@@ -38,7 +61,7 @@ Deno.serve(async (req) => {
     for (const task of tasksToUpdate || []) {
       const createdAt = new Date(task.created_at);
       const deadline = new Date(task.deadline);
-      
+
       let shouldBeProblematic = false;
 
       // Task in 'todo' for more than 12 hours
@@ -47,7 +70,7 @@ Deno.serve(async (req) => {
         console.log(`Task ${task.id} is problematic: in todo for more than 12 hours`);
       }
 
-      // Task past deadline (not completed within 24 hours)
+      // Task past deadline
       if (task.status === "in_progress" && deadline < now) {
         shouldBeProblematic = true;
         console.log(`Task ${task.id} is problematic: past deadline`);
@@ -64,7 +87,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Update tasks to problematic status
     if (problematicTaskIds.length > 0) {
       const { error: updateError } = await supabase
         .from("admin_tasks")
@@ -76,7 +98,6 @@ Deno.serve(async (req) => {
         throw updateError;
       }
 
-      // Send notifications
       const { error: notifError } = await supabase
         .from("notifications")
         .insert(notifications);
@@ -87,18 +108,18 @@ Deno.serve(async (req) => {
 
       console.log(`Updated ${problematicTaskIds.length} tasks to problematic status`);
     } else {
-      console.log("No tasks to update");
+      console.log("No tasks became problematic this run");
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         updated: problematicTaskIds.length,
-        taskIds: problematicTaskIds 
+        taskIds: problematicTaskIds
       }),
-      { 
+      {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200 
+        status: 200
       }
     );
   } catch (error: unknown) {
@@ -106,9 +127,9 @@ Deno.serve(async (req) => {
     console.error("Error in check-problematic-tasks:", error);
     return new Response(
       JSON.stringify({ error: errorMessage }),
-      { 
+      {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500 
+        status: 500
       }
     );
   }
