@@ -1,0 +1,1 @@
+ALTER TABLE system_limits ADD COLUMN IF NOT EXISTS last_cleanup_at timestamptz NULL;
