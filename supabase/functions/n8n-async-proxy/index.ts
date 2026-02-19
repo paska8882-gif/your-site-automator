@@ -6,14 +6,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Bot webhook configurations
-const BOT_WEBHOOKS: Record<string, string> = {
-  "2lang_html": "https://n8n.dragonwhite-n8n.top/webhook/lovable-generate",
-  "nextjs_bot": "https://n8n.dragonwhite-n8n.top/webhook/d26af941-69aa-4b93-82f8-fd5cd1d1c5ea",
-  "new_bot": "https://n8n.dragonwhite-n8n.top/webhook/797c78af-ad83-479f-a9f1-eec861ea6907",
+// Bot webhook configurations: url + method
+const BOT_WEBHOOKS: Record<string, { url: string; method: "POST" | "GET" }> = {
+  "2lang_html": { url: "https://n8n.dragonwhite-n8n.top/webhook/lovable-generate", method: "POST" },
+  "nextjs_bot": { url: "https://n8n.dragonwhite-n8n.top/webhook/d26af941-69aa-4b93-82f8-fd5cd1d1c5ea", method: "POST" },
+  "new_bot": { url: "https://n8n.dragonwhite-n8n.top/webhook/797c78af-ad83-479f-a9f1-eec861ea6907", method: "GET" },
 };
 
-const DEFAULT_WEBHOOK_URL = "https://n8n.dragonwhite-n8n.top/webhook/lovable-generate";
+const DEFAULT_WEBHOOK = { url: "https://n8n.dragonwhite-n8n.top/webhook/lovable-generate", method: "POST" as const };
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -78,24 +78,18 @@ serve(async (req) => {
     const language: string = history.language || "en";
     const siteName: string = history.site_name || "Website";
 
-    // Determine webhook URL based on botId or image_source
-    let webhookUrl = DEFAULT_WEBHOOK_URL;
-    if (botId && BOT_WEBHOOKS[botId]) {
-      webhookUrl = BOT_WEBHOOKS[botId];
-    }
+    // Determine webhook config based on botId
+    const webhookConfig = (botId && BOT_WEBHOOKS[botId]) ? BOT_WEBHOOKS[botId] : DEFAULT_WEBHOOK;
 
-    console.log("🚀 Starting n8n generation for:", siteName, "historyId:", historyId, "bot:", botId || "default", "webhook:", webhookUrl);
+    console.log("🚀 Starting n8n generation for:", siteName, "historyId:", historyId, "bot:", botId || "default", "webhook:", webhookConfig.url, "method:", webhookConfig.method);
 
     // Build callback URL - n8n will POST result here
     const callbackUrl = `${supabaseUrl}/functions/v1/n8n-callback`;
 
     // Build the n8n request payload with callback URL
     const n8nPayload = {
-      // Callback configuration
       callbackUrl,
-      callbackSecret: "lovable-n8n-secret-2025", // For x-n8n-signature header
-      
-      // Generation data
+      callbackSecret: "lovable-n8n-secret-2025",
       historyId,
       prompt,
       language,
@@ -112,52 +106,41 @@ serve(async (req) => {
       botId: botId || "2lang_html",
     };
 
-    console.log("📤 Sending to n8n with callback URL:", callbackUrl);
+    console.log("📤 Sending to n8n with callback URL:", callbackUrl, "method:", webhookConfig.method);
     console.log("📤 Payload:", JSON.stringify(n8nPayload).substring(0, 500));
 
-    // Send request to n8n - they will call us back when done
-    // Use redirect: 'manual' to prevent Deno from following redirects with GET (HTTP spec converts POST→GET on 301/302)
-    const n8nResponse = await fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(n8nPayload),
-      redirect: "manual",
-    });
+    // Send request to n8n using the correct method for this bot
+    let n8nResponse: Response;
 
-    // Handle redirects manually to preserve POST method
-    if (n8nResponse.status === 301 || n8nResponse.status === 302 || n8nResponse.status === 307 || n8nResponse.status === 308) {
-      const location = n8nResponse.headers.get("location");
-      if (location) {
-        console.log("🔀 Following redirect to:", location);
-        const redirectResponse = await fetch(location, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(n8nPayload),
-        });
-        if (!redirectResponse.ok) {
-          const errorText = await redirectResponse.text();
-          console.error("n8n redirect webhook failed:", redirectResponse.status, errorText);
-          await supabase
-            .from("generation_history")
-            .update({ status: "failed", error_message: `n8n error after redirect: ${redirectResponse.status}` })
-            .eq("id", historyId);
-          throw new Error(`n8n webhook error after redirect: ${redirectResponse.status}`);
-        }
-        const redirectData = await redirectResponse.json().catch(() => ({}));
-        console.log("📥 n8n redirect response:", JSON.stringify(redirectData));
-        const requestId = redirectData.requestId || redirectData.id || historyId;
-        return new Response(
-          JSON.stringify({ success: true, historyId, requestId, callbackUrl, message: "Generation started (redirect), waiting for callback" }),
-          { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+    if (webhookConfig.method === "GET") {
+      // For GET webhooks: send key data as query params, full payload encoded
+      const url = new URL(webhookConfig.url);
+      url.searchParams.set("historyId", historyId);
+      url.searchParams.set("callbackUrl", callbackUrl);
+      url.searchParams.set("callbackSecret", "lovable-n8n-secret-2025");
+      url.searchParams.set("botId", botId || "2lang_html");
+      url.searchParams.set("siteName", siteName);
+      url.searchParams.set("language", language);
+      url.searchParams.set("geo", history.geo || "");
+      url.searchParams.set("domain", domain || "");
+      url.searchParams.set("keywords", keywords || "");
+      url.searchParams.set("forbiddenWords", forbiddenWords || "");
+      url.searchParams.set("prompt", prompt);
+      url.searchParams.set("timestamp", n8nPayload.timestamp);
+
+      n8nResponse = await fetch(url.toString(), { method: "GET" });
+    } else {
+      n8nResponse = await fetch(webhookConfig.url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(n8nPayload),
+      });
     }
 
     if (!n8nResponse.ok) {
       const errorText = await n8nResponse.text();
       console.error("n8n webhook failed:", n8nResponse.status, errorText);
       
-      // Mark as failed
       await supabase
         .from("generation_history")
         .update({ status: "failed", error_message: `n8n error: ${n8nResponse.status}` })
@@ -171,7 +154,6 @@ serve(async (req) => {
 
     const requestId = n8nData.requestId || n8nData.id || historyId;
 
-    // Return immediately - n8n will call back when generation is complete
     return new Response(
       JSON.stringify({
         success: true,
