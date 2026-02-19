@@ -32,8 +32,8 @@ export function AdminSystemMonitor() {
   useEffect(() => {
     fetchLimits();
     
-    // Refresh every 30 seconds - sufficient for monitoring, reduces Cloud costs
-    const interval = setInterval(fetchLimits, 30_000);
+    // Refresh every 5 minutes - cron handles active gen counting, realtime is primary
+    const interval = setInterval(fetchLimits, 300_000);
     return () => clearInterval(interval);
   }, []);
 
