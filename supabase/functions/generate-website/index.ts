@@ -3480,8 +3480,10 @@ function ensureFaviconAndLogoInFiles(
   const primaryColor = brandColors?.primary || "#10b981";
   const accentColor = brandColors?.accent || "#047857";
 
+  // logo.svg = square icon with initials only (NO full site name text)
+  // The site name is placed as a <span> in HTML next to the icon for proper overflow handling
   const logoSvg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64" role="img" aria-label="${safeText(siteName)} logo">
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="${safeText(siteName)} logo">
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="${primaryColor}"/>
@@ -3490,7 +3492,6 @@ function ensureFaviconAndLogoInFiles(
   </defs>
   <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#g)"/>
   <text x="32" y="41" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="26" font-weight="800" fill="#ffffff">${safeText(initials)}</text>
-  <text x="76" y="41" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="18" font-weight="700" fill="#111827">${safeText(siteName)}</text>
 </svg>`;
 
   const faviconSvg = `<?xml version="1.0" encoding="UTF-8"?>
@@ -3530,11 +3531,12 @@ function ensureFaviconAndLogoInFiles(
       }
     }
 
-    // Replace common text logo anchors with an <img> (only if there isn't already an <img>)
+    // Replace common text logo anchors with icon + text span (adaptive, no overflow issues)
+    // icon = logo.svg (64x64 square with initials), text = site name in a span with overflow protection
     content = content.replace(
       /<a([^>]*\bclass=["'][^"']*(?:nav-logo|logo|brand)[^"']*["'][^>]*)>(?!\s*<img\b)[\s\S]*?<\/a>/gi,
       (_m, aAttrs) =>
-        `<a${aAttrs}><img src="logo.svg" alt="${safeText(siteName)} logo" style="height:40px;width:auto;display:block" loading="eager"></a>`,
+        `<a${aAttrs} style="display:flex;align-items:center;gap:10px;text-decoration:none;max-width:280px;overflow:hidden;flex-shrink:0;"><img src="logo.svg" alt="${safeText(siteName)} logo" style="height:40px;width:40px;flex-shrink:0;display:block;" loading="eager"><span class="logo-text" style="font-size:1.1rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">${safeText(siteName)}</span></a>`,
     );
 
     return { ...f, content };
@@ -5820,6 +5822,25 @@ ALL content MUST be centered on the page:
   color: white;
 }
 
+**🏷️ LOGO IN HEADER — MANDATORY STRUCTURE (NEVER USE PLAIN TEXT AS LOGO):**
+The nav logo MUST use \`logo.svg\` as an icon + a \`<span class="logo-text">\` for the name. Plain text logos are FORBIDDEN.
+Required structure:
+\`\`\`html
+<a href="index.html" class="nav-logo">
+  <img src="logo.svg" alt="[SiteName] logo" style="height:40px;width:40px;flex-shrink:0;">
+  <span class="logo-text">[SiteName short name, max 3 words]</span>
+</a>
+\`\`\`
+Rules:
+- \`logo.svg\` is always available — ALWAYS use it as the icon
+- \`.logo-text\` must be the **short readable brand name** (NOT the full domain like "quickмузикант.com") — use 1-3 words max
+- If site_name looks like a domain (contains ".com"), extract just the human-readable part: "QuickМузикант" → use "Quick Музикант"
+- On mobile (<768px): hide \`.logo-text\`, show only the icon
+
+\`\`\`css
+@media (max-width: 767px) { .nav-logo .logo-text { display: none; } }
+\`\`\`
+
 /* NAVIGATION - ALWAYS HORIZONTAL */
 .header {
   position: fixed;
@@ -5841,10 +5862,33 @@ ALL content MUST be centered on the page:
 }
 
 .nav-logo {
-  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.2rem;
   font-weight: 700;
   color: var(--text-dark);
   text-decoration: none;
+  max-width: 260px;
+  overflow: hidden;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.nav-logo img {
+  height: 40px;
+  width: 40px;
+  flex-shrink: 0;
+  display: block;
+}
+
+.nav-logo .logo-text,
+.logo-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+  display: inline-block;
 }
 
 .nav-links {
@@ -6309,10 +6353,21 @@ a:hover {
 }
 
 .nav-logo {
-  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.2rem;
   font-weight: 700;
   color: var(--text-dark);
+  max-width: 260px;
+  overflow: hidden;
+  flex-shrink: 0;
+  white-space: nowrap;
+  text-decoration: none;
 }
+
+.nav-logo img { height: 40px; width: 40px; flex-shrink: 0; display: block; }
+.nav-logo .logo-text, .logo-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
 
 .nav-links {
   display: flex;
@@ -9919,12 +9974,36 @@ textarea {
   padding: 0 20px;
 }
 
-.site-logo, .nav-logo {
-  font-size: 1.5rem;
+/* === LOGO SAFETY GUARD — overrides any AI-generated logo styles === */
+.site-logo, .nav-logo, .brand-logo, .logo-link, .header-logo, .navbar-brand {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  max-width: 280px !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-decoration: none !important;
+  flex-shrink: 0 !important;
+  font-size: 1.2rem;
   font-weight: 700;
   color: var(--primary-color);
-  text-decoration: none;
 }
+
+.site-logo img, .nav-logo img, .brand-logo img, .logo-link img, .header-logo img, .navbar-brand img {
+  height: 40px !important;
+  width: 40px !important;
+  flex-shrink: 0 !important;
+  display: block !important;
+  object-fit: contain !important;
+}
+
+.logo-text, .nav-logo .logo-text, .site-logo .logo-text, .brand-name {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 200px !important;
+}
+/* === END LOGO SAFETY GUARD === */
 
 .nav-links {
   list-style: none;
