@@ -1226,9 +1226,9 @@ export function WebsiteGenerator() {
     };
   }, [isAdmin, adminLoading, playBalanceSound]);
 
-  // Show debt popup only when team exceeds credit limit (only for non-admins)
+   // Show debt popup only for teams WITHOUT credit limits that somehow have negative balance
   useEffect(() => {
-    if (!isAdmin && teamPricing && teamPricing.balance < -teamPricing.creditLimit) {
+    if (!isAdmin && teamPricing && teamPricing.creditLimit === 0 && teamPricing.balance < 0) {
       setShowDebtPopup(true);
     }
   }, [teamPricing, isAdmin]);
@@ -3868,13 +3868,7 @@ export function WebsiteGenerator() {
                 {/* Spacer */}
                 <div className="flex-1" />
 
-                {/* Credit warnings - right side */}
-                {isGeneratingOnCredit && teamPricing && (
-                  <p className="text-xs text-amber-500 flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    {t("genForm.creditGeneration")}: {t("genForm.fundsNeeded")} ${calculateTotalCost().toFixed(2)}, {t("genForm.fundsBalance")} ${teamPricing.balance.toFixed(2)} ({t("genForm.creditLimit")}: ${effectiveCreditLimit.toFixed(2)})
-                  </p>
-                )}
+                {/* Credit warnings - right side (only show red when limit truly exceeded) */}
                 {insufficientBalance && teamPricing && (
                   <p className="text-xs text-destructive flex items-center gap-1">
                     <AlertTriangle className="h-3 w-3" />
