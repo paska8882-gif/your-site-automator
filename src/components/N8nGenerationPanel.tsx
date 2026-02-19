@@ -39,6 +39,15 @@ const N8N_BOTS = [
     defaultLanguages: ["en"],
     outputType: "nextjs",
   },
+  {
+    id: "new_bot",
+    nameKey: "n8n.newBotName",
+    descKey: "n8n.newBotDesc",
+    icon: Layers,
+    webhookUrl: "https://n8n.dragonwhite-n8n.top/webhook/797c78af-ad83-479f-a9f1-eec861ea6907",
+    defaultLanguages: ["en"],
+    outputType: "html",
+  },
 ] as const;
 
 type BotId = typeof N8N_BOTS[number]["id"];
