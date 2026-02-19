@@ -1640,8 +1640,8 @@ export function WebsiteGenerator() {
     };
 
     fetchActiveGenerations();
-    // Poll every 20 seconds - reduces Cloud costs while keeping UI responsive
-    const interval = setInterval(fetchActiveGenerations, 20_000);
+    // Poll every 60 seconds — realtime handles live updates; this is just a safety sync
+    const interval = setInterval(fetchActiveGenerations, 60_000);
     return () => clearInterval(interval);
   }, [user, isGenerationBlocked]);
 

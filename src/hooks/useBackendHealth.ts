@@ -47,7 +47,7 @@ export function useBackendHealth(options: Options = {}) {
   const {
     initialTimeoutMs = 10000,
     maxTimeoutMs = 60000,
-    baseIntervalMs = 30000,
+    baseIntervalMs = 120000, // Default: 2 minutes (was 30s) — reduces constant DB pings
     maxRetries = 5,
   } = options;
 
