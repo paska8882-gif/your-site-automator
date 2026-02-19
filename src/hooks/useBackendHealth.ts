@@ -61,6 +61,8 @@ export function useBackendHealth(options: Options = {}) {
 
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; }, [state]);
 
   // Calculate exponential backoff delay
   const getBackoffDelay = useCallback((failures: number) => {
@@ -77,7 +79,7 @@ export function useBackendHealth(options: Options = {}) {
 
     try {
       const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/`;
-      const res = await fetchWithTimeout(
+      await fetchWithTimeout(
         url,
         {
           method: "GET",
@@ -89,11 +91,12 @@ export function useBackendHealth(options: Options = {}) {
         initialTimeoutMs
       );
 
-      // Any response means backend is reachable
-      if (state.consecutiveFailures > 0) {
+      // Read current state via ref to avoid stale closure / dep array issues
+      const currentState = stateRef.current;
+      if (currentState.consecutiveFailures > 0) {
         logHealthEvent("backend_recovered", {
-          previousFailures: state.consecutiveFailures,
-          downtime: state.lastErrorAt ? Date.now() - state.lastErrorAt : null,
+          previousFailures: currentState.consecutiveFailures,
+          downtime: currentState.lastErrorAt ? Date.now() - currentState.lastErrorAt : null,
         });
       }
 
@@ -146,7 +149,7 @@ export function useBackendHealth(options: Options = {}) {
         };
       });
     }
-  }, [initialTimeoutMs, maxRetries, getBackoffDelay, state.consecutiveFailures, state.lastErrorAt]);
+  }, [initialTimeoutMs, maxRetries, getBackoffDelay]);
 
   // Manual retry function for user-triggered retries
   const retry = useCallback(() => {
