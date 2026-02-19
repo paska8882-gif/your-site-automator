@@ -1,75 +1,100 @@
 
-## Устранение лишних расходов Cloud & AI баланса
+## Полный аудит расходов: все проблемы и план устранения
 
-### Что сейчас съедает кредиты прямо сейчас
+### Состояние cron jobs (актуально сейчас)
+Хорошая новость — cron jobs уже оптимизированы предыдущими правками:
+- `cleanup-stale-generations` — каждые 30 минут (было каждую минуту) ✅
+- `check-problematic-tasks` — каждые 30 минут (было каждые 5 минут) ✅
+- `cleanup-old-zip-files` — каждый день в 03:00 ✅
 
-**Проблема 1 — ГЛАВНАЯ: Дублирующий вызов Edge Function `check-super-admin` в `WebsiteGenerator.tsx`**
-
-В `WebsiteGenerator.tsx` (строки 766–806) есть отдельный `useEffect`, который при каждом монтировании компонента вызывает Edge Function `check-super-admin`. Это ненужный вызов, потому что `isSuperAdmin` **уже доступен** через `UserDataContext` — он читает из базы данных напрямую (таблица `user_roles`) без вызова Edge Function.
-
-Именно это и видно в логах аналитики — `check-super-admin` вызывается несколько раз подряд с коротким интервалом при каждом открытии страницы, в том числе с preflight `OPTIONS`-запросами. Каждый вызов = расход credits.
-
-**Проблема 2 — СРЕДНЯЯ: Polling `fetchActiveGenerations` каждые 60 секунд**
-
-В `WebsiteGenerator.tsx` (строки 1642–1645) есть `setInterval` который каждые 60 секунд делает запрос к БД для подсчёта активных генераций. Этот poll работает постоянно пока открыта страница. Realtime уже обновляет счётчик через `RealtimeContext` — этот polling дублирует логику.
+Cron jobs больше не проблема. Теперь фокус — на фронтенде.
 
 ---
 
-### Что будет исправлено
+### Найденные проблемы во фронтенде
 
-**Исправление 1: Удалить вызов Edge Function `check-super-admin` из `WebsiteGenerator.tsx`**
+**ПРОБЛЕМА 1 — КРИТИЧЕСКАЯ: Три дублирующих Realtime-канала в sidebar хуках**
 
-Вместо отдельного `useState<boolean> isSuperAdmin` + отдельного `useEffect` с HTTP-запросом к Edge Function — использовать уже существующий `useSuperAdmin()` хук, который читает данные из `UserDataContext`.
+`usePendingAppeals.ts`, `usePendingManualRequests.ts`, `usePendingUsers.ts` — каждый из них создаёт **свой отдельный Realtime-канал** к Supabase, который висит открытым всё время пока открыта страница:
 
-До:
-```tsx
-// В начале компонента
-const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-
-// useEffect вызывает Edge Function
-useEffect(() => {
-  const checkSuperAdmin = async () => {
-    // ...fetch к check-super-admin Edge Function
-  };
-  checkSuperAdmin();
-}, [user]);
+```
+usePendingAppeals → channel("pending-appeals-indicator") → подписка на таблицу appeals
+usePendingManualRequests → channel("pending-manual-requests-indicator") → подписка на generation_history
+usePendingUsers → channel("pending-users-indicator") → подписка на team_members
 ```
 
-После:
-```tsx
-// Убрать useState и useEffect полностью
-// Добавить один хук:
-const { isSuperAdmin } = useSuperAdmin();
-```
+При этом `RealtimeContext.tsx` уже подписан на те же таблицы (`appeals`, `team_members`) через `admin-updates-{userId}` канал! Это прямое дублирование. Каждый лишний канал = постоянная активная подписка = расход credits.
 
-Это убирает: 2 HTTP-запроса (OPTIONS + POST) к Edge Function при каждом монтировании компонента. При большом количестве пользователей — сотни лишних вызовов.
+**Решение**: Переписать эти три хука чтобы они использовали `useRealtimeTable()` из уже существующего `RealtimeContext` вместо создания собственных каналов. Для `generation_history` — добавить обработчик в существующую подписку внутри `RealtimeContext`.
 
-**Исправление 2: Остановить polling `fetchActiveGenerations` когда Realtime подключён**
+**ПРОБЛЕМА 2 — ВЫСОКАЯ: `checkStaleGenerations` в `GenerationHistory.tsx` — дублирует работу cron**
 
-Сейчас polling стартует безусловно. Нужно добавить условие — если Realtime-канал активен (`isConnected === true`), не запускать setInterval. Либо увеличить интервал с 60 секунд до 5 минут.
+В `GenerationHistory.tsx` (~строки 938–1018) есть функция `checkStaleGenerations`, которая каждые 15 минут вызывает Edge Function `cleanup-stale-generations` с фронтенда. Это происходит **параллельно** с уже настроенным cron-job который делает то же самое каждые 30 минут!
 
-Через хук `useRealtime()` уже доступен `isConnected`. Если `isConnected`, достаточно Realtime-событий — polling не нужен вовсе.
+Cron job — это правильное место для этой логики. Фронтенд не должен дублировать серверную задачу. При каждом вызове тратятся credits: Edge Function boot + DB запросы.
+
+**Решение**: Полностью удалить `checkStaleGenerations` и весь связанный `useEffect` из `GenerationHistory.tsx` (~40 строк кода).
+
+**ПРОБЛЕМА 3 — СРЕДНЯЯ: `AdminSystemMonitor` полинг каждые 30 секунд**
+
+`AdminSystemMonitor.tsx` делает запрос к `system_limits` каждые 30 секунд через `setInterval`. Эта страница открыта у каждого администратора всё время, пока они работают в панели. При 5 активных администраторах = 10 запросов/минуту = 14,400 запросов/день только для этого.
+
+`RealtimeContext` уже не подписан на `system_limits`. Но правильное решение — добавить Realtime для этой таблицы и убрать polling, или сильно увеличить интервал до 5 минут.
+
+**Решение**: Увеличить интервал с 30 секунд до 5 минут (`300_000` ms). Активных генераций обычно 0–3, обновление раз в 5 минут достаточно для мониторинга.
+
+**ПРОБЛЕМА 4 — СРЕДНЯЯ: `useGenerationHistory` создаёт СВОЙ Realtime-канал параллельно с `RealtimeContext`**
+
+В `useGenerationHistory.ts` (~строки 330–460) создаётся отдельный Realtime-канал `generation_history_{mode}_{userId}_{timestamp}`. При этом `RealtimeContext` уже подписан на `generation_history` с фильтром `user_id=eq.{userId}`.
+
+Это означает два параллельных канала на одну и ту же таблицу. Каждый канал = постоянная активная подписка.
+
+Однако этот хук имеет сложную логику (retry на `CLOSED`, fallback polling, reconnect) которая обеспечивает надёжность. Его нельзя просто удалить, но можно упростить — убрать дублирование с `RealtimeContext` и использовать `useRealtimeTable()`.
+
+**Решение**: Рефакторинг `useGenerationHistory` — заменить собственный канал на `useRealtimeTable()` из `RealtimeContext`. Fallback polling оставить на случай отключения Realtime.
 
 ---
 
-### Файлы для изменения
+### Конкретные изменения по файлам
 
-**`src/components/WebsiteGenerator.tsx`**:
-1. Добавить `import { useSuperAdmin } from "@/hooks/useSuperAdmin";` в импорты
-2. Убрать `const [isSuperAdmin, setIsSuperAdmin] = useState(false);` (~строка 755)
-3. Заменить его на `const { isSuperAdmin } = useSuperAdmin();`
-4. Удалить весь `useEffect` с `checkSuperAdmin` (~строки 766–806) — 40+ строк лишнего кода
-5. Polling `fetchActiveGenerations` — изменить интервал с `60_000` (1 мин) на `300_000` (5 мин) как резервный fallback
+**Файл 1: `src/hooks/usePendingAppeals.ts`**
+- Убрать: `supabase.channel("pending-appeals-indicator")` + `.subscribe()` + `supabase.removeChannel()`
+- Добавить: `useRealtimeTable("appeals", handleUpdate)`
+- Результат: -1 постоянный Realtime-канал
+
+**Файл 2: `src/hooks/usePendingManualRequests.ts`**
+- Убрать: собственный канал на `generation_history`
+- Добавить: `useRealtimeTable("generation_history", handleUpdate)`
+- Результат: -1 постоянный Realtime-канал
+
+**Файл 3: `src/hooks/usePendingUsers.ts`**
+- Убрать: `supabase.channel("pending-users-indicator")` на `team_members`
+- Добавить: `useRealtimeTable("team_members", handleUpdate)` (через RealtimeContext который уже подписан на `team_members`)
+- Результат: -1 постоянный Realtime-канал
+
+**Файл 4: `src/contexts/RealtimeContext.tsx`**
+- Добавить `"generation_history"` в `USER_TABLES` с фильтром по `user_id` (уже есть, просто убедиться)
+- Добавить `"team_members"` в `ADMIN_TABLES` (уже есть)
+- Вся логика уже реализована — просто используем её
+
+**Файл 5: `src/components/GenerationHistory.tsx`**
+- Удалить: функцию `checkStaleGenerations` (~строки 938–1006)
+- Удалить: `useEffect` с интервалом 15 минут для `checkStaleGenerations` (~строки 1008–1018)
+- Результат: -1 Edge Function вызов каждые 15 минут с фронтенда при активных генерациях
+
+**Файл 6: `src/components/AdminSystemMonitor.tsx`**
+- Изменить: `setInterval(fetchLimits, 30_000)` → `setInterval(fetchLimits, 300_000)` (30с → 5 мин)
+- Результат: 10x меньше DB запросов от системного монитора
 
 ---
 
 ### Ожидаемый результат
 
-| Расход | Сейчас | После |
+| Проблема | До | После |
 |---|---|---|
-| Вызовов `check-super-admin` при каждом открытии | 2 (OPTIONS + POST) | 0 |
-| При 50 открытиях/день | ~100 Edge Function вызовов/день | 0 |
-| Polling БД active_generations | каждые 60 сек | каждые 5 мин (резерв) |
-| DB-запросы active_generations/день | ~1440 | ~288 |
+| Дублирующие Realtime-каналы (sidebar) | 3 лишних канала | 0 лишних каналов |
+| `checkStaleGenerations` с фронтенда | каждые 15 мин при активных генерациях | удалено полностью |
+| `AdminSystemMonitor` polling | каждые 30 сек | каждые 5 мин |
+| Дублирующий канал в `useGenerationHistory` | 2 канала на `generation_history` | 1 канал |
 
-В сочетании с уже исправленными cron jobs, суммарно расход credits от фоновых операций снизится до целевых **$1–2/день**.
+Совокупная экономия: убираем ~3–5 постоянно открытых WebSocket-соединений и уменьшаем лишние DB запросы от мониторинга на порядок.
