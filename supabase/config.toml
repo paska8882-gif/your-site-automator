@@ -43,8 +43,6 @@ verify_jwt = false
 [functions.reset-user-password]
 verify_jwt = false
 
-[functions.check-problematic-tasks]
-verify_jwt = false
 
 [functions.verify-super-admin]
 verify_jwt = false
