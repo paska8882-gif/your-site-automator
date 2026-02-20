@@ -49,6 +49,15 @@ const N8N_BOTS = [
     defaultLanguages: ["en"],
     outputType: "html",
   },
+  {
+    id: "html_multi",
+    nameKey: "n8n.htmlMultiBotName",
+    descKey: "n8n.htmlMultiBotDesc",
+    icon: Globe,
+    webhookUrl: "https://n8n.dragonwhite-n8n.top/webhook-test/4ff94b33-8968-4a37-902a-9ec6704cdd34",
+    defaultLanguages: ["en"],
+    outputType: "html",
+  },
 ] as const;
 
 type BotId = typeof N8N_BOTS[number]["id"];
