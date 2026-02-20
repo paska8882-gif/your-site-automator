@@ -12274,15 +12274,26 @@ async function runBackgroundGeneration(
           })
           .eq("id", historyId);
 
-        // Auto-create appeal for admin (internal only - user does NOT see details)
-        await supabase.from("appeals").insert({
-          generation_id: historyId,
-          user_id: userId,
-          team_id: teamId || null,
-          reason: `Автоповідомлення: Перевищено ліміт вартості AI токенів. Кост генерації: $${newTotalCost.toFixed(4)} (ліміт: $${COST_LIMIT}). Модель: ${result.specificModel || "unknown"}. Тип: HTML`,
-          amount_to_refund: salePrice,
-          status: "pending",
-        });
+        // Auto-create appeal for admin — but only if one doesn't already exist
+        const { data: existingAppeal } = await supabase
+          .from("appeals")
+          .select("id")
+          .eq("generation_id", historyId)
+          .eq("status", "pending")
+          .maybeSingle();
+
+        if (!existingAppeal) {
+          await supabase.from("appeals").insert({
+            generation_id: historyId,
+            user_id: userId,
+            team_id: teamId || null,
+            reason: `Автоповідомлення: Перевищено ліміт вартості AI токенів. Кост генерації: $${newTotalCost.toFixed(4)} (ліміт: $${COST_LIMIT}). Модель: ${result.specificModel || "unknown"}. Тип: HTML`,
+            amount_to_refund: salePrice,
+            status: "pending",
+          });
+        } else {
+          console.log(`[COST LIMIT] Appeal already exists for ${historyId}, skipping duplicate`);
+        }
 
         console.log(`[COST LIMIT] Appeal created for admin review, ${historyId}`);
       } else {
