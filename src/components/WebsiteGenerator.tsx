@@ -43,7 +43,6 @@ import { useSuperAdmin } from "@/hooks/useSuperAdmin";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
 import { useBalanceSound } from "@/hooks/useBalanceSound";
 import { useAdminMode } from "@/contexts/AdminModeContext";
-import { useGenerationMaintenance } from "@/hooks/useGenerationMaintenance";
 import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
 
 // News images
@@ -604,8 +603,7 @@ export function WebsiteGenerator() {
   const { isAdmin: isAdminRole, loading: adminLoading } = useAdmin();
   const { isTeamOwner } = useTeamOwner();
   const { isAdminModeEnabled } = useAdminMode();
-  const { generationDisabled, generationMessage } = useGenerationMaintenance();
-  const { maintenance } = useMaintenanceMode();
+  const { maintenance, generationDisabled, generationMessage } = useMaintenanceMode();
   const navigate = useNavigate();
 
   const isGenerationBlocked = maintenance.enabled || generationDisabled;
