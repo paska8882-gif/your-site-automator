@@ -145,11 +145,7 @@ serve(async (req) => {
           if (appealLookupErr) {
             console.error(`Failed to lookup appeal for generation ${item.id}:`, appealLookupErr.message);
           } else if (!existingAppeal) {
-            const retryCount = parseInt(item.admin_note?.match(/retry:(\d+)/)?.[1] || "0", 10);
             const adminCommentParts: string[] = [`⏱️ Auto-timeout 1h.`];
-            if (retryCount > 0) {
-              adminCommentParts.push(`Retried ${retryCount}x.`);
-            }
             adminCommentParts.push(`Suggested refund: $${refundAmount}`);
 
             const { error: appealInsertErr } = await supabase
@@ -176,10 +172,7 @@ serve(async (req) => {
         }
 
         // Mark as failed
-        const retryCount = parseInt(item.admin_note?.match(/retry:(\d+)/)?.[1] || "0", 10);
-        const errorMsg = retryCount > 0
-          ? `Перевищено час очікування (1 год) після ${retryCount} спроб. Апеляцію створено автоматично.`
-          : "Перевищено час очікування (1 год). Апеляцію створено автоматично.";
+        const errorMsg = "Перевищено час очікування (1 год). Апеляцію створено автоматично.";
 
         await supabase
           .from("generation_history")

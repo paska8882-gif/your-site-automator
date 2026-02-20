@@ -8317,67 +8317,24 @@ type TokenUsage = {
   total_tokens: number;
 };
 
-// Retry helper with exponential backoff for AI API calls
-// Optimized: shorter timeout (90s), fewer retries (2) to stay within edge function limits
-async function fetchWithRetry(
+// Simple fetch with timeout - single attempt, no retries
+async function fetchWithTimeout(
   url: string,
   options: RequestInit,
-  maxRetries = 2,
-  baseDelay = 1500,
-  timeoutMs = 90000, // 90 seconds default timeout
+  timeoutMs = 90000,
 ): Promise<Response> {
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      console.log(`🔄 Fetch attempt ${attempt + 1}/${maxRetries} (timeout: ${timeoutMs / 1000}s)...`);
-
-      // Create AbortController with timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      // If we get a response (even error), return it
-      if (response) {
-        console.log(`✅ Fetch successful on attempt ${attempt + 1}, status: ${response.status}`);
-        return response;
-      }
-    } catch (error) {
-      lastError = error as Error;
-      const errorMessage = lastError?.message || String(error);
-      console.error(`❌ Fetch attempt ${attempt + 1} failed: ${errorMessage}`);
-
-      // Check if it's a connection error worth retrying
-      const isRetryable =
-        errorMessage.includes("error reading a body from connection") ||
-        errorMessage.includes("connection") ||
-        errorMessage.includes("network") ||
-        errorMessage.includes("aborted") ||
-        errorMessage.includes("ECONNRESET") ||
-        errorMessage.includes("ETIMEDOUT");
-
-      if (!isRetryable) {
-        // Non-retryable error - fail immediately
-        throw error;
-      }
-
-      if (attempt < maxRetries - 1) {
-        // Quick retry: 1.5s, 3s
-        const delay = baseDelay * Math.pow(2, attempt);
-        console.log(`⏳ Waiting ${delay}ms before retry...`);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
+  console.log(`🔄 Fetch (timeout: ${timeoutMs / 1000}s)...`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeoutId);
+    console.log(`✅ Fetch successful, status: ${response.status}`);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
   }
-
-  // All retries exhausted
-  throw lastError || new Error("All fetch retries exhausted");
 }
 
 // Pricing per 1000 tokens (in USD)
@@ -12465,7 +12422,6 @@ serve(async (req) => {
     // Use service role key for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Read body first to check for retryHistoryId (needed for service key auth bypass)
     const body = await req.json();
     const {
       prompt,
@@ -12480,68 +12436,39 @@ serve(async (req) => {
       teamId: overrideTeamId,
       geo,
       bilingualLanguages,
-      retryHistoryId,
       bundleImages = true,
       colorScheme,
     } = body;
 
-    // Determine userId - either from JWT or from DB for retry requests
+    // JWT AUTH: Decode JWT manually
     let userId: string;
-
-    // Check if this is a retry request from cleanup-stale-generations using SERVICE_ROLE_KEY
-    const isRetryWithServiceKey = !!(retryHistoryId && token === supabaseServiceKey);
-
-    if (isRetryWithServiceKey) {
-      // SERVICE KEY AUTH: Get userId from existing generation_history record
-      console.log("🔄 Retry mode detected with service key for:", retryHistoryId);
-
-      const { data: existingRecord, error: fetchError } = await supabase
-        .from("generation_history")
-        .select("user_id")
-        .eq("id", retryHistoryId)
-        .single();
-
-      if (fetchError || !existingRecord?.user_id) {
-        console.error("Failed to find retry record:", fetchError);
-        return new Response(JSON.stringify({ code: 404, message: "Retry record not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+    try {
+      const parts = token.split(".");
+      if (parts.length !== 3) {
+        throw new Error("Invalid JWT structure");
       }
+      const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
 
-      userId = existingRecord.user_id;
-      console.log("🔄 Retry mode: userId from DB:", userId);
-    } else {
-      // NORMAL JWT AUTH: Decode JWT manually
-      try {
-        const parts = token.split(".");
-        if (parts.length !== 3) {
-          throw new Error("Invalid JWT structure");
-        }
-        const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-
-        // Check if token is expired
-        if (payload.exp && payload.exp * 1000 < Date.now()) {
-          console.error("JWT expired:", new Date(payload.exp * 1000).toISOString());
-          return new Response(JSON.stringify({ code: 401, message: "JWT expired" }), {
-            status: 401,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        if (!payload.sub) {
-          throw new Error("JWT missing sub claim");
-        }
-
-        userId = payload.sub as string;
-        console.log("JWT decoded successfully, user:", userId);
-      } catch (jwtError) {
-        console.error("JWT decode failed:", jwtError);
-        return new Response(JSON.stringify({ code: 401, message: "Invalid JWT" }), {
+      if (payload.exp && payload.exp * 1000 < Date.now()) {
+        console.error("JWT expired:", new Date(payload.exp * 1000).toISOString());
+        return new Response(JSON.stringify({ code: 401, message: "JWT expired" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      if (!payload.sub) {
+        throw new Error("JWT missing sub claim");
+      }
+
+      userId = payload.sub as string;
+      console.log("JWT decoded successfully, user:", userId);
+    } catch (jwtError) {
+      console.error("JWT decode failed:", jwtError);
+      return new Response(JSON.stringify({ code: 401, message: "Invalid JWT" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     console.log("Authenticated request from user:", userId);
@@ -12580,12 +12507,11 @@ serve(async (req) => {
     // ============ END MAINTENANCE CHECK ============
 
     // Build prompt with language and geo context if provided
-    // Priority for retry: vipPrompt > improvedPrompt > prompt (same as startGeneration)
     let promptForGeneration = vipPrompt || improvedPrompt || prompt;
 
     // Log which prompt source is being used (for admin debugging)
     const promptSource = vipPrompt ? "VIP" : improvedPrompt ? "AI+" : "original";
-    console.log(`📝 Prompt source: ${promptSource}${retryHistoryId ? " (RETRY)" : ""}`);
+    console.log(`📝 Prompt source: ${promptSource}`);
     console.log(`   - vipPrompt: ${vipPrompt ? "YES (" + vipPrompt.length + " chars)" : "NO"}`);
     console.log(`   - improvedPrompt: ${improvedPrompt ? "YES (" + improvedPrompt.length + " chars)" : "NO"}`);
     console.log(`   - colorScheme: ${colorScheme || "random"}, layoutStyle: ${layoutStyle || "none"}`);
@@ -12828,10 +12754,7 @@ ${promptForGeneration}`;
     }
 
     // ===== RATE LIMITING CHECKS =====
-    // SKIP rate limiting for retry requests - they already have a slot reserved
-    const skipRateLimiting = !!retryHistoryId && isRetryWithServiceKey;
-
-    if (!skipRateLimiting) {
+    {
       // Check system-wide limit
       const { data: limits } = await supabase
         .from("system_limits")
@@ -12874,8 +12797,6 @@ ${promptForGeneration}`;
           },
         );
       }
-    } else {
-      console.log(`⏭️ Skipping rate limit check for retry of ${retryHistoryId}`);
     }
     // ===== END RATE LIMITING =====
 
@@ -12968,160 +12889,52 @@ ${promptForGeneration}`;
     // Handle retry: update existing record OR create new one
     let historyEntry: { id: string } | null = null;
 
-    // Effective params to use for generation (may differ from body params on retry)
-    let effectiveColorScheme = colorScheme || null;
-    let effectiveLayoutStyle = layoutStyle || null;
+    const effectiveColorScheme = colorScheme || null;
+    const effectiveLayoutStyle = layoutStyle || null;
 
-    if (retryHistoryId) {
-      // RETRY MODE: Update existing failed record instead of creating new one
-      console.log(`🔄 RETRY MODE: Updating existing record ${retryHistoryId}`);
+    // Create NEW history entry
+    const { data: newEntry, error: insertError } = await supabase
+      .from("generation_history")
+      .insert({
+        prompt: promptToSave,
+        improved_prompt: improvedPromptToSave,
+        vip_prompt: vipPrompt || null,
+        language: language || "auto",
+        user_id: userId,
+        team_id: teamId || null,
+        status: "pending",
+        ai_model: aiModel,
+        website_type: "html",
+        site_name: siteName || null,
+        image_source: imageSource || "basic",
+        sale_price: salePrice,
+        geo: geo || null,
+        color_scheme: effectiveColorScheme,
+        layout_style: effectiveLayoutStyle,
+      })
+      .select()
+      .single();
 
-      const { data: existingRecord, error: fetchError } = await supabase
-        .from("generation_history")
-        .select("id, status, user_id, color_scheme, layout_style, improved_prompt, vip_prompt, sale_price")
-        .eq("id", retryHistoryId)
-        .single();
-
-      if (fetchError || !existingRecord) {
-        console.error("Failed to find retry record:", fetchError);
-        // Refund if already deducted
-        if (teamId && salePrice > 0) {
-          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
-          if (team) {
-            await supabase
-              .from("teams")
-              .update({ balance: (team.balance || 0) + salePrice })
-              .eq("id", teamId);
-          }
+    if (insertError || !newEntry) {
+      console.error("Failed to create history entry:", insertError);
+      if (teamId && salePrice > 0) {
+        const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+        if (team) {
+          await supabase
+            .from("teams")
+            .update({ balance: (team.balance || 0) + salePrice })
+            .eq("id", teamId);
         }
-        return new Response(JSON.stringify({ success: false, error: "Retry record not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
       }
-
-      // Verify ownership (admins can retry any generation)
-      if (existingRecord.user_id !== userId) {
-        const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-        if (!isAdmin) {
-          if (teamId && salePrice > 0) {
-            const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
-            if (team) {
-              await supabase
-                .from("teams")
-                .update({ balance: (team.balance || 0) + salePrice })
-                .eq("id", teamId);
-            }
-          }
-          return new Response(JSON.stringify({ success: false, error: "Unauthorized retry" }), {
-            status: 403,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        console.log(`🔑 Admin ${userId} retrying generation owned by ${existingRecord.user_id}`);
-      }
-
-      // Compute EFFECTIVE values for retry (prefer body param, fallback to existing record)
-      effectiveColorScheme = colorScheme || existingRecord.color_scheme || null;
-      effectiveLayoutStyle = layoutStyle || existingRecord.layout_style || null;
-      const effectiveImprovedPrompt = improvedPrompt || existingRecord.improved_prompt || null;
-      const effectiveVipPrompt = vipPrompt || existingRecord.vip_prompt || null;
-
-      // CRITICAL: Preserve original sale_price on retry - don't overwrite with $0!
-      // If new salePrice was calculated and charged, use it; otherwise keep original
-      const effectiveSalePrice = salePrice > 0 ? salePrice : existingRecord.sale_price || 0;
-
-      console.log(
-        `🎨 RETRY effective params: colorScheme=${effectiveColorScheme}, layoutStyle=${effectiveLayoutStyle}, hasImprovedPrompt=${!!effectiveImprovedPrompt}, hasVipPrompt=${!!effectiveVipPrompt}`,
-      );
-      console.log(
-        `💰 RETRY sale_price: original=${existingRecord.sale_price}, calculated=${salePrice}, effective=${effectiveSalePrice}`,
-      );
-
-      // Update existing record to pending status with effective params
-      const { error: updateError } = await supabase
-        .from("generation_history")
-        .update({
-          status: "pending",
-          error_message: null,
-          files_data: null,
-          zip_data: null,
-          completed_at: null,
-          sale_price: effectiveSalePrice,
-          color_scheme: effectiveColorScheme,
-          layout_style: effectiveLayoutStyle,
-          improved_prompt: effectiveImprovedPrompt,
-          vip_prompt: effectiveVipPrompt,
-        })
-        .eq("id", retryHistoryId);
-
-      if (updateError) {
-        console.error("Failed to update retry record:", updateError);
-        if (teamId && salePrice > 0) {
-          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
-          if (team) {
-            await supabase
-              .from("teams")
-              .update({ balance: (team.balance || 0) + salePrice })
-              .eq("id", teamId);
-          }
-        }
-        return new Response(JSON.stringify({ success: false, error: "Failed to start retry" }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      historyEntry = { id: retryHistoryId };
-      console.log(
-        `🔄 Updated existing record for retry: ${retryHistoryId} with colorScheme=${effectiveColorScheme}, layoutStyle=${effectiveLayoutStyle}`,
-      );
-    } else {
-      // Create NEW history entry
-      const { data: newEntry, error: insertError } = await supabase
-        .from("generation_history")
-        .insert({
-          prompt: promptToSave,
-          improved_prompt: improvedPromptToSave,
-          vip_prompt: vipPrompt || null,
-          language: language || "auto",
-          user_id: userId,
-          team_id: teamId || null,
-          status: "pending",
-          ai_model: aiModel,
-          website_type: "html",
-          site_name: siteName || null,
-          image_source: imageSource || "basic",
-          sale_price: salePrice,
-          geo: geo || null,
-          color_scheme: effectiveColorScheme,
-          layout_style: effectiveLayoutStyle,
-        })
-        .select()
-        .single();
-
-      if (insertError || !newEntry) {
-        console.error("Failed to create history entry:", insertError);
-        if (teamId && salePrice > 0) {
-          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
-          if (team) {
-            await supabase
-              .from("teams")
-              .update({ balance: (team.balance || 0) + salePrice })
-              .eq("id", teamId);
-          }
-        }
-        return new Response(JSON.stringify({ success: false, error: "Failed to start generation" }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      historyEntry = newEntry;
+      return new Response(JSON.stringify({ success: false, error: "Failed to start generation" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // historyEntry is guaranteed to be non-null at this point
-    const historyId = historyEntry!.id;
+    historyEntry = newEntry;
+
+    const historyId = historyEntry.id;
     console.log("Using history entry:", historyId);
 
     // Start background generation using EdgeRuntime.waitUntil

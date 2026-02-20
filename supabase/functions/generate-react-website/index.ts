@@ -1824,60 +1824,24 @@ type GenerationResult = {
   specificModel?: string;
 };
 
-// Retry helper with exponential backoff for AI API calls
-async function fetchWithRetry(
+// Simple fetch with timeout - single attempt, no retries
+async function fetchWithTimeout(
   url: string,
   options: RequestInit,
-  maxRetries = 2,
-  baseDelay = 1500,
-  timeoutMs = 90000
+  timeoutMs = 90000,
 ): Promise<Response> {
-  let lastError: Error | null = null;
-  
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      console.log(`🔄 Fetch attempt ${attempt + 1}/${maxRetries} (timeout: ${timeoutMs/1000}s)...`);
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-      
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (response) {
-        console.log(`✅ Fetch successful on attempt ${attempt + 1}, status: ${response.status}`);
-        return response;
-      }
-    } catch (error) {
-      lastError = error as Error;
-      const errorMessage = lastError?.message || String(error);
-      console.error(`❌ Fetch attempt ${attempt + 1} failed: ${errorMessage}`);
-      
-      const isRetryable = 
-        errorMessage.includes('error reading a body from connection') ||
-        errorMessage.includes('connection') ||
-        errorMessage.includes('network') ||
-        errorMessage.includes('aborted') ||
-        errorMessage.includes('ECONNRESET') ||
-        errorMessage.includes('ETIMEDOUT');
-      
-      if (!isRetryable) {
-        throw error;
-      }
-      
-      if (attempt < maxRetries - 1) {
-        const delay = baseDelay * Math.pow(2, attempt);
-        console.log(`⏳ Waiting ${delay}ms before retry...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
+  console.log(`🔄 Fetch (timeout: ${timeoutMs / 1000}s)...`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeoutId);
+    console.log(`✅ Fetch successful, status: ${response.status}`);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
   }
-  
-  throw lastError || new Error('All fetch retries exhausted');
 }
 
 const cleanFileContent = (content: string) => {
@@ -1974,7 +1938,7 @@ async function runGeneration({
   // Step 1: refined prompt with retry
   let agentResponse: Response;
   try {
-    agentResponse = await fetchWithRetry(apiUrl, {
+    agentResponse = await fetchWithTimeout(apiUrl, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -1990,7 +1954,7 @@ async function runGeneration({
           },
         ],
       }),
-    }, 2, 1000, 30000);
+    }, 30000);
   } catch (fetchError) {
     const errorMsg = (fetchError as Error)?.message || String(fetchError);
     console.error("Agent AI fetch failed:", errorMsg);
@@ -2056,14 +2020,14 @@ async function runGeneration({
 
   let websiteResponse: Response;
   try {
-    websiteResponse = await fetchWithRetry(apiUrl, {
+    websiteResponse = await fetchWithTimeout(apiUrl, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(websiteRequestBody),
-    }, 2, 2000, 180000);
+    }, 180000);
   } catch (fetchError) {
     const errorMsg = (fetchError as Error)?.message || String(fetchError);
     console.error("Website generation fetch failed:", errorMsg);
@@ -2774,48 +2738,22 @@ serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "");
     
-    // Read body first to check for retryHistoryId (needed for service key auth bypass)
     const body = await req.json();
-    const { prompt, originalPrompt, improvedPrompt, vipPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, retryHistoryId, colorScheme } = body;
+    const { prompt, originalPrompt, improvedPrompt, vipPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, colorScheme } = body;
 
-    // Determine userId - either from JWT or from DB for retry requests
+    // JWT AUTH: Validate using getClaims
     let userId: string;
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
     
-    // Check if this is a retry request from cleanup-stale-generations using SERVICE_ROLE_KEY
-    if (retryHistoryId && token === supabaseKey) {
-      // SERVICE KEY AUTH: Get userId from existing generation_history record
-      console.log("🔄 Retry mode detected with service key for:", retryHistoryId);
-      
-      const { data: existingRecord, error: fetchError } = await supabase
-        .from("generation_history")
-        .select("user_id")
-        .eq("id", retryHistoryId)
-        .single();
-      
-      if (fetchError || !existingRecord?.user_id) {
-        console.error("Failed to find retry record:", fetchError);
-        return new Response(JSON.stringify({ success: false, error: "Retry record not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      
-      userId = existingRecord.user_id;
-      console.log("🔄 Retry mode: userId from DB:", userId);
-    } else {
-      // NORMAL JWT AUTH: Validate using getClaims
-      const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-      
-      if (claimsError || !claimsData?.claims) {
-        console.error("JWT validation failed:", claimsError);
-        return new Response(JSON.stringify({ success: false, error: "Invalid token" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      userId = claimsData.claims.sub as string;
+    if (claimsError || !claimsData?.claims) {
+      console.error("JWT validation failed:", claimsError);
+      return new Response(JSON.stringify({ success: false, error: "Invalid token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+
+    userId = claimsData.claims.sub as string;
     
     console.log("Authenticated React generation request from user:", userId);
 
@@ -2996,129 +2934,48 @@ ${promptForGeneration}`;
       }
     }
 
-    // Handle retry: update existing record OR create new one
+    // Create NEW history entry
     let historyId: string;
-    
-    // Effective params to use for generation (may differ from body params on retry)
-    let effectiveColorScheme = colorScheme || null;
-    let effectiveLayoutStyle = layoutStyle || null;
-    
-    if (retryHistoryId) {
-      // RETRY MODE: Update existing failed record instead of creating new one
-      console.log(`🔄 RETRY MODE: Updating existing record ${retryHistoryId}`);
-      
-      const { data: existingRecord, error: fetchError } = await supabase
-        .from("generation_history")
-        .select("id, status, user_id, color_scheme, layout_style, improved_prompt, vip_prompt")
-        .eq("id", retryHistoryId)
-        .single();
-      
-      if (fetchError || !existingRecord) {
-        console.error("Failed to find retry record:", fetchError);
-        if (teamId && salePrice > 0) {
-          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
-          if (team) {
-            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
-          }
-        }
-        return new Response(JSON.stringify({ success: false, error: "Retry record not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      
-      if (existingRecord.user_id !== userId) {
-        if (teamId && salePrice > 0) {
-          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
-          if (team) {
-            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
-          }
-        }
-        return new Response(JSON.stringify({ success: false, error: "Unauthorized retry" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      
-      // Compute EFFECTIVE values for retry (prefer body param, fallback to existing record)
-      effectiveColorScheme = colorScheme || existingRecord.color_scheme || null;
-      effectiveLayoutStyle = layoutStyle || existingRecord.layout_style || null;
-      const effectiveImprovedPrompt = improvedPrompt || existingRecord.improved_prompt || null;
-      const effectiveVipPrompt = vipPrompt || existingRecord.vip_prompt || null;
-      
-      console.log(`🎨 RETRY effective params: colorScheme=${effectiveColorScheme}, layoutStyle=${effectiveLayoutStyle}, hasImprovedPrompt=${!!effectiveImprovedPrompt}, hasVipPrompt=${!!effectiveVipPrompt}`);
-      
-      const { error: updateError } = await supabase
-        .from("generation_history")
-        .update({
-          status: "pending",
-          error_message: null,
-          files_data: null,
-          zip_data: null,
-          completed_at: null,
-          sale_price: salePrice,
-          color_scheme: effectiveColorScheme,
-          layout_style: effectiveLayoutStyle,
-          improved_prompt: effectiveImprovedPrompt,
-          vip_prompt: effectiveVipPrompt,
-        })
-        .eq("id", retryHistoryId);
-      
-      if (updateError) {
-        console.error("Failed to update retry record:", updateError);
-        if (teamId && salePrice > 0) {
-          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
-          if (team) {
-            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
-          }
-        }
-        return new Response(JSON.stringify({ success: false, error: "Failed to start retry" }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      
-      historyId = retryHistoryId;
-      console.log(`🔄 Updated existing record for retry: ${retryHistoryId} with colorScheme=${effectiveColorScheme}, layoutStyle=${effectiveLayoutStyle}`);
-    } else {
-      const { data: historyEntry, error: insertError } = await supabase
-        .from("generation_history")
-        .insert({
-          prompt: promptToSave,
-          improved_prompt: improvedPromptToSave,
-          vip_prompt: vipPrompt || null,
-          language: language || "auto",
-          user_id: userId,
-          team_id: teamId || null,
-          status: "pending",
-          ai_model: aiModel,
-          website_type: "react",
-          site_name: siteName || null,
-          image_source: imageSource || "basic",
-          sale_price: salePrice,
-          geo: geo || null,
-          color_scheme: effectiveColorScheme,
-          layout_style: effectiveLayoutStyle,
-        })
-        .select()
-        .single();
+    const effectiveColorScheme = colorScheme || null;
+    const effectiveLayoutStyle = layoutStyle || null;
 
-      if (insertError || !historyEntry) {
-        console.error("Failed to create history entry:", insertError);
-        if (teamId && salePrice > 0) {
-          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
-          if (team) {
-            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
-          }
+    const { data: historyEntry, error: insertError } = await supabase
+      .from("generation_history")
+      .insert({
+        prompt: promptToSave,
+        improved_prompt: improvedPromptToSave,
+        vip_prompt: vipPrompt || null,
+        language: language || "auto",
+        user_id: userId,
+        team_id: teamId || null,
+        status: "pending",
+        ai_model: aiModel,
+        website_type: "react",
+        site_name: siteName || null,
+        image_source: imageSource || "basic",
+        sale_price: salePrice,
+        geo: geo || null,
+        color_scheme: effectiveColorScheme,
+        layout_style: effectiveLayoutStyle,
+      })
+      .select()
+      .single();
+
+    if (insertError || !historyEntry) {
+      console.error("Failed to create history entry:", insertError);
+      if (teamId && salePrice > 0) {
+        const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+        if (team) {
+          await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
         }
-        return new Response(JSON.stringify({ success: false, error: "Failed to start generation" }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
       }
-      
-      historyId = historyEntry.id;
+      return new Response(JSON.stringify({ success: false, error: "Failed to start generation" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+    
+    historyId = historyEntry.id;
     
     console.log("Using history entry:", historyId);
 
