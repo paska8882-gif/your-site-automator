@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { GeneratedFile } from "@/lib/websiteGenerator";
+import { useRealtimeTable } from "@/contexts/RealtimeContext";
 
 export interface HistoryItem {
   id: string;
@@ -26,7 +27,6 @@ export interface HistoryItem {
   layout_style: string | null;
   improved_prompt: string | null;
   vip_prompt: string | null;
-  retry_count: number | null;
 }
 
 export interface Appeal {
@@ -98,7 +98,7 @@ interface FetchParams {
 async function fetchGenerationHistory({ userId, compactMode, offset = 0, limit = PAGE_SIZE }: FetchParams): Promise<{ history: HistoryItem[]; appeals: Appeal[]; hasMore: boolean }> {
   let query = supabase
     .from("generation_history")
-    .select("id, number, prompt, language, zip_data, files_data, status, error_message, created_at, completed_at, ai_model, website_type, site_name, sale_price, image_source, geo, admin_note, color_scheme, layout_style, improved_prompt, vip_prompt, retry_count")
+    .select("id, number, prompt, language, zip_data, files_data, status, error_message, created_at, completed_at, ai_model, website_type, site_name, sale_price, image_source, geo, admin_note, color_scheme, layout_style, improved_prompt, vip_prompt")
     .eq("user_id", userId)
     .order("number", { ascending: false })
     .range(offset, offset + limit - 1);
@@ -144,9 +144,6 @@ interface UseGenerationHistoryOptions {
 export function useGenerationHistory({ compactMode = false }: UseGenerationHistoryOptions = {}) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const realtimeActiveRef = useRef(false);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   
   // Pagination state
   const [allHistory, setAllHistory] = useState<HistoryItem[]>([]);
@@ -296,167 +293,54 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
     });
   }, [queryClient, queryKey]);
 
-  // Fallback polling
-  const startFallbackPolling = useCallback(() => {
-    if (pollingIntervalRef.current) return;
-    
-    console.log("[useGenerationHistory] Starting fallback polling");
-    pollingIntervalRef.current = setInterval(() => {
-      const hasGenerating = allHistory.some(item => 
-        item.status === "generating" || item.status === "pending"
-      );
-      if (hasGenerating) {
-        console.log("[useGenerationHistory] Polling for updates...");
-        refetch();
-      }
-    }, 15_000); // Increased from 10s to 15s to reduce Cloud costs
-  }, [allHistory, refetch]);
+  // Use centralized RealtimeContext instead of own channel + polling
+  const handleRealtimeEvent = useCallback(async (event: { 
+    table: string; 
+    eventType: string; 
+    new: Record<string, unknown> | null; 
+    old: Record<string, unknown> | null 
+  }) => {
+    const newRecord = event.new;
+    const oldRecord = event.old;
 
-  const stopFallbackPolling = useCallback(() => {
-    if (pollingIntervalRef.current) {
-      console.log("[useGenerationHistory] Stopping fallback polling");
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
+    if (event.eventType === "INSERT" && newRecord) {
+      const isActive = newRecord.status === "pending" || newRecord.status === "generating";
+      if (!compactMode || isActive) {
+        updateHistoryItem(newRecord);
+      }
+    } else if (event.eventType === "UPDATE" && newRecord) {
+      const isActive = newRecord.status === "pending" || newRecord.status === "generating";
+      const isCompleted = newRecord.status === "completed";
+      const isFailed = newRecord.status === "failed";
+
+      if (compactMode && !isActive && !isCompleted && !isFailed) {
+        removeHistoryItem(newRecord.id as string);
+      } else if (isCompleted) {
+        // Fetch full record once (no retry) to get zip_data
+        const { data: fullRecord } = await supabase
+          .from("generation_history")
+          .select("*")
+          .eq("id", newRecord.id as string)
+          .single();
+
+        if (fullRecord) {
+          updateHistoryItem(fullRecord);
+          if (compactMode) {
+            queryClient.invalidateQueries({ queryKey: ["generationHistory", user?.id, "full"] });
+          }
+        } else {
+          updateHistoryItem(newRecord);
+        }
+      } else {
+        updateHistoryItem(newRecord);
+      }
+    } else if (event.eventType === "DELETE" && oldRecord) {
+      removeHistoryItem(oldRecord.id as string);
     }
-  }, []);
+  }, [compactMode, updateHistoryItem, removeHistoryItem, queryClient, user?.id]);
 
-  // Setup realtime subscription
-  useEffect(() => {
-    if (!user?.id) return;
+  useRealtimeTable("generation_history", handleRealtimeEvent, [handleRealtimeEvent]);
 
-    let reconnectTimeout: NodeJS.Timeout | null = null;
-    let isSubscribed = true;
-
-    const setupChannel = () => {
-      if (!isSubscribed) return;
-      
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-
-      const channelName = `generation_history_${compactMode ? 'compact' : 'full'}_${user.id}_${Date.now()}`;
-      
-      channelRef.current = supabase
-        .channel(channelName)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "generation_history",
-            filter: `user_id=eq.${user.id}`,
-          },
-          async (payload) => {
-            const newRecord = payload.new as Record<string, unknown> | undefined;
-            const oldRecord = payload.old as Record<string, unknown> | undefined;
-            console.log("[useGenerationHistory] Realtime update:", payload.eventType, newRecord?.id);
-
-            if (payload.eventType === "INSERT" && newRecord) {
-              // In compactMode, only add if it's an active status
-              const isActive = newRecord.status === "pending" || newRecord.status === "generating";
-              if (!compactMode || isActive) {
-                updateHistoryItem(newRecord);
-              }
-            } else if (payload.eventType === "UPDATE" && newRecord) {
-              const isActive = newRecord.status === "pending" || newRecord.status === "generating";
-              const isCompleted = newRecord.status === "completed";
-              const isFailed = newRecord.status === "failed";
-              
-              // In compactMode: keep completed/failed items visible for download
-              // They will be filtered out on next page load, but user can download now
-              if (compactMode && !isActive && !isCompleted && !isFailed) {
-                // Some other status like cancelled - remove immediately
-                removeHistoryItem(newRecord.id as string);
-              } else if (isCompleted) {
-                // For completed status, fetch full record to get zip_data with retry
-                const fetchWithRetry = async (attempts = 3): Promise<void> => {
-                  for (let i = 0; i < attempts; i++) {
-                    const { data: fullRecord, error } = await supabase
-                      .from("generation_history")
-                      .select("*")
-                      .eq("id", newRecord.id as string)
-                      .single();
-                    
-                    if (!error && fullRecord) {
-                      updateHistoryItem(fullRecord);
-                      
-                      // Also invalidate full history cache when in compact mode
-                      if (compactMode) {
-                        queryClient.invalidateQueries({ queryKey: ["generationHistory", user?.id, "full"] });
-                      }
-                      return;
-                    }
-                    
-                    if (i < attempts - 1) {
-                      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); // Exponential backoff
-                    }
-                  }
-                  // Fallback: update with what we have from realtime
-                  console.warn("[useGenerationHistory] Failed to fetch full record after retries, using realtime payload");
-                  updateHistoryItem(newRecord);
-                };
-                fetchWithRetry();
-              } else {
-                updateHistoryItem(newRecord);
-              }
-            } else if (payload.eventType === "DELETE" && oldRecord) {
-              removeHistoryItem(oldRecord.id as string);
-            }
-          }
-        )
-        .subscribe((status, err) => {
-          console.log("[useGenerationHistory] Realtime status:", status, err?.message || "");
-          
-          if (status === "SUBSCRIBED") {
-            realtimeActiveRef.current = true;
-            stopFallbackPolling();
-          } else if (status === "CLOSED" || status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-            realtimeActiveRef.current = false;
-            startFallbackPolling();
-            
-            // Clear any pending reconnect
-            if (reconnectTimeout) {
-              clearTimeout(reconnectTimeout);
-            }
-            
-            // Reconnect after delay (only if still subscribed)
-            if (isSubscribed) {
-              const delay = status === "TIMED_OUT" ? 10000 : 5000;
-              reconnectTimeout = setTimeout(() => {
-                if (isSubscribed) {
-                  console.log("[useGenerationHistory] Reconnecting...");
-                  setupChannel();
-                }
-              }, delay);
-            }
-          }
-        });
-    };
-
-    setupChannel();
-
-    // Start polling if realtime doesn't connect within 3 seconds
-    const pollTimeout = setTimeout(() => {
-      if (!realtimeActiveRef.current) {
-        startFallbackPolling();
-      }
-    }, 3000);
-
-    return () => {
-      isSubscribed = false;
-      clearTimeout(pollTimeout);
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-      stopFallbackPolling();
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, compactMode]); // Reduced dependencies to prevent re-subscription loops
 
   // Add optimistic item (for immediate UI feedback before DB insert)
   const addOptimisticItem = useCallback((item: Partial<HistoryItem> & { id: string }) => {
@@ -482,7 +366,6 @@ export function useGenerationHistory({ compactMode = false }: UseGenerationHisto
       layout_style: item.layout_style ?? null,
       improved_prompt: item.improved_prompt ?? null,
       vip_prompt: item.vip_prompt ?? null,
-      retry_count: item.retry_count ?? null,
     };
 
     setAllHistory(prev => {
