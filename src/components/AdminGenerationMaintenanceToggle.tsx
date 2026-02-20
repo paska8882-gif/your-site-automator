@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Wrench, Loader2, AlertTriangle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -8,55 +8,17 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSuperAdmin } from "@/hooks/useSuperAdmin";
+import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
 
 export function AdminGenerationMaintenanceToggle() {
   const { isSuperAdmin } = useSuperAdmin();
-  const [enabled, setEnabled] = useState(false);
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(true);
+  const { generationDisabled, generationMessage, loading } = useMaintenanceMode();
   const [updating, setUpdating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    const fetchStatus = async () => {
-      const { data, error } = await supabase
-        .from("maintenance_mode")
-        .select("generation_disabled, generation_message")
-        .eq("id", "global")
-        .maybeSingle();
-
-      if (!error && data) {
-        setEnabled(data.generation_disabled ?? false);
-        setMessage(data.generation_message || "");
-      }
-      setLoading(false);
-    };
-
-    fetchStatus();
-
-    // Subscribe to changes
-    const channel = supabase
-      .channel("generation_maintenance_admin")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "maintenance_mode",
-          filter: "id=eq.global",
-        },
-        (payload) => {
-          const newData = payload.new as { generation_disabled?: boolean; generation_message?: string };
-          setEnabled(newData.generation_disabled ?? false);
-          setMessage(newData.generation_message || "");
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+  // Sync local message state when not editing
+  const displayMessage = isEditing ? message : generationMessage;
 
   const handleToggle = async (newValue: boolean) => {
     setUpdating(true);
@@ -71,7 +33,6 @@ export function AdminGenerationMaintenanceToggle() {
 
       if (error) throw error;
 
-      setEnabled(newValue);
       toast.success(
         newValue 
           ? "⚠️ Генерацію ВИМКНЕНО для користувачів" 
@@ -115,6 +76,8 @@ export function AdminGenerationMaintenanceToggle() {
   if (loading) {
     return null;
   }
+
+  const enabled = generationDisabled;
 
   return (
     <Card className={`p-3 mb-4 ${enabled ? "bg-amber-500/10 border-amber-500/50" : ""}`}>
@@ -175,12 +138,15 @@ export function AdminGenerationMaintenanceToggle() {
           ) : (
             <div className="flex items-center justify-between">
               <p className="text-xs text-amber-600 dark:text-amber-400">
-                📢 {message || "Повідомлення не задано"}
+                📢 {displayMessage || "Повідомлення не задано"}
               </p>
               <Button 
                 size="sm" 
                 variant="ghost"
-                onClick={() => setIsEditing(true)}
+                onClick={() => {
+                  setMessage(generationMessage);
+                  setIsEditing(true);
+                }}
                 className="text-xs"
               >
                 Редагувати

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRealtimeTable } from "@/contexts/RealtimeContext";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -1132,56 +1133,46 @@ export function WebsiteGenerator() {
 
     fetchTeamPricing();
 
-    // Subscribe to team balance changes
-    const channel = supabase
-      .channel("team_balance_changes")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "teams" },
-        (payload) => {
-          const teamId = payload.new.id;
-          const newBalance = payload.new.balance;
-          const prevBalance = prevAdminBalancesRef.current[teamId];
+  }, [user?.id, isAdmin, adminLoading]);
 
-          // Update teamPricing for non-admin users (including credit_limit)
-          if (teamPricing && teamId === teamPricing.teamId) {
-            setTeamPricing(prev => prev ? { 
-              ...prev, 
-              balance: newBalance,
-              creditLimit: payload.new.credit_limit ?? prev.creditLimit
-            } : null);
-          }
+  // Use shared RealtimeContext for teams balance updates instead of dedicated channel
+  useRealtimeTable("teams", useCallback((event) => {
+    if (event.eventType !== "UPDATE" || !event.new) return;
+    const teamId = event.new.id as string;
+    const newBalance = event.new.balance as number;
+    const prevBalance = prevAdminBalancesRef.current[teamId];
 
-          // Update adminTeams array for admin users with animation
-          setAdminTeams(prev => {
-            const teamExists = prev.some(t => t.id === teamId);
-            if (!teamExists) return prev;
+    // Update teamPricing for non-admin users
+    setTeamPricing(prev => {
+      if (!prev || teamId !== prev.teamId) return prev;
+      return { 
+        ...prev, 
+        balance: newBalance,
+        creditLimit: (event.new.credit_limit as number) ?? prev.creditLimit
+      };
+    });
 
-            // Trigger animation and sound if balance changed
-            if (prevBalance !== undefined && prevBalance !== newBalance) {
-              const isPositive = newBalance > prevBalance;
-              setAnimatingTeamId(teamId);
-              playBalanceSound(isPositive);
-              
-              setTimeout(() => setAnimatingTeamId(null), 600);
-            }
+    // Update adminTeams array for admin users with animation
+    setAdminTeams(prev => {
+      const teamExists = prev.some(t => t.id === teamId);
+      if (!teamExists) return prev;
 
-            prevAdminBalancesRef.current[teamId] = newBalance;
+      if (prevBalance !== undefined && prevBalance !== newBalance) {
+        const isPositive = newBalance > prevBalance;
+        setAnimatingTeamId(teamId);
+        playBalanceSound(isPositive);
+        setTimeout(() => setAnimatingTeamId(null), 600);
+      }
 
-            return prev.map(team => 
-              team.id === teamId 
-                ? { ...team, balance: newBalance, credit_limit: payload.new.credit_limit } 
-                : team
-            );
-          });
-        }
-      )
-      .subscribe();
+      prevAdminBalancesRef.current[teamId] = newBalance;
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [isAdmin, adminLoading, playBalanceSound]);
+      return prev.map(team => 
+        team.id === teamId 
+          ? { ...team, balance: newBalance, credit_limit: (event.new.credit_limit as number) } 
+          : team
+      );
+    });
+  }, [playBalanceSound]), [playBalanceSound]);
 
    // Show debt popup only for teams WITHOUT credit limits that somehow have negative balance
   useEffect(() => {

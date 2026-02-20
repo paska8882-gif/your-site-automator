@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Wrench, Loader2, AlertTriangle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -6,50 +6,12 @@ import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSuperAdmin } from "@/hooks/useSuperAdmin";
+import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
 
 export function AdminMaintenanceToggle() {
   const { isSuperAdmin } = useSuperAdmin();
-  const [enabled, setEnabled] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const { maintenance, loading } = useMaintenanceMode();
   const [updating, setUpdating] = useState(false);
-
-  useEffect(() => {
-    const fetchStatus = async () => {
-      const { data, error } = await supabase
-        .from("maintenance_mode")
-        .select("enabled")
-        .eq("id", "global")
-        .maybeSingle();
-
-      if (!error && data) {
-        setEnabled(data.enabled);
-      }
-      setLoading(false);
-    };
-
-    fetchStatus();
-
-    // Subscribe to changes
-    const channel = supabase
-      .channel("maintenance_admin")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "maintenance_mode",
-          filter: "id=eq.global",
-        },
-        (payload) => {
-          setEnabled((payload.new as { enabled: boolean }).enabled);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
 
   const handleToggle = async (newValue: boolean) => {
     setUpdating(true);
@@ -64,7 +26,6 @@ export function AdminMaintenanceToggle() {
 
       if (error) throw error;
 
-      setEnabled(newValue);
       toast.success(
         newValue 
           ? "⚠️ Глобальний техрежим УВІМКНЕНО (для користувачів)" 
@@ -85,6 +46,8 @@ export function AdminMaintenanceToggle() {
   if (loading) {
     return null;
   }
+
+  const enabled = maintenance.enabled;
 
   return (
     <Card className={`p-3 mb-4 flex items-center justify-between ${enabled ? "bg-amber-500/10 border-amber-500/50" : ""}`}>
