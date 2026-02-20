@@ -11,7 +11,7 @@ const BOT_WEBHOOKS: Record<string, { url: string; method: "POST" | "GET" }> = {
   "2lang_html": { url: "https://n8n.dragonwhite-n8n.top/webhook/lovable-generate", method: "POST" },
   "nextjs_bot": { url: "https://n8n.dragonwhite-n8n.top/webhook/d26af941-69aa-4b93-82f8-fd5cd1d1c5ea", method: "POST" },
   "new_bot": { url: "https://n8n.dragonwhite-n8n.top/webhook/797c78af-ad83-479f-a9f1-eec861ea6907", method: "GET" },
-  "html_multi": { url: "https://n8n.dragonwhite-n8n.top/webhook-test/4ff94b33-8968-4a37-902a-9ec6704cdd34", method: "GET" },
+  "html_multi": { url: "https://n8n.dragonwhite-n8n.top/webhook/4ff94b33-8968-4a37-902a-9ec6704cdd34", method: "GET" },
 };
 
 const DEFAULT_WEBHOOK = { url: "https://n8n.dragonwhite-n8n.top/webhook/lovable-generate", method: "POST" as const };
