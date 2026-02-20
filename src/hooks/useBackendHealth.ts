@@ -4,9 +4,7 @@ export type BackendHealthStatus = "checking" | "healthy" | "degraded";
 
 interface Options {
   initialTimeoutMs?: number;
-  maxTimeoutMs?: number;
   baseIntervalMs?: number;
-  maxRetries?: number;
 }
 
 interface HealthState {
@@ -46,9 +44,7 @@ function logHealthEvent(event: string, details: Record<string, unknown>) {
 export function useBackendHealth(options: Options = {}) {
   const {
     initialTimeoutMs = 10000,
-    maxTimeoutMs = 60000,
-    baseIntervalMs = 600000, // Default: 10 minutes — reduces DB pings significantly
-    maxRetries = 5,
+    baseIntervalMs = 600000, // 10 minutes
   } = options;
 
   const [state, setState] = useState<HealthState>({
@@ -59,17 +55,9 @@ export function useBackendHealth(options: Options = {}) {
     isRetrying: false,
   });
 
-  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);
-
-  // Calculate exponential backoff delay
-  const getBackoffDelay = useCallback((failures: number) => {
-    // Exponential backoff: 2^failures * 1000ms, capped at maxTimeoutMs
-    const delay = Math.min(Math.pow(2, failures) * 1000, maxTimeoutMs);
-    return delay;
-  }, [maxTimeoutMs]);
 
   const check = useCallback(async (isManualRetry = false) => {
     if (isManualRetry) {
@@ -91,7 +79,6 @@ export function useBackendHealth(options: Options = {}) {
         initialTimeoutMs
       );
 
-      // Read current state via ref to avoid stale closure / dep array issues
       const currentState = stateRef.current;
       if (currentState.consecutiveFailures > 0) {
         logHealthEvent("backend_recovered", {
@@ -114,7 +101,7 @@ export function useBackendHealth(options: Options = {}) {
 
       setState(prev => {
         const newFailures = prev.consecutiveFailures + 1;
-        const isDegraded = newFailures >= 3;
+        const isDegraded = newFailures >= 1; // Degraded on first failure, no auto-retry
 
         logHealthEvent("health_check_failed", {
           error: errorMessage,
@@ -123,42 +110,19 @@ export function useBackendHealth(options: Options = {}) {
           isDegraded,
         });
 
-        // Schedule automatic retry with exponential backoff
-        if (newFailures < maxRetries) {
-          const backoffDelay = getBackoffDelay(newFailures);
-          logHealthEvent("scheduling_retry", {
-            attempt: newFailures + 1,
-            maxRetries,
-            delayMs: backoffDelay,
-          });
-
-          if (retryTimeoutRef.current) {
-            clearTimeout(retryTimeoutRef.current);
-          }
-          retryTimeoutRef.current = setTimeout(() => check(false), backoffDelay);
-        } else {
-          logHealthEvent("max_retries_reached", { maxRetries });
-        }
-
         return {
           status: isDegraded ? "degraded" : prev.status,
-          lastErrorAt: isDegraded ? Date.now() : prev.lastErrorAt,
+          lastErrorAt: Date.now(),
           consecutiveFailures: newFailures,
           lastError: errorMessage,
           isRetrying: false,
         };
       });
     }
-  }, [initialTimeoutMs, maxRetries, getBackoffDelay]);
+  }, [initialTimeoutMs]);
 
-  // Manual retry function for user-triggered retries
+  // Manual retry only — no automatic retries
   const retry = useCallback(() => {
-    // Clear any pending automatic retry
-    if (retryTimeoutRef.current) {
-      clearTimeout(retryTimeoutRef.current);
-      retryTimeoutRef.current = null;
-    }
-    // Reset failures and check immediately
     setState(prev => ({ ...prev, consecutiveFailures: 0 }));
     check(true);
   }, [check]);
@@ -169,7 +133,6 @@ export function useBackendHealth(options: Options = {}) {
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
     };
   }, [check, baseIntervalMs]);
 
