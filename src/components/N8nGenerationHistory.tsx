@@ -25,11 +25,12 @@ const BOT_OPTIONS = [
   { id: "n8n-bot-2lang_html", label: "2lang HTML" },
   { id: "nextjs", label: "Next.js" },
   { id: "n8n-bot-new_bot", label: "Новий бот" },
+  { id: "n8n-bot-html_multi", label: "HTML Multi" },
   { id: "n8n-bot", label: "Legacy" },
 ] as const;
 
 // All image_source values used by n8n/beta generators
-const ALL_N8N_IMAGE_SOURCES = ["n8n-bot-2lang_html", "n8n-bot-nextjs_bot", "n8n-bot", "nextjs", "n8n-bot-new_bot"];
+const ALL_N8N_IMAGE_SOURCES = ["n8n-bot-2lang_html", "n8n-bot-nextjs_bot", "n8n-bot", "nextjs", "n8n-bot-new_bot", "n8n-bot-html_multi"];
 
 interface HistoryItem {
   id: string;
@@ -151,6 +152,7 @@ export function N8nGenerationHistory() {
     if (imageSource === "n8n-bot-2lang_html") return "HTML";
     if (imageSource === "n8n-bot-nextjs_bot") return "Next.js";
     if (imageSource === "n8n-bot-new_bot") return "Новий";
+    if (imageSource === "n8n-bot-html_multi") return "Multi";
     if (imageSource === "n8n-bot") return "Legacy";
     return null;
   };
