@@ -63,7 +63,6 @@ interface GenerationWithFinance {
   sale_price: number | null;
   generation_cost: number | null;
   total_generation_cost: number | null;
-  retry_count: number | null;
   user_id: string;
   profile?: { display_name: string | null };
   team_name?: string;
@@ -75,7 +74,6 @@ interface TeamTransaction {
   sale_price: number | null;
   generation_cost: number | null;
   total_generation_cost: number | null;
-  retry_count: number | null;
   created_at: string;
   status: string;
   website_type: string | null;
@@ -195,7 +193,6 @@ export function AdminFinanceTab() {
         profile: g.user_id ? profilesMap[g.user_id] : undefined,
         team_name: g.team_id ? teamIdToName[g.team_id] : undefined,
         total_generation_cost: (g as any).total_generation_cost ?? null,
-        retry_count: (g as any).retry_count ?? null,
       })) || [];
 
       setGenerations(enrichedGenerations);
@@ -258,7 +255,6 @@ export function AdminFinanceTab() {
       sale_price: g.sale_price,
       generation_cost: g.generation_cost,
       total_generation_cost: (g as any).total_generation_cost ?? null,
-      retry_count: (g as any).retry_count ?? null,
       created_at: g.created_at,
       status: g.status,
       website_type: g.website_type,
@@ -494,7 +490,7 @@ export function AdminFinanceTab() {
   const totalProfit = totalSales - totalCosts;
   const externalCount = filteredGenerations.filter(g => g.specific_ai_model === 'codex-external').length;
   const internalCount = filteredGenerations.filter(g => g.specific_ai_model !== 'codex-external').length;
-  const totalRetries = filteredGenerations.reduce((sum, g) => sum + (g.retry_count || 0), 0);
+
 
   const teamTotalSales = teamTransactions.reduce((sum, t) => sum + (t.sale_price || 0), 0);
   const teamTotalCosts = teamTransactions.reduce((sum, t) => sum + (t.total_generation_cost || t.generation_cost || 0), 0);
@@ -1149,7 +1145,6 @@ export function AdminFinanceTab() {
                 <TableHead className="text-[11px] py-1.5">{t("admin.financeType")}</TableHead>
                 <TableHead className="text-[11px] py-1.5">AI</TableHead>
                 <TableHead className="text-[11px] py-1.5 text-right">{t("admin.financeCost")}</TableHead>
-                <TableHead className="text-[11px] py-1.5 text-right">Retry</TableHead>
                 <TableHead className="text-[11px] py-1.5 text-right">{t("admin.financeSale")}</TableHead>
                 <TableHead className="text-[11px] py-1.5">{t("admin.financeDate")}</TableHead>
               </TableRow>
@@ -1164,13 +1159,6 @@ export function AdminFinanceTab() {
                   <TableCell className="text-[11px] py-1">{gen.ai_model === 'senior' ? 'Sr' : 'Jr'}</TableCell>
                   <TableCell className="text-[11px] py-1 text-right text-red-600" title={gen.total_generation_cost && gen.total_generation_cost !== gen.generation_cost ? `Останній: $${gen.generation_cost?.toFixed(2)}, Всього: $${gen.total_generation_cost?.toFixed(2)}` : undefined}>
                     {gen.total_generation_cost ? `$${gen.total_generation_cost.toFixed(2)}` : gen.generation_cost ? `$${gen.generation_cost.toFixed(2)}` : "—"}
-                  </TableCell>
-                  <TableCell className="text-[11px] py-1 text-right">
-                    {gen.retry_count && gen.retry_count > 0 ? (
-                      <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 text-orange-600 border-orange-300">
-                        {gen.retry_count}×
-                      </Badge>
-                    ) : "—"}
                   </TableCell>
                   <TableCell className="text-[11px] py-1 text-right text-green-600">
                     {gen.sale_price ? `$${gen.sale_price.toFixed(2)}` : "—"}
@@ -1196,9 +1184,6 @@ export function AdminFinanceTab() {
                   </td>
                   <td className="text-[11px] py-1.5 px-3 text-right font-medium text-red-600">
                     ${totalCosts.toFixed(2)}
-                  </td>
-                  <td className="text-[11px] py-1.5 px-3 text-right font-medium text-orange-600">
-                    {totalRetries > 0 ? `${totalRetries}×` : "—"}
                   </td>
                   <td className="text-[11px] py-1.5 px-3 text-right font-medium text-green-600">
                     ${totalSales.toFixed(2)}

@@ -1682,7 +1682,6 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
                             setPhpPreviewOpen(true);
                           }}
                           onCancel={handleCancel}
-                          onRetry={handleRetry}
                           onSelectFile={setSelectedFile}
                           onViewModeChange={setViewMode}
                           getAppeal={getAppealForItem}
@@ -1722,7 +1721,6 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
                     setPhpPreviewOpen(true);
                   }}
                   onCancel={handleCancel}
-                  onRetry={handleRetry}
                   onSelectFile={setSelectedFile}
                   onViewModeChange={setViewMode}
                   getAppeal={getAppealForItem}
