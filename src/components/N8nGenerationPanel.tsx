@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRealtimeTable } from "@/contexts/RealtimeContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -291,22 +292,21 @@ export function N8nGenerationPanel() {
 
     fetchTeamPricing();
 
-    // Subscribe to team balance changes
-    const channel = supabase
-      .channel("n8n_team_balance")
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "teams" }, (payload) => {
-        if (teamPricing && payload.new.id === teamPricing.teamId) {
-          setTeamPricing(prev => prev ? {
-            ...prev,
-            balance: payload.new.balance,
-            creditLimit: payload.new.credit_limit ?? prev.creditLimit,
-          } : null);
-        }
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
   }, [user]);
+
+  // Use shared RealtimeContext channel for team balance updates
+  useRealtimeTable("teams", useCallback((event) => {
+    if (event.eventType === "UPDATE" && event.new) {
+      setTeamPricing(prev => {
+        if (!prev || (event.new as any).id !== prev.teamId) return prev;
+        return {
+          ...prev,
+          balance: (event.new as any).balance,
+          creditLimit: (event.new as any).credit_limit ?? prev.creditLimit,
+        };
+      });
+    }
+  }, []), []);
 
   // Fixed prices per bot type
   const getBotPrice = (): number => {

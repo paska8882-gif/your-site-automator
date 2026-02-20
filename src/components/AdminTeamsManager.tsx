@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRealtimeTable } from "@/contexts/RealtimeContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -143,27 +144,18 @@ export const AdminTeamsManager = () => {
   useEffect(() => {
     fetchTeams();
     fetchAdmins();
-
-    // Realtime subscription for team balance updates
-    const channel = supabase
-      .channel("admin-teams-balance")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "teams" },
-        (payload) => {
-          setTeams(prev => prev.map(team =>
-            team.id === payload.new.id
-              ? { ...team, balance: payload.new.balance, credit_limit: payload.new.credit_limit }
-              : team
-          ));
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
+
+  // Use shared RealtimeContext channel for team balance updates
+  useRealtimeTable("teams", useCallback((event) => {
+    if (event.eventType === "UPDATE" && event.new) {
+      setTeams(prev => prev.map(team =>
+        team.id === (event.new as any).id
+          ? { ...team, balance: (event.new as any).balance, credit_limit: (event.new as any).credit_limit }
+          : team
+      ));
+    }
+  }, []), []);
 
   const fetchAdmins = async () => {
     const { data: adminRoles } = await supabase

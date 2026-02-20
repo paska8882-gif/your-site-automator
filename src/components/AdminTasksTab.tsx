@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRealtimeTable } from "@/contexts/RealtimeContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSuperAdmin } from "@/hooks/useSuperAdmin";
@@ -182,22 +183,12 @@ export const AdminTasksTab = () => {
 
   useEffect(() => {
     fetchData();
-
-    const channel = supabase
-      .channel("admin-tasks-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "admin_tasks" },
-        () => {
-          fetchData();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
+
+  // Use shared RealtimeContext channel instead of dedicated one
+  useRealtimeTable("admin_tasks", useCallback(() => {
+    fetchData();
+  }, []), []);
 
   const createTask = async () => {
     if (!newTask.title || !newTask.assigned_to || !user) {
