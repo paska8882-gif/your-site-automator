@@ -20,7 +20,6 @@ import { useAdmin } from "@/hooks/useAdmin";
 import { useTeamOwner } from "@/hooks/useTeamOwner";
 import { useAdminMode } from "@/contexts/AdminModeContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useGenerationMaintenance } from "@/hooks/useGenerationMaintenance";
 import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
 import { GenerationMaintenanceBanner } from "./GenerationMaintenanceBanner";
 import { toast as sonnerToast } from "sonner";
@@ -348,8 +347,7 @@ export function ManualOrderForm() {
   const { isAdmin: isAdminRole } = useAdmin();
   const { isTeamOwner } = useTeamOwner();
   const { isAdminModeEnabled } = useAdminMode();
-  const { generationDisabled, generationMessage } = useGenerationMaintenance();
-  const { maintenance } = useMaintenanceMode();
+  const { maintenance, generationDisabled, generationMessage } = useMaintenanceMode();
 
   const isGenerationBlocked = maintenance.enabled || generationDisabled;
   const isAdmin = isAdminRole && isAdminModeEnabled;

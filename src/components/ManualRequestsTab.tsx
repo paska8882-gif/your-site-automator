@@ -212,7 +212,7 @@ export function ManualRequestsTab() {
     queryKey: ["manual-requests"],
     queryFn: fetchManualRequests,
     staleTime: 2 * 60 * 1000, // 2 minutes
-    refetchInterval: 3 * 60 * 1000, // Auto-refresh every 3 minutes (Realtime handles instant updates)
+    refetchOnWindowFocus: false,
   });
 
   const { data: teamsData } = useQuery({
