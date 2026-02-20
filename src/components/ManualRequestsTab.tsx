@@ -525,11 +525,24 @@ export function ManualRequestsTab() {
       return;
     }
 
+    // Validate file is actually a ZIP
+    if (!uploadFile.name.toLowerCase().endsWith('.zip')) {
+      toast.error("Підтримується лише формат .zip. Файли .rar та інші формати не підтримуються.");
+      return;
+    }
+
     setUploading(true);
 
     try {
       const zip = new JSZip();
-      const zipContent = await zip.loadAsync(uploadFile);
+      let zipContent;
+      try {
+        zipContent = await zip.loadAsync(uploadFile);
+      } catch (zipError) {
+        toast.error("Не вдалося прочитати ZIP-файл. Переконайтесь що файл не пошкоджений та має формат .zip (не .rar).");
+        setUploading(false);
+        return;
+      }
       
       const textExtensions = ['.html', '.htm', '.css', '.js', '.jsx', '.ts', '.tsx', '.json', '.xml', '.svg', '.txt', '.md', '.php'];
       const filesData: GeneratedFile[] = [];
