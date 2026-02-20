@@ -146,20 +146,20 @@ export function AdminDatabaseTab() {
   const runCleanup = async () => {
     setCleaning(true);
     try {
-      const { data, error } = await supabase.functions.invoke("cleanup-stale-generations", {
-        headers: { "x-triggered-by": "manual" }
-      });
+      // Call SQL function directly instead of Edge Function to save Cloud credits
+      const { data, error } = await supabase.rpc("cleanup_stale_generations");
       
       if (error) {
         throw error;
       }
 
+      const resultData = data as Record<string, unknown> || {};
       const result: CleanupResult = {
-        success: data.success,
-        zipsCleared: data.zipsCleared || 0,
-        filesCleared: data.filesCleared || 0,
-        processed: data.processed || 0,
-        retried: data.retried || 0,
+        success: !!resultData.success,
+        zipsCleared: 0,
+        filesCleared: 0,
+        processed: Number(resultData.processed) || 0,
+        retried: 0,
         timestamp: new Date(),
       };
 

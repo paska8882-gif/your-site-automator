@@ -1299,6 +1299,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_stale_generations: { Args: never; Returns: Json }
       decrement_active_generations: { Args: never; Returns: undefined }
       get_database_storage_stats: {
         Args: never
