@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRealtimeTable } from "@/contexts/RealtimeContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,20 +43,12 @@ export function AdminBalanceRequestsTab() {
 
   useEffect(() => {
     fetchRequests();
-
-    const channel = supabase
-      .channel("admin-balance-requests")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "balance_requests" },
-        () => fetchRequests()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
+
+  // Use shared RealtimeContext channel instead of dedicated one
+  useRealtimeTable("balance_requests", useCallback(() => {
+    fetchRequests();
+  }, []), []);
 
   const fetchRequests = async () => {
     setLoading(true);

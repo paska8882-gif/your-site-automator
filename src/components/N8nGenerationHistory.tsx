@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRealtimeTable } from "@/contexts/RealtimeContext";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -133,35 +134,17 @@ export function N8nGenerationHistory() {
 
   useEffect(() => {
     fetchHistory();
-
-    const channel = supabase
-      .channel("n8n-history")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "generation_history",
-        },
-        (payload: any) => {
-          // Only refetch if the change is relevant to n8n/beta generators
-          const source = payload?.new?.image_source || payload?.old?.image_source;
-          if (!source || ALL_N8N_IMAGE_SOURCES.some(s => source.startsWith(s))) {
-            fetchHistory();
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [botFilter]);
 
-  // Refetch when filter changes
-  useEffect(() => {
-    fetchHistory();
-  }, [botFilter]);
+  // Use shared RealtimeContext channel for generation_history updates
+  useRealtimeTable("generation_history", useCallback((event) => {
+    const source = (event.new as any)?.image_source || (event.old as any)?.image_source;
+    if (!source || ALL_N8N_IMAGE_SOURCES.some(s => source.startsWith(s))) {
+      fetchHistory();
+    }
+  }, [botFilter]), [botFilter]);
+
+
 
   const getBotLabel = (imageSource: string | null) => {
     if (!imageSource) return null;

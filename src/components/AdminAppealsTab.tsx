@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRealtimeTable } from "@/contexts/RealtimeContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -166,25 +167,15 @@ export function AdminAppealsTab() {
     }
   }, [selectedTeamId]);
 
-  useEffect(() => {
-    const channel = supabase
-      .channel('teams-balance-changes')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'teams' },
-        (payload) => {
-          const updatedTeam = payload.new as Team;
-          setTeams(prev => prev.map(t => 
-            t.id === updatedTeam.id ? { ...t, balance: updatedTeam.balance } : t
-          ));
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+  // Use shared RealtimeContext channel for team balance updates
+  useRealtimeTable("teams", useCallback((event) => {
+    if (event.eventType === "UPDATE" && event.new) {
+      const updatedTeam = event.new as any;
+      setTeams(prev => prev.map(t => 
+        t.id === updatedTeam.id ? { ...t, balance: updatedTeam.balance } : t
+      ));
+    }
+  }, []), []);
 
   // Clear selection when filter changes
   useEffect(() => {

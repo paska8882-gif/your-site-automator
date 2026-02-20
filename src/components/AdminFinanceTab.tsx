@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useRealtimeTable } from "@/contexts/RealtimeContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -129,27 +130,18 @@ export function AdminFinanceTab() {
 
   useEffect(() => {
     fetchData();
-
-    // Realtime subscription for team balance updates
-    const channel = supabase
-      .channel("admin-finance-balance")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "teams" },
-        (payload) => {
-          setTeams(prev => prev.map(team =>
-            team.id === payload.new.id
-              ? { ...team, balance: payload.new.balance }
-              : team
-          ));
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
+
+  // Use shared RealtimeContext channel for team balance updates
+  useRealtimeTable("teams", useCallback((event) => {
+    if (event.eventType === "UPDATE" && event.new) {
+      setTeams(prev => prev.map(team =>
+        team.id === (event.new as any).id
+          ? { ...team, balance: (event.new as any).balance }
+          : team
+      ));
+    }
+  }, []), []);
 
   const fetchData = async () => {
     setLoading(true);
