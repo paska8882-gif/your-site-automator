@@ -189,7 +189,6 @@ interface SingleHistoryItemProps {
   onAppeal: (item: HistoryItem) => void;
   onPhpPreview?: (item: HistoryItem) => void;
   onCancel: (item: HistoryItem) => void;
-  onRetry: (item: HistoryItem) => void;
   onSelectFile: (file: GeneratedFile) => void;
   onViewModeChange: (mode: "preview" | "code") => void;
   getAppeal: (itemId: string) => Appeal | undefined;
@@ -214,7 +213,6 @@ function SingleHistoryItem({
   onAppeal,
   onPhpPreview,
   onCancel,
-  onRetry,
   onSelectFile,
   onViewModeChange,
   getAppeal,
@@ -491,35 +489,6 @@ function SingleHistoryItem({
                         <TooltipContent side="bottom" className="max-w-xs">
                           <p className="text-xs font-medium mb-1">Причина помилки:</p>
                           <p className="text-xs text-muted-foreground break-words">{item.error_message}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-                  {(item.retry_count ?? 0) < 1 ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-primary hover:text-primary"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onRetry(item);
-                      }}
-                      title={item.error_message ? `Повторити: ${item.error_message.substring(0, 50)}...` : "Повторити генерацію"}
-                    >
-                      <RefreshCw className="h-4 w-4 mr-1" />
-                      Retry
-                    </Button>
-                  ) : (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="h-7 px-2 text-xs text-muted-foreground flex items-center gap-1 cursor-default">
-                            <RefreshCw className="h-3 w-3" />
-                            Retry використано
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" className="max-w-xs">
-                          <p className="text-xs">Ліміт retry вичерпано. Створіть нову генерацію.</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -843,89 +812,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all", comp
   // Download loading state
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
 
-  // Retry failed generation handler - uses retryHistoryId to update existing record
-  const handleRetryGeneration = useCallback(async (itemId: string) => {
-    const item = history.find(i => i.id === itemId);
-    if (!item) return;
-
-    toast({
-      title: "Повторна генерація",
-      description: `Перегенеруємо "${item.site_name || 'сайт'}"...`,
-    });
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error("Необхідна авторизація");
-      }
-
-      // Get user's team for pricing
-      const { data: teamMember } = await supabase
-        .from("team_members")
-        .select("team_id")
-        .eq("user_id", session.user.id)
-        .eq("status", "approved")
-        .maybeSingle();
-
-      const functionName = item.website_type === "react" 
-        ? "generate-react-website" 
-        : item.website_type === "php" 
-          ? "generate-php-website" 
-          : "generate-website";
-
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          prompt: item.prompt,
-          language: item.language,
-          aiModel: item.ai_model || "senior",
-          siteName: item.site_name,
-          imageSource: item.image_source || "basic",
-          teamId: teamMember?.team_id,
-          geo: item.geo,
-          retryHistoryId: item.id, // Pass existing record ID for in-place retry
-          colorScheme: item.color_scheme,
-          layoutStyle: item.layout_style,
-          improvedPrompt: item.improved_prompt,
-          vipPrompt: item.vip_prompt,
-        }),
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(errText || `HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.success) {
-        toast({
-          title: "Генерацію перезапущено",
-          description: "Повторна генерація почалась. Слідкуйте за прогресом.",
-        });
-        // The existing record will be updated via realtime, no need to refetch
-      } else {
-        throw new Error(data.error || "Помилка генерації");
-      }
-    } catch (error) {
-      console.error("Retry error:", error);
-      toast({
-        title: "Помилка retry",
-        description: error instanceof Error ? error.message : "Невідома помилка",
-        variant: "destructive",
-      });
-    }
-  }, [history, toast]);
-
-  // Manual retry handler only - no auto-retry
-  const handleRetry = useCallback((item: HistoryItem) => {
-    handleRetryGeneration(item.id);
-  }, [handleRetryGeneration]);
+  // Stale generation cleanup is handled by the server-side cron job every 30 minutes.
 
   // Stale generation cleanup is handled by the server-side cron job every 30 minutes.
   // No frontend duplicate needed.

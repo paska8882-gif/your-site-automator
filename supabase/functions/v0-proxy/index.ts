@@ -156,33 +156,24 @@ function fixFilesForNetlify(files: { path: string; content: string }[]): { path:
   return fixedFiles;
 }
 
-// Helper function for fetch with retry logic
-async function fetchWithRetry(
+// Simple fetch with timeout - single attempt, no retries
+async function fetchWithTimeout(
   url: string,
   options: RequestInit,
-  maxRetries: number = 3,
-  delayMs: number = 2000
+  timeoutMs = 90000,
 ): Promise<Response> {
-  let lastError: Error | null = null;
-  
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`[v0-proxy] Fetch attempt ${attempt}/${maxRetries} for ${url.substring(0, 50)}...`);
-      const response = await fetch(url, options);
-      return response;
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      console.error(`[v0-proxy] Attempt ${attempt} failed:`, lastError.message);
-      
-      if (attempt < maxRetries) {
-        console.log(`[v0-proxy] Waiting ${delayMs}ms before retry...`);
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-        delayMs *= 1.5; // Exponential backoff
-      }
-    }
+  console.log(`[v0-proxy] Fetch (timeout: ${timeoutMs / 1000}s) for ${url.substring(0, 50)}...`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeoutId);
+    console.log(`[v0-proxy] Fetch successful, status: ${response.status}`);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
   }
-  
-  throw lastError || new Error("All fetch attempts failed");
 }
 
 async function runV0Generation(
@@ -198,7 +189,7 @@ async function runV0Generation(
     
     // Step 1: Create a new chat on v0.dev with retry
     console.log("[v0-proxy] Creating new chat on v0.dev...");
-    const createResponse = await fetchWithRetry(
+    const createResponse = await fetchWithTimeout(
       "https://api.v0.dev/v1/chats",
       {
         method: "POST",
@@ -212,8 +203,7 @@ async function runV0Generation(
           responseMode: "sync",
         }),
       },
-      3,
-      2000
+      120000
     );
 
     if (!createResponse.ok) {
@@ -236,7 +226,7 @@ async function runV0Generation(
     console.log("[v0-proxy] Downloading ZIP from v0.dev...");
     const downloadUrl = `https://api.v0.dev/v1/chats/${chatId}/versions/${versionId}/download?format=zip&includeDefaultFiles=true`;
     
-    const downloadResponse = await fetchWithRetry(
+    const downloadResponse = await fetchWithTimeout(
       downloadUrl,
       {
         method: "GET",
@@ -245,8 +235,7 @@ async function runV0Generation(
         "Content-Type": "application/json",
       },
     },
-    3,
-    2000
+    120000
   );
 
     if (!downloadResponse.ok) {

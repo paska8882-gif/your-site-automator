@@ -6160,60 +6160,19 @@ Generate complete, working code. No placeholders.${strictFormatBlock}`;
     }
   };
 
-  // 4. Generate the PHP website (retry on JSON errors or incomplete files)
-  let first = await generateOnce({ strictFormat: false });
-
-  // Auto-retry once on invalid JSON error
-  if (!first.ok && first.error?.includes("invalid JSON")) {
-    console.warn("Retrying PHP generation due to invalid JSON response...");
-    first = await generateOnce({ strictFormat: false });
-  }
+  // 4. Generate the PHP website (single attempt, no retries)
+  const first = await generateOnce({ strictFormat: false });
 
   if (!first.ok) return { success: false, error: first.error };
 
   let files = first.files;
   let generateCost = first.generateCost;
 
-  // If model returned something parseable but incomplete/empty-ish, retry once with stricter format.
+  // Validate files
   const v1 = validateFiles(files);
-  let retryAttempted = false;
-  let retryError: string | null = null;
-  
-  if (files.length === 0 || v1.missing.length > 0 || v1.tooShort.length > 0) {
-    console.warn(
-      `PHP generation invalid on attempt #1. Files: ${files.length}, Missing: ${v1.missing.join(", ")}; Too short: ${v1.tooShort.join(", ")}`
-    );
-    retryAttempted = true;
-
-    try {
-      // Retry with reasonable timeout (90s) and strict format
-      const second = await generateOnce({ strictFormat: true, timeoutMs: 90_000 });
-      if (second.ok) {
-        const v2 = validateFiles(second.files);
-        console.log(`Retry attempt result: ${second.files.length} files, Missing: ${v2.missing.join(", ")}, Too short: ${v2.tooShort.join(", ")}`);
-        
-        // Use second result if it's better (more files or fewer issues)
-        if (second.files.length > files.length || 
-            (v2.missing.length < v1.missing.length) || 
-            (v2.missing.length === 0 && v2.tooShort.length === 0)) {
-          files = second.files;
-          generateCost = second.generateCost;
-          console.log(`Using retry result: ${files.length} files`);
-        } else {
-          console.log(`Keeping first result as it's not worse: ${files.length} files`);
-        }
-      } else {
-        retryError = second.error || "Retry failed";
-        console.error(`Retry failed: ${retryError}`);
-      }
-    } catch (retryErr) {
-      retryError = retryErr instanceof Error ? retryErr.message : "Retry exception";
-      console.error(`Retry exception: ${retryError}`);
-    }
-  }
 
   // Graceful degradation: accept results with minor issues (reduced requirements for speed)
-  const finalValidation = validateFiles(files);
+  const finalValidation = v1;
   const criticalFiles = ["index.php", "includes/header.php", "includes/footer.php"];
   const missingCritical = finalValidation.missing.filter(f => criticalFiles.includes(f));
   
@@ -6223,7 +6182,7 @@ Generate complete, working code. No placeholders.${strictFormatBlock}`;
   );
 
   if (files.length === 0) {
-    return { success: false, error: `Failed to parse generated files${retryAttempted ? ` (retry also failed: ${retryError})` : ""}` };
+    return { success: false, error: "Failed to parse generated files" };
   }
 
   // If we have 5+ files and no critical files missing, accept with warning (relaxed for speed)
@@ -6236,7 +6195,7 @@ Generate complete, working code. No placeholders.${strictFormatBlock}`;
     // Continue with partial result
   } else if (missingCritical.length > 0 || files.length < 4) {
     // Only fail if critical files are missing or very few files generated (relaxed threshold)
-    console.error(`Final validation failed after ${retryAttempted ? "retry" : "first attempt"}:`);
+    console.error(`Final validation failed:`);
     console.error(`- Files generated: ${files.length} (${files.map(f => f.path).join(", ")})`);
     console.error(`- Missing critical: ${missingCritical.join(", ")}`);
     console.error(`- Missing all: ${finalValidation.missing.join(", ")}`);
@@ -7326,48 +7285,22 @@ serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "");
     
-    // Read body first to check for retryHistoryId (needed for service key auth bypass)
     const body = await req.json();
-    const { prompt, originalPrompt, improvedPrompt, vipPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, retryHistoryId, colorScheme } = body;
+    const { prompt, originalPrompt, improvedPrompt, vipPrompt, language, aiModel = "senior", layoutStyle, siteName, imageSource = "basic", teamId: overrideTeamId, geo, colorScheme } = body;
 
-    // Determine userId - either from JWT or from DB for retry requests
+    // JWT AUTH: Validate using getClaims
     let userId: string;
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
     
-    // Check if this is a retry request from cleanup-stale-generations using SERVICE_ROLE_KEY
-    if (retryHistoryId && token === supabaseKey) {
-      // SERVICE KEY AUTH: Get userId from existing generation_history record
-      console.log("🔄 Retry mode detected with service key for:", retryHistoryId);
-      
-      const { data: existingRecord, error: fetchError } = await supabase
-        .from("generation_history")
-        .select("user_id")
-        .eq("id", retryHistoryId)
-        .single();
-      
-      if (fetchError || !existingRecord?.user_id) {
-        console.error("Failed to find retry record:", fetchError);
-        return new Response(JSON.stringify({ success: false, error: "Retry record not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      
-      userId = existingRecord.user_id;
-      console.log("🔄 Retry mode: userId from DB:", userId);
-    } else {
-      // NORMAL JWT AUTH: Validate using getClaims
-      const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-      
-      if (claimsError || !claimsData?.claims) {
-        console.error("JWT validation failed:", claimsError);
-        return new Response(JSON.stringify({ success: false, error: "Invalid token" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      userId = claimsData.claims.sub as string;
+    if (claimsError || !claimsData?.claims) {
+      console.error("JWT validation failed:", claimsError);
+      return new Response(JSON.stringify({ success: false, error: "Invalid token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+
+    userId = claimsData.claims.sub as string;
     
     console.log("Authenticated PHP generation request from user:", userId);
 
@@ -7404,12 +7337,11 @@ serve(async (req) => {
     // ============ END MAINTENANCE CHECK ============
 
     // Build prompt with language and geo context if provided
-    // Priority for retry: vipPrompt > improvedPrompt > prompt (same as startGeneration)
     let promptForGeneration = vipPrompt || improvedPrompt || prompt;
     
     // Log which prompt source is being used (for admin debugging)
     const promptSource = vipPrompt ? "VIP" : improvedPrompt ? "AI+" : "original";
-    console.log(`📝 [PHP] Prompt source: ${promptSource}${retryHistoryId ? " (RETRY)" : ""}`);
+    console.log(`📝 [PHP] Prompt source: ${promptSource}`);
     console.log(`   - vipPrompt: ${vipPrompt ? "YES (" + vipPrompt.length + " chars)" : "NO"}`);
     console.log(`   - improvedPrompt: ${improvedPrompt ? "YES (" + improvedPrompt.length + " chars)" : "NO"}`);
     console.log(`   - colorScheme: ${colorScheme || "random"}, layoutStyle: ${layoutStyle || "none"}`);
@@ -7585,129 +7517,48 @@ ${promptForGeneration}`;
       }
     }
 
-    // Handle retry: update existing record OR create new one
+    // Create NEW history entry
     let historyId: string;
-    
-    // Effective params to use for generation (may differ from body params on retry)
-    let effectiveColorScheme = colorScheme || null;
-    let effectiveLayoutStyle = layoutStyle || null;
-    
-    if (retryHistoryId) {
-      // RETRY MODE: Update existing failed record instead of creating new one
-      console.log(`🔄 RETRY MODE: Updating existing PHP record ${retryHistoryId}`);
-      
-      const { data: existingRecord, error: fetchError } = await supabase
-        .from("generation_history")
-        .select("id, status, user_id, color_scheme, layout_style, improved_prompt, vip_prompt")
-        .eq("id", retryHistoryId)
-        .single();
-      
-      if (fetchError || !existingRecord) {
-        console.error("Failed to find retry record:", fetchError);
-        if (teamId && salePrice > 0) {
-          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
-          if (team) {
-            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
-          }
-        }
-        return new Response(JSON.stringify({ success: false, error: "Retry record not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      
-      if (existingRecord.user_id !== userId) {
-        if (teamId && salePrice > 0) {
-          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
-          if (team) {
-            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
-          }
-        }
-        return new Response(JSON.stringify({ success: false, error: "Unauthorized retry" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      
-      // Compute EFFECTIVE values for retry (prefer body param, fallback to existing record)
-      effectiveColorScheme = colorScheme || existingRecord.color_scheme || null;
-      effectiveLayoutStyle = layoutStyle || existingRecord.layout_style || null;
-      const effectiveImprovedPrompt = improvedPrompt || existingRecord.improved_prompt || null;
-      const effectiveVipPrompt = vipPrompt || existingRecord.vip_prompt || null;
-      
-      console.log(`🎨 RETRY effective params: colorScheme=${effectiveColorScheme}, layoutStyle=${effectiveLayoutStyle}, hasImprovedPrompt=${!!effectiveImprovedPrompt}, hasVipPrompt=${!!effectiveVipPrompt}`);
-      
-      const { error: updateError } = await supabase
-        .from("generation_history")
-        .update({
-          status: "pending",
-          error_message: null,
-          files_data: null,
-          zip_data: null,
-          completed_at: null,
-          sale_price: salePrice,
-          color_scheme: effectiveColorScheme,
-          layout_style: effectiveLayoutStyle,
-          improved_prompt: effectiveImprovedPrompt,
-          vip_prompt: effectiveVipPrompt,
-        })
-        .eq("id", retryHistoryId);
-      
-      if (updateError) {
-        console.error("Failed to update retry record:", updateError);
-        if (teamId && salePrice > 0) {
-          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
-          if (team) {
-            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
-          }
-        }
-        return new Response(JSON.stringify({ success: false, error: "Failed to start retry" }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      
-      historyId = retryHistoryId;
-      console.log(`🔄 Updated existing record for PHP retry: ${retryHistoryId} with colorScheme=${effectiveColorScheme}, layoutStyle=${effectiveLayoutStyle}`);
-    } else {
-      const { data: historyEntry, error: insertError } = await supabase
-        .from("generation_history")
-        .insert({
-          prompt: promptToSave,
-          improved_prompt: improvedPromptToSave,
-          vip_prompt: vipPrompt || null,
-          language: language || "auto",
-          user_id: userId,
-          team_id: teamId || null,
-          status: "pending",
-          ai_model: aiModel,
-          website_type: "php",
-          site_name: siteName || null,
-          image_source: imageSource || "basic",
-          sale_price: salePrice,
-          geo: geo || null,
-          color_scheme: effectiveColorScheme,
-          layout_style: effectiveLayoutStyle,
-        })
-        .select()
-        .single();
+    const effectiveColorScheme = colorScheme || null;
+    const effectiveLayoutStyle = layoutStyle || null;
 
-      if (insertError || !historyEntry) {
-        console.error("Failed to create history entry:", insertError);
-        if (teamId && salePrice > 0) {
-          const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
-          if (team) {
-            await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
-          }
+    const { data: historyEntry, error: insertError } = await supabase
+      .from("generation_history")
+      .insert({
+        prompt: promptToSave,
+        improved_prompt: improvedPromptToSave,
+        vip_prompt: vipPrompt || null,
+        language: language || "auto",
+        user_id: userId,
+        team_id: teamId || null,
+        status: "pending",
+        ai_model: aiModel,
+        website_type: "php",
+        site_name: siteName || null,
+        image_source: imageSource || "basic",
+        sale_price: salePrice,
+        geo: geo || null,
+        color_scheme: effectiveColorScheme,
+        layout_style: effectiveLayoutStyle,
+      })
+      .select()
+      .single();
+
+    if (insertError || !historyEntry) {
+      console.error("Failed to create history entry:", insertError);
+      if (teamId && salePrice > 0) {
+        const { data: team } = await supabase.from("teams").select("balance").eq("id", teamId).single();
+        if (team) {
+          await supabase.from("teams").update({ balance: (team.balance || 0) + salePrice }).eq("id", teamId);
         }
-        return new Response(JSON.stringify({ success: false, error: "Failed to start generation" }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
       }
-      
-      historyId = historyEntry.id;
+      return new Response(JSON.stringify({ success: false, error: "Failed to start generation" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+    
+    historyId = historyEntry.id;
     
     console.log("Using PHP history entry:", historyId);
 
