@@ -1,123 +1,103 @@
 
-## Контрольная проверка: взаимодействие пользователей с UI
 
-### Результат: всё ОК, одна проблема требует исправления
+## Повне видалення всіх ретраїв із системи
 
----
+### Що буде видалено
 
-### Что проверено
-
-Полный аудит каждого хука и компонента с периодическими запросами, Realtime-подписками и polling.
+Знайдено **6 місць** де є retry-логіка. Кожне буде прибрано або замінено на одноразовий виклик.
 
 ---
 
-### ПРОБЛЕМА: `useBackendHealth` — баг с бесконечной перезагрузкой интервала
+### 1. Edge Functions: `fetchWithRetry` -> `fetchWithTimeout` (3 файли)
 
-**Серьёзность: СРЕДНЯЯ** — не Edge Function вызов, но при каждой успешной проверке создаётся новый `setInterval`.
+**Файли:**
+- `supabase/functions/generate-website/index.ts`
+- `supabase/functions/generate-react-website/index.ts`
+- `supabase/functions/v0-proxy/index.ts`
 
-Суть бага:
-```typescript
-// Строка 149 useBackendHealth.ts:
-const check = useCallback(async (isManualRetry = false) => {
-  // ...
-  if (state.consecutiveFailures > 0) { ... } // <- читает state
-}, [initialTimeoutMs, maxRetries, getBackoffDelay, state.consecutiveFailures, state.lastErrorAt]);
-//                                                  ^^^^ зависит от state
+**Зміна:** Замінити `fetchWithRetry` на простий `fetchWithTimeout` — один виклик з таймаутом, без циклу спроб, без backoff. Якщо впав — одразу помилка.
 
-useEffect(() => {
-  check();
-  intervalRef.current = setInterval(() => check(), baseIntervalMs);
-  // ...
-}, [check, baseIntervalMs]); // <- check меняется при каждом setState -> интервал сбрасывается
+```text
+БУЛО:  fetchWithRetry(url, opts, maxRetries=2, baseDelay=1500, timeout=90000)
+       -> цикл з 2 спробами + exponential backoff
+
+СТАНЕ: fetchWithTimeout(url, opts, timeoutMs=90000)
+       -> один fetch з AbortController, без повторів
 ```
 
-При каждом пинге: `check()` → `setState({consecutiveFailures: 0})` → `check` пересоздаётся → `useEffect` срабатывает → `clearInterval` + новый `setInterval`. По факту интервал всегда "10 минут с момента предыдущего успешного вызова", а не фиксированные 10 минут. При нормальной работе backend — разница несущественна. Но при проблемах (частые `consecutiveFailures`) — интервал перезапускается агрессивно.
+---
 
-**Исправление**: убрать `state.consecutiveFailures` и `state.lastErrorAt` из зависимостей `check`, читать их через `setState(prev => ...)` паттерн.
+### 2. PHP generation: подвійна генерація при невалідному JSON (1 файл)
+
+**Файл:** `supabase/functions/generate-php-website/index.ts`
+
+**Зміна:** Прибрати автоматичну повторну генерацію при "invalid JSON" (рядки ~6166-6169) та повторну генерацію з "strictFormat" при неповних файлах (рядки ~6177-6213). Одна спроба — якщо результат поганий, повертаємо помилку.
 
 ---
 
-### Всё остальное — в порядке
+### 3. Frontend: кнопка Retry у GenerationHistory (1 файл)
 
-| Компонент/Хук | Тип | Частота | Статус |
-|---|---|---|---|
-| `RealtimeContext` | WS-соединение | Постоянное (2 канала) | OK — Realtime, не polling |
-| `useNotifications` | useQuery | Нет polling, только Realtime | OK |
-| `useTaskIndicators` | Realtime trigger | Только при событии admin_tasks | OK |
-| `usePendingAppeals` | Realtime trigger | Только при событии appeals | OK |
-| `usePendingManualRequests` | Realtime trigger | Только при событии generation_history | OK |
-| `usePendingUsers` | Realtime trigger | Только при событии team_members | OK |
-| `UserDataContext` | useQuery | staleTime 5 мин, без polling | OK |
-| `useBalanceData` | useQuery | staleTime 5 мин, без polling | OK |
-| `useBalanceRequests` | useQuery | staleTime 2 мин, без polling | OK |
-| `useSpends` | useQuery | staleTime 5 мин, без polling | OK |
-| `useGenerationHistory` | Realtime + fallback poll | fallback 15с — только если Realtime down | OK |
-| `AdminSystemMonitor` | setInterval | 5 минут — простой SELECT | OK |
-| `ManualRequestsTab` | refetchInterval | 3 минуты (только что исправлено) | OK |
-| `AdminBalanceRequestsTab` | Realtime channel | Только при событии | OK — прямой канал, корректно |
-| `AdminSupportTab` | Realtime channel | Только при событии | OK — прямой канал, корректно |
-| `SupportChat` | Realtime channel | Только при открытом чате | OK — закрывается при unmount |
-| `AiEditorTab` | Realtime channel | Только при активном jobId | OK — отписывается при завершении |
-| `useBackendHealth` | setInterval | 10 минут (но с багом перезапуска) | ИСПРАВИТЬ |
-| `useAutoRetry` | setInterval | UI countdown, не вызывает API | OK |
-| `WebsiteGenerator` fetchActiveGenerations | setInterval | 5 минут (safety fallback) | OK |
-| `EditChat.tsx` timer | setInterval | UI таймер отображения времени | OK — не вызывает API |
+**Файл:** `src/components/GenerationHistory.tsx`
+
+**Зміна:** Повністю прибрати:
+- `handleRetryGeneration` функцію (рядки 846-923)
+- `handleRetry` обгортку (рядки 925-928)
+- Кнопку "Retry" у UI (рядок ~498-510)
+- Передачу `onRetry` в дочірні компоненти
 
 ---
 
-### AdminBalanceRequestsTab и AdminSupportTab — отдельные Realtime каналы
+### 4. Frontend: хук `useAutoRetry` (1 файл)
 
-Эти два компонента создают **собственные** Realtime каналы вне `RealtimeContext`:
+**Файл:** `src/hooks/useAutoRetry.ts`
 
-- `AdminBalanceRequestsTab` → `channel("admin-balance-requests")` — слушает `balance_requests`
-- `AdminSupportTab` → `channel("admin-conversations")` + `channel("admin-messages-*")` — слушают `support_conversations` и `support_messages`
-
-Это **нормально**: `support_conversations` и `support_messages` не добавлены в `RealtimeContext` (они специфичны только для этих компонент). Каналы правильно удаляются через `return () => supabase.removeChannel(channel)`. Никакой утечки нет.
+**Зміна:** Видалити файл повністю. Він вже не використовується активно (auto-retry disabled), але сам хук існує.
 
 ---
 
-### Что исправить
+### 5. Edge Functions: `retryHistoryId` логіка (3 файли)
 
-**Только одно: исправить `useBackendHealth` dependency bug**
+**Файли:**
+- `supabase/functions/generate-website/index.ts`
+- `supabase/functions/generate-react-website/index.ts`
+- `supabase/functions/generate-php-website/index.ts`
 
-Убрать `state.consecutiveFailures` и `state.lastErrorAt` из зависимостей `useCallback`, читать их через `setState(prev => prev.consecutiveFailures)` — это позволит `check` стать стабильной функцией без лишних пересозданий. Эффект: `setInterval` будет реально работать с фиксированным 10-минутным интервалом, а не перезапускаться при каждом вызове.
-
-**Конкретное изменение в `src/hooks/useBackendHealth.ts`**:
-
-```typescript
-// БЫЛО — читает state напрямую в теле функции:
-const check = useCallback(async (isManualRetry = false) => {
-  // ...
-  if (state.consecutiveFailures > 0) { // <- проблема
-    logHealthEvent("backend_recovered", {
-      previousFailures: state.consecutiveFailures,
-      downtime: state.lastErrorAt ? Date.now() - state.lastErrorAt : null,
-    });
-  }
-  // ...
-}, [initialTimeoutMs, maxRetries, getBackoffDelay, state.consecutiveFailures, state.lastErrorAt]);
-
-// СТАНЕТ — использует ref для чтения state без добавления в deps:
-const stateRef = useRef(state);
-useEffect(() => { stateRef.current = state; }, [state]);
-
-const check = useCallback(async (isManualRetry = false) => {
-  // ...
-  const currentState = stateRef.current;
-  if (currentState.consecutiveFailures > 0) {
-    logHealthEvent("backend_recovered", {
-      previousFailures: currentState.consecutiveFailures,
-      downtime: currentState.lastErrorAt ? Date.now() - currentState.lastErrorAt : null,
-    });
-  }
-  // ...
-}, [initialTimeoutMs, maxRetries, getBackoffDelay]); // стабильные deps
-```
-
-Эффект: `check` больше не пересоздаётся при каждом setState → `useEffect` не перезапускается → `setInterval` работает стабильно ровно каждые 10 минут.
+**Зміна:** Прибрати всю гілку `if (retryHistoryId)` — service key auth bypass для retry, update existing record замість create new, тощо. Кожна генерація = новий запис. Retry більше не існує.
 
 ---
 
-### Итог
+### 6. Cleanup cron: retry references
 
-Система в целом чистая. Realtime-архитектура работает правильно — вся мгновенная реактивность идёт через WebSocket без polling. Все query-кеши настроены с разумными `staleTime`. Единственный реальный баг — `useBackendHealth` с нестабильным интервалом, который нужно исправить через `stateRef` паттерн.
+**Файл:** `supabase/functions/cleanup-stale-generations/index.ts`
+
+**Зміна:** Прибрати `retryCount` парсинг з `admin_note` та згадки retry у повідомленнях апеляцій.
+
+---
+
+### 7. UI: фінансова таблиця retry_count (читання)
+
+**Файл:** `src/components/AdminFinanceTab.tsx`
+
+**Зміна:** Прибрати стовпець "Retry" з таблиці та відповідні підрахунки `totalRetries`.
+
+---
+
+### Що НЕ чіпаємо
+
+- Колонку `retry_count` в базі даних — залишаємо для історичних даних, просто перестаємо її використовувати
+- `BackendStatusBanner` з кнопкою "Повторити" для перевірки здоров'я backend — це не retry генерації, це перевірка з'єднання
+- Переклади `retry` в `ru.ts` — неактивний код, прибереться природним шляхом
+
+---
+
+### Порядок змін
+
+1. Замінити `fetchWithRetry` на `fetchWithTimeout` у 3 edge functions
+2. Прибрати PHP auto-retry логіку
+3. Прибрати `retryHistoryId` гілки у 3 edge functions
+4. Прибрати retry references з cleanup cron
+5. Прибрати кнопку Retry та хендлери з GenerationHistory
+6. Видалити `useAutoRetry.ts`
+7. Прибрати стовпець Retry з AdminFinanceTab
+8. Задеплоїти оновлені edge functions
+
