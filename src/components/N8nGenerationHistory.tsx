@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Loader2, Eye, Clock, CheckCircle2, XCircle, Bot, FileCode2, RefreshCw, Download, Pencil, AlertTriangle, Upload } from "lucide-react";
+import { Loader2, Eye, Clock, CheckCircle2, XCircle, Bot, FileCode2, RefreshCw, Download, Pencil, AlertTriangle, Upload, Ban } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { SimplePreview } from "./SimplePreview";
 import { GeneratedFile } from "@/lib/websiteGenerator";
@@ -68,6 +68,7 @@ export function N8nGenerationHistory() {
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [botFilter, setBotFilter] = useState<string>("all");
   
   // Appeal state
@@ -280,6 +281,52 @@ export function N8nGenerationHistory() {
     navigate(`/edit/${item.id}`);
   };
 
+  const handleCancel = async (item: HistoryItem) => {
+    setCancellingId(item.id);
+    try {
+      const { error } = await supabase
+        .from("generation_history")
+        .update({ 
+          status: "failed", 
+          error_message: "Скасовано адміністратором вручну" 
+        })
+        .eq("id", item.id);
+
+      if (error) throw error;
+
+      // Refund balance if team pricing was applied
+      if (item.sale_price && item.team_id) {
+        const { data: team } = await supabase
+          .from("teams")
+          .select("balance")
+          .eq("id", item.team_id)
+          .single();
+
+        if (team) {
+          await supabase
+            .from("teams")
+            .update({ balance: team.balance + item.sale_price })
+            .eq("id", item.team_id);
+        }
+      }
+
+      toast({
+        title: "Генерацію скасовано",
+        description: item.sale_price ? `Повернено $${item.sale_price.toFixed(2)} на баланс` : undefined,
+      });
+      fetchHistory();
+    } catch (error) {
+      console.error("Cancel error:", error);
+      toast({
+        title: "Помилка",
+        description: "Не вдалося скасувати генерацію",
+        variant: "destructive",
+      });
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
   const handleAppealOpen = (item: HistoryItem) => {
     setAppealItem(item);
     setAppealReason("");
@@ -438,6 +485,29 @@ export function N8nGenerationHistory() {
                       </div>
 
                       <div className="flex items-center gap-0.5 shrink-0">
+                        {/* Cancel button for active generations */}
+                        {(item.status === "pending" || item.status === "generating") && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-destructive hover:text-destructive"
+                                  onClick={() => handleCancel(item)}
+                                  disabled={cancellingId === item.id}
+                                >
+                                  {cancellingId === item.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Ban className="h-3.5 w-3.5" />
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Скасувати генерацію</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
