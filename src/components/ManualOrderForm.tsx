@@ -683,7 +683,7 @@ export function ManualOrderForm() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Оберіть команду для замовлення</CardTitle>
+          <CardTitle className="text-lg">{t("manualOrderForm.selectTeamForOrder")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
