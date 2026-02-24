@@ -1048,7 +1048,7 @@ export function ManualOrderForm() {
             <div className="p-3 border border-blue-500/50 bg-blue-500/5 rounded-lg space-y-3">
               <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
                 <Languages className="h-4 w-4" />
-                <span className="text-sm font-medium">Оберіть дві мови</span>
+                <span className="text-sm font-medium">{t("manualOrderForm.selectTwoLanguages")}</span>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
