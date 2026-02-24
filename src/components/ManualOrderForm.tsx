@@ -582,7 +582,7 @@ export function ManualOrderForm() {
     }
 
     if (insufficientBalance) {
-      toast({ title: t("common.error"), description: "Недостатній баланс", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("manualOrderForm.insufficientBalance"), variant: "destructive" });
       return;
     }
 
