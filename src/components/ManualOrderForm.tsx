@@ -1038,7 +1038,7 @@ export function ManualOrderForm() {
               className={`h-7 text-xs px-2 ${isBilingualMode ? "bg-blue-500 hover:bg-blue-600" : ""}`}
             >
               <Languages className="mr-1 h-3 w-3" />
-              Двомовний сайт
+              {t("manualOrderForm.bilingualSite")}
               {isBilingualMode && <span className="ml-1">✓</span>}
             </Button>
           </div>
