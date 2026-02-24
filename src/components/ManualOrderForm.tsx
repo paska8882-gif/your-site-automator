@@ -790,7 +790,7 @@ export function ManualOrderForm() {
             <Textarea
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
-              placeholder="Опишіть сайт, який потрібно створити..."
+              placeholder={t("manualOrderForm.descriptionPlaceholder")}
               rows={4}
               className="resize-none text-sm"
             />
