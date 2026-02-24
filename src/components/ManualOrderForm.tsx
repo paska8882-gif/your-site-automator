@@ -754,7 +754,7 @@ export function ManualOrderForm() {
           {/* Site names */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">
-              Назви сайтів <span className="text-destructive">*</span>
+              {t("manualOrderForm.siteNames")} <span className="text-destructive">*</span>
             </Label>
             <div className="flex gap-2">
               <Input
