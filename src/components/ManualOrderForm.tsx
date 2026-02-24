@@ -843,7 +843,7 @@ export function ManualOrderForm() {
                     setSelectedGeo("");
                   }}
                 >
-                  ✏️ Своє значення
+                  ✏️ {t("manualOrderForm.customValue")}
                 </button>
                 {isOtherGeoSelected && (
                   <Input
