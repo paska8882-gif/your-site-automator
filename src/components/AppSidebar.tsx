@@ -71,7 +71,7 @@ import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
 
 const getMainNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.generator"), url: "/", icon: Sparkles },
-  { title: "Ручне замовлення", url: "/manual-order", icon: Hand },
+  { title: t("sidebar.manualOrder"), url: "/manual-order", icon: Hand },
   { title: t("sidebar.history"), url: "/history", icon: History },
   { title: t("sidebar.spends"), url: "/spends", icon: TrendingUp },
   { title: t("sidebar.balance"), url: "/balance", icon: Wallet },
