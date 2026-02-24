@@ -1001,7 +1001,7 @@ export function ManualOrderForm() {
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Тип сайту</Label>
+            <Label className="text-xs text-muted-foreground">{t("manualOrderForm.siteType")}</Label>
             <Select value={websiteType} onValueChange={v => setWebsiteType(v as typeof websiteType)}>
               <SelectTrigger className="h-9 text-xs">
                 <SelectValue />
