@@ -76,44 +76,44 @@ const GeoFlag = ({ value, size = 16 }: { value: string; size?: number }) => {
   return <img src={`https://flagcdn.com/w40/${iso}.png`} alt="" width={size} height={Math.round(size * 0.75)} className="inline-block shrink-0" style={{ borderRadius: 2 }} />;
 };
 
-const geoOptions = [
-  { value: "", label: "🌍 Не вибрано" },
-  { value: "uk", label: "🇬🇧 Великобританія" },
-  { value: "bg", label: "🇧🇬 Болгарія" },
-  { value: "be", label: "🇧🇪 Бельгія" },
-  { value: "vn", label: "🇻🇳 В'єтнам" },
-  { value: "gr", label: "🇬🇷 Греція" },
-  { value: "dk", label: "🇩🇰 Данія" },
-  { value: "ee", label: "🇪🇪 Естонія" },
-  { value: "id", label: "🇮🇩 Індонезія" },
-  { value: "in", label: "🇮🇳 Індія" },
-  { value: "ie", label: "🇮🇪 Ірландія" },
-  { value: "es", label: "🇪🇸 Іспанія" },
-  { value: "it", label: "🇮🇹 Італія" },
-  { value: "ca", label: "🇨🇦 Канада" },
-  { value: "lv", label: "🇱🇻 Латвія" },
-  { value: "lt", label: "🇱🇹 Литва" },
-  { value: "nl", label: "🇳🇱 Нідерланди" },
-  { value: "de", label: "🇩🇪 Німеччина" },
-  { value: "ae", label: "🇦🇪 ОАЕ" },
-  { value: "pl", label: "🇵🇱 Польща" },
-  { value: "pt", label: "🇵🇹 Португалія" },
-  { value: "ru", label: "🇷🇺 Росія" },
-  { value: "ro", label: "🇷🇴 Румунія" },
-  { value: "sk", label: "🇸🇰 Словаччина" },
-  { value: "si", label: "🇸🇮 Словенія" },
-  { value: "us", label: "🇺🇸 США" },
-  { value: "th", label: "🇹🇭 Таїланд" },
-  { value: "tr", label: "🇹🇷 Туреччина" },
-  { value: "ua", label: "🇺🇦 Україна" },
-  { value: "hu", label: "🇭🇺 Угорщина" },
-  { value: "fi", label: "🇫🇮 Фінляндія" },
-  { value: "fr", label: "🇫🇷 Франція" },
-  { value: "hr", label: "🇭🇷 Хорватія" },
-  { value: "cz", label: "🇨🇿 Чехія" },
-  { value: "se", label: "🇸🇪 Швеція" },
-  { value: "kz", label: "🇰🇿 Казахстан" },
-  { value: "jp", label: "🇯🇵 Японія" },
+const getGeoOptions = (t: (key: string) => string) => [
+  { value: "", label: "🌍 " + t("manualOrderForm.geoNotSelected") },
+  { value: "uk", label: "🇬🇧 " + t("manualOrderForm.geoUK") },
+  { value: "bg", label: "🇧🇬 " + t("manualOrderForm.geoBG") },
+  { value: "be", label: "🇧🇪 " + t("manualOrderForm.geoBE") },
+  { value: "vn", label: "🇻🇳 " + t("manualOrderForm.geoVN") },
+  { value: "gr", label: "🇬🇷 " + t("manualOrderForm.geoGR") },
+  { value: "dk", label: "🇩🇰 " + t("manualOrderForm.geoDK") },
+  { value: "ee", label: "🇪🇪 " + t("manualOrderForm.geoEE") },
+  { value: "id", label: "🇮🇩 " + t("manualOrderForm.geoID") },
+  { value: "in", label: "🇮🇳 " + t("manualOrderForm.geoIN") },
+  { value: "ie", label: "🇮🇪 " + t("manualOrderForm.geoIE") },
+  { value: "es", label: "🇪🇸 " + t("manualOrderForm.geoES") },
+  { value: "it", label: "🇮🇹 " + t("manualOrderForm.geoIT") },
+  { value: "ca", label: "🇨🇦 " + t("manualOrderForm.geoCA") },
+  { value: "lv", label: "🇱🇻 " + t("manualOrderForm.geoLV") },
+  { value: "lt", label: "🇱🇹 " + t("manualOrderForm.geoLT") },
+  { value: "nl", label: "🇳🇱 " + t("manualOrderForm.geoNL") },
+  { value: "de", label: "🇩🇪 " + t("manualOrderForm.geoDE") },
+  { value: "ae", label: "🇦🇪 " + t("manualOrderForm.geoAE") },
+  { value: "pl", label: "🇵🇱 " + t("manualOrderForm.geoPL") },
+  { value: "pt", label: "🇵🇹 " + t("manualOrderForm.geoPT") },
+  { value: "ru", label: "🇷🇺 " + t("manualOrderForm.geoRU") },
+  { value: "ro", label: "🇷🇴 " + t("manualOrderForm.geoRO") },
+  { value: "sk", label: "🇸🇰 " + t("manualOrderForm.geoSK") },
+  { value: "si", label: "🇸🇮 " + t("manualOrderForm.geoSI") },
+  { value: "us", label: "🇺🇸 " + t("manualOrderForm.geoUS") },
+  { value: "th", label: "🇹🇭 " + t("manualOrderForm.geoTH") },
+  { value: "tr", label: "🇹🇷 " + t("manualOrderForm.geoTR") },
+  { value: "ua", label: "🇺🇦 " + t("manualOrderForm.geoUA") },
+  { value: "hu", label: "🇭🇺 " + t("manualOrderForm.geoHU") },
+  { value: "fi", label: "🇫🇮 " + t("manualOrderForm.geoFI") },
+  { value: "fr", label: "🇫🇷 " + t("manualOrderForm.geoFR") },
+  { value: "hr", label: "🇭🇷 " + t("manualOrderForm.geoHR") },
+  { value: "cz", label: "🇨🇿 " + t("manualOrderForm.geoCZ") },
+  { value: "se", label: "🇸🇪 " + t("manualOrderForm.geoSE") },
+  { value: "kz", label: "🇰🇿 " + t("manualOrderForm.geoKZ") },
+  { value: "jp", label: "🇯🇵 " + t("manualOrderForm.geoJP") },
 ];
 
 const getGeoText = (label: string) => {
@@ -286,7 +286,7 @@ const fillRandomData = (
   const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
   
   // Random geo first (affects everything)
-  const geos = geoOptions.filter(g => g.value !== "");
+  const geos = getGeoOptions((k: string) => k).filter(g => g.value !== "");
   const geo = pick(geos);
   setSelectedGeo(geo.value);
   setIsOtherGeoSelected(false);
@@ -495,7 +495,7 @@ export function ManualOrderForm() {
     for (const file of files) {
       if (!file.type.startsWith("image/")) continue;
       if (file.size > MAX_FILE_SIZE) {
-        sonnerToast.error("Файл занадто великий (макс. 5MB)");
+        sonnerToast.error(t("manualOrderForm.fileTooLarge"));
         continue;
       }
       if (images.length >= MAX_IMAGES) break;
@@ -571,7 +571,7 @@ export function ManualOrderForm() {
     // Language validation
     if (isBilingualMode) {
       if (!bilingualLang1 || !bilingualLang2) {
-        toast({ title: t("common.error"), description: "Оберіть обидві мови для двомовного сайту", variant: "destructive" });
+        toast({ title: t("common.error"), description: t("manualOrderForm.selectBothLanguages"), variant: "destructive" });
         return;
       }
     } else {
@@ -582,7 +582,7 @@ export function ManualOrderForm() {
     }
 
     if (insufficientBalance) {
-      toast({ title: t("common.error"), description: "Недостатній баланс", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("manualOrderForm.insufficientBalance"), variant: "destructive" });
       return;
     }
 
@@ -641,8 +641,8 @@ export function ManualOrderForm() {
       }
 
       toast({
-        title: "✅ Замовлення відправлено",
-        description: `${names.length} сайт(ів) замовлено на суму $${totalPrice.toFixed(2)}`,
+        title: t("manualOrderForm.orderSent"),
+        description: t("manualOrderForm.orderSentDesc").replace("{count}", String(names.length)).replace("{total}", totalPrice.toFixed(2)),
       });
 
       // Reset form
@@ -661,7 +661,7 @@ export function ManualOrderForm() {
 
     } catch (error) {
       console.error("Manual order error:", error);
-      toast({ title: t("common.error"), description: "Помилка замовлення", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("manualOrderForm.orderError"), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -683,7 +683,7 @@ export function ManualOrderForm() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Оберіть команду для замовлення</CardTitle>
+          <CardTitle className="text-lg">{t("manualOrderForm.selectTeamForOrder")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -707,14 +707,14 @@ export function ManualOrderForm() {
   return (
     <div className="space-y-4">
       {isGenerationBlocked && (
-        <GenerationMaintenanceBanner message={generationMessage || maintenance.message || "Замовлення тимчасово недоступне"} />
+        <GenerationMaintenanceBanner message={generationMessage || maintenance.message || t("manualOrderForm.orderUnavailable")} />
       )}
 
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Hand className="h-5 w-5 text-purple-500" />
-            Замовити сайт вручну
+            {t("manualOrderForm.orderSiteManually")}
             {teamPricing && (
               <Badge variant="outline" className="ml-auto font-normal">
                 {teamPricing.teamName} · ${teamPricing.balance.toFixed(2)}
@@ -732,7 +732,7 @@ export function ManualOrderForm() {
                 onClick={() => setSelectedAdminTeamId("")}
                 className="text-xs text-muted-foreground"
               >
-                ← Змінити команду
+                ← {t("manualOrderForm.changeTeam").replace("← ", "")}
               </Button>
             )}
             <Button
@@ -747,14 +747,14 @@ export function ManualOrderForm() {
               className="h-7 text-xs px-3 ml-auto"
             >
               <Shuffle className="mr-1 h-3 w-3" />
-              🎲 Рандом
+              {t("manualOrderForm.random")}
             </Button>
           </div>
 
           {/* Site names */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">
-              Назви сайтів <span className="text-destructive">*</span>
+              {t("manualOrderForm.siteNames")} <span className="text-destructive">*</span>
             </Label>
             <div className="flex gap-2">
               <Input
@@ -785,12 +785,12 @@ export function ManualOrderForm() {
           {/* Description/Prompt */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">
-              Опис / ТЗ <span className="text-destructive">*</span>
+              {t("manualOrderForm.description")} <span className="text-destructive">*</span>
             </Label>
             <Textarea
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
-              placeholder="Опишіть сайт, який потрібно створити..."
+              placeholder={t("manualOrderForm.descriptionPlaceholder")}
               rows={4}
               className="resize-none text-sm"
             />
@@ -799,28 +799,28 @@ export function ManualOrderForm() {
           {/* Geo */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground flex items-center gap-1">
-              <MapPin className="h-3 w-3" /> Географія
+              <MapPin className="h-3 w-3" /> {t("manualOrderForm.geography")}
             </Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="w-full h-9 justify-between text-sm">
                   <span className="flex items-center gap-2">
                     {selectedGeo && <GeoFlag value={selectedGeo} />}
-                    {isOtherGeoSelected ? customGeo || "Своє значення" : 
-                      selectedGeo ? getGeoText(geoOptions.find(g => g.value === selectedGeo)?.label || "") : "Оберіть країну"}
+                    {isOtherGeoSelected ? customGeo || t("manualOrderForm.customValue") : 
+                      selectedGeo ? getGeoText(getGeoOptions(t).find(g => g.value === selectedGeo)?.label || "") : t("manualOrderForm.selectCountry")}
                   </span>
                   <ChevronDown className="h-4 w-4 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-64 p-2 max-h-64 overflow-y-auto">
                 <Input
-                  placeholder="Пошук..."
+                  placeholder={t("manualOrderForm.searchPlaceholder")}
                   value={geoSearch}
                   onChange={e => setGeoSearch(e.target.value)}
                   onKeyDown={e => e.stopPropagation()}
                   className="h-8 text-xs mb-2"
                 />
-                {geoOptions
+                {getGeoOptions(t)
                   .filter(g => !geoSearch || g.label.toLowerCase().includes(geoSearch.toLowerCase()))
                   .map(geo => (
                     <button
@@ -843,13 +843,13 @@ export function ManualOrderForm() {
                     setSelectedGeo("");
                   }}
                 >
-                  ✏️ Своє значення
+                  ✏️ {t("manualOrderForm.customValue")}
                 </button>
                 {isOtherGeoSelected && (
                   <Input
                     value={customGeo}
                     onChange={e => setCustomGeo(e.target.value)}
-                    placeholder="Введіть країну..."
+                    placeholder={t("manualOrderForm.enterCountry")}
                     className="h-8 text-xs mt-1"
                   />
                 )}
@@ -861,7 +861,7 @@ export function ManualOrderForm() {
           <div className="p-3 border border-amber-500/30 bg-amber-500/5 rounded-lg space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                <Crown className="h-3 w-3" /> Деталі сайту
+                <Crown className="h-3 w-3" /> {t("manualOrderForm.siteDetails")}
               </span>
               {(() => {
                 const hasAllFilled = vipDomain.trim() && vipAddress.trim() && vipPhone.trim() && vipTopic.trim() && vipKeywords.trim() && vipBannedWords.trim();
@@ -915,7 +915,7 @@ export function ManualOrderForm() {
                     className="h-6 text-xs px-2 text-amber-600 hover:text-amber-700"
                   >
                     <Shuffle className="h-3 w-3 mr-1" />
-                    🎲 Рандом
+                    {t("manualOrderForm.random")}
                   </Button>
                 ) : (
                   <Button
@@ -925,7 +925,7 @@ export function ManualOrderForm() {
                     className="h-6 text-xs px-2 text-amber-600 hover:text-amber-700"
                   >
                     <Plus className="h-3 w-3 mr-1" />
-                    Заповнити пусті
+                    {t("manualOrderForm.fillEmpty")}
                   </Button>
                 );
               })()}
@@ -933,7 +933,7 @@ export function ManualOrderForm() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs flex items-center gap-1">
-                  <Globe className="h-3 w-3" /> Домен
+                  <Globe className="h-3 w-3" /> {t("manualOrderForm.domain")}
                 </Label>
                 <Input
                   placeholder="example.com"
@@ -944,7 +944,7 @@ export function ManualOrderForm() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs flex items-center gap-1">
-                  <Building2 className="h-3 w-3" /> Адреса
+                  <Building2 className="h-3 w-3" /> {t("manualOrderForm.address")}
                 </Label>
                 <Input
                   placeholder="100 Main Street, City, Country"
@@ -955,7 +955,7 @@ export function ManualOrderForm() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs flex items-center gap-1">
-                  <Phone className="h-3 w-3" /> Телефон
+                  <Phone className="h-3 w-3" /> {t("manualOrderForm.phone")}
                 </Label>
                 <Input
                   placeholder="+1 (555) 123-4567"
@@ -966,7 +966,7 @@ export function ManualOrderForm() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs flex items-center gap-1">
-                  <Tag className="h-3 w-3" /> Тематика
+                  <Tag className="h-3 w-3" /> {t("manualOrderForm.topic")}
                 </Label>
                 <Input
                   placeholder="Dental Care, Law Services..."
@@ -978,7 +978,7 @@ export function ManualOrderForm() {
             </div>
             <div className="space-y-1">
               <Label className="text-xs flex items-center gap-1">
-                <Hash className="h-3 w-3" /> Ключові слова
+                <Hash className="h-3 w-3" /> {t("manualOrderForm.keywords")}
               </Label>
               <Input
                 placeholder="keyword1, keyword2, keyword3..."
@@ -989,7 +989,7 @@ export function ManualOrderForm() {
             </div>
             <div className="space-y-1">
               <Label className="text-xs flex items-center gap-1">
-                <X className="h-3 w-3 text-destructive" /> Заборонені слова
+                <X className="h-3 w-3 text-destructive" /> {t("manualOrderForm.bannedWords")}
               </Label>
               <Input
                 placeholder="crypto, free, miracle, profit..."
@@ -1001,7 +1001,7 @@ export function ManualOrderForm() {
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Тип сайту</Label>
+            <Label className="text-xs text-muted-foreground">{t("manualOrderForm.siteType")}</Label>
             <Select value={websiteType} onValueChange={v => setWebsiteType(v as typeof websiteType)}>
               <SelectTrigger className="h-9 text-xs">
                 <SelectValue />
@@ -1038,7 +1038,7 @@ export function ManualOrderForm() {
               className={`h-7 text-xs px-2 ${isBilingualMode ? "bg-blue-500 hover:bg-blue-600" : ""}`}
             >
               <Languages className="mr-1 h-3 w-3" />
-              Двомовний сайт
+              {t("manualOrderForm.bilingualSite")}
               {isBilingualMode && <span className="ml-1">✓</span>}
             </Button>
           </div>
@@ -1048,14 +1048,14 @@ export function ManualOrderForm() {
             <div className="p-3 border border-blue-500/50 bg-blue-500/5 rounded-lg space-y-3">
               <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
                 <Languages className="h-4 w-4" />
-                <span className="text-sm font-medium">Оберіть дві мови</span>
+                <span className="text-sm font-medium">{t("manualOrderForm.selectTwoLanguages")}</span>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Мова 1 <span className="text-destructive">*</span></Label>
+                  <Label className="text-xs text-muted-foreground">{t("manualOrderForm.language1")} <span className="text-destructive">*</span></Label>
                   <Select value={bilingualLang1} onValueChange={setBilingualLang1}>
                     <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Оберіть мову" />
+                      <SelectValue placeholder={t("manualOrderForm.selectLanguage")} />
                     </SelectTrigger>
                     <SelectContent>
                       {languages.filter(l => l.value !== bilingualLang2).map(lang => (
@@ -1065,10 +1065,10 @@ export function ManualOrderForm() {
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Мова 2 <span className="text-destructive">*</span></Label>
+                  <Label className="text-xs text-muted-foreground">{t("manualOrderForm.language2")} <span className="text-destructive">*</span></Label>
                   <Select value={bilingualLang2} onValueChange={setBilingualLang2}>
                     <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Оберіть мову" />
+                      <SelectValue placeholder={t("manualOrderForm.selectLanguage")} />
                     </SelectTrigger>
                     <SelectContent>
                       {languages.filter(l => l.value !== bilingualLang1).map(lang => (
@@ -1083,20 +1083,20 @@ export function ManualOrderForm() {
             /* Single language selection */
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">
-                Мова сайту <span className="text-destructive">*</span>
+                {t("manualOrderForm.siteLanguage")} <span className="text-destructive">*</span>
               </Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" className="w-full h-9 justify-between text-sm">
                     {selectedLanguages.length > 0 
                       ? languages.find(l => l.value === selectedLanguages[0])?.label || selectedLanguages[0]
-                      : "Оберіть мову"}
+                      : t("manualOrderForm.selectLanguage")}
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-64 p-2 max-h-64 overflow-y-auto">
                   <Input
-                    placeholder="Пошук..."
+                    placeholder={t("manualOrderForm.searchPlaceholder")}
                     value={langSearch}
                     onChange={e => setLangSearch(e.target.value)}
                     onKeyDown={e => e.stopPropagation()}
@@ -1120,13 +1120,13 @@ export function ManualOrderForm() {
                     className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-accent ${isOtherSelected ? "bg-accent" : ""}`}
                     onClick={() => setIsOtherSelected(true)}
                   >
-                    ✏️ Своя мова
+                    {t("manualOrderForm.customLanguage")}
                   </button>
                   {isOtherSelected && (
                     <Input
                       value={customLanguage}
                       onChange={e => setCustomLanguage(e.target.value)}
-                      placeholder="Введіть мову..."
+                      placeholder={t("manualOrderForm.enterLanguage")}
                       className="h-8 text-xs mt-1"
                     />
                   )}
@@ -1137,11 +1137,11 @@ export function ManualOrderForm() {
 
           {/* Note */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Примітка до замовлення</Label>
+            <Label className="text-xs text-muted-foreground">{t("manualOrderForm.orderNote")}</Label>
             <Textarea
               value={note}
               onChange={e => setNote(e.target.value)}
-              placeholder="Додаткові вимоги, побажання..."
+              placeholder={t("manualOrderForm.orderNotePlaceholder")}
               rows={2}
               className="resize-none text-sm"
             />
@@ -1151,7 +1151,7 @@ export function ManualOrderForm() {
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground flex items-center gap-1">
               <ImageIcon className="h-3 w-3" />
-              Зображення ({images.length}/{MAX_IMAGES})
+              {t("manualOrderForm.images")} ({images.length}/{MAX_IMAGES})
             </Label>
             <input
               ref={fileInputRef}
@@ -1202,12 +1202,12 @@ export function ManualOrderForm() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Замовлення...
+                  {t("manualOrderForm.ordering")}
                 </>
               ) : (
                 <>
                   <Hand className="mr-2 h-4 w-4" />
-                  Замовити сайт
+                  {t("manualOrderForm.orderSite")}
                   {allSiteNames.length > 1 && ` (${allSiteNames.length})`}
                   {teamPricing && (
                     <span className="ml-1 text-xs opacity-80">
@@ -1219,7 +1219,7 @@ export function ManualOrderForm() {
             </Button>
 
             {insufficientBalance && (
-              <span className="text-xs text-destructive">Недостатній баланс</span>
+              <span className="text-xs text-destructive">{t("manualOrderForm.insufficientBalance")}</span>
             )}
           </div>
         </CardContent>
