@@ -1090,7 +1090,7 @@ export function ManualOrderForm() {
                   <Button variant="outline" className="w-full h-9 justify-between text-sm">
                     {selectedLanguages.length > 0 
                       ? languages.find(l => l.value === selectedLanguages[0])?.label || selectedLanguages[0]
-                      : "Оберіть мову"}
+                      : t("manualOrderForm.selectLanguage")}
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
