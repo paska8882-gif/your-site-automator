@@ -1126,7 +1126,7 @@ export function ManualOrderForm() {
                     <Input
                       value={customLanguage}
                       onChange={e => setCustomLanguage(e.target.value)}
-                      placeholder="Введіть мову..."
+                      placeholder={t("manualOrderForm.enterLanguage")}
                       className="h-8 text-xs mt-1"
                     />
                   )}
