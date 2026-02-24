@@ -1151,7 +1151,7 @@ export function ManualOrderForm() {
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground flex items-center gap-1">
               <ImageIcon className="h-3 w-3" />
-              Зображення ({images.length}/{MAX_IMAGES})
+              {t("manualOrderForm.images")} ({images.length}/{MAX_IMAGES})
             </Label>
             <input
               ref={fileInputRef}
