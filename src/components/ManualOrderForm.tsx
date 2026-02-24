@@ -286,7 +286,7 @@ const fillRandomData = (
   const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
   
   // Random geo first (affects everything)
-  const geos = geoOptions.filter(g => g.value !== "");
+  const geos = getGeoOptions((k: string) => k).filter(g => g.value !== "");
   const geo = pick(geos);
   setSelectedGeo(geo.value);
   setIsOtherGeoSelected(false);
