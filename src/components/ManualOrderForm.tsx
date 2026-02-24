@@ -1219,7 +1219,7 @@ export function ManualOrderForm() {
             </Button>
 
             {insufficientBalance && (
-              <span className="text-xs text-destructive">Недостатній баланс</span>
+              <span className="text-xs text-destructive">{t("manualOrderForm.insufficientBalance")}</span>
             )}
           </div>
         </CardContent>
