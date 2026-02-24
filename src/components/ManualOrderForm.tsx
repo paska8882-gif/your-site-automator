@@ -707,7 +707,7 @@ export function ManualOrderForm() {
   return (
     <div className="space-y-4">
       {isGenerationBlocked && (
-        <GenerationMaintenanceBanner message={generationMessage || maintenance.message || "Замовлення тимчасово недоступне"} />
+        <GenerationMaintenanceBanner message={generationMessage || maintenance.message || t("manualOrderForm.orderUnavailable")} />
       )}
 
       <Card>
