@@ -978,7 +978,7 @@ export function ManualOrderForm() {
             </div>
             <div className="space-y-1">
               <Label className="text-xs flex items-center gap-1">
-                <Hash className="h-3 w-3" /> Ключові слова
+                <Hash className="h-3 w-3" /> {t("manualOrderForm.keywords")}
               </Label>
               <Input
                 placeholder="keyword1, keyword2, keyword3..."
