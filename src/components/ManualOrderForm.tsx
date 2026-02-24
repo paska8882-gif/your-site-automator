@@ -1052,7 +1052,7 @@ export function ManualOrderForm() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Мова 1 <span className="text-destructive">*</span></Label>
+                  <Label className="text-xs text-muted-foreground">{t("manualOrderForm.language1")} <span className="text-destructive">*</span></Label>
                   <Select value={bilingualLang1} onValueChange={setBilingualLang1}>
                     <SelectTrigger className="h-9">
                       <SelectValue placeholder="Оберіть мову" />
