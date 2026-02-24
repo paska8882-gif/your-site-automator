@@ -1055,7 +1055,7 @@ export function ManualOrderForm() {
                   <Label className="text-xs text-muted-foreground">{t("manualOrderForm.language1")} <span className="text-destructive">*</span></Label>
                   <Select value={bilingualLang1} onValueChange={setBilingualLang1}>
                     <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Оберіть мову" />
+                      <SelectValue placeholder={t("manualOrderForm.selectLanguage")} />
                     </SelectTrigger>
                     <SelectContent>
                       {languages.filter(l => l.value !== bilingualLang2).map(lang => (
