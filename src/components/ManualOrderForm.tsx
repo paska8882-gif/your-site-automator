@@ -641,8 +641,8 @@ export function ManualOrderForm() {
       }
 
       toast({
-        title: "✅ Замовлення відправлено",
-        description: `${names.length} сайт(ів) замовлено на суму $${totalPrice.toFixed(2)}`,
+        title: t("manualOrderForm.orderSent"),
+        description: t("manualOrderForm.orderSentDesc").replace("{count}", String(names.length)).replace("{total}", totalPrice.toFixed(2)),
       });
 
       // Reset form
