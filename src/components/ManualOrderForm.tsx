@@ -747,7 +747,7 @@ export function ManualOrderForm() {
               className="h-7 text-xs px-3 ml-auto"
             >
               <Shuffle className="mr-1 h-3 w-3" />
-              🎲 Рандом
+              {t("manualOrderForm.random")}
             </Button>
           </div>
 
