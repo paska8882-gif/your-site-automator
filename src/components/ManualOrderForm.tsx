@@ -806,8 +806,8 @@ export function ManualOrderForm() {
                 <Button variant="outline" className="w-full h-9 justify-between text-sm">
                   <span className="flex items-center gap-2">
                     {selectedGeo && <GeoFlag value={selectedGeo} />}
-                    {isOtherGeoSelected ? customGeo || "Своє значення" : 
-                      selectedGeo ? getGeoText(geoOptions.find(g => g.value === selectedGeo)?.label || "") : "Оберіть країну"}
+                    {isOtherGeoSelected ? customGeo || t("manualOrderForm.customValue") : 
+                      selectedGeo ? getGeoText(getGeoOptions(t).find(g => g.value === selectedGeo)?.label || "") : t("manualOrderForm.selectCountry")}
                   </span>
                   <ChevronDown className="h-4 w-4 opacity-50" />
                 </Button>
