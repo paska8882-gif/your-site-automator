@@ -785,7 +785,7 @@ export function ManualOrderForm() {
           {/* Description/Prompt */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">
-              Опис / ТЗ <span className="text-destructive">*</span>
+              {t("manualOrderForm.description")} <span className="text-destructive">*</span>
             </Label>
             <Textarea
               value={prompt}
