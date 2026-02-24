@@ -1207,7 +1207,7 @@ export function ManualOrderForm() {
               ) : (
                 <>
                   <Hand className="mr-2 h-4 w-4" />
-                  Замовити сайт
+                  {t("manualOrderForm.orderSite")}
                   {allSiteNames.length > 1 && ` (${allSiteNames.length})`}
                   {teamPricing && (
                     <span className="ml-1 text-xs opacity-80">
