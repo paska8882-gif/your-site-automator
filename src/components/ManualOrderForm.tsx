@@ -1141,7 +1141,7 @@ export function ManualOrderForm() {
             <Textarea
               value={note}
               onChange={e => setNote(e.target.value)}
-              placeholder="Додаткові вимоги, побажання..."
+              placeholder={t("manualOrderForm.orderNotePlaceholder")}
               rows={2}
               className="resize-none text-sm"
             />
