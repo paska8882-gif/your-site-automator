@@ -1120,7 +1120,7 @@ export function ManualOrderForm() {
                     className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-accent ${isOtherSelected ? "bg-accent" : ""}`}
                     onClick={() => setIsOtherSelected(true)}
                   >
-                    ✏️ Своя мова
+                    {t("manualOrderForm.customLanguage")}
                   </button>
                   {isOtherSelected && (
                     <Input
