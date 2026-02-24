@@ -933,7 +933,7 @@ export function ManualOrderForm() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs flex items-center gap-1">
-                  <Globe className="h-3 w-3" /> Домен
+                  <Globe className="h-3 w-3" /> {t("manualOrderForm.domain")}
                 </Label>
                 <Input
                   placeholder="example.com"
