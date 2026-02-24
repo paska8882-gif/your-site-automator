@@ -97,7 +97,7 @@ const getAdminNavItems = (t: (key: string) => string) => [
 
 const getSuperAdminNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.paymentDetails"), tab: "payment-details", icon: CreditCard },
-  { title: "База даних", tab: "database", icon: Database },
+  { title: t("sidebar.database"), tab: "database", icon: Database },
 ];
 
 // Compact maintenance toggle for sidebar
