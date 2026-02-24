@@ -495,7 +495,7 @@ export function ManualOrderForm() {
     for (const file of files) {
       if (!file.type.startsWith("image/")) continue;
       if (file.size > MAX_FILE_SIZE) {
-        sonnerToast.error("Файл занадто великий (макс. 5MB)");
+        sonnerToast.error(t("manualOrderForm.fileTooLarge"));
         continue;
       }
       if (images.length >= MAX_IMAGES) break;
