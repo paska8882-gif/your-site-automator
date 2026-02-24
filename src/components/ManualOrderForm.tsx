@@ -1096,7 +1096,7 @@ export function ManualOrderForm() {
                 </PopoverTrigger>
                 <PopoverContent className="w-64 p-2 max-h-64 overflow-y-auto">
                   <Input
-                    placeholder="Пошук..."
+                    placeholder={t("manualOrderForm.searchPlaceholder")}
                     value={langSearch}
                     onChange={e => setLangSearch(e.target.value)}
                     onKeyDown={e => e.stopPropagation()}
