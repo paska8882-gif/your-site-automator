@@ -661,7 +661,7 @@ export function ManualOrderForm() {
 
     } catch (error) {
       console.error("Manual order error:", error);
-      toast({ title: t("common.error"), description: "Помилка замовлення", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("manualOrderForm.orderError"), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
