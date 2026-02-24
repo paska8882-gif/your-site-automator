@@ -955,7 +955,7 @@ export function ManualOrderForm() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs flex items-center gap-1">
-                  <Phone className="h-3 w-3" /> Телефон
+                  <Phone className="h-3 w-3" /> {t("manualOrderForm.phone")}
                 </Label>
                 <Input
                   placeholder="+1 (555) 123-4567"
