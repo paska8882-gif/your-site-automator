@@ -799,7 +799,7 @@ export function ManualOrderForm() {
           {/* Geo */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground flex items-center gap-1">
-              <MapPin className="h-3 w-3" /> Географія
+              <MapPin className="h-3 w-3" /> {t("manualOrderForm.geography")}
             </Label>
             <Popover>
               <PopoverTrigger asChild>
