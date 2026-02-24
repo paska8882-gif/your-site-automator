@@ -820,7 +820,7 @@ export function ManualOrderForm() {
                   onKeyDown={e => e.stopPropagation()}
                   className="h-8 text-xs mb-2"
                 />
-                {geoOptions
+                {getGeoOptions(t)
                   .filter(g => !geoSearch || g.label.toLowerCase().includes(geoSearch.toLowerCase()))
                   .map(geo => (
                     <button
