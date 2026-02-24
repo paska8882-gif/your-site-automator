@@ -571,7 +571,7 @@ export function ManualOrderForm() {
     // Language validation
     if (isBilingualMode) {
       if (!bilingualLang1 || !bilingualLang2) {
-        toast({ title: t("common.error"), description: "Оберіть обидві мови для двомовного сайту", variant: "destructive" });
+        toast({ title: t("common.error"), description: t("manualOrderForm.selectBothLanguages"), variant: "destructive" });
         return;
       }
     } else {
