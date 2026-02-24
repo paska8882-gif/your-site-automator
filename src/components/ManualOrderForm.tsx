@@ -732,7 +732,7 @@ export function ManualOrderForm() {
                 onClick={() => setSelectedAdminTeamId("")}
                 className="text-xs text-muted-foreground"
               >
-                ← Змінити команду
+                ← {t("manualOrderForm.changeTeam").replace("← ", "")}
               </Button>
             )}
             <Button
