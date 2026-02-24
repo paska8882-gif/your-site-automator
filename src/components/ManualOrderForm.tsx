@@ -989,7 +989,7 @@ export function ManualOrderForm() {
             </div>
             <div className="space-y-1">
               <Label className="text-xs flex items-center gap-1">
-                <X className="h-3 w-3 text-destructive" /> Заборонені слова
+                <X className="h-3 w-3 text-destructive" /> {t("manualOrderForm.bannedWords")}
               </Label>
               <Input
                 placeholder="crypto, free, miracle, profit..."
