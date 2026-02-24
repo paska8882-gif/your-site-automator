@@ -1137,7 +1137,7 @@ export function ManualOrderForm() {
 
           {/* Note */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Примітка до замовлення</Label>
+            <Label className="text-xs text-muted-foreground">{t("manualOrderForm.orderNote")}</Label>
             <Textarea
               value={note}
               onChange={e => setNote(e.target.value)}
