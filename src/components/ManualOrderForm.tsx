@@ -849,7 +849,7 @@ export function ManualOrderForm() {
                   <Input
                     value={customGeo}
                     onChange={e => setCustomGeo(e.target.value)}
-                    placeholder="Введіть країну..."
+                    placeholder={t("manualOrderForm.enterCountry")}
                     className="h-8 text-xs mt-1"
                   />
                 )}
