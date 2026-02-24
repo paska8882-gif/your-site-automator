@@ -1083,7 +1083,7 @@ export function ManualOrderForm() {
             /* Single language selection */
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">
-                Мова сайту <span className="text-destructive">*</span>
+                {t("manualOrderForm.siteLanguage")} <span className="text-destructive">*</span>
               </Label>
               <Popover>
                 <PopoverTrigger asChild>
