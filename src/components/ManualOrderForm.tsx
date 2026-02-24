@@ -814,7 +814,7 @@ export function ManualOrderForm() {
               </PopoverTrigger>
               <PopoverContent className="w-64 p-2 max-h-64 overflow-y-auto">
                 <Input
-                  placeholder="Пошук..."
+                  placeholder={t("manualOrderForm.searchPlaceholder")}
                   value={geoSearch}
                   onChange={e => setGeoSearch(e.target.value)}
                   onKeyDown={e => e.stopPropagation()}
