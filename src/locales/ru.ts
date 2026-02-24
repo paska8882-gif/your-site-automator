@@ -61,6 +61,7 @@ export const ru = {
     teams: "Команды",
     sites: "Сайты",
     manualRequests: "Ручные запросы",
+    manualOrder: "Ручной заказ",
     users: "Пользователи",
     appeals: "Апелляции",
     communication: "Коммуникация",
@@ -72,6 +73,9 @@ export const ru = {
     adminMode: "Режим админа",
     buyerMode: "Режим баера",
     maintenance: "Тех. режим",
+    aiEditor: "AI Редактор",
+    pricing: "Тарифы",
+    database: "База данных",
   },
 
   auth: {

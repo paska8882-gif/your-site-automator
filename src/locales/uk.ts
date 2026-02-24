@@ -61,6 +61,7 @@ export const uk = {
     teams: "Команди",
     sites: "Сайти",
     manualRequests: "Ручні запити",
+    manualOrder: "Ручне замовлення",
     users: "Користувачі",
     appeals: "Апеляції",
     communication: "Комунікація",
@@ -72,6 +73,9 @@ export const uk = {
     adminMode: "Режим адміна",
     buyerMode: "Режим баєра",
     maintenance: "Тех. режим",
+    aiEditor: "AI Редактор",
+    pricing: "Тарифи",
+    database: "База даних",
   },
 
   auth: {
