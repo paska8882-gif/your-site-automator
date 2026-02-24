@@ -71,7 +71,7 @@ import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
 
 const getMainNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.generator"), url: "/", icon: Sparkles },
-  { title: "Ручне замовлення", url: "/manual-order", icon: Hand },
+  { title: t("sidebar.manualOrder"), url: "/manual-order", icon: Hand },
   { title: t("sidebar.history"), url: "/history", icon: History },
   { title: t("sidebar.spends"), url: "/spends", icon: TrendingUp },
   { title: t("sidebar.balance"), url: "/balance", icon: Wallet },
@@ -83,8 +83,8 @@ const getAdminNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.teams"), tab: "teams", icon: Users },
   { title: t("sidebar.sites"), tab: "sites", icon: FileCode },
   { title: t("sidebar.manualRequests"), tab: "manual-requests", icon: FileCode, highlight: "purple" },
-  { title: "Генератор Beta", tab: "__n8n__", icon: Bot, url: "/n8n-generator", highlight: "cyan" },
-  { title: "AI Редактор", tab: "ai-editor", icon: Bot, highlight: "violet" },
+  { title: t("sidebar.n8nGenerator"), tab: "__n8n__", icon: Bot, url: "/n8n-generator", highlight: "cyan" },
+  { title: t("sidebar.aiEditor"), tab: "ai-editor", icon: Bot, highlight: "violet" },
   { title: t("sidebar.users"), tab: "users", icon: UserCog },
   { title: t("sidebar.appeals"), tab: "appeals", icon: MessageSquare },
   { title: t("sidebar.communication"), tab: "communication", icon: MessageCircle },
@@ -92,12 +92,12 @@ const getAdminNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.referrals"), tab: "referral", icon: Gift },
   { title: t("sidebar.finance"), tab: "finance", icon: DollarSign },
   { title: t("sidebar.admins"), tab: "admin", icon: Settings },
-  { title: "Тарифи", tab: "__pricing__", icon: Tag, url: "/pricing" },
+  { title: t("sidebar.pricing"), tab: "__pricing__", icon: Tag, url: "/pricing" },
 ];
 
 const getSuperAdminNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.paymentDetails"), tab: "payment-details", icon: CreditCard },
-  { title: "База даних", tab: "database", icon: Database },
+  { title: t("sidebar.database"), tab: "database", icon: Database },
 ];
 
 // Compact maintenance toggle for sidebar

@@ -550,7 +550,7 @@ export function ManualOrderForm() {
   // Submit manual order
   const handleSubmit = async () => {
     if (isGenerationBlocked) {
-      toast({ title: "🔧 Технічне обслуговування", description: "Замовлення тимчасово недоступне.", variant: "destructive" });
+      toast({ title: "🔧 " + t("maintenanceBanner.title"), description: t("manualOrder.maintenanceBlocked"), variant: "destructive" });
       return;
     }
 
