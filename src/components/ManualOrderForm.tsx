@@ -861,7 +861,7 @@ export function ManualOrderForm() {
           <div className="p-3 border border-amber-500/30 bg-amber-500/5 rounded-lg space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                <Crown className="h-3 w-3" /> Деталі сайту
+                <Crown className="h-3 w-3" /> {t("manualOrderForm.siteDetails")}
               </span>
               {(() => {
                 const hasAllFilled = vipDomain.trim() && vipAddress.trim() && vipPhone.trim() && vipTopic.trim() && vipKeywords.trim() && vipBannedWords.trim();
