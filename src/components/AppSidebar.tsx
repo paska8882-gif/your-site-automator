@@ -92,7 +92,7 @@ const getAdminNavItems = (t: (key: string) => string) => [
   { title: t("sidebar.referrals"), tab: "referral", icon: Gift },
   { title: t("sidebar.finance"), tab: "finance", icon: DollarSign },
   { title: t("sidebar.admins"), tab: "admin", icon: Settings },
-  { title: "Тарифи", tab: "__pricing__", icon: Tag, url: "/pricing" },
+  { title: t("sidebar.pricing"), tab: "__pricing__", icon: Tag, url: "/pricing" },
 ];
 
 const getSuperAdminNavItems = (t: (key: string) => string) => [
