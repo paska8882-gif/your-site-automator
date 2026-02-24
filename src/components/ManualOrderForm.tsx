@@ -714,7 +714,7 @@ export function ManualOrderForm() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Hand className="h-5 w-5 text-purple-500" />
-            Замовити сайт вручну
+            {t("manualOrderForm.orderSiteManually")}
             {teamPricing && (
               <Badge variant="outline" className="ml-auto font-normal">
                 {teamPricing.teamName} · ${teamPricing.balance.toFixed(2)}
