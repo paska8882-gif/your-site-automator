@@ -944,7 +944,7 @@ export function ManualOrderForm() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs flex items-center gap-1">
-                  <Building2 className="h-3 w-3" /> Адреса
+                  <Building2 className="h-3 w-3" /> {t("manualOrderForm.address")}
                 </Label>
                 <Input
                   placeholder="100 Main Street, City, Country"
