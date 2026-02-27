@@ -2022,6 +2022,8 @@ export function WebsiteGenerator() {
       const aiModel = selectedAiModels.length > 0 ? selectedAiModels[0] : "senior";
       
       // Create manual request records
+      const manualPrice = teamPricing.manualPrice || 14;
+      
       for (const siteName of siteNames) {
         const { error } = await supabase.from("generation_history").insert({
           prompt: prompt.trim(),
@@ -2036,7 +2038,8 @@ export function WebsiteGenerator() {
           user_id: user?.id,
           image_source: "manual",
           admin_note: note || null,
-          vip_images: imageUrls.length > 0 ? imageUrls : null
+          vip_images: imageUrls.length > 0 ? imageUrls : null,
+          sale_price: manualPrice
         });
 
         if (error) throw error;
