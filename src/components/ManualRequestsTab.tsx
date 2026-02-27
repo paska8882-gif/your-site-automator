@@ -85,6 +85,7 @@ interface TeamPricing {
   team_id: string;
   html_price: number;
   react_price: number;
+  manual_price: number;
 }
 
 interface AdminStats {
@@ -160,7 +161,7 @@ const fetchManualRequests = async () => {
 const fetchTeamsData = async () => {
   const [teamsRes, pricingsRes] = await Promise.all([
     supabase.from("teams").select("id, name, balance").order("name"),
-    supabase.from("team_pricing").select("team_id, html_price, react_price")
+    supabase.from("team_pricing").select("team_id, html_price, react_price, manual_price")
   ]);
   return { teams: teamsRes.data || [], pricings: pricingsRes.data || [] };
 };
@@ -508,8 +509,8 @@ export function ManualRequestsTab() {
   const handleOpenUpload = (item: ManualRequest) => {
     const pricing = item.team_id ? teamPricings.find(p => p.team_id === item.team_id) : null;
     const defaultPrice = pricing 
-      ? (item.website_type === "react" ? pricing.react_price : pricing.html_price)
-      : 0;
+      ? (pricing.manual_price || (item.website_type === "react" ? pricing.react_price : pricing.html_price))
+      : (item.sale_price || 0);
 
     setUploadItem(item);
     setUploadPrice(defaultPrice);
