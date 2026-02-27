@@ -1116,7 +1116,7 @@ export function WebsiteGenerator() {
       // Get team pricing
       const { data: pricing } = await supabase
         .from("team_pricing")
-        .select("html_price, react_price, vip_extra_price")
+        .select("html_price, react_price, vip_extra_price, manual_price")
         .eq("team_id", membership.team_id)
         .maybeSingle();
 
@@ -1128,7 +1128,8 @@ export function WebsiteGenerator() {
           creditLimit: team.credit_limit || 0,
           htmlPrice: pricing?.html_price || 7,
           reactPrice: pricing?.react_price || 9,
-          vipExtraPrice: pricing?.vip_extra_price || 2
+          vipExtraPrice: pricing?.vip_extra_price || 2,
+          manualPrice: pricing?.manual_price || 14
         });
       }
     };
