@@ -59,6 +59,7 @@ interface TeamPricing {
   htmlPrice: number;
   reactPrice: number;
   vipExtraPrice: number;
+  manualPrice: number;
 }
 
 interface AdminTeam {
@@ -976,7 +977,7 @@ export function WebsiteGenerator() {
 
       const { data: pricing } = await supabase
         .from("team_pricing")
-        .select("html_price, react_price, vip_extra_price")
+        .select("html_price, react_price, vip_extra_price, manual_price")
         .eq("team_id", selectedAdminTeamId)
         .maybeSingle();
 
@@ -987,7 +988,8 @@ export function WebsiteGenerator() {
         creditLimit: selectedTeam.credit_limit || 0,
         htmlPrice: pricing?.html_price || 7,
         reactPrice: pricing?.react_price || 9,
-        vipExtraPrice: pricing?.vip_extra_price || 2
+        vipExtraPrice: pricing?.vip_extra_price || 2,
+        manualPrice: pricing?.manual_price || 14
       });
     };
 
@@ -1114,7 +1116,7 @@ export function WebsiteGenerator() {
       // Get team pricing
       const { data: pricing } = await supabase
         .from("team_pricing")
-        .select("html_price, react_price, vip_extra_price")
+        .select("html_price, react_price, vip_extra_price, manual_price")
         .eq("team_id", membership.team_id)
         .maybeSingle();
 
@@ -1126,7 +1128,8 @@ export function WebsiteGenerator() {
           creditLimit: team.credit_limit || 0,
           htmlPrice: pricing?.html_price || 7,
           reactPrice: pricing?.react_price || 9,
-          vipExtraPrice: pricing?.vip_extra_price || 2
+          vipExtraPrice: pricing?.vip_extra_price || 2,
+          manualPrice: pricing?.manual_price || 14
         });
       }
     };
@@ -2019,6 +2022,8 @@ export function WebsiteGenerator() {
       const aiModel = selectedAiModels.length > 0 ? selectedAiModels[0] : "senior";
       
       // Create manual request records
+      const manualPrice = teamPricing.manualPrice || 14;
+      
       for (const siteName of siteNames) {
         const { error } = await supabase.from("generation_history").insert({
           prompt: prompt.trim(),
@@ -2033,7 +2038,8 @@ export function WebsiteGenerator() {
           user_id: user?.id,
           image_source: "manual",
           admin_note: note || null,
-          vip_images: imageUrls.length > 0 ? imageUrls : null
+          vip_images: imageUrls.length > 0 ? imageUrls : null,
+          sale_price: manualPrice
         });
 
         if (error) throw error;
