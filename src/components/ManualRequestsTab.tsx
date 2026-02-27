@@ -161,7 +161,7 @@ const fetchManualRequests = async () => {
 const fetchTeamsData = async () => {
   const [teamsRes, pricingsRes] = await Promise.all([
     supabase.from("teams").select("id, name, balance").order("name"),
-    supabase.from("team_pricing").select("team_id, html_price, react_price")
+    supabase.from("team_pricing").select("team_id, html_price, react_price, manual_price")
   ]);
   return { teams: teamsRes.data || [], pricings: pricingsRes.data || [] };
 };
