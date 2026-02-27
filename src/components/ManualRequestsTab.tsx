@@ -85,6 +85,7 @@ interface TeamPricing {
   team_id: string;
   html_price: number;
   react_price: number;
+  manual_price: number;
 }
 
 interface AdminStats {
