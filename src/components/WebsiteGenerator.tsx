@@ -59,6 +59,7 @@ interface TeamPricing {
   htmlPrice: number;
   reactPrice: number;
   vipExtraPrice: number;
+  manualPrice: number;
 }
 
 interface AdminTeam {
