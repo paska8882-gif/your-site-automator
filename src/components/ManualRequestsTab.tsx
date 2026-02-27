@@ -509,8 +509,8 @@ export function ManualRequestsTab() {
   const handleOpenUpload = (item: ManualRequest) => {
     const pricing = item.team_id ? teamPricings.find(p => p.team_id === item.team_id) : null;
     const defaultPrice = pricing 
-      ? (item.website_type === "react" ? pricing.react_price : pricing.html_price)
-      : 0;
+      ? (pricing.manual_price || (item.website_type === "react" ? pricing.react_price : pricing.html_price))
+      : (item.sale_price || 0);
 
     setUploadItem(item);
     setUploadPrice(defaultPrice);
