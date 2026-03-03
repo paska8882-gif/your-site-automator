@@ -90,7 +90,6 @@ const Index = () => {
             borderRadius: "0.5rem",
             background: "hsl(0 0% 95%)",
             color: "#111",
-            color: "#fff",
             fontWeight: 600,
             fontSize: "1.125rem",
             textDecoration: "none",
