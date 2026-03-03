@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { ExternalLink } from "lucide-react";
 
 const Index = () => {
   const [countdown, setCountdown] = useState(5);
@@ -20,51 +19,98 @@ const Index = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/5 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/3 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
-      </div>
-
-      <div className="relative z-10 max-w-lg w-full text-center space-y-8">
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, hsl(222 47% 11%) 0%, hsl(215 28% 17%) 25%, hsl(215 25% 27%) 50%, hsl(215 28% 17%) 75%, hsl(222 47% 11%) 100%)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "1rem",
+        fontFamily: "system-ui, -apple-system, sans-serif",
+      }}
+    >
+      <div style={{ maxWidth: "28rem", width: "100%", textAlign: "center" }}>
         {/* Dragon emoji */}
-        <div className="text-7xl mb-2 animate-bounce" style={{ animationDuration: "2s" }}>
-          🐉
-        </div>
+        <div style={{ fontSize: "5rem", marginBottom: "1.5rem" }}>🐉</div>
 
         {/* Title */}
-        <div className="space-y-3">
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
-            dragon.white
-          </h1>
-          <div className="h-px w-16 mx-auto bg-border" />
-        </div>
+        <h1
+          style={{
+            fontSize: "2.25rem",
+            fontWeight: 700,
+            color: "#e2e8f0",
+            letterSpacing: "-0.025em",
+            marginBottom: "0.5rem",
+          }}
+        >
+          dragon.white
+        </h1>
+
+        <div
+          style={{
+            height: "1px",
+            width: "4rem",
+            margin: "1rem auto",
+            background: "hsl(220 40% 30%)",
+          }}
+        />
 
         {/* Message */}
-        <div className="space-y-4 px-4">
-          <p className="text-lg text-foreground font-medium">
-            🚀 Ми переїхали на новий домен!
-          </p>
-          <p className="text-muted-foreground leading-relaxed">
-            Дякуємо, що Ви з нами! Наш сервіс тепер доступний за новою адресою.
-            Ми продовжуємо розвиватися для вас 💪
-          </p>
-        </div>
+        <p
+          style={{
+            fontSize: "1.25rem",
+            color: "#e2e8f0",
+            fontWeight: 500,
+            marginBottom: "1rem",
+          }}
+        >
+          🚀 Ми переїхали на новий домен!
+        </p>
 
-        {/* New domain link */}
+        <p
+          style={{
+            color: "hsl(220 30% 60%)",
+            lineHeight: 1.7,
+            marginBottom: "2rem",
+          }}
+        >
+          Дякуємо, що Ви з нами! Наш сервіс тепер доступний за новою адресою.
+          Ми продовжуємо розвиватися для вас 💪
+        </p>
+
+        {/* Link button */}
         <a
           href="https://dragon-white.com"
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold text-lg hover:opacity-90 transition-opacity"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            padding: "0.75rem 1.5rem",
+            borderRadius: "0.5rem",
+            background: "hsl(221 83% 53%)",
+            color: "#fff",
+            fontWeight: 600,
+            fontSize: "1.125rem",
+            textDecoration: "none",
+            transition: "opacity 0.2s",
+          }}
         >
-          dragon-white.com
-          <ExternalLink className="h-5 w-5" />
+          dragon-white.com ↗
         </a>
 
         {/* Countdown */}
-        <p className="text-sm text-muted-foreground">
+        <p
+          style={{
+            marginTop: "1.5rem",
+            fontSize: "0.875rem",
+            color: "hsl(220 30% 60%)",
+          }}
+        >
           Автоматичне перенаправлення через{" "}
-          <span className="font-mono font-bold text-foreground">{countdown}</span>{" "}
+          <span style={{ fontFamily: "monospace", fontWeight: 700, color: "#e2e8f0" }}>
+            {countdown}
+          </span>{" "}
           сек...
         </p>
       </div>
