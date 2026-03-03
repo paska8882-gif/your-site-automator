@@ -22,7 +22,7 @@ const Index = () => {
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, hsl(222 47% 11%) 0%, hsl(215 28% 17%) 25%, hsl(215 25% 27%) 50%, hsl(215 28% 17%) 75%, hsl(222 47% 11%) 100%)",
+        background: "linear-gradient(135deg, hsl(0 0% 2%) 0%, hsl(0 0% 8%) 25%, hsl(0 0% 12%) 50%, hsl(0 0% 8%) 75%, hsl(0 0% 2%) 100%)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
