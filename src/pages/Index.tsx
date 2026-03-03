@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import dragonLogo from "@/assets/dragon-logo.png";
 
 const Index = () => {
   const [countdown, setCountdown] = useState(5);
@@ -31,8 +32,14 @@ const Index = () => {
       }}
     >
       <div style={{ maxWidth: "28rem", width: "100%", textAlign: "center" }}>
-        {/* Dragon emoji */}
-        <div style={{ fontSize: "5rem", marginBottom: "1.5rem" }}>🐉</div>
+        {/* Dragon logo */}
+        <div style={{ marginBottom: "1.5rem" }}>
+          <img
+            src={dragonLogo}
+            alt="Dragon White"
+            style={{ width: "120px", height: "120px", margin: "0 auto", filter: "invert(1)" }}
+          />
+        </div>
 
         {/* Title */}
         <h1
