@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import dragonLogo from "@/assets/dragon-logo.png";
 
 const Index = () => {
   const [countdown, setCountdown] = useState(5);
